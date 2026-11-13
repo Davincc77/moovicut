@@ -17,11 +17,12 @@ export function createModelRegistry(adapters = []) {
 
 const grok = {
   id: 'grok', label: 'Grok Imagine', note: 'Natural, cinematic', mark: '𝕏', markClass: 'x-glyph',
-  compose({ shot, project, premise, aspect, duration, genre, style }) {
+  compose({ shot, project, premise, aspect, duration, genre, style, lockedStyle }) {
+    const look = lockedStyle || `${genre.look}, ${style.suffix}`
     return [
       `Create a ${duration}-second ${aspect} shot.`,
       `${shot.framing || 'Medium shot'} of ${endSentence(shot.action || sentence(premise))}.`,
-      `CAMERA: ${shot.camera || 'Slow cinematic camera move'}, ${shot.lens || '35mm lens'}. STYLE: ${genre.look}, ${style.suffix}.`,
+      `CAMERA: ${shot.camera || 'Slow cinematic camera move'}, ${shot.lens || '35mm lens'}. STYLE: ${look}.`,
       `${endSentence(shot.lighting || 'cinematic dimensional light')}. ${shot.directions || 'Natural action, deliberate movement and a consistent cinematic tone.'}`,
       `Continuity: ${endSentence(shot.continuity || 'Preserve established appearance, geography and lighting')}. ${endSentence(shot.sound || shot.cue || 'natural environmental ambience')}. ${duration}s, ${aspect}. No captions, titles, logos or watermarks.`
     ].join('\n')
@@ -29,12 +30,13 @@ const grok = {
 }
 const google = {
   id: 'google', label: 'Google (Veo / Gemini)', note: 'Veo / Gemini', mark: 'G', markClass: 'google-glyph',
-  compose({ shot, index, premise, aspect, duration, genre, style }) {
+  compose({ shot, index, premise, aspect, duration, genre, style, lockedStyle }) {
+    const look = lockedStyle || `${genre.look}. ${style.suffix}`
     return [
       `SCENE: ${sentence(shot.title || `Shot ${index + 1}`)}. ${endSentence(shot.action || premise)}.`,
       `CAMERA: ${shot.framing || 'Medium shot'}, ${shot.camera || 'Slow push-in'}, ${shot.lens || '35mm lens'}.`,
       `LIGHTING: ${shot.lighting || 'motivated cinematic light with dimensional shadows'}.`,
-      `STYLE: ${genre.look}. ${style.suffix}. ${aspect}.`,
+      `STYLE: ${look}. ${aspect}.`,
       `ACTION: ${shot.directions || 'The action unfolds with natural movement and a restrained cinematic performance.'}`,
       `AUDIO: ${shot.sound || shot.cue || 'environmental ambience and a restrained score'}.`,
       `CONTINUITY: ${shot.continuity || 'Match the established character, location and lighting across the story.'}`,

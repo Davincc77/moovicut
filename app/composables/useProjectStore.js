@@ -1,6 +1,6 @@
 /* Explicit imports keep these shared helpers available to the browser and the CLI. */
 import { createPreferences } from '../utils/preferences.js'
-import { canonicalModel, createStoryboard, normalizeProject, regenerateShotPrompts, addShot, assignShotStages, createPrompt, serializeProject, STARTER, validateProject } from '../utils/prompt-engine.js'
+import { canonicalAspect, canonicalModel, createStoryboard, normalizeProject, regenerateShotPrompts, addShot, assignShotStages, createPrompt, serializeProject, STARTER, validateProject } from '../utils/prompt-engine.js'
 const clone = value => JSON.parse(JSON.stringify(value))
 const STORAGE_KEY = 'shotboard.projects.v1'
 const CURRENT_KEY = 'shotboard.current.v1'
@@ -139,6 +139,13 @@ export function useProjectStore() {
     const next = createStoryboard({ ...options, premise, model }); commit(next, 'Your storyboard is ready. Make it yours.'); return next
   }
   function selectModel(model) { const next = canonicalModel(model); if (!next || next === project.value.model) return; commit(regenerateShotPrompts(project.value, next), `Prompts adapted for ${next === 'grok' ? 'Grok Imagine' : 'Google (Veo / Gemini)'}`) }
+  function applyPromptSettings(patch = {}) {
+    mutate(next => {
+      if (patch.aspectRatio) next.aspectRatio = canonicalAspect(patch.aspectRatio)
+      if (next.sequenceMode === 'continuous' && (patch.continuityStrength === 'strict' || patch.continuityStrength === 'standard')) next.continuityStrength = patch.continuityStrength
+      next.shots = next.shots.map((shot, index) => ({ ...shot, prompt: createPrompt(shot, next, index) }))
+    }, 'Shot prompts updated on this device.')
+  }
   function updateContinuity(field, value) { mutate(next => { next.continuitySheet = { ...(next.continuitySheet || {}), [field]: value }; next.shots = next.shots.map((shot, index) => ({ ...shot, prompt: createPrompt(shot, next, index) })) }, 'Continuity sheet updated. Every shot prompt now matches it.') }
   function updateShot(id, field, value, regenerate = true) { mutate(next => {
     const index = next.shots.findIndex(shot => shot.id === id); if (index < 0) throw new Error(`Shot not found: ${id}`)
@@ -218,7 +225,7 @@ export function useProjectStore() {
     imported.id = savedProjects.value.some(item => item.id === imported.id) ? `imported-${Date.now().toString(36)}` : imported.id
     commit({ ...imported, title: imported.title || 'Imported story' }, 'Storyboard imported successfully'); return imported
   }
-  const api = { project, hydrated, saving, saveState, settings, setPreference, attachReference, history, future, shotCount, duration, canUndo, hydrate, persist, commit, mutate, createNew, selectModel, updateShot, updateShotFields, updateContinuity, removeShot, moveShot, insertShot, addShotAtEnd, undo, redo, loadProject, removeSavedProject, resetWorkspace, restoreBackup, setIdentity, saveLocalIdentity, setGuestIdentity, importProject, serialized: computed(() => serializeProject(project.value)) }
+  const api = { project, hydrated, saving, saveState, settings, setPreference, attachReference, history, future, shotCount, duration, canUndo, hydrate, persist, commit, mutate, createNew, selectModel, applyPromptSettings, updateShot, updateShotFields, updateContinuity, removeShot, moveShot, insertShot, addShotAtEnd, undo, redo, loadProject, removeSavedProject, resetWorkspace, restoreBackup, setIdentity, saveLocalIdentity, setGuestIdentity, importProject, serialized: computed(() => serializeProject(project.value)) }
   Object.defineProperty(api, 'identity', { enumerable: true, get: () => identity.value })
   // Return an array property, not a ref: Vue templates unwrap refs exposed from setup.
   // A single getter/setter keeps the page, store and storage lifecycle in agreement.
