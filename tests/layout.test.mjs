@@ -38,7 +38,7 @@ test('core tools are free, support opens Buy Me a Coffee and dark mode is saved'
 test('core workflow has no feature quota and preserves old workspace backups', () => {
   assert.doesNotMatch(store,/length\s*>=\s*48|slice\(0,\s*40\)|slice\(0,\s*5\)/)
   assert.match(store,/backup\.schema/)
-  assert.match(source('app/utils/prompt-engine.js'),/Math\.max\(1, Math\.floor\(Number\(options\.count\) \|\| 6\)\)/)
+  assert.match(source('app/utils/prompt-engine.js'),/canonicalShotCount\(options\.count\)/)
   assert.doesNotMatch(source('app/utils/prompt-engine.js'),/project\.shots\.length > 48/)
 })
 

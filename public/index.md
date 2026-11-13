@@ -5,8 +5,9 @@ Moovicut is a free, local-first storyboard and shot list for short films. It doe
 ## Start
 
 - `/` explains the local planning workflow.
-- `/studio` creates and edits storyboards. The open studio page exposes `window.Shotboard` (and the `window.Moovicut` alias) for in-page automation. There is no public developer guide.
+- `/studio` creates and edits storyboards. The open studio page exposes `window.Shotboard` (and the `window.Moovicut` alias) for in-page automation. The default board is 5 scenes × 3 seconds. Step-by-step mode, off by default, edits each scene.
 - `/faq` answers common questions in English.
+- `/agents` documents `POST /mcp`, `GET /openapi.json`, and `POST /api/v1/storyboard`. `/agents.md` and `/.well-known/mcp.json` are the text and discovery files. No API key is required, and premises are not stored.
 - Optional tips open https://buymeacoffee.com/enzoc1977r in a new tab. Moovicut does not take payment itself.
 
 A premise becomes an ordered shot list. Camera, lens, framing, action, lighting, sound, continuity, and the complete prompt are editable. The prompts work with Grok Imagine, Google, or any other AI image or video model. Grok Imagine and Google are the prompt-format targets in the picker, not bundled generation services.
@@ -18,7 +19,7 @@ Older addresses such as `/dashboard/ai-video/home`, `/desktop`, `/pricing`, `/pr
 ## Commands
 
 ```sh
-node cli/moovicut.mjs --premise "A lighthouse keeper races the dusk." --model google --shots 6 --output storyboard.json
+node cli/moovicut.mjs --premise "A lighthouse keeper races the dusk." --model google --output storyboard.json
 node cli/moovicut.mjs --input storyboard.json --export-prompts
 ```
 

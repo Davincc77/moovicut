@@ -4,12 +4,25 @@ PURPOSE
 Moovicut prepares an editable storyboard and shot list. It does not generate video.
 
 BROWSER AUTOMATION
-The open studio page (`/studio`) exposes window.Shotboard (window.Moovicut is the same object). Use capabilities() to inspect supported actions and getProject() to read the current project. createProject({ premise, model }) creates a storyboard. updateShot(id, patch), reorderShot(id, direction) and deleteShot(id) edit the board. exportJSON() returns a portable project document. This is an in-page API, not a public network service.
+The open studio page (`/studio`) exposes window.Shotboard (window.Moovicut is the same object). Use capabilities() to inspect supported actions and getProject() to read the current project. createProject({ premise, model }) creates a storyboard. updateShot(id, patch), reorderShot(id, direction) and deleteShot(id) edit the board. exportJSON() returns a portable project document. This is an in-page API. The public network API is separate and stateless.
+
+DEFAULT BOARD
+A new board is 5 scenes × 3 seconds (15s total) unless shots, duration, or scenes say otherwise. 30s is 10 × 3s. 60s is 20 × 3s. Step-by-step mode in /studio edits each scene. Agents pass the same controls to POST /api/v1/storyboard or the MCP tool plan_storyboard.
+
+REMOTE API
+POST /api/v1/storyboard accepts premise, model, shots, mode or sequenceMode, continuity, density, aspectRatio, genre, style, duration, compact, and an optional scenes array. compact:true or ?compact=1 returns title, premise, model, aspectRatio, studioUrl, and shots of order, duration, and prompt. studioUrl is a /studio#board= link. The hash is not stored.
+GET /openapi.json is the OpenAPI 3.1 document.
+POST /mcp is stateless MCP (initialize, tools/list, tools/call). Tools: plan_storyboard, export_prompts, validate_storyboard. GET /mcp describes it. /.well-known/mcp.json is discovery.
+GET /agents and /agents.md explain when to use each one.
+No API key. 30 requests per minute per IP. No database. Premises are not stored.
+Custom scenes example:
+{"premise":"A lighthouse keeper races the dusk to repair a failing beacon.","model":"grok","scenes":[{"action":"Wide view of the lighthouse at dusk","duration":3,"camera":"Slow push-in","lighting":"Blue hour"},{"action":"Close on the keeper repairing the lens","duration":4,"notes":"Wind on the gallery"}]}
 
 CLI
-node cli/moovicut.mjs --premise "A lighthouse keeper races the dusk." --model google --shots 6 --output storyboard.json
+node cli/moovicut.mjs --premise "A lighthouse keeper races the dusk." --model google --output storyboard.json
+node cli/moovicut.mjs --premise "A lighthouse keeper races the dusk." --model google --shots 4 --duration 3 --output storyboard.json
 node cli/moovicut.mjs --input storyboard.json --export-prompts
-The shotboard command runs the same program.
+The shotboard command runs the same program. Omitting --shots and --duration plans 5 scenes of 3 seconds.
 
 DOCUMENT CONTRACT
 The flat shotboard.v1 document includes id, title, premise, model/target_model, aspectRatio and shots. Each shot includes a stable id/shot_id, numeric order, framing, lens, camera, action, lighting, sound, continuity, duration/duration_seconds and prompt. Preserve user-edited prompt text when reordering. Validate imported documents. Do not send prompts to a model unless the person chooses to paste them.

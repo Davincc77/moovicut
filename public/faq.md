@@ -24,6 +24,9 @@ Yes. Planning, editing, and JSON export are free. There is no subscription. Opti
 ## Are visits counted?
 Anonymous, cookieless visit counts via Cloudflare Web Analytics; storyboards never leave the device.
 
+## Can an AI agent build a storyboard?
+Yes. The default board is 5 scenes of 3 seconds (15s total). Step-by-step mode in `/studio`, or a `shots` count or `scenes` array on `POST /api/v1/storyboard` and `/mcp`, builds a custom scene list. Open `/agents` for the endpoints. No API key and no account.
+
 ## What happens if browser storage is unavailable?
 The studio reports the failure instead of claiming the save worked. Export JSON if you want a copy outside the browser.
 

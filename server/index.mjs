@@ -4,6 +4,7 @@ import { dirname, join, resolve, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { createVisitStore, normalizePath, tokensMatch } from './visits.mjs'
 import { legacyRedirectTarget } from './prod-server.mjs'
+import { createRateLimiter, handleAgentHttp, isAgentPath, isLimitedPath, publicOrigin, clientAddress } from './agent-api.mjs'
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const TYPES = {
@@ -41,12 +42,6 @@ function withBase(base, location) {
   const search = queryAt === -1 ? '' : location.slice(queryAt)
   const joined = path === '/' ? base : `${base}${path}`
   return `${joined}${search}`
-}
-
-function clientAddress(request) {
-  const forwarded = request.headers['x-forwarded-for']
-  if (typeof forwarded === 'string' && forwarded.trim()) return forwarded.split(',')[0].trim().slice(0, 80)
-  return request.socket?.remoteAddress || ''
 }
 
 function sendJson(response, status, body) {
@@ -151,13 +146,21 @@ export function statsPage(base) {
 </html>`
 }
 
-export function createVisitServer({ store, token = '', staticRoot = join(rootDir, 'dist'), baseURL = '/', logger = () => {} } = {}) {
+export function createVisitServer({ store, token = '', staticRoot = join(rootDir, 'dist'), baseURL = '/', logger = () => {}, limiter = createRateLimiter() } = {}) {
   const base = appBase(baseURL)
   return createServer(async (request, response) => {
     const url = new URL(request.url || '/', 'http://localhost')
     const route = stripBase(url.pathname, base)
     logger(`${request.method} ${route}`)
     try {
+      if (isLimitedPath(route) && request.method !== 'OPTIONS' && !limiter.allow(clientAddress(request.headers, request.socket?.remoteAddress))) {
+        sendJson(response, 429, { error: 'rate_limited', message: 'Too many requests from this address. Try again in a minute.' })
+        return
+      }
+      if (isAgentPath(route)) {
+        await handleAgentHttp(request, response, { pathname: route, searchParams: url.searchParams, origin: publicOrigin(request.headers), limiter: { allow: () => true } })
+        return
+      }
       if (request.method === 'GET' || request.method === 'HEAD') {
         const redirect = legacyRedirectTarget(route, url.search)
         if (redirect) {
@@ -187,7 +190,7 @@ export function createVisitServer({ store, token = '', staticRoot = join(rootDir
         let payload = {}
         try { payload = JSON.parse(await readBody(request) || '{}') } catch { sendJson(response, 400, { error: 'invalid_json' }); return }
         const result = store.record({
-          address: clientAddress(request),
+          address: clientAddress(request.headers, request.socket?.remoteAddress),
           userAgent: request.headers['user-agent'] || '',
           path: payload.path,
           referrer: payload.referrer,

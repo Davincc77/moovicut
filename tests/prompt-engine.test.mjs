@@ -1,9 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createStoryboard, createPrompt, serializeProject, validateProject, normalizeProject, detectGenre, inferSequenceMode, shotStages, addShot, formatContinuitySheet, ideaAnchor } from '../app/utils/prompt-engine.js'
-test('six-shot breakdown carries premise through every editable shot', () => { const project=createStoryboard({premise:'A lone astronaut discovers a light beneath the ice and must decide whether to answer it.'}); assert.equal(project.shots.length,6); assert.equal(project.genre,'scifi'); project.shots.forEach((shot,index)=>{assert.equal(shot.shot_id,`shot-${String(index+1).padStart(2,'0')}`);assert.ok(shot.prompt.toLowerCase().includes('camera'));assert.ok(shot.prompt.toLowerCase().includes('continuity:'));assert.ok(shot.action.length>12)}) })
-test('model switch produces model-specific structured prompts', () => { const project=createStoryboard({premise:'A violinist follows a peculiar note through an empty railway station after midnight.',model:'grok'}); const grok=project.shots[0].prompt; project.model='google'; project.shots[0].prompt=createPrompt(project.shots[0],project,0); assert.notEqual(grok,project.shots[0].prompt);assert.ok(project.shots[0].prompt.includes('LIGHTING:'));assert.ok(project.shots[0].prompt.includes('SCENE:'));assert.ok(grok.includes('Continuity:'));assert.ok(grok.includes('6-second')) })
-test('removing and normalizing gives stable shot order and ids', () => { const project=createStoryboard({premise:'A mapmaker climbs a forgotten mountain observatory and finds an uncharted valley.'}); project.shots.splice(1,1);const normalized=normalizeProject(project);assert.equal(normalized.shots.length,5);normalized.shots.forEach((shot,index)=>assert.equal(shot.order,index+1));assert.equal(new Set(normalized.shots.map(shot=>shot.shot_id)).size,5) })
+import { createStoryboard, createPrompt, serializeProject, validateProject, normalizeProject, detectGenre, inferSequenceMode, shotStages, addShot, formatContinuitySheet, ideaAnchor, parseCharacter, parsePlace, DURATION_PRESETS } from '../app/utils/prompt-engine.js'
+test('five-scene default carries premise through every editable shot', () => { const project=createStoryboard({premise:'A lone astronaut discovers a light beneath the ice and must decide whether to answer it.'}); assert.equal(project.shots.length,5); assert.equal(project.duration,3); assert.equal(project.shots[0].duration,3); assert.equal(project.genre,'scifi'); project.shots.forEach((shot,index)=>{assert.equal(shot.shot_id,`shot-${String(index+1).padStart(2,'0')}`);assert.ok(shot.prompt.toLowerCase().includes('camera'));assert.ok(shot.prompt.toLowerCase().includes('continuity:'));assert.ok(shot.action.length>12)}) })
+test('model switch produces model-specific structured prompts', () => { const project=createStoryboard({premise:'A violinist follows a peculiar note through an empty railway station after midnight.',model:'grok'}); const grok=project.shots[0].prompt; project.model='google'; project.shots[0].prompt=createPrompt(project.shots[0],project,0); assert.notEqual(grok,project.shots[0].prompt);assert.ok(project.shots[0].prompt.includes('LIGHTING:'));assert.ok(project.shots[0].prompt.includes('SCENE:'));assert.ok(grok.includes('Continuity:'));assert.ok(grok.includes('3-second')) })
+test('removing and normalizing gives stable shot order and ids', () => { const project=createStoryboard({premise:'A mapmaker climbs a forgotten mountain observatory and finds an uncharted valley.'}); project.shots.splice(1,1);const normalized=normalizeProject(project);assert.equal(normalized.shots.length,4);normalized.shots.forEach((shot,index)=>assert.equal(shot.order,index+1));assert.equal(new Set(normalized.shots.map(shot=>shot.shot_id)).size,4) })
 test('exported JSON can be read and validated as a portable agent document', () => { const project=createStoryboard({premise:'A lighthouse keeper races to repair the beacon before a fishing boat reaches the rocks.'}); const data=JSON.parse(serializeProject(project)); assert.equal(data.schema,'shotboard.v1');assert.equal(data.target_model,'grok');const validated=validateProject(data);assert.equal(validated.project.premise,project.premise) })
 test('bad model and duplicate shot identifiers are refused', () => { assert.throws(()=>validateProject({premise:'A sensible and sufficiently detailed premise',model:'unknown',shots:[]}));const project=createStoryboard({premise:'A clockmaker finds a hidden note describing tomorrow morning.'});const raw=JSON.parse(serializeProject(project));raw.shots[1].shot_id=raw.shots[0].shot_id;assert.throws(()=>validateProject(raw),/unique/) })
 test('no implementation depends on an API key or live model', () => { const project=createStoryboard({premise:'A quiet stationmaster notices that every clock has suddenly stopped.'});assert.equal(project.generationMode,'local');assert.ok(project.shots.length>0) })
@@ -211,4 +211,64 @@ test('strict continuity repeats the full sheet verbatim and varied mode omits it
     assert.match(shot.prompt, /aspect ratio 1:1/)
     assert.ok(shot.prompt.includes(`Idea: ${premise}`))
   })
+})
+test('standard continuity states wardrobe once per sheet and concise drops the sheet', () => {
+  const premise = 'A lighthouse keeper races the dusk to repair a failing beacon before the fishing boats arrive.'
+  const standard = createStoryboard({ premise, sequenceMode: 'continuous', continuityStrength: 'standard', density: 'standard', count: 4 })
+  const concise = createStoryboard({ premise, sequenceMode: 'continuous', continuityStrength: 'standard', density: 'concise', count: 4 })
+  const strict = createStoryboard({ premise, sequenceMode: 'continuous', continuityStrength: 'strict', density: 'concise', count: 2 })
+  const sheet = formatContinuitySheet(standard.continuitySheet)
+  standard.shots.forEach(shot => {
+    assert.equal(shot.prompt.split(sheet).length - 1, 1)
+    assert.equal((shot.prompt.match(/Same outfit:/g) || []).length, 0)
+    assert.ok((shot.prompt.match(/wool jacket/g) || []).length <= 3)
+  })
+  assert.ok(concise.shots[0].prompt.length < standard.shots[0].prompt.length)
+  concise.shots.forEach(shot => assert.doesNotMatch(shot.prompt, /CONTINUITY SHEET/))
+  strict.shots.forEach(shot => {
+    assert.equal(shot.prompt.split(formatContinuitySheet(strict.continuitySheet)).length - 1, 2)
+    assert.match(shot.prompt, /Repeat this continuity sheet verbatim/)
+  })
+})
+test('non-English, short, and long boards stay specific', () => {
+  const french = 'Une boulangère à Luxembourg perd le dernier pain sous la pluie la nuit.'
+  assert.equal(parseCharacter(french), 'Boulangère')
+  assert.equal(parsePlace(french), 'Luxembourg')
+  const frenchBoard = createStoryboard({ premise: french, count: 4, sequenceMode: 'continuous' })
+  assert.equal(frenchBoard.continuitySheet.character, 'Boulangère')
+  assert.equal(frenchBoard.shots[0].story_has_rain, true)
+  assert.equal(frenchBoard.shots[0].story_has_night, true)
+  const japanese = '灯台守が夕暮れの港で壊れた灯台を直す。'
+  assert.equal(parseCharacter(japanese), '灯台守')
+  assert.equal(parsePlace(japanese), '夕暮れの港')
+  const short = createStoryboard({ premise: 'Baker flees rain', count: 3 })
+  assert.equal(short.continuitySheet, undefined)
+  assert.equal(parseCharacter('Baker flees rain'), 'Baker')
+  assert.notEqual(parsePlace('Baker flees rain'), 'the place named in the idea')
+  assert.match(short.shots[0].action, /Baker|Rain/)
+  const long = createStoryboard({ premise: 'A lighthouse keeper races the dusk to repair a failing beacon before the fishing boats arrive.', count: 12, sequenceMode: 'continuous' })
+  assert.equal(long.shots.length, 12)
+  assert.equal(new Set(long.shots.map(shot => shot.action)).size, 12)
+  long.shots.forEach(shot => {
+    assert.match(shot.action, /Lighthouse keeper|lighthouse|dusk|beacon|place/i)
+    assert.doesNotMatch(shot.action, /one new gesture|the central character|the place named in the idea/)
+  })
+})
+test('scene overrides replace beats and the default preset is 5 x 3s', () => {
+  assert.deepEqual(DURATION_PRESETS[0], { id: '15s', label: '15s', total: 15, count: 5, duration: 3 })
+  const project = createStoryboard({
+    premise: 'A lighthouse keeper races the dusk to repair a failing beacon before the boats arrive.',
+    scenes: [
+      { action: 'The keeper shoulders the lantern.', duration: 4, framing: 'Close-up', camera: 'Handheld', lighting: 'Warm lamp', notes: 'Wind in the mic' },
+      { beat: 'The beacon flashes once.', duration: 3 }
+    ]
+  })
+  assert.equal(project.shots.length, 2)
+  assert.match(project.shots[0].action, /shoulders the lantern/)
+  assert.equal(project.shots[0].duration, 4)
+  assert.equal(project.shots[0].framing, 'Close-up')
+  assert.match(project.shots[0].prompt, /Warm lamp/)
+  assert.match(project.shots[0].prompt, /Wind in the mic/)
+  assert.match(project.shots[1].action, /beacon flashes/)
+  assert.equal(project.shots[1].duration, 3)
 })
