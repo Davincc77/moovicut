@@ -143,6 +143,8 @@ export function useProjectStore() {
     mutate(next => {
       if (patch.aspectRatio) next.aspectRatio = canonicalAspect(patch.aspectRatio)
       if (next.sequenceMode === 'continuous' && (patch.continuityStrength === 'strict' || patch.continuityStrength === 'standard')) next.continuityStrength = patch.continuityStrength
+      if (patch.promptDensity === 'concise' || patch.promptDensity === 'standard') next.promptDensity = patch.promptDensity
+      if (patch.density === 'concise' || patch.density === 'standard') next.promptDensity = patch.density
       next.shots = next.shots.map((shot, index) => ({ ...shot, prompt: createPrompt(shot, next, index) }))
     }, 'Shot prompts updated on this device.')
   }
@@ -150,14 +152,14 @@ export function useProjectStore() {
   function updateShot(id, field, value, regenerate = true) { mutate(next => {
     const index = next.shots.findIndex(shot => shot.id === id); if (index < 0) throw new Error(`Shot not found: ${id}`)
     const updated = { ...next.shots[index], [field]: value }
-    const duration = Math.max(2, Math.min(15, Number(updated.duration) || 6)); updated.duration = duration; updated.duration_seconds = duration
+    const duration = Math.max(2, Math.min(15, Number(updated.duration) || 3)); updated.duration = duration; updated.duration_seconds = duration
     if (regenerate && field !== 'prompt') updated.prompt = createPrompt(updated, next, index)
     next.shots[index] = updated
   }) }
   function updateShotFields(id, patch) { mutate(next => {
     const index = next.shots.findIndex(shot => shot.id === id); if (index < 0) throw new Error(`Shot not found: ${id}`)
     const updated = { ...next.shots[index], ...patch }
-    const duration = Math.max(2, Math.min(15, Number(patch.duration_seconds ?? patch.duration ?? updated.duration) || 6))
+    const duration = Math.max(2, Math.min(15, Number(patch.duration_seconds ?? patch.duration ?? updated.duration) || 3))
     updated.duration = duration; updated.duration_seconds = duration
     if ('prompt' in patch && !patch.prompt?.trim()) throw new Error('A shot prompt cannot be empty.')
     if (!('prompt' in patch)) updated.prompt = createPrompt(updated, next, index)

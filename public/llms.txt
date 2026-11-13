@@ -8,5 +8,8 @@ Prompts work with Grok Imagine, Google, or any other AI image or video model. Mo
 - [FAQ](faq.md): models, local work, export, and storage.
 - [Full agent guide](llms-full.txt): document contract, browser automation, and CLI examples.
 - [Site index](index.md): routes and local workflow. The studio is `/studio`.
+- [Agents](agents.md): `/mcp`, `GET /openapi.json`, `POST /api/v1/storyboard`, and `/agents`.
 
-Canonical schema: `shotboard.v1`. Canonical browser API: `window.Shotboard` (`window.Moovicut` is the same object). CLI: `node cli/moovicut.mjs` (`shotboard` is the same command).
+The default board is 5 scenes × 3 seconds (15s). Pass `shots`, `duration`, or a `scenes` array for a custom scene-by-scene board. Humans can do the same with Step-by-step mode in `/studio`.
+
+Canonical schema: `shotboard.v1`. Canonical browser API: `window.Shotboard` (`window.Moovicut` is the same object). CLI: `node cli/moovicut.mjs` (`shotboard` is the same command). Remote API: `POST /api/v1/storyboard`. MCP: `POST /mcp`. Discovery: `/.well-known/mcp.json`. No API key and no stored premises.

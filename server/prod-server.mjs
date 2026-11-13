@@ -2,6 +2,7 @@ import { createServer } from 'node:http'
 import { createReadStream, existsSync, statSync } from 'node:fs'
 import { dirname, extname, join, resolve, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { createRateLimiter, handleAgentHttp, isAgentPath, isLimitedPath, publicOrigin, clientAddress } from './agent-api.mjs'
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -52,7 +53,7 @@ const STUDIO_PATHS = new Set([
   '/auth/callback',
   '/desktop'
 ])
-const KEPT_PAGES = new Set(['privacy', 'terms', 'content-policy', 'faq', 'studio'])
+const KEPT_PAGES = new Set(['privacy', 'terms', 'content-policy', 'faq', 'studio', 'agents'])
 
 function withoutTrailingSlash(pathname) {
   if (pathname.length > 1 && pathname.endsWith('/')) return pathname.slice(0, -1)
@@ -130,9 +131,9 @@ function cacheControl(file, root) {
   return 'public, max-age=3600'
 }
 
-export function createProdServer({ staticRoot, logger = () => {} } = {}) {
+export function createProdServer({ staticRoot, logger = () => {}, limiter = createRateLimiter() } = {}) {
   const root = resolve(staticRoot)
-  return createServer((request, response) => {
+  return createServer(async (request, response) => {
     let url
     try { url = new URL(request.url || '/', 'http://localhost') } catch {
       send(response, 400, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store', ...SECURITY }, 'Bad request', request.method)
@@ -140,6 +141,14 @@ export function createProdServer({ staticRoot, logger = () => {} } = {}) {
     }
     const { pathname, search } = url
     logger(`${request.method} ${pathname}`)
+    if (isLimitedPath(pathname) && request.method !== 'OPTIONS' && !limiter.allow(clientAddress(request.headers, request.socket?.remoteAddress))) {
+      send(response, 429, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'retry-after': '60', ...SECURITY }, JSON.stringify({ error: 'rate_limited', message: 'Too many requests from this address. Try again in a minute.' }), request.method)
+      return
+    }
+    if (isAgentPath(pathname)) {
+      await handleAgentHttp(request, response, { pathname, searchParams: url.searchParams, origin: publicOrigin(request.headers), limiter: { allow: () => true } })
+      return
+    }
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       send(response, 405, { 'content-type': 'text/plain; charset=utf-8', allow: 'GET, HEAD', 'cache-control': 'no-store', ...SECURITY }, 'Method not allowed', request.method)
       return

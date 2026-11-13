@@ -74,10 +74,25 @@ These addresses answer **301** and keep the query string:
 
 ## Use the CLI
 
-The command name is `moovicut`. `shotboard` remains an alias in the package bin. No API key is required.
+The command name is `moovicut`. `shotboard` remains an alias in the package bin. No API key is required. With no `--shots` or `--duration`, the CLI plans **5 scenes × 3 seconds (15s total)**.
+
+## Agents
+
+`/agents` documents the stateless API. `POST /api/v1/storyboard` and the MCP tool `plan_storyboard` use the same default: 5 scenes of 3 seconds. Pass `shots` and `duration`, or a `scenes` array, for a custom scene-by-scene board. People can do that in `/studio` with Step-by-step mode. `studioUrl` opens `/studio#board=` in the browser. Nothing is stored. See `AGENTS.md`, `GET /openapi.json`, and `/.well-known/mcp.json`.
+
+```json
+{
+  "premise": "A lighthouse keeper races the dusk to repair a failing beacon.",
+  "model": "grok",
+  "scenes": [
+    { "action": "Wide view of the lighthouse at dusk", "duration": 3, "framing": "Extreme wide", "camera": "Slow push-in", "lighting": "Blue hour" },
+    { "action": "Close on the keeper repairing the lens", "duration": 4, "lighting": "Warm practical lamp", "notes": "Wind on the gallery" }
+  ]
+}
+```
 
 ```sh
-node cli/moovicut.mjs --premise "A lighthouse keeper races the dusk" --model grok --shots 6
+node cli/moovicut.mjs --premise "A lighthouse keeper races the dusk" --model grok
 node cli/moovicut.mjs --premise "A paper map in space" --model google --shots 4 --output storyboard.json
 node cli/moovicut.mjs --input storyboard.json --export-prompts
 node cli/moovicut.mjs --help

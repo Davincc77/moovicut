@@ -49,7 +49,8 @@ test('preferences survive the portable engine and reject unknown settings', () =
 test('free shot creation and project library are not capped by a plan', () => {
   const project=createStoryboard({premise:'A lighthouse keeper charts a safe passage through the storm.',count:10})
   assert.equal(project.shots.length,10)
-  assert.ok(project.shots[9].prompt.includes('continue the story'))
+  assert.match(project.shots[9].prompt, /Lighthouse keeper/)
+  assert.doesNotMatch(project.shots[9].action, /one new gesture/)
   const store=storeFixture()
   for(let index=0;index<45;index++)store.createNew(`A lighthouse keeper records story number ${index} before the storm.`)
   assert.equal(store.savedProjects.length,45)
@@ -81,7 +82,7 @@ test('real store persists projects, switches safely, undoes edits and reloads', 
   assert.equal(store.project.value.shots[0].sound, 'a distant radio beneath the wind')
   assert.equal(store.project.value.shots[0].duration_seconds, 11)
   assert.ok(store.project.value.shots[0].prompt.includes('11 seconds'))
-  store.undo(); assert.equal(store.project.value.shots[0].duration, 6)
+  store.undo(); assert.equal(store.project.value.shots[0].duration, 3)
   store.redo(); assert.equal(store.project.value.shots[0].duration, 11)
   const custom = 'A deliberately edited full prompt for the second shot.'
   const id = store.project.value.shots[1].id; store.updateShotFields(id, { prompt: custom }); store.moveShot(id, -1)

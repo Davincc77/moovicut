@@ -4,13 +4,13 @@ import fs from 'node:fs/promises'
 import { createStoryboard, serializeProject, validateProject, createPrompt, normalizeProject } from '../app/utils/prompt-engine.js'
 const argv = process.argv.slice(2)
 function option(name) { const index = argv.indexOf(`--${name}`); return index >= 0 ? argv[index + 1] : undefined }
-function help() { return `Moovicut v1.0 — local storyboard automation\n\nGenerate:\n  moovicut --premise "A lighthouse keeper..." --model grok --shots 6\n  moovicut --premise "A paper map in space..." --model google --shots 4\n\nRead a project from stdin or --input story.json. Output is a shotboard.v1 JSON document.\nEdit:\n  --set-title "My film"\n  --shot-id shot-02 --patch '{"camera":"Slow dolly"}'\n  --move shot-02 --direction -1\n  --delete shot-02\nOther: --capabilities --export-prompts --output story.json --help\n\nshotboard is a deprecated alias for the moovicut command.\n` }
+function help() { return `Moovicut v1.0 — local storyboard automation\n\nThe default board is 5 scenes of 3 seconds (15s total). Pass --shots and --duration to override.\n\nGenerate:\n  moovicut --premise "A lighthouse keeper..." --model grok\n  moovicut --premise "A paper map in space..." --model google --shots 4 --duration 3\n\nRead a project from stdin or --input story.json. Output is a shotboard.v1 JSON document.\nEdit:\n  --set-title "My film"\n  --shot-id shot-02 --patch '{"camera":"Slow dolly"}'\n  --move shot-02 --direction -1\n  --delete shot-02\nOther: --capabilities --export-prompts --output story.json --density concise --continuity strict --sequence continuous --help\n\nshotboard is a deprecated alias for the moovicut command.\n` }
 async function main() {
   if (argv.includes('--help') || argv.includes('-h')) { console.log(help()); return }
-  if (argv.includes('--capabilities')) { console.log(JSON.stringify({ schema: 'shotboard.v1', models: ['grok', 'google'], maxShots: null, coreFeatures:'free; no credits, subscriptions or feature paywalls', promptFields: ['camera', 'action', 'lighting', 'style', 'continuity', 'sound'], actions: ['generate', 'edit', 'reorder', 'delete', 'export'], video_generation: false, authentication: 'optional OAuth integration; not required locally' }, null, 2)); return }
+  if (argv.includes('--capabilities')) { console.log(JSON.stringify({ schema: 'shotboard.v1', models: ['grok', 'google'], maxShots: null, defaultShots: 5, defaultDuration: 3, defaultTotalSeconds: 15, coreFeatures:'free; no credits, subscriptions or feature paywalls', promptFields: ['camera', 'action', 'lighting', 'style', 'continuity', 'sound'], actions: ['generate', 'edit', 'reorder', 'delete', 'export'], video_generation: false, authentication: 'none' }, null, 2)); return }
   if (option('premise')) {
-    const count = Math.max(1, Math.floor(Number(option('shots')) || 6))
-    return writeOutput(createStoryboard({ premise: option('premise'), model: option('model') || 'grok', count, genre: option('genre'), style: option('style'), aspectRatio: option('aspect-ratio'), duration: option('duration') }))
+    const count = Math.max(1, Math.floor(Number(option('shots')) || 5))
+    return writeOutput(createStoryboard({ premise: option('premise'), model: option('model') || 'grok', count, genre: option('genre'), style: option('style'), aspectRatio: option('aspect-ratio'), duration: option('duration'), sequenceMode: option('sequence'), continuityStrength: option('continuity'), density: option('density') }))
   }
   const inputPath = option('input')
   const input = inputPath ? await fs.readFile(inputPath, 'utf8') : await readStdin()
@@ -27,7 +27,7 @@ async function main() {
     for (const field of allowed) if (typeof patch[field] === 'string') project.shots[index][field] = patch[field].slice(0, 16000)
     if (!patch.prompt) project.shots[index].prompt = createPrompt(project.shots[index], project, index)
     if (patch.duration_seconds !== undefined || patch.duration !== undefined) {
-      const duration = Math.max(2, Math.min(15, Number(patch.duration_seconds ?? patch.duration) || 6))
+      const duration = Math.max(2, Math.min(15, Number(patch.duration_seconds ?? patch.duration) || 3))
       project.shots[index].duration = duration; project.shots[index].duration_seconds = duration
     }
   }
