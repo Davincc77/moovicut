@@ -15,7 +15,7 @@ function saveTitle() { if (draftTitle.value.trim()) emit('update-title', draftTi
       <div class="shot-meta"><span>{{ shot.framing?.replace(' establishing shot','').replace('Medium tracking shot','Medium tracking') }}</span><span>{{ shot.duration }}s</span><span>{{ shot.lens?.split(' ')[0] }}</span></div>
       <div class="shot-prompt"><p>{{ shot.prompt }}</p></div>
     </div>
-    <div class="shot-card-footer"><span class="model-tag"><span :class="model === 'google' ? 'google-glyph' : 'x-glyph'">{{ model === 'google' ? 'G' : '𝕏' }}</span>{{ model === 'google' ? 'Google (Veo / Gemini)' : 'Grok Imagine' }}</span><button class="copy-prompt-button" :aria-label="`Copy prompt for shot ${index + 1}`" @click="emit('copy')"><Copy :size="13" />Copy prompt</button></div>
+    <div class="shot-card-footer"><span class="model-tag"><span :class="model === 'google' ? 'google-glyph' : 'x-glyph'">{{ model === 'google' ? 'G' : '𝕏' }}</span>{{ model === 'google' ? 'Google (Veo / Gemini)' : 'Grok Imagine' }}</span><button class="copy-prompt-button" :aria-label="`Copy prompt for shot ${index + 1}`" @click="emit('copy')"><Copy :size="13" />Copy prompt</button><OpenInButtons :prompt="shot.prompt" :seed="index" /></div>
     <div class="shot-card-bottom-actions"><button :aria-label="`Add shot after ${index + 1}`" @click="emit('add')"><Plus :size="12" />Add shot</button><button class="delete-shot-button" :aria-label="`Delete shot ${index + 1}`" @click="emit('delete')"><Trash2 :size="12" />Delete</button><button @click="emit('edit')"><Pencil :size="12" />Edit shot</button></div>
   </article>
 </template>

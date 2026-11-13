@@ -172,7 +172,7 @@ test('store rejects bad agent-shaped patches and preserves model selection', () 
   const store = storeFixture()
   store.createNew('An astronaut repairs the last telescope above the clouds.', 'grok')
   const id = store.project.value.shots[0].id
-  store.selectModel('google'); assert.equal(store.project.value.target_model, 'google'); assert.ok(store.project.value.shots[0].prompt.startsWith('SCENE:'))
+  store.selectModel('google'); assert.equal(store.project.value.target_model, 'google'); assert.match(store.project.value.shots[0].prompt, /^Idea: /); assert.match(store.project.value.shots[0].prompt, /\nSCENE:/)
   assert.throws(() => store.updateShotFields(id, { prompt: '' }), /cannot be empty/)
   assert.throws(() => store.updateShotFields('missing-shot', { title: 'No shot' }), /not found/)
 })

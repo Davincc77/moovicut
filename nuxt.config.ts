@@ -58,6 +58,14 @@ export default defineNuxtConfig({
         { rel: 'apple-touch-icon', href: joinAppPath(baseURL, '/apple-touch-icon.png') },
         { rel: 'manifest', href: joinAppPath(baseURL, '/manifest.webmanifest') },
         { rel: 'canonical', href: canonicalUrl('/') }
+      ],
+      script: [
+        {
+          src: 'https://static.cloudflareinsights.com/beacon.min.js',
+          type: 'module',
+          tagPosition: 'bodyClose',
+          'data-cf-beacon': '{"token": "d4d43f476a9e4f7b9f3d9d8d4dd75a3b"}'
+        }
       ]
     }
   },

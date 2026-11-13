@@ -57,7 +57,8 @@ export const FAQS = [
   { q: 'Which models does it support?', a: 'The picker offers Grok Imagine and Google. The same prompts work with any other AI image or video model. These names are prompt targets, not included accounts or rendering.' },
   { q: 'Is an account required?', a: 'No. The storyboard stays in this browser. There is no sign-in.' },
   { q: 'Can I import or export work?', a: 'Yes. Projects use the shotboard.v1 JSON format. The studio can export a project or a local library backup, and it can import a compatible file. Files stay on your device.' },
-  { q: 'Is Moovicut free?', a: 'Yes. Planning, editing, and JSON export are free. There is no subscription. Optional tips open Buy Me a Coffee in a new tab. Moovicut does not take payment itself.' }
+  { q: 'Is Moovicut free?', a: 'Yes. Planning, editing, and JSON export are free. There is no subscription. Optional tips open Buy Me a Coffee in a new tab. Moovicut does not take payment itself.' },
+  { q: 'Are visits counted?', a: 'Anonymous, cookieless visit counts via Cloudflare Web Analytics; storyboards never leave the device.' }
 ]
 export function titleFromPremise(text) { const cleaned = cleanText(text).replace(/^(a|an|the)\s+/i, ''); if (!cleaned) return 'Untitled story'; const words = cleaned.split(' ').slice(0, 5).join(' '); return sentence(words) + (cleaned.split(' ').length > 5 ? '…' : '') }
 export function detectGenre(premise, preferred = 'cinematic') {
@@ -91,11 +92,17 @@ export function mentionedCue(text, word) {
 export function extractDialogue(text) {
   return [...String(text || '').matchAll(/["“]([^"”]{1,180})["”]/g)].map(match => cleanText(match[1])).filter(Boolean)
 }
+const CHARACTER_VERBS = `${STORY_VERBS}|racing|repairing|guiding|losing|delivering|chasing|climbing|walking|running|crossing|following`
 export function parseCharacter(text) {
-  const match = cleanText(text).match(new RegExp(`\\b(?:a|an|the)\\s+([a-z][a-z' -]{1,60}?)\\s+(?:${STORY_VERBS})\\b`, 'i'))
-  if (!match) return 'the central character'
-  const name = match[1].split(/\s+\b(?:in|at|on|through|inside|under|over|across)\b/i)[0].trim()
-  return sentence(name)
+  const source = cleanText(text)
+  const verbMatch = new RegExp(`\\b(?:${CHARACTER_VERBS})\\b`, 'i').exec(source)
+  if (!verbMatch) return 'the central character'
+  const before = source.slice(0, verbMatch.index)
+  const phrases = [...before.matchAll(/\b(?:a|an|the)\s+([a-z][a-z'-]*(?:\s+(?!a\b|an\b|the\b)[a-z][a-z'-]*){0,4})/gi)]
+  const phrase = phrases.at(-1)
+  if (!phrase) return 'the central character'
+  const name = phrase[1].split(/\s+\b(?:in|at|on|through|inside|under|over|across|of)\b/i)[0].trim()
+  return name ? sentence(name) : 'the central character'
 }
 export function parsePlace(text) {
   const source = cleanText(text)
@@ -115,6 +122,45 @@ export function parsePlace(text) {
   }
   return 'the place named in the idea'
 }
+export const ASPECT_RATIOS = Object.freeze([
+  { id: '9:16', label: '9:16', note: 'Reels, TikTok, Shorts' },
+  { id: '1:1', label: '1:1', note: 'Square' },
+  { id: '4:5', label: '4:5', note: 'Feed' },
+  { id: '16:9', label: '16:9', note: 'YouTube' }
+])
+export function canonicalAspect(value) { return ASPECT_RATIOS.some(item => item.id === value) ? value : '16:9' }
+export function ideaAnchor(premise) { return cleanText(premise) }
+const VISUAL_STYLE_CUES = [
+  ['wireframe', /\b(?:wireframes?|previs(?:ualization)?|previz)\b/i],
+  ['animation', /\b(?:3d animation|animated|animation|claymation)\b/i],
+  ['illustrative', /\b(?:illustrations?|illustrated|painterly|gouache|watercolours?|watercolors?|sketch)\b/i],
+  ['editorial', /\b(?:editorial|commercial photography)\b/i],
+  ['analog', /\b(?:analog film|16mm|super 8|film grain)\b/i]
+]
+/** The first medium named in the idea, if any. One board gets one result. */
+export function inferVisualStyleId(premise) {
+  const text = cleanText(premise)
+  let best = null
+  for (const [id, pattern] of VISUAL_STYLE_CUES) {
+    const index = text.search(pattern)
+    if (index >= 0 && (!best || index < best.index)) best = { id, index }
+  }
+  return best?.id || ''
+}
+/**
+ * One style phrase for the whole board. A chosen visual style wins.
+ * Otherwise the idea is scanned once. Mood (Fun, Normal, Spicy) is appended
+ * the same way on every shot and never picks a new look per shot.
+ */
+export function lockBoardStyle(premise, styleName, genreId) {
+  const genre = GENRES[genreId] || GENRES.cinematic
+  const chosen = STYLES.find(item => item.id === styleName)
+  const inferred = chosen ? null : STYLES.find(item => item.id === inferVisualStyleId(premise))
+  const visual = chosen || inferred
+  const mood = SHOT_STYLE_PROFILES[styleName]
+  if (visual) return visual.suffix
+  return mood ? `${genre.look}. ${mood.suffix}` : genre.look
+}
 export function buildContinuitySheet(premise) {
   const text = cleanText(premise)
   const lower = text.toLowerCase()
@@ -131,14 +177,16 @@ export function buildContinuitySheet(premise) {
   const avoid = []
   if (/\bsnow\b/i.test(text) && !mentionedCue(text, 'snow')) avoid.push('snow')
   const character = parseCharacter(text)
-  const sheet = { character, appearance: appearanceFor(character), place: parsePlace(text), time, palette, style: 'cinematic, consistent from shot to shot' }
+  const sheet = { character, appearance: appearanceFor(character), place: parsePlace(text), time, palette, lighting: `${time}, ${palette}`, style: 'cinematic, consistent from shot to shot' }
   if (dialogue[0]) sheet.dialogue = dialogue[0]
   if (avoid.length) sheet.avoid = avoid.join(', ')
   return sheet
 }
 export function formatContinuitySheet(sheet) {
   if (!sheet) return ''
-  const lines = ['CONTINUITY SHEET', `Character: ${sheet.character}`, `Wardrobe: ${sheet.appearance || appearanceFor(sheet.character)}`, `Place: ${sheet.place}`, `Time / light: ${sheet.time}`, `Palette: ${sheet.palette}`, `Style: ${sheet.style}`]
+  const outfit = sheet.appearance || appearanceFor(sheet.character)
+  const lighting = sheet.lighting || `${sheet.time}, ${sheet.palette}`
+  const lines = ['CONTINUITY SHEET', `Character: ${sheet.character}`, `Wardrobe: ${outfit}`, `Outfit: ${outfit}`, `Place: ${sheet.place}`, `Location: ${sheet.place}`, `Time / moment: ${sheet.time}`, `Lighting: ${lighting}`, `Palette: ${sheet.palette}`, `Style: ${sheet.style}`]
   if (sheet.dialogue) lines.push(`Dialogue: “${sheet.dialogue}”`)
   if (sheet.avoid) lines.push(`Do not show: ${sheet.avoid}`)
   return lines.join('\n')
@@ -193,10 +241,10 @@ function cameraForFraming(framing, profile) {
   if (profile.mood.startsWith('Intense')) return 'bold wide crane with a sharp lateral move across the scene'
   return 'steady wide camera with a measured move'
 }
-function applyShotStyle(shot, styleName) {
+function applyShotStyle(shot, styleName, keepLighting = false) {
   const profile = SHOT_STYLE_PROFILES[styleName]
   if (!profile) return shot
-  return { ...shot, camera: cameraForFraming(shot.framing, profile), lighting: profile.lighting, action: `${profile.mood}: ${shot.action}`, directions: `${profile.mood} mood. ${shot.directions || ''}`.trim() }
+  return { ...shot, camera: cameraForFraming(shot.framing, profile), lighting: keepLighting ? shot.lighting : profile.lighting, action: `${profile.mood}: ${shot.action}`, directions: `${profile.mood} mood. ${shot.directions || ''}`.trim() }
 }
 function appearanceFor(character) {
   const name = String(character || '').toLowerCase()
@@ -221,25 +269,50 @@ function applyContinuousShot(shot, sheet, index, styleName) {
   const beat = beats[index] || `continues the story with one new gesture in ${sheet.place}, still at ${sheet.time}.`
   const follow = index === 0 ? 'The story begins in this shot.' : 'This shot follows directly from the previous shot. Do not reset the scene.'
   const mood = profile ? `${profile.mood}: ` : ''
+  const lighting = sheet.lighting || `${sheet.time}, ${sheet.palette}`
   return {
     ...shot,
     action: `${mood}${sheet.character}, ${appearance}, ${beat} ${follow}`,
-    lighting: profile ? `${sheet.time}, ${sheet.palette}. ${profile.lighting}` : `${sheet.time}, ${sheet.palette}`,
-    continuity: `Same character: ${sheet.character}. Same wardrobe: ${appearance}. Same place: ${sheet.place}. Same time of day: ${sheet.time}.`
+    lighting: profile ? `${lighting}. ${profile.lighting}` : lighting,
+    continuity: `Same character: ${sheet.character}. Same wardrobe: ${appearance}. Same outfit: ${appearance}. Same place: ${sheet.place}. Same time of day: ${sheet.time}. Same lighting: ${lighting}. Same palette: ${sheet.palette}.`
   }
+}
+const VARIED_LIGHTING = [
+  'soft side light with a gentle falloff',
+  'hard overhead light and crisp shadows',
+  'dim practical light from one source',
+  'bright diffuse daylight',
+  'backlight with a bright rim',
+  'low warm key and cool fill',
+  'flat even light',
+  'narrow pool of light in a darker surround'
+]
+function variedLocation(place, index) {
+  const spots = [
+    `a far edge of ${place}`,
+    `a close corner of ${place}`,
+    `ground level at ${place}`,
+    `an overhead view of ${place}`,
+    `the shadowed side of ${place}`,
+    `a foreground detail within ${place}`,
+    `eye level inside ${place}`,
+    `the opposite side of ${place}`
+  ]
+  return spots[index % spots.length]
 }
 function applyVariedShot(shot, premise, index) {
   const angle = VARIED_ANGLES[index % VARIED_ANGLES.length]
+  const location = variedLocation(parsePlace(premise), index)
   return {
     ...shot,
     title: angle.framing,
     stage: angle.framing,
     framing: angle.framing,
     camera: angle.camera,
-    action: `A standalone ${angle.mood} composition in ${angle.setting}. This frame is its own idea.`,
-    directions: 'Plan this frame as a separate composition. Do not carry characters, props, or geography from another shot.',
+    action: `A standalone ${angle.mood} frame in ${location}.`,
+    directions: 'Vary the location, angle, and lighting for this frame only. Keep the idea and the locked style.',
     continuity: 'This shot stands alone and does not continue a previous shot',
-    lighting: 'light motivated by this frame only'
+    lighting: VARIED_LIGHTING[index % VARIED_LIGHTING.length]
   }
 }
 export function createStoryboard(options = {}) {
@@ -249,12 +322,21 @@ export function createStoryboard(options = {}) {
   const model = canonicalModel(options.model || 'grok'); if (!model) throw new Error('Choose Grok Imagine or Google (Veo / Gemini).')
   const sequenceMode = options.sequenceMode === 'varied' || options.sequenceMode === 'continuous' ? options.sequenceMode : undefined
   const shotStyle = SHOT_STYLE_PROFILES[options.style] ? options.style : ''
-  const project = { schema: 'shotboard.v1', id: options.id || newId('story'), title: titleFromPremise(premise), premise, model, target_model: model, genre: detectGenre(premise, options.genre), style: shotStyle || (STYLES.some(item => item.id === options.style) ? options.style : 'cinematic'), aspectRatio: ['16:9', '9:16', '1:1'].includes(options.aspectRatio) ? options.aspectRatio : '16:9', duration: Math.max(2, Math.min(15, Number(options.duration) || 6)), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), generationMode: 'local', shots: [] }
+  const genre = detectGenre(premise, options.genre)
+  const lockedStyle = lockBoardStyle(premise, options.style, genre)
+  const project = { schema: 'shotboard.v1', id: options.id || newId('story'), title: titleFromPremise(premise), premise, model, target_model: model, genre, style: shotStyle || (STYLES.some(item => item.id === options.style) ? options.style : 'cinematic'), lockedStyle, aspectRatio: canonicalAspect(options.aspectRatio), duration: Math.max(2, Math.min(15, Number(options.duration) || 6)), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), generationMode: 'local', shots: [] }
   if (sequenceMode) project.sequenceMode = sequenceMode
-  if (sequenceMode === 'continuous') project.continuitySheet = options.continuitySheet || buildContinuitySheet(premise)
+  if (sequenceMode === 'continuous') {
+    const sheet = { ...(options.continuitySheet || buildContinuitySheet(premise)) }
+    if (!options.continuitySheet?.style) sheet.style = lockedStyle
+    if (!sheet.lighting) sheet.lighting = `${sheet.time}, ${sheet.palette}`
+    if (!sheet.appearance) sheet.appearance = appearanceFor(sheet.character)
+    project.continuitySheet = sheet
+    project.continuityStrength = options.continuityStrength === 'strict' ? 'strict' : 'standard'
+  }
   project.shots = breakdownPremise(premise, Math.max(1, Math.floor(Number(options.count) || 6))).map((shot, index) => ({ ...shot, duration: project.duration, duration_seconds: project.duration, palette: ['#b69263', '#7c99a1', '#a88a64', '#696b80', '#af8061', '#657b6f'][index % 6] }))
   if (sequenceMode === 'varied') project.shots = project.shots.map((shot, index) => applyVariedShot(shot, premise, index))
-  if (shotStyle) project.shots = project.shots.map(shot => applyShotStyle(shot, shotStyle))
+  if (shotStyle) project.shots = project.shots.map(shot => applyShotStyle(shot, shotStyle, sequenceMode === 'varied'))
   if (sequenceMode === 'continuous' && project.continuitySheet) project.shots = project.shots.map((shot, index) => applyContinuousShot(shot, project.continuitySheet, index, shotStyle))
   project.shots = project.shots.map((shot, index) => ({ ...shot, prompt: createPrompt(shot, project, index) }))
   return project
@@ -269,17 +351,29 @@ export function breakdownPremise(premise, count = 6) {
   const snow = ['snow', 'ice', 'winter', 'frost'].some(word => mentionedCue(text, word))
   return Array.from({length:total},(_,index)=>{const template=TEMPLATES[index%TEMPLATES.length];return { ...template, sound: template.cue, lighting: index === 0 ? 'soft environmental light with cinematic shadow detail' : 'consistent with the established scene', id: `shot-${String(index + 1).padStart(2, '0')}`, shot_id: `shot-${String(index + 1).padStart(2, '0')}`, order: index + 1, story_has_night: night, story_has_rain: rain, story_has_snow: snow, genre, stage: stages[index], action: actionForBeat(text, index) } })
 }
+function styleLockFor(project) {
+  if (project.sequenceMode === 'continuous' && project.continuitySheet?.style) return project.continuitySheet.style
+  return project.lockedStyle || lockBoardStyle(project.premise, project.style, project.genre)
+}
+function promptHeader(project) {
+  return [`Idea: ${ideaAnchor(project.premise || '')}`, `Style lock: ${styleLockFor(project)}`, `aspect ratio ${canonicalAspect(project.aspectRatio)}`].join('\n')
+}
 export function createPrompt(shot, project, index = 0) {
   const genre = GENRES[project.genre] || GENRES.cinematic; const style = SHOT_STYLE_PROFILES[project.style] || STYLES.find(item => item.id === project.style) || STYLES[0]
-  const premise = project.premise || 'a visual story'; const aspect = project.aspectRatio || '16:9'; const duration = shot.duration_seconds || shot.duration || project.duration || 6
-  const body = modelRegistry.get(project.model || project.target_model).compose({ shot, project, index, premise, aspect, duration, genre, style })
+  const premise = project.premise || 'a visual story'; const aspect = canonicalAspect(project.aspectRatio); const duration = shot.duration_seconds || shot.duration || project.duration || 6
+  const lockedStyle = styleLockFor(project)
+  const body = modelRegistry.get(project.model || project.target_model).compose({ shot, project, index, premise, aspect, duration, genre, style, lockedStyle })
   const total = Math.max(project.shots?.length || 0, index + 1)
+  const header = promptHeader(project)
   if (project.sequenceMode === 'continuous' && project.continuitySheet) {
     const transition = index === 0 ? CONTINUOUS_TRANSITIONS[0] : index === total - 1 ? 'Finally,' : CONTINUOUS_TRANSITIONS[index] || 'Moments later,'
-    return `${formatContinuitySheet(project.continuitySheet)}\n\nShot ${index + 1} of ${total}. ${transition}\n${body}`
+    const sheetText = formatContinuitySheet(project.continuitySheet)
+    const follow = index === 0 ? 'The story begins in this shot.' : 'This shot follows directly from the previous shot.'
+    const strict = project.continuityStrength === 'strict' ? `Repeat this continuity sheet verbatim:\n${sheetText}\n` : ''
+    return `${header}\n${sheetText}\n\nShot ${index + 1} of ${total}. ${transition}\n${strict}${follow}\n${body}`
   }
-  if (project.sequenceMode === 'varied') return `Independent shot ${index + 1} of ${total}. A separate angle, not a continuation.\n${body}`
-  return body
+  if (project.sequenceMode === 'varied') return `${header}\nIndependent shot ${index + 1} of ${total}. A separate angle, not a continuation.\n${body}`
+  return `${header}\n${body}`
 }
 export function regenerateShotPrompts(project, model = project.model || project.target_model) {
   project = { ...project, model, target_model: model }
