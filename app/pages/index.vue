@@ -4,10 +4,13 @@ import { SCENE_STUDIES } from '~/utils/prompt-engine.js'
 import { SCENE_STILLS, stillSrc } from '~/utils/reference-content.js'
 import { joinAppPath } from '~/utils/urls.js'
 import { saveStudioHandoff } from '~/utils/studio-handoff.js'
+import { socialPreviewSeo } from '~/utils/social-preview.js'
 const store = useProjectStore()
 const router = useRouter()
 const { notify } = useNotifier()
-const appBaseURL = useRuntimeConfig().app.baseURL
+const runtimeConfig = useRuntimeConfig()
+const appBaseURL = runtimeConfig.app.baseURL
+const socialPreview = socialPreviewSeo(runtimeConfig.public.productionOrigin || runtimeConfig.public.appUrl, appBaseURL)
 const languageHint = ref(false)
 const premise = ref('')
 const heroModel = ref('grok')
@@ -68,7 +71,7 @@ useSeoMeta({
   description: 'Turn a story premise into a free local storyboard. Copy the prompts into Grok Imagine, Google, or any other AI image or video model. Moovicut does not render video.',
   ogDescription: 'Turn a story premise into a free local storyboard. Copy the prompts into Grok Imagine, Google, or any other AI image or video model. Moovicut does not render video.',
   twitterDescription: 'Turn a story premise into a free local storyboard. Copy the prompts into Grok Imagine, Google, or any other AI image or video model. Moovicut does not render video.',
-  twitterCard: 'summary_large_image'
+  ...socialPreview
 })
 function openStudio(nextPremise = premise.value){
   const idea = String(nextPremise || '').trim()

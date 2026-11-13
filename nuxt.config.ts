@@ -1,6 +1,8 @@
 import { joinAppPath } from './app/utils/urls.js'
+import { socialPreviewMeta, upsertSocialMeta } from './app/utils/social-preview.js'
 const baseURL = process.env.NUXT_APP_BASE_URL || '/'
 const siteOrigin = 'https://moovicut.studio'
+const socialPreview = socialPreviewMeta(siteOrigin, baseURL)
 function canonicalUrl(routePath = '/') {
   let path = String(routePath || '/').split('?')[0]
   path = path.replace(/\/index\.html$/, '/').replace(/^index\.html$/, '/')
@@ -43,9 +45,9 @@ export default defineNuxtConfig({
         { name: 'description', content: 'Turn a story premise into a free local storyboard. Copy the prompts into Grok Imagine, Google, or any other AI image or video model. Moovicut does not render video.' },
         { property: 'og:title', content: 'Moovicut — local storyboard studio' },
         { property: 'og:description', content: 'Turn a story premise into a free local storyboard. Copy the prompts into Grok Imagine, Google, or any other AI image or video model. Moovicut does not render video.' },
-        { name: 'twitter:card', content: 'summary_large_image' },
         { name: 'twitter:title', content: 'Moovicut — local storyboard studio' },
         { name: 'twitter:description', content: 'Turn a story premise into a free local storyboard. Copy the prompts into Grok Imagine, Google, or any other AI image or video model. Moovicut does not render video.' },
+        ...socialPreview,
         { name: 'color-scheme', content: 'dark' },
         { property: 'og:url', content: canonicalUrl('/') },
         { property: 'og:type', content: 'website' },
@@ -92,6 +94,7 @@ export default defineNuxtConfig({
         html = html.replace(/<meta property="og:url" content="[^"]*">/, `<meta property="og:url" content="${url}">`)
         if (!html.includes('rel="canonical"')) html = html.replace('</head>', `<link rel="canonical" href="${url}"></head>`)
         if (!html.includes('property="og:url"')) html = html.replace('</head>', `<meta property="og:url" content="${url}"></head>`)
+        html = upsertSocialMeta(html, siteOrigin, baseURL)
         route.contents = html
       })
     }

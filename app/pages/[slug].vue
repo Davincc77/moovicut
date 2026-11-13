@@ -1,5 +1,6 @@
 <script setup>
 import { ArrowUpRight } from 'lucide-vue-next'
+import { socialPreviewSeo } from '~/utils/social-preview.js'
 const route = useRoute()
 const localeCodes = new Set(['zh', 'ru', 'de', 'fr', 'ja', 'ko', 'es', 'pt', 'tr'])
 const localeRoot = localeCodes.has(String(route.params.slug || ''))
@@ -10,6 +11,8 @@ const pages = {
   'content-policy': { title:'Make something worth sharing', intro:'Room for imagination still leaves room for care.', sections:[['Respect people','Avoid sexual exploitation, content involving minors, non-consensual intimate imagery, targeted harassment and unauthorized impersonation. Respect privacy, agency and the people represented in your story.'],['Avoid harm','Do not use the app to plan violence, abuse, fraud, incitement or real-world harm. Sensitive fictional themes deserve thoughtful, contextual treatment.'],['Respect original work','Use premises, footage and identities you have permission to work with. A model platform may refuse content under its own policy even when Moovicut lets you draft a prompt.'],['You are the director','Local prompts are starting points. Check the prompt’s meaning, visual representation and continuity before use. You decide what to paste into a third-party service and what to publish.'],['No automated video rendering','Moovicut’s first release only creates structure and text. Nothing is submitted for video generation by the app. You control your own accounts and tools.'],['Changes to services','Model providers evolve. Keep your projects backed up as JSON and consult each provider’s current policy before generation or distribution.']] }
 }
 const page = pages[route.params.slug] || { title:'Page not found', intro:'This address is not part of Moovicut.', sections:[], missing:true }
-useSeoMeta({ title: `${page.title} — Moovicut` })
+const runtimeConfig = useRuntimeConfig()
+const socialPreview = socialPreviewSeo(runtimeConfig.public.productionOrigin || runtimeConfig.public.appUrl, runtimeConfig.app.baseURL)
+useSeoMeta({ title: `${page.title} — Moovicut`, ...socialPreview })
 </script>
 <template><div class="site-shell"><AppHeader /><main class="legal-page"><div class="container-docs"><div class="page-intro"><p class="eyebrow">MOOVICUT · THE CLEAR VERSION</p><h1>{{ page.title }}</h1><p>{{ page.intro }}</p></div><section v-for="section in page.sections" :key="section[0]" class="legal-section"><h2>{{ section[0] }}</h2><p>{{ section[1] }}</p></section><div class="legal-bottom"><p v-if="!page.missing">Updated November 2026</p><NuxtLink to="/" class="button button-primary">{{ page.missing ? 'Back to Moovicut' : 'Back to the studio' }} <ArrowUpRight :size="15" /></NuxtLink></div></div></main><SiteFooter /><AppToast /></div></template>
