@@ -1,8 +1,11 @@
 <script setup>
 import { ArrowUpRight, Check, Download, FolderOpen, Upload } from 'lucide-vue-next'
 import { joinAppPath } from '~/utils/urls.js'
+import { socialPreviewSeo } from '~/utils/social-preview.js'
 const store = useProjectStore()
-const appBaseURL = useRuntimeConfig().app.baseURL
+const runtimeConfig = useRuntimeConfig()
+const appBaseURL = runtimeConfig.app.baseURL
+const socialPreview = socialPreviewSeo(runtimeConfig.public.productionOrigin || runtimeConfig.public.appUrl, appBaseURL)
 const { notify, downloadText } = useNotifier()
 const showMoreTools = ref(false)
 const panel = ref(null)
@@ -14,7 +17,7 @@ function importProject(){openImport()}
 function exportLibrary(){downloadText('moovicut-library.json',JSON.stringify({schema:'shotboard.backup.v1',projects:store.savedProjects,settings:store.settings},null,2),'application/json')}
 async function importJson(event){const file=event.target.files?.[0];try{if(!file)return;const text=await file.text();const parsed=JSON.parse(text);if(parsed&&['shotboard.v1','shotboard.backup.v1'].includes(parsed.schema)&&Array.isArray(parsed.projects)){store.restoreBackup(parsed);notify('Local library restored.','success')}else store.importProject(text)}catch(error){notify(error.message||'Could not read this JSON file.','error')}finally{if(event.target)event.target.value=''}}
 onMounted(()=>{const route=useRoute();if(route.hash==='#storyboard')showMoreTools.value=true;if(route.hash==='#library')panel.value='library';if(String(route.hash||'').includes('board='))return;const id=route.query.project;if(typeof id==='string'){const saved=store.savedProjects.find(project=>project.id===id);if(saved)store.loadProject(saved)}})
-useSeoMeta({title:'Moovicut studio — free local storyboarding',description:'Free local storyboarding, shot editing, and JSON export on your device. No account is required.'})
+useSeoMeta({title:'Moovicut studio — free local storyboarding',description:'Free local storyboarding, shot editing, and JSON export on your device. No account is required.', ...socialPreview})
 </script>
 <template><div class="studio-shell application-shell" :class="{'workspace-collapsed':workspaceCollapsed,'workspace-menu-open':workspaceMenu}">
  <WorkspaceSidebar @projects="panel='library'" @editor="showMoreTools=true" />
