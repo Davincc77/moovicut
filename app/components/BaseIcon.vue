@@ -1,0 +1,9 @@
+<script>
+import { ArrowUpRight, ArrowRight, ArrowDown, ArrowLeft, ArrowUp, Check, CheckCheck, ChevronDown, ChevronUp, ChevronRight, ChevronLeft, X, Menu, CircleUserRound, Clapperboard, Film, Video, Camera, Aperture, Focus, Layers3, LayoutGrid, Compass, Heart, Orbit, Eye, Smile, Moon, Copy, Download, Upload, Code2, Braces, Terminal, Bot, FileJson2, CircleCheck, CircleHelp, Info, CircleAlert, ExternalLink, Plus, Pencil, Trash2, GripVertical, Undo2, Redo2, RotateCcw, Save, CloudOff, Monitor, Smartphone, Globe, Sparkles, WandSparkles, Settings2, SlidersHorizontal, FolderOpen, Clock3, Zap, ShieldCheck, BookOpen, Share2, CheckCircle2, Play, Pause, Timer, Maximize2, MoreHorizontal, Lightbulb, MoveRight, Box, Drama, Mountain, Layers, CheckSquare, KeyRound, LogOut, Volume2, Sword } from 'lucide-vue-next'
+const icons = { ArrowUpRight, ArrowRight, ArrowDown, ArrowLeft, ArrowUp, Check, CheckCheck, ChevronDown, ChevronUp, ChevronRight, ChevronLeft, X, Menu, CircleUserRound, Clapperboard, Film, Video, Camera, Aperture, Focus, Layers3, LayoutGrid, Compass, Heart, Orbit, Eye, Smile, Moon, Copy, Download, Upload, Code2, Braces, Terminal, Bot, FileJson2, CircleCheck, CircleHelp, Info, CircleAlert, ExternalLink, Plus, Pencil, Trash2, GripVertical, Undo2, Redo2, RotateCcw, Save, CloudOff, Monitor, Smartphone, Globe, Sparkles, WandSparkles, Settings2, SlidersHorizontal, FolderOpen, Clock3, Zap, ShieldCheck, BookOpen, Share2, CheckCircle2, Play, Pause, Timer, Maximize2, MoreHorizontal, Lightbulb, MoveRight, Box, Drama, Mountain, Layers, CheckSquare, KeyRound, LogOut, Volume2, Sword }
+export default {
+  props: { name: { type: String, required: true }, size: { type: [String, Number], default: 16 }, strokeWidth: { type: [String, Number], default: 1.6 } },
+  computed: { component() { return icons[this.name] || CircleHelp } }
+}
+</script>
+<template><component :is="component" :size="size" :stroke-width="strokeWidth" aria-hidden="true" /></template>

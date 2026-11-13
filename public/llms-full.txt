@@ -1,0 +1,24 @@
+MOOVICUT AGENT GUIDE
+
+PURPOSE
+Moovicut prepares an editable storyboard and shot list. It does not generate video.
+
+BROWSER AUTOMATION
+The open studio page (`/studio`) exposes window.Shotboard (window.Moovicut is the same object). Use capabilities() to inspect supported actions and getProject() to read the current project. createProject({ premise, model }) creates a storyboard. updateShot(id, patch), reorderShot(id, direction) and deleteShot(id) edit the board. exportJSON() returns a portable project document. This is an in-page API, not a public network service.
+
+CLI
+node cli/moovicut.mjs --premise "A lighthouse keeper races the dusk." --model google --shots 6 --output storyboard.json
+node cli/moovicut.mjs --input storyboard.json --export-prompts
+The shotboard command runs the same program.
+
+DOCUMENT CONTRACT
+The flat shotboard.v1 document includes id, title, premise, model/target_model, aspectRatio and shots. Each shot includes a stable id/shot_id, numeric order, framing, lens, camera, action, lighting, sound, continuity, duration/duration_seconds and prompt. Preserve user-edited prompt text when reordering. Validate imported documents. Do not send prompts to a model unless the person chooses to paste them.
+
+LOCAL STORAGE
+Projects are stored in the current browser. JSON export is the portable backup. The studio can save a shotboard.backup.v1 library of projects on this device and restore that file after it validates. Browser storage failures must be reported, never hidden behind a success message.
+
+PRICE
+The prompts work with Grok Imagine, Google, or any other AI image or video model. Grok Imagine and Google are prompt targets in the picker, not bundled generation. Planning, editing, and JSON export are free. There is no subscription. Optional tips open https://buymeacoffee.com/enzoc1977r in a new tab. Moovicut does not take payment itself.
+
+LIMITS
+No account, no cross-device sync, and no video rendering inside Moovicut. The site is in English.

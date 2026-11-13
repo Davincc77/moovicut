@@ -1,0 +1,12 @@
+node_modules/
+.nuxt/
+.output/
+dist
+build
+out
+/index.html
+.env
+.DS_Store
+*.log
+.tmp-scenes/
+public/downloads/

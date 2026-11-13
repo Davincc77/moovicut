@@ -1,0 +1,12 @@
+# Moovicut
+
+> Free, local-first storyboard and shot list. No account and no video rendering.
+
+Prompts work with Grok Imagine, Google, or any other AI image or video model. Moovicut does not render video.
+
+- [Product guide](product.md): local planning, storage, and output.
+- [FAQ](faq.md): models, local work, export, and storage.
+- [Full agent guide](llms-full.txt): document contract, browser automation, and CLI examples.
+- [Site index](index.md): routes and local workflow. The studio is `/studio`.
+
+Canonical schema: `shotboard.v1`. Canonical browser API: `window.Shotboard` (`window.Moovicut` is the same object). CLI: `node cli/moovicut.mjs` (`shotboard` is the same command).
