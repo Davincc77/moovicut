@@ -262,6 +262,26 @@ test('risk-flagged proper nouns are not missing-look errors', () => {
   assert.equal(refreshProjectPrompts(board).shots[0].prompt, 'HAND EDITED')
 })
 
+test('an idea made only of risk-flagged names shows the neutral note and no missing scene lines', () => {
+  const idea = 'Taylor Swift drinks Nike soda at Disney'
+  const detected = detectProse(idea)
+  const messages = detected.warnings.map(item => item.message).join('\n')
+  assert.equal(detected.warnings.filter(item => item.code === 'risk_note').length, 1)
+  assert.equal(detected.warnings.filter(item => item.code !== 'risk_note').length, 0)
+  assert.doesNotMatch(messages, /No character found for scene/)
+  assert.doesNotMatch(messages, /No place found for scene/)
+  assert.doesNotMatch(messages, /No character name found/)
+  assert.doesNotMatch(messages, /No look found/)
+  const ordinary = detectProse('The morning light hits the street. A bird flies over the city.')
+  assert.ok(ordinary.warnings.some(item => item.code === 'missing_character'))
+  const board = createStoryboard({ premise: idea })
+  const shown = (board.detection?.warnings || []).filter(item => item.code !== 'risk_note').map(item => item.message).join('\n')
+  assert.doesNotMatch(shown, /No character found for scene|No place found for scene/)
+  board.shots[0].prompt = 'HAND EDITED'
+  board.shots[0].promptEdited = true
+  assert.equal(refreshProjectPrompts(board).shots[0].prompt, 'HAND EDITED')
+})
+
 test('a scenario without a premise does not copy scene 1 into later shots', () => {
   const board = createStoryboard({
     scenario: {

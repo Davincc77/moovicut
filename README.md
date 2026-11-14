@@ -52,12 +52,12 @@ Planning, editing, reordering, undo and redo, local projects, JSON import and ex
 
 ```sh
 npm test
-NUXT_APP_BASE_URL=/ npx nuxt generate
+NUXT_APP_BASE_URL=/ npm run build
 ```
 
 `npm test` runs the prompt engine, CLI, project store, Vue checks, and redirect checks.
 
-`npm run build` generates the static site. Nuxt writes it to `.output/public/`. That folder is generated output.
+`npm run build` and `npm run generate` both run `nuxt generate`. Nuxt writes the static site to `.output/public/`. That folder is generated output. Railway uses `NUXT_APP_BASE_URL=/ npm run build`, then `node server/prod-server.mjs`.
 
 ### Deploy
 
@@ -86,7 +86,7 @@ The command name is `moovicut`. `shotboard` remains an alias in the package bin.
 
 ## Agents
 
-`/agents` documents the stateless API. `POST /api/v1/storyboard` and the MCP tool `plan_storyboard` use the same default: 5 scenes of 3 seconds. Pass `shots` and `duration`, or a `scenes` array, for a custom scene-by-scene board. People can do that in `/studio` with Step-by-step mode. Scenario mode accepts a `scenario` object or a `CHARACTERS` / `PLACES` / `SCENES` block, and `input: "prose"` detects that structure from free text. `mode` `ad` turns a product and a benefit into hook, hero, proof, and pack shot, with the product locked on the film sheet. `mode` `series` plans 3 to 8 vertical episodes on one sheet. `mode` `explainer` turns a numbered list into one action per shot and snaps duration to the selected model profile. Style presets (`anime`, with `manga` as an alias, `cinema`, `documentary`, plus a genre) lock one film sheet into every generated shot, including a plain premise. An unknown family is rejected. A shot marked `promptEdited`, or a `prompt` you send on a scene or on a posted agent board, is kept unless you reset it or send `overwritePrompt: true`. Send `regenerateShot` with the existing `project` to rebuild one shot. The response adds `warnings` only when a shot looks risky, and those warnings never block the board. Every mode shares one film sheet, and switching modes keeps it. `format: "agent"` returns `shotboard.compact.v1` so an agent can resume any project. Minified JSON, with no extra whitespace, is the token-efficient way to send that compact document. A scenario may omit `premise`; the idea line is then the character and place names, not the first scene’s action. Characters, places, and styles can be saved in the browser library and exported as a file. `model` can be `grok`, `google`, `sora`, `kling`, `runway`, `luma`, `wan`, or `generic`. Shot length, aspect, prompt form, and the risk check follow that model’s official limits, which are cited in `app/utils/model-profiles.js`. A prompt you edited stays as you left it. `studioUrl` opens `/studio#board=` in the browser. Nothing is stored. See `AGENTS.md`, `GET /openapi.json`, and `/.well-known/mcp.json`.
+`/agents` documents the stateless API. `POST /api/v1/storyboard` and the MCP tool `plan_storyboard` use the same default: 5 scenes of 3 seconds. Pass `shots` and `duration`, or a `scenes` array, for a custom scene-by-scene board. People can do that in `/studio` with Step-by-step mode. Scenario mode accepts a `scenario` object or a `CHARACTERS` / `PLACES` / `SCENES` block, and `input: "prose"` detects that structure from free text. `mode` `ad` turns a product and a benefit into hook, hero, proof, and pack shot, with the product locked on the film sheet. `mode` `series` plans 3 to 8 vertical episodes on one sheet. `mode` `explainer` turns a numbered list into one action per shot and snaps duration to the selected model profile. Style presets (`anime`, with `manga` as an alias, `cinema`, `documentary`, plus a genre) lock one film sheet into every generated shot, including a plain premise. An unknown family is rejected. A shot marked `promptEdited`, or a `prompt` you send on a scene or on a posted agent board, is kept unless you reset it or send `overwritePrompt: true`. A scene whose only names are public figures, brands, or trademarks shows the neutral risk note and does not add missing-character or missing-place lines. Send `regenerateShot` with the existing `project` to rebuild one shot. The response adds `warnings` only when a shot looks risky, and those warnings never block the board. Every mode shares one film sheet, and switching modes keeps it. `format: "agent"` returns `shotboard.compact.v1` so an agent can resume any project. Minified JSON, with no extra whitespace, is the token-efficient way to send that compact document. A scenario may omit `premise`; the idea line is then the character and place names, not the first scene’s action. Characters, places, and styles can be saved in the browser library and exported as a file. `model` can be `grok`, `google`, `sora`, `kling`, `runway`, `luma`, `wan`, or `generic`. Shot length, aspect, prompt form, and the risk check follow that model’s official limits, which are cited in `app/utils/model-profiles.js`. A prompt you edited stays as you left it. `studioUrl` opens `/studio#board=` in the browser. Nothing is stored. See `AGENTS.md`, `GET /openapi.json`, and `/.well-known/mcp.json`.
 
 ```json
 {
@@ -151,7 +151,7 @@ Moovicut/
 │   ├── assets/css/main.css    # Application styles
 │   ├── components/            # Navigation, studio, and FAQ UI
 │   ├── composables/           # Project store and notices
-│   ├── pages/                 # Home, Studio, FAQ, and legal pages
+│   ├── pages/                 # Home, Studio, FAQ, Agents, and legal pages
 │   ├── plugins/               # window.Shotboard on the open studio page
 │   └── utils/                 # Prompt engine and reference content
 ├── cli/moovicut.mjs           # Offline editor (moovicut and shotboard)

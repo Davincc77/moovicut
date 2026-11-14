@@ -43,7 +43,7 @@ test('CLI reads stdin, preserves the prompt through moving, and supports undo me
   assert.equal(moved.shots[1].id, 'shot-01')
 })
 test('CLI rejects missing files, invalid models, missing shots and empty input without a traceback', async () => {
-  for (const args of [['--premise', 'valid premise for a film', '--model', 'unknown'], ['--delete', 'missing-shot'], ['--input', 'no-such-shotboard-file.json']]) {
+  for (const args of [['--premise', 'valid premise for a film', '--model', 'unknown'], ['--delete', 'missing-shot'], ['--input', 'no-such-moovicut-file.json']]) {
     const result = await run(args)
     assert.notEqual(result.code, 0)
     assert.ok(result.stderr.trim())

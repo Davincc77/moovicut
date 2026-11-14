@@ -308,7 +308,7 @@ export function useProjectStore() {
     imported.id = savedProjects.value.some(item => item.id === imported.id) ? `imported-${Date.now().toString(36)}` : imported.id
     commit({ ...imported, title: imported.title || 'Imported story' }, 'Storyboard imported successfully'); return imported
   }
-  const personalLibrary = useState('shotboard-personal-library', () => emptyLibrary())
+  const personalLibrary = useState('moovicut-personal-library', () => emptyLibrary())
   const promptUndo = useState('prompt-undo', () => null)
   function rememberLibrary(next, message) {
     personalLibrary.value = next

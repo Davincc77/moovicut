@@ -86,7 +86,7 @@ Style presets lock one base sheet for every shot, in every mode, including a pla
 
 Scenes are packed into sequences of 15–60 seconds. Each sequence is copied separately. Aim for about 1,500 characters per minute. The response warns from 6,000 characters and stops at 8,000. A normal premise stays 8–6,000 characters.
 
-Free text is detected only when `input` or `type` is `prose` (the text is `prose`, `text`, or `premise`, 8–8,000 characters). The response includes `language`, `confidence`, `warnings`, and `scenario`. A normal premise is not auto-detected. Detection is deterministic and does not call a model. In the studio, a line you already edited is not replaced when detection runs again.
+Free text is detected only when `input` or `type` is `prose` (the text is `prose`, `text`, or `premise`, 8–8,000 characters). The response includes `language`, `confidence`, `warnings`, and `scenario`. A normal premise is not auto-detected. Detection is deterministic and does not call a model. In the studio, a line you already edited is not replaced when detection runs again. When a scene’s only names are public figures, brands, or trademarks, detection adds the neutral risk note and does not add missing-character or missing-place lines for that scene.
 
 ## Ad, series, and explainer
 

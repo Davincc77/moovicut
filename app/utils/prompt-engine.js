@@ -6,7 +6,6 @@ import { cameraFor, episodePacks, isPresetMode, parseAd, parseExplainer, parseSe
 import { detectProse } from './prose-detect.js'
 import { canonicalStyleFamily, formatPresetBlock, listPresets, presetFamilies, presetGenres, resolvePreset } from './presets/index.js'
 import { cleanText, sentence } from './text.js'
-export { CAMERAS, LIGHTS, MOODS, looksLikeScenario, parseScenario, scenarioFromProject } from './scenario.js'
 export { canonicalStyleFamily, formatPresetBlock, listPresets, presetFamilies, presetGenres, resolvePreset } from './presets/index.js'
 export { MODEL_IDS, MODEL_OPTIONS, REFERENCE_MODEL_NAMES, canonicalModel, modelRegistry } from '../integrations/models/model-registry.js'
 // Shared text helpers stay in text.js to avoid duplicate auto-imports in hosts.
