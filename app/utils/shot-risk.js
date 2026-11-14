@@ -5,6 +5,10 @@ import { allowedDurations, profileFor, snapAspect } from './model-profiles.js'
 const ACTION_VERBS = /\b(pours|pour|spills|spill|laughs|laugh|runs|run|opens|open|walks|walk|enters|enter|leaves|leave|rides|ride|turns|turn|verse|renverse|rit|court|entre|sort|marche|revient|ouvre)\b/gi
 const TEXT_ON_SCREEN = /\b(title card|subtitle|subtitles|caption|captions|logo|on-screen text|onscreen text|écrit|ecrit|sign reads|text reading|words on screen)\b/i
 const CROWD = /\b(crowd|crowds|army|armies|dozens|hundreds|foule|foules)\b/i
+const GORE = /\b(gore|gory|bloody|blood|brutal|dismember|decapitat)\b/i
+const BRAND_LOGO = /\blogo\b/i
+const COPYRIGHT = /\b(disney(?:\s+characters?)?|mickey mouse|minnie mouse|spider-man|spiderman|batman|superman|harry potter|pikachu|mario)\b/i
+const CELEBRITIES = ['taylor swift', 'beyonce', 'beyoncé', 'elon musk', 'tom cruise', 'ariana grande', 'rihanna', 'drake', 'zendaya', 'leonardo dicaprio', 'brad pitt', 'kim kardashian', 'kanye west', 'lady gaga', 'the weeknd', 'billie eilish', 'selena gomez', 'timothee chalamet', 'timothée chalamet']
 const CAMERA_CONFLICTS = [
   [/\bpush(?:-|\s)?in\b/i, /\bpull(?:-|\s)?(?:out|back)\b/i, 'push-in and pull-back'],
   [/\bzoom in\b/i, /\bzoom out\b/i, 'zoom in and zoom out'],
@@ -18,6 +22,11 @@ function warning(shot, code, message, fix) {
 
 function sourceOf(shot) {
   return [shot.what, shot.action].filter(Boolean).join(' ')
+}
+
+function userText(shot, project) {
+  const prompt = String(shot.prompt || '').replace(/No captions, titles, logos or watermarks\.?/gi, '')
+  return [project.premise, shot.what, shot.action, shot.title, prompt].filter(Boolean).join('\n')
 }
 
 function unresolved(shot, project) {
@@ -82,9 +91,23 @@ export function assessShot(shot, project = {}) {
     }
   })
   warnings.push(...unresolved(shot, project))
+  const text = userText(shot, project)
+  const lower = text.toLowerCase()
+  const celebrity = CELEBRITIES.find(name => lower.includes(name))
+  if (celebrity) warnings.push(warning(shot, 'celebrity', `A public figure (${celebrity}) is hard for a video model to depict accurately.`, 'Describe a fictional person instead of a named celebrity.'))
+  if (GORE.test(text)) warnings.push(warning(shot, 'gore', 'Gore and injury are unstable in a short clip and may be blocked.', 'Show the aftermath or the tension without blood or injury.'))
+  if (BRAND_LOGO.test(text)) warnings.push(warning(shot, 'brand_logo', 'A logo or brand mark is easy for a video model to misspell.', 'Describe the object without a logo, wordmark, or brand name in the frame.'))
+  if (COPYRIGHT.test(text)) warnings.push(warning(shot, 'copyrighted_character', 'Copyrighted characters are a poor fit for a generated clip.', 'Invent an original character instead of a known franchise character.'))
   return warnings
 }
 
 export function assessProject(project) {
-  return (project?.shots || []).flatMap(shot => assessShot(shot, project))
+  const warnings = (project?.shots || []).flatMap(shot => assessShot(shot, project))
+  const seen = new Set()
+  return warnings.filter(item => {
+    if (item.code !== 'sora_long_clip') return true
+    if (seen.has(item.code)) return false
+    seen.add(item.code)
+    return true
+  })
 }

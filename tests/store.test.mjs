@@ -190,3 +190,19 @@ test('save reports blocked browser storage instead of falsely claiming success',
   assert.match(store.saveState.value.message, /backup/)
   assert.equal(store.project.value.title, 'Unsaved backup needed')
 })
+
+test('reset undo restores the exact hand-edited prompt and promptEdited flag', () => {
+  const store = storeFixture()
+  store.createNew('A lighthouse keeper races the dusk to repair a failing beacon.', 'grok')
+  const id = store.project.value.shots[0].id
+  store.updateShotFields(id, { prompt: 'HAND LINE' })
+  assert.equal(store.project.value.shots[0].promptEdited, true)
+  store.resetShotPrompt(id)
+  assert.notEqual(store.project.value.shots[0].prompt, 'HAND LINE')
+  assert.equal(store.project.value.shots[0].promptEdited, undefined)
+  assert.equal(store.promptUndo.prompt, 'HAND LINE')
+  store.restorePromptUndo()
+  assert.equal(store.project.value.shots[0].prompt, 'HAND LINE')
+  assert.equal(store.project.value.shots[0].promptEdited, true)
+  assert.equal(store.promptUndo, null)
+})

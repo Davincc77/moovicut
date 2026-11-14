@@ -10,7 +10,7 @@ A premise becomes an ordered shot list on this device, with camera, action, ligh
 No. It writes prompts. Nothing is rendered inside Moovicut.
 
 ## Which models does it support?
-The picker offers Grok Imagine and Google. The same prompts work with any other AI image or video model. These names are prompt targets, not included accounts or rendering.
+The home page and the studio list eight prompt targets: Grok Imagine, Google (Veo / Gemini), Sora, Kling, Runway, Luma, Wan, and a generic profile. These names are prompt targets, not included accounts or rendering.
 
 ## Is an account required?
 No. The storyboard stays in this browser. There is no sign-in.

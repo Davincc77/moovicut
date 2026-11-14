@@ -1,5 +1,8 @@
 <script setup>
-const props = defineProps({ mode: { type: String, required: true } })
+import { parseAd, parseExplainer, parseSeries } from '~/utils/preset-modes.js'
+const props = defineProps({ mode: { type: String, required: true }, reveal: { type: Boolean, default: false } })
+const touched = ref(false)
+watch(() => props.mode, () => { touched.value = false })
 const product = ref('')
 const benefit = ref('')
 const cta = ref('')
@@ -44,10 +47,16 @@ function draft() {
     options: { sequenceMode: 'explainer', explainer: { topic: topic.value, audience: audience.value, steps: steps.value } }
   }
 }
+const problems = computed(() => {
+  if (!touched.value && !props.reveal) return []
+  const body = draft()
+  const parsed = props.mode === 'ad' ? parseAd(body.options) : props.mode === 'series' ? parseSeries(body.options) : parseExplainer({ ...body.options, premise: body.premise })
+  return parsed.ok ? [] : parsed.errors
+})
 defineExpose({ draft })
 </script>
 <template>
- <div class="studio-preset-fields">
+ <div class="studio-preset-fields" @input="touched = true">
   <template v-if="mode === 'ad'">
    <label>Product<input v-model="product" aria-label="Product" maxlength="80" placeholder="Sunlit Pear" /></label>
    <label>Benefit<textarea v-model="benefit" aria-label="Benefit" maxlength="400" placeholder="A cold pear soda that tastes like late summer"></textarea></label>
@@ -64,13 +73,14 @@ defineExpose({ draft })
    <label>Look<input v-model="characterLook" aria-label="Character look" maxlength="300" /></label>
    <label>Place<input v-model="placeName" aria-label="Series place" maxlength="80" /></label>
    <label>Place description<input v-model="placeDescription" aria-label="Place description" maxlength="300" /></label>
-   <p>3 to 8 vertical episodes. One film sheet for the whole series.</p>
+   <p>{{ Math.min(8, Math.max(3, Number(episodeCount) || 3)) }} episodes, {{ Math.min(8, Math.max(3, Number(episodeCount) || 3)) * 3 }} shots. Choose 3 to 8 episodes. Each episode is an open, a hold, and a landing.</p>
   </template>
-  <template v-else>
+  <template v-else-if="mode === 'explainer'">
    <label>Topic<input v-model="topic" aria-label="Explainer topic" maxlength="200" placeholder="How to patch a bike tube" /></label>
    <label>Audience, optional<input v-model="audience" aria-label="Audience" maxlength="200" /></label>
    <label>Steps<textarea v-model="steps" aria-label="Numbered steps" placeholder="1. Flip the bike&#10;2. Release the brake&#10;3. Patch the tube"></textarea></label>
    <p>Each numbered line becomes one shot. Length snaps to the selected model.</p>
   </template>
+  <ul v-if="problems.length" class="studio-scenario-warnings"><li v-for="(item, index) in problems" :key="index">{{ item.message }}</li></ul>
  </div>
 </template>

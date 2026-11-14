@@ -1,13 +1,13 @@
 /** A deterministic local story planner. No remote AI or video generation. */
 import { canonicalModel, modelRegistry } from '../integrations/models/model-registry.js'
 import { profileFor, snapAspect, snapDuration } from './model-profiles.js'
-import { CAMERAS, LIGHTS, MOODS, describeCast, describePlace, findByName, looksLikeScenario, parseScenario, scenarioFromProject, scenarioPremise, sequencePacks } from './scenario.js'
+import { CAMERAS, LIGHTS, MOODS, describeCast, describePlace, findByName, foldName, looksLikeScenario, parseScenario, scenarioFromProject, scenarioPremise, sequencePacks } from './scenario.js'
 import { cameraFor, episodePacks, isPresetMode, parseAd, parseExplainer, parseSeries } from './preset-modes.js'
 import { detectProse } from './prose-detect.js'
-import { formatPresetBlock, listPresets, presetFamilies, presetGenres, resolvePreset } from './presets/index.js'
+import { canonicalStyleFamily, formatPresetBlock, listPresets, presetFamilies, presetGenres, resolvePreset } from './presets/index.js'
 import { cleanText, sentence } from './text.js'
 export { CAMERAS, LIGHTS, MOODS, looksLikeScenario, parseScenario, scenarioFromProject } from './scenario.js'
-export { formatPresetBlock, listPresets, presetFamilies, presetGenres, resolvePreset } from './presets/index.js'
+export { canonicalStyleFamily, formatPresetBlock, listPresets, presetFamilies, presetGenres, resolvePreset } from './presets/index.js'
 export { MODEL_IDS, MODEL_OPTIONS, REFERENCE_MODEL_NAMES, canonicalModel, modelRegistry } from '../integrations/models/model-registry.js'
 // Shared text helpers stay in text.js to avoid duplicate auto-imports in hosts.
 export const GENRES = {
@@ -34,12 +34,12 @@ export const STYLES = [
   { id: 'wireframe', label: 'Previs', note: 'Neutral blocking study', suffix: 'neutral grey three-dimensional previsualization, wireframe guides, clear spatial blocking' }
 ]
 const TEMPLATES = [
-  { stage: 'Opening', title: 'Establish the world', framing: 'Extreme wide establishing shot', lens: '24mm wide-angle lens', camera: 'Slow lateral push toward the scene', action: 'the character crosses a puddle as a distant signal flickers', directions: 'Begin with a patient, wide composition that establishes location and scale. Let a small movement draw us toward the protagonist.', continuity: 'Establish protagonist wardrobe and props, geography, direction of travel and ambient weather for the entire sequence.', cue: 'distant ambience and a low, unobtrusive score' },
-  { stage: 'Introduction', title: 'Meet the protagonist', framing: 'Medium tracking shot', lens: '35mm standard lens', camera: 'Gentle backward tracking at eye level', action: 'they quietly assess an unforeseen arrival', directions: 'Stay with the protagonist. Reveal posture and intention before specific facial emotion. Bring the environment into the edges of the frame.', continuity: 'Keep wardrobe, carried objects and movement direction exactly as established in the previous shot.', cue: 'soft footsteps, fabric rustle and outdoor room tone' },
-  { stage: 'Discovery', title: 'Something catches their eye', framing: 'Close-up insert', lens: '85mm close-up lens', camera: 'A precise, slow push-in with shallow depth of field', action: 'a reflected glow reveals an unexpected detail', directions: 'Focus on the decisive detail. Let recognition emerge through one subtle change in the frame rather than a dramatic effect.', continuity: 'Hold eyeline and focal-point direction consistent with the preceding medium shot; preserve weather and prop placement.', cue: 'ambience drops away; one clear detail sound' },
-  { stage: 'Shift', title: 'The moment turns', framing: 'Over-the-shoulder shot', lens: '40mm compact cinema lens', camera: 'A controlled arc to the protagonist’s right', action: 'a sudden realization interrupts the quiet', directions: 'Introduce a new visual relationship. This is the turn: the protagonist recognizes that their plan must change.', continuity: 'Maintain screen direction, previously established wardrobe, and consistent position of the newly revealed object.', cue: 'a restrained musical pulse begins underneath the ambience' },
-  { stage: 'Response', title: 'A choice in motion', framing: 'Full-body lateral tracking shot', lens: '32mm wide-normal lens', camera: 'Measured dolly alongside the protagonist', action: 'the atmosphere thickens as they move forward', directions: 'Let action play head-to-toe in one unbroken composition. Emphasize decision and changing distance rather than frantic editing.', continuity: 'Move along the established line of action. Keep the protagonist travelling in the same screen direction.', cue: 'footsteps sharpen, wind rises, rhythmic score develops' },
-  { stage: 'Release', title: 'A quiet final image', framing: 'Wide closing tableau', lens: '50mm natural-perspective lens', camera: 'Slow crane back, ending on a locked-off frame', action: 'a final gust carries the last of the tension away', directions: 'Resolve the immediate dramatic question with a visual change. Hold long enough for the final gesture to resonate.', continuity: 'Return to wide geography from the opening with visible consequences of the decision; preserve character appearance.', cue: 'the pulse resolves into one quiet sustained note; ambience returns' }
+  { stage: 'Opening', title: 'Establish the world', framing: 'Extreme wide establishing shot', lens: '24mm wide-angle lens', camera: 'Slow lateral push toward the scene', action: 'the character crosses a puddle as a distant signal flickers', directions: 'Open wide and let one small movement lead in.', continuity: 'Establish protagonist wardrobe and props, geography, direction of travel and ambient weather for the entire sequence.', cue: 'distant ambience and a low, unobtrusive score' },
+  { stage: 'Introduction', title: 'Meet the protagonist', framing: 'Medium tracking shot', lens: '35mm standard lens', camera: 'Gentle backward tracking at eye level', action: 'they quietly assess an unforeseen arrival', directions: 'Stay on posture and intention.', continuity: 'Keep wardrobe, carried objects and movement direction exactly as established in the previous shot.', cue: 'soft footsteps, fabric rustle and outdoor room tone' },
+  { stage: 'Discovery', title: 'Something catches their eye', framing: 'Close-up insert', lens: '85mm close-up lens', camera: 'A precise, slow push-in with shallow depth of field', action: 'a reflected glow reveals an unexpected detail', directions: 'Hold on the one new detail.', continuity: 'Hold eyeline and focal-point direction consistent with the preceding medium shot; preserve weather and prop placement.', cue: 'ambience drops away; one clear detail sound' },
+  { stage: 'Shift', title: 'The moment turns', framing: 'Over-the-shoulder shot', lens: '40mm compact cinema lens', camera: 'A controlled arc to the protagonist’s right', action: 'a sudden realization interrupts the quiet', directions: 'Show the turn in one move.', continuity: 'Maintain screen direction, previously established wardrobe, and consistent position of the newly revealed object.', cue: 'a restrained musical pulse begins underneath the ambience' },
+  { stage: 'Response', title: 'A choice in motion', framing: 'Full-body lateral tracking shot', lens: '32mm wide-normal lens', camera: 'Measured dolly alongside the protagonist', action: 'the atmosphere thickens as they move forward', directions: 'Follow the choice in one direction.', continuity: 'Move along the established line of action. Keep the protagonist travelling in the same screen direction.', cue: 'footsteps sharpen, wind rises, rhythmic score develops' },
+  { stage: 'Release', title: 'A quiet final image', framing: 'Wide closing tableau', lens: '50mm natural-perspective lens', camera: 'Slow crane back, ending on a locked-off frame', action: 'a final gust carries the last of the tension away', directions: 'Hold the last image.', continuity: 'Return to wide geography from the opening with visible consequences of the decision; preserve character appearance.', cue: 'the pulse resolves into one quiet sustained note; ambience returns' }
 ]
 export const SCENE_STUDIES = ['Snow Fight', 'Dragon Chase', 'The Lab', 'The Climb', 'Mech Reveal', 'Solo Corridor', 'Machine Room', 'High Country']
 const EXAMPLE_TERMS = [
@@ -66,6 +66,16 @@ export const DURATION_PRESETS = Object.freeze([
   { id: '30s', label: '30s', total: 30, count: 10, duration: 3 },
   { id: '60s', label: '60s', total: 60, count: 20, duration: 3 }
 ])
+/** Preset buttons and settings for the active model. Totals stay inside the named length when a shot must be longer than 3s. */
+export function durationPlans(modelId) {
+  const profile = profileFor(modelId)
+  return DURATION_PRESETS.map(preset => {
+    const duration = snapDuration(preset.duration, profile)
+    const count = Math.min(48, Math.max(1, Math.floor(preset.total / duration)))
+    const total = count * duration
+    return { id: preset.id, label: `${total}s`, total, count, duration }
+  })
+}
 export function canonicalDuration(value) {
   const number = Number(value)
   if (!Number.isFinite(number) || number === 0) return DEFAULT_SHOT_DURATION
@@ -81,7 +91,7 @@ export const FAQS = [
   { q: 'Can an AI agent build a storyboard?', a: 'Yes. The default board is 5 scenes of 3 seconds (15s total). Humans can use Step-by-step mode in /studio, and agents can pass shots, a scenes array, a scenario, input prose, or format agent to POST /api/v1/storyboard, /mcp, or a /studio# share link. Open /agents for the endpoints. No API key and no account. Every mode shares one film sheet. model can be grok, google, sora, kling, runway, luma, wan, or generic. A prompt edited by hand is kept unless overwrite is explicit.' },
   { q: 'How does Moovicut work?', a: 'A premise becomes an ordered shot list on this device, with camera, action, lighting, sound, and continuity you can edit. Paste a prompt into the model you already use. Moovicut does not call that model.' },
   { q: 'Does Moovicut render video?', a: 'No. It writes prompts. Nothing is rendered inside Moovicut.' },
-  { q: 'Which models does it support?', a: 'The picker offers Grok Imagine and Google. The same prompts work with any other AI image or video model. These names are prompt targets, not included accounts or rendering.' },
+  { q: 'Which models does it support?', a: 'The home page and the studio list eight prompt targets: Grok Imagine, Google (Veo / Gemini), Sora, Kling, Runway, Luma, Wan, and a generic profile. These names are prompt targets, not included accounts or rendering.' },
   { q: 'Is an account required?', a: 'No. The storyboard stays in this browser. There is no sign-in.' },
   { q: 'Can I import or export work?', a: 'Yes. Projects use the shotboard.v1 JSON format. The studio can export a project or a local library backup, and it can import a compatible file. Files stay on your device.' },
   { q: 'Is Moovicut free?', a: 'Yes. Planning, editing, and JSON export are free. There is no subscription. Optional tips open Buy Me a Coffee in a new tab. Moovicut does not take payment itself.' },
@@ -226,13 +236,15 @@ export function buildContinuitySheet(premise) {
   let time = times.find(item => mentionedCue(lower, item) || lower.includes(item) && item.includes(' ')) || (mentionedCue(lower, 'moon') ? 'night' : '')
   if (!time && /夕暮れ|黄昏|crépuscule|crepuscule|anochecer|dämmerung|сумерк/.test(text)) time = 'dusk'
   if (!time && (/夜|ночь/.test(text) || mentionedCue(lower, 'nuit') || mentionedCue(lower, 'noche') || mentionedCue(lower, 'nacht'))) time = 'night'
+  if (!time && (mentionedCue(lower, 'storm') || mentionedCue(lower, 'thunder') || mentionedCue(lower, 'tempest'))) time = 'storm'
+  if (!time && (mentionedCue(lower, 'rain') || mentionedCue(lower, 'pluie') || mentionedCue(lower, 'lluvia') || mentionedCue(lower, 'regen') || /雨/.test(text))) time = 'rain'
   if (!time) time = 'daylight consistent with the idea'
   const snow = mentionedCue(lower, 'snow') || mentionedCue(lower, 'ice') || mentionedCue(lower, 'winter') || mentionedCue(lower, 'frost') || mentionedCue(lower, 'neige') || mentionedCue(lower, 'nieve')
   let palette = 'natural cinematic colour with restrained contrast'
   if (mentionedCue(lower, 'dusk') || mentionedCue(lower, 'sunset') || /golden hour/.test(lower)) palette = 'warm amber light, deep shadows and muted gold'
   else if (mentionedCue(lower, 'dawn') || mentionedCue(lower, 'sunrise') || mentionedCue(lower, 'morning')) palette = 'cool blue shadows warming into soft gold'
   else if (mentionedCue(lower, 'night') || mentionedCue(lower, 'midnight') || mentionedCue(lower, 'neon')) palette = 'deep navy, sparse practical lights and cool highlights'
-  else if (mentionedCue(lower, 'rain') || mentionedCue(lower, 'pluie') || mentionedCue(lower, 'lluvia') || mentionedCue(lower, 'regen') || /雨/.test(text)) palette = 'wet dark tones, reflected light and cool teal'
+  else if (mentionedCue(lower, 'storm') || mentionedCue(lower, 'thunder') || mentionedCue(lower, 'rain') || mentionedCue(lower, 'pluie') || mentionedCue(lower, 'lluvia') || mentionedCue(lower, 'regen') || /雨/.test(text)) palette = 'wet dark tones, reflected light and cool teal'
   else if (snow) palette = 'cold whites, steel blue and a pale gold accent'
   const dialogue = extractDialogue(text)
   const avoid = []
@@ -247,7 +259,7 @@ export function formatContinuitySheet(sheet) {
   if (!sheet) return ''
   const outfit = sheet.appearance || appearanceFor(sheet.character)
   const lighting = sheet.lighting || `${sheet.time}, ${sheet.palette}`
-  const lines = ['CONTINUITY SHEET', `Character: ${sheet.character}`, `Wardrobe: ${outfit}`, `Outfit: ${outfit}`, `Place: ${sheet.place}`, `Location: ${sheet.place}`, `Time / moment: ${sheet.time}`, `Lighting: ${lighting}`, `Palette: ${sheet.palette}`, `Style: ${sheet.style}`]
+  const lines = ['CONTINUITY SHEET', `Character: ${sheet.character}`, `Wardrobe: ${outfit}`, `Place: ${sheet.place}`, `Location: ${sheet.place}`, `Time / moment: ${sheet.time}`, `Lighting: ${lighting}`, `Palette: ${sheet.palette}`, `Style: ${sheet.style}`]
   if (sheet.dialogue) lines.push(`Dialogue: “${sheet.dialogue}”`)
   if (sheet.avoid) lines.push(`Do not show: ${sheet.avoid}`)
   return lines.join('\n')
@@ -305,7 +317,8 @@ function cameraForFraming(framing, profile) {
 function applyShotStyle(shot, styleName, keepLighting = false) {
   const profile = SHOT_STYLE_PROFILES[styleName]
   if (!profile) return shot
-  return { ...shot, camera: cameraForFraming(shot.framing, profile), lighting: keepLighting ? shot.lighting : profile.lighting, action: `${profile.mood}: ${shot.action}`, directions: `${profile.mood} mood. ${shot.directions || ''}`.trim() }
+  const mood = styleName === 'Normal' ? '' : `${profile.mood}: `
+  return { ...shot, camera: cameraForFraming(shot.framing, profile), lighting: keepLighting ? shot.lighting : profile.lighting, action: `${mood}${shot.action}`.replace(/^:\s*/, ''), directions: styleName === 'Normal' ? (shot.directions || '').trim() : `${profile.mood} mood. ${shot.directions || ''}`.trim() }
 }
 function appearanceFor(character) {
   const name = String(character || '').toLowerCase()
@@ -338,12 +351,13 @@ function applyContinuousShot(shot, sheet, index, styleName) {
   const appearance = sheet.appearance || appearanceFor(sheet.character)
   const genre = GENRES[shot.genre] || GENRES.cinematic
   const beat = stageBeat(shot.stage, { ...sheet, appearance }, genre)
-  const mood = profile ? `${profile.mood}: ` : ''
+  const mood = styleName && styleName !== 'Normal' && profile ? `${profile.mood}: ` : ''
   const lighting = sheet.lighting || `${sheet.time}, ${sheet.palette}`
   return {
     ...shot,
     action: `${mood}${beat}`,
     lighting: profile ? `${lighting}. ${profile.lighting}` : lighting,
+    directions: 'One clear action.',
     continuity: `Same character: ${sheet.character}. Same wardrobe: ${appearance}. Same place: ${sheet.place}. Same time of day: ${sheet.time}.`
   }
 }
@@ -417,7 +431,36 @@ function applySceneOverrides(shot, override) {
 function sceneOverridePrompt(raw) {
   return typeof raw.prompt === 'string' ? raw.prompt.trim().slice(0, 16000) : ''
 }
+function stampPreset(project, preset) {
+  if (!preset) return project
+  project.preset = preset
+  project.genre = preset.genre
+  project.lockedStyle = preset.visual
+  project.style = preset.family
+  if (project.filmSheet) project.filmSheet = { ...project.filmSheet, style: preset.visual, preset }
+  if (project.continuitySheet) {
+    project.continuitySheet = {
+      ...project.continuitySheet,
+      style: preset.visual,
+      lighting: preset.lighting || project.continuitySheet.lighting,
+      palette: preset.palette || project.continuitySheet.palette
+    }
+  }
+  return project
+}
+
+/** A preset family on any mode, including a plain premise. Unknown families throw 400. */
+export function requestedStylePreset(options = {}) {
+  const raw = String(options.style || '').trim()
+  if (!raw) return null
+  if (SHOT_STYLE_PROFILES[raw] || STYLES.some(item => item.id === raw.toLowerCase())) return null
+  const family = canonicalStyleFamily(raw)
+  if (!family) resolvePreset(raw, options.genre)
+  return resolvePreset(family, options.genre)
+}
+
 export function createStoryboard(options = {}) {
+  const chosenPreset = requestedStylePreset(options)
   const requestedMode = options.sequenceMode || options.mode || ''
   if (requestedMode === 'ad' || options.ad) return createPresetStoryboard(options, 'ad')
   if (requestedMode === 'series' || options.series) return createPresetStoryboard(options, 'series')
@@ -452,16 +495,23 @@ export function createStoryboard(options = {}) {
   const baseSheet = project.continuitySheet || buildContinuitySheet(premise)
   project.filmSheet = options.filmSheet || {
     characters: [{ name: baseSheet.character, look: '', outfit: baseSheet.appearance || '' }],
-    places: [{ name: baseSheet.place, description: baseSheet.place }],
+    places: [{ name: baseSheet.place, description: '' }],
     light: baseSheet.time || '',
     mood: '',
     style: baseSheet.style || lockedStyle
   }
   if (options.skipDetection !== true) {
     const detected = detectProse(premise)
-    project.detection = { language: detected.language, confidence: detected.confidence, warnings: detected.warnings }
+    const hints = (detected.warnings || []).filter(item => item.code === 'missing_character')
+    project.detection = {
+      language: detected.language,
+      confidence: detected.confidence,
+      warnings: (detected.warnings || []).filter(item => item.code !== 'missing_character'),
+      hints
+    }
     mergeDetectedSheet(project.filmSheet, detected, options.detectionLocks || {})
   }
+  stampPreset(project, chosenPreset)
   fitBoard(project)
   if (options.overwritePrompt) project.shots = project.shots.map(shot => { const next = { ...shot }; delete next.prompt; delete next.promptEdited; return next })
   project.shots = project.shots.map((shot, index) => refreshShotPrompt(shot, project, index, { overwrite: options.overwritePrompt === true }))
@@ -498,7 +548,15 @@ export function formatFilmSheet(sheet, project = {}) {
     if (item.outfit && item.outfit !== wardrobe) parts.push(item.outfit)
     return parts.filter(Boolean).join(', ')
   }).filter(Boolean)
-  const places = (sheet.places || []).map(item => [item.name, item.description].filter(Boolean).join(', ')).filter(Boolean)
+  const seenPlaces = new Set()
+  const places = []
+  ;(sheet.places || []).forEach(item => {
+    const key = foldName(item?.name)
+    if (!key || seenPlaces.has(key)) return
+    seenPlaces.add(key)
+    const description = item.description && foldName(item.description) !== key ? item.description : ''
+    places.push([item.name, description].filter(Boolean).join(', '))
+  })
   const product = sheet.product?.name ? `Product (locked): ${sheet.product.name}. ${sheet.product.benefit || ''}`.trim() : ''
   if (!people.length && !places.length && !product && !sheet.topic) return ''
   const lines = ['FILM SHEET']
@@ -523,8 +581,10 @@ const LEGACY_PRESET = Object.freeze({
   documentary: ['documentary', 'nature']
 })
 export function resolveScenarioPreset(options = {}) {
-  const style = String(options.style || '').trim().toLowerCase()
-  const family = presetFamilies().includes(style) ? style : ''
+  const raw = String(options.style || '').trim()
+  const style = raw.toLowerCase()
+  const family = canonicalStyleFamily(style)
+  if (style && !family && !SHOT_STYLE_PROFILES[raw]) resolvePreset(style, options.genre)
   const genre = String(options.genre || '').trim().toLowerCase()
   if (family) return resolvePreset(family, genre)
   const legacy = LEGACY_PRESET[genre]

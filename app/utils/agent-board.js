@@ -1,6 +1,6 @@
 /** One compact board every mode can hand to an agent or the API. */
 import { canonicalModel } from '../integrations/models/model-registry.js'
-import { createStoryboard } from './prompt-engine.js'
+import { createStoryboard, refreshProjectPrompts } from './prompt-engine.js'
 import { BOARD_MODES, isPresetMode } from './preset-modes.js'
 
 export const AGENT_BOARD_SCHEMA = 'shotboard.compact.v1'
@@ -52,6 +52,7 @@ export function exportAgentBoard(project) {
 
 export function importAgentBoard(board, options = {}) {
   if (!board || board.schema !== AGENT_BOARD_SCHEMA) throw new Error('This file is not a Moovicut agent board.')
+  const overwrite = options.overwritePrompt === true
   const mode = BOARD_MODES.includes(board.mode) ? board.mode : 'continuous'
   if (mode === 'scenario' && board.filmSheet?.characters?.length && board.filmSheet?.places?.length) {
     const project = createStoryboard({
@@ -61,6 +62,7 @@ export function importAgentBoard(board, options = {}) {
       sequenceMode: 'scenario',
       style: board.style,
       genre: board.genre,
+      overwritePrompt: overwrite,
       scenario: {
         characters: board.filmSheet.characters,
         places: board.filmSheet.places,
@@ -74,7 +76,7 @@ export function importAgentBoard(board, options = {}) {
           light: shot.light,
           mood: shot.mood,
           duration: shot.duration,
-          prompt: shot.promptEdited ? shot.prompt : undefined
+          prompt: !overwrite && shot.promptEdited ? shot.prompt : undefined
         }))
       }
     })
@@ -94,13 +96,21 @@ export function importAgentBoard(board, options = {}) {
   project.shots = (board.shots || []).map((shot, index) => {
     const current = project.shots[index] || project.shots[0]
     const next = { ...current, ...shot, id: shot.id || current.id, shot_id: shot.id || current.shot_id, action: shot.what || current.action, order: index + 1 }
-    if (shot.promptEdited && shot.prompt) {
+    if (!overwrite && shot.promptEdited && shot.prompt) {
       next.prompt = shot.prompt
       next.promptEdited = true
+    } else if (overwrite) {
+      delete next.prompt
+      delete next.promptEdited
     }
     return next
   })
   project.title = board.title || project.title
+  if (overwrite) {
+    const refreshed = refreshProjectPrompts(project, { overwrite: true })
+    refreshed.title = board.title || refreshed.title
+    return refreshed
+  }
   if (options.project) return project
   return project
 }

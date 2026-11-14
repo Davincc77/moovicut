@@ -1,9 +1,9 @@
 let notificationTimer
 export function useNotifier() {
   const notification = useState('notification', () => null)
-  function notify(message, type = 'success') {
-    notification.value = { message, type }
-    if (import.meta.client) { clearTimeout(notificationTimer); notificationTimer = setTimeout(() => { notification.value = null }, type === 'error' ? 6500 : 4000) }
+  function notify(message, type = 'success', action = null) {
+    notification.value = action ? { message, type, action } : { message, type }
+    if (import.meta.client) { clearTimeout(notificationTimer); notificationTimer = setTimeout(() => { notification.value = null }, type === 'error' ? 6500 : 8000) }
   }
   function clearNotification() { notification.value = null }
   async function copyText(text, message = 'Prompt copied to clipboard') {
