@@ -17,6 +17,11 @@ export function stillSrc(index, extension = 'webp') {
   return `media/${still.file}.${ext}`
 }
 
+export function stillSrcSet(index) {
+  const still = SCENE_STILLS[Math.abs(Number(index) || 0) % SCENE_STILLS.length]
+  return `media/${still.file}-400.webp 400w, media/${still.file}-800.webp 800w`
+}
+
 export const STUDIO_INSPIRATIONS = [
   { file: 'paper-star-map', genre: 'Sci-fi', model: 'Grok Imagine', title: 'Paper Star Map', premise: 'An apprentice astronaut crosses a silent space station to recover a paper star map.' },
   { file: 'sunlit-pear-ad', genre: 'Ad', model: 'Google (Veo / Gemini)', title: 'Sunlit Pear Ad', premise: 'A single pear becomes the hero of a precise, sunlit tabletop commercial.' },

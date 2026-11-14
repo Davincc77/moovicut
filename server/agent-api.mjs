@@ -81,11 +81,45 @@ function optionalDuration(input) {
   return duration
 }
 
+function presetOptions(input, model, mode) {
+  return {
+    mode,
+    sequenceMode: mode,
+    model,
+    premise: typeof input.premise === 'string' ? input.premise : '',
+    duration: optionalDuration(input),
+    density: optionalDensity(input),
+    aspectRatio: input.aspectRatio,
+    genre: typeof input.genre === 'string' ? input.genre : undefined,
+    style: typeof input.style === 'string' ? input.style : undefined,
+    overwritePrompt: input.overwritePrompt === true,
+    ad: input.ad,
+    series: input.series,
+    explainer: input.explainer,
+    steps: input.steps,
+    product: input.product,
+    benefit: input.benefit,
+    cta: input.cta,
+    setting: input.setting,
+    hook: input.hook,
+    episodes: input.episodes,
+    seriesTitle: input.seriesTitle,
+    character: input.character,
+    place: input.place,
+    topic: input.topic,
+    audience: input.audience
+  }
+}
+
 function storyboardOptions(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) fail('Send a JSON object.', 'invalid_body')
   if (input.input === 'prose' || input.type === 'prose') return { prose: true, raw: input }
   const model = canonicalModel(input.model || 'grok')
   if (!model) fail('The model must be grok, google, sora, kling, runway, luma, wan, or generic.', 'invalid_model')
+  const explicit = String(input.mode || input.sequenceMode || '')
+  if (explicit === 'ad' || input.ad || (!explicit && input.product && input.benefit)) return presetOptions(input, model, 'ad')
+  if (explicit === 'series' || input.series) return presetOptions(input, model, 'series')
+  if (explicit === 'explainer' || input.explainer || (input.steps && !explicit)) return presetOptions(input, model, 'explainer')
   const scenarioSource = input.scenario != null
     ? input.scenario
     : (input.mode === 'scenario' || input.sequenceMode === 'scenario' || looksLikeScenario(input.premise) ? input.premise : null)
@@ -116,7 +150,7 @@ function storyboardOptions(input) {
   const count = scenes?.length ? scenes.length : (requested == null || requested === '' ? 5 : Math.floor(Number(requested)))
   if (!Number.isFinite(count) || count < 1 || count > MAX_API_SHOTS) fail(`Shots must be a whole number from 1 to ${MAX_API_SHOTS}.`, 'invalid_shots')
   const sequenceMode = input.sequenceMode || input.mode || 'continuous'
-  if (sequenceMode !== 'continuous' && sequenceMode !== 'varied') fail('Mode must be "continuous" or "varied".', 'invalid_mode')
+  if (sequenceMode !== 'continuous' && sequenceMode !== 'varied') fail('Mode must be "continuous", "varied", "scenario", "ad", "series", or "explainer".', 'invalid_mode')
   const continuity = input.continuity || input.continuityStrength
   if (continuity != null && continuity !== 'standard' && continuity !== 'strict') fail('Continuity must be "standard" or "strict".', 'invalid_continuity')
   return {
@@ -296,8 +330,8 @@ const STORYBOARD_SCHEMA = {
     premise: { type: 'string', minLength: 8, maxLength: 6000 },
     model: { type: 'string', enum: ['grok', 'google', 'sora', 'kling', 'runway', 'luma', 'wan', 'generic'], default: 'grok', description: 'Target video model. Shot length, aspect, prompt form, and risk warnings follow that model’s documented profile. grok and google keep their existing labeled prompts. veo is accepted as google.' },
     shots: { type: 'integer', minimum: 1, maximum: MAX_API_SHOTS, default: 5, description: 'Scene count. Ignored when scenes is a non-empty array. Default 5.' },
-    mode: { type: 'string', enum: ['continuous', 'varied', 'scenario'], description: 'Alias of sequenceMode. scenario reads the scenario field or a structured premise.' },
-    sequenceMode: { type: 'string', enum: ['continuous', 'varied', 'scenario'] },
+    mode: { type: 'string', enum: ['continuous', 'varied', 'scenario', 'ad', 'series', 'explainer'], description: 'Alias of sequenceMode. scenario reads the scenario field or a structured premise. ad, series, and explainer are light presets on the same film sheet. A prompt marked promptEdited is kept.' },
+    sequenceMode: { type: 'string', enum: ['continuous', 'varied', 'scenario', 'ad', 'series', 'explainer'] },
     continuity: { type: 'string', enum: ['standard', 'strict'], default: 'standard' },
     density: { type: 'string', enum: ['standard', 'concise'], default: 'standard', description: 'Concise keeps one short continuity line. Standard includes the shared sheet once. Strict still repeats the sheet verbatim.' },
     aspectRatio: { type: 'string', enum: ['9:16', '1:1', '4:5', '16:9'], default: '16:9' },
@@ -319,7 +353,22 @@ const STORYBOARD_SCHEMA = {
     project: { type: 'object', additionalProperties: true, description: 'Existing shotboard.v1 used with regenerateShot.' },
     storyboard: { type: 'object', additionalProperties: true, description: 'Alias of project.' },
     prompt: { type: 'string', description: 'When sent with regenerateShot and without overwritePrompt, this text is stored and marked as edited.' },
-    duration: { type: 'integer', minimum: 2, maximum: 15, default: 3, description: 'Seconds per scene when a scene does not set its own duration. Default 3.' },
+    ad: { type: 'object', additionalProperties: true, description: 'Product spot. product, benefit, and optional cta become hook, hero, proof, and pack shot. The product stays on the film sheet. Default aspect is 9:16. Shot length snaps to the selected model.' },
+    product: { type: 'string', description: 'Product name for mode ad. Alias of ad.product.' },
+    benefit: { type: 'string', description: 'One benefit for mode ad. Alias of ad.benefit.' },
+    cta: { type: 'string', description: 'Optional spoken call to action for mode ad. No on-screen lettering is written into the shot.' },
+    setting: { type: 'string', description: 'Optional place for mode ad.' },
+    series: { type: 'object', additionalProperties: true, description: 'Social short series. title, hook, and 3 to 8 episodes share one film sheet. Default aspect is 9:16. Each episode is three shots.' },
+    seriesTitle: { type: 'string', description: 'Series title. Alias of series.title.' },
+    hook: { type: 'string', description: 'One-sentence series hook. Alias of series.hook.' },
+    episodes: { description: 'Episode count from 3 to 8, or one line per episode.', oneOf: [{ type: 'integer', minimum: 3, maximum: 8 }, { type: 'array', items: { type: 'string' } }, { type: 'string' }] },
+    character: { description: 'Shared series character. A string name, or name, look, and outfit.', oneOf: [{ type: 'string' }, { type: 'object', additionalProperties: true }] },
+    place: { description: 'Shared series place. A string name, or name and description.', oneOf: [{ type: 'string' }, { type: 'object', additionalProperties: true }] },
+    explainer: { type: 'object', additionalProperties: true, description: 'Tutorial. topic, optional audience, and a numbered steps list. Each line is one shot. Duration snaps to the selected model.' },
+    topic: { type: 'string', description: 'Explainer topic. Alias of explainer.topic.' },
+    audience: { type: 'string', description: 'Optional explainer audience. Stored once on the film sheet.' },
+    steps: { description: 'Numbered explainer steps. A string, or an array of strings or { text, prompt } objects. Each step is one shot.', oneOf: [{ type: 'string' }, { type: 'array', items: {} }] },
+    duration: { type: 'integer', minimum: 2, maximum: 15, default: 3, description: 'Seconds per scene when a scene does not set its own duration. Default 3. Preset modes snap this length to the selected model profile.' },
     compact: { type: 'boolean', default: false, description: 'Return title, premise, model, aspectRatio, studioUrl, and shots of order, duration, and prompt.' },
     scenes: {
       type: 'array',
@@ -337,7 +386,7 @@ export function openApiDocument() {
       title: 'Moovicut',
       version: '1.0.0',
       summary: 'Free deterministic storyboard planning. No API key, no account, no stored premises.',
-      description: 'Moovicut plans editable storyboards. It does not render video and it does not save the premise. The default board is 5 scenes × 3 seconds (15 seconds total). Pass shots and duration, or a scenes array, for a custom scene-by-scene board. Humans can do the same in /studio Step-by-step mode. studioUrl is a /studio#board= link the browser can open without a server lookup.'
+      description: 'Moovicut plans editable storyboards. It does not render video and it does not save the premise. The default board is 5 scenes × 3 seconds (15 seconds total). Pass shots and duration, or a scenes array, for a custom scene-by-scene board. Humans can do the same in /studio Step-by-step mode. mode ad, series, and explainer are light presets on the same film sheet. A shot marked promptEdited is kept unless overwritePrompt is true. Duration snaps to the selected model profile. studioUrl is a /studio#board= link the browser can open without a server lookup.'
     },
     servers: [{ url: SITE }],
     paths: {
@@ -434,7 +483,7 @@ export function openApiDocument() {
 const TOOLS = [
   {
     name: 'plan_storyboard',
-    description: 'Plan a deterministic storyboard. Default is 5 scenes × 3s (15s total). Pass shots/duration, a scenes array, a scenario, input "prose", format "agent", or a model: grok, google, sora, kling, runway, luma, wan, or generic. Returns a compact payload and a /studio# link. Nothing is stored.',
+    description: 'Plan a deterministic storyboard. Default is 5 scenes × 3s (15s total). Pass shots/duration, a scenes array, a scenario, mode ad, series, or explainer, input "prose", format "agent", or a model: grok, google, sora, kling, runway, luma, wan, or generic. A prompt marked promptEdited is kept. Returns a compact payload and a /studio# link. Nothing is stored.',
     inputSchema: STORYBOARD_SCHEMA
   },
   {
@@ -448,8 +497,8 @@ const TOOLS = [
         model: { type: 'string', enum: ['grok', 'google', 'sora', 'kling', 'runway', 'luma', 'wan', 'generic'], default: 'grok' },
         shots: { type: 'integer', minimum: 1, maximum: MAX_API_SHOTS, default: 5 },
         duration: { type: 'integer', minimum: 2, maximum: 15, default: 3 },
-        mode: { type: 'string', enum: ['continuous', 'varied'] },
-        sequenceMode: { type: 'string', enum: ['continuous', 'varied'] },
+        mode: { type: 'string', enum: ['continuous', 'varied', 'scenario', 'ad', 'series', 'explainer'] },
+        sequenceMode: { type: 'string', enum: ['continuous', 'varied', 'scenario', 'ad', 'series', 'explainer'] },
         continuity: { type: 'string', enum: ['standard', 'strict'] },
         density: { type: 'string', enum: ['standard', 'concise'] },
         aspectRatio: { type: 'string' },

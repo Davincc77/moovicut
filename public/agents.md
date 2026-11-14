@@ -88,6 +88,16 @@ Scenes are packed into sequences of 15–60 seconds. Each sequence is copied sep
 
 Free text is detected only when `input` or `type` is `prose` (the text is `prose`, `text`, or `premise`, 8–8,000 characters). The response includes `language`, `confidence`, `warnings`, and `scenario`. A normal premise is not auto-detected. Detection is deterministic and does not call a model. In the studio, a line you already edited is not replaced when detection runs again.
 
+## Ad, series, and explainer
+
+These are light presets on the same planner. They share the film sheet, `promptEdited`, and the model profile.
+
+- `mode` `ad`: send `product` and `benefit`, or an `ad` object. Optional `cta` and `setting`. The board is four shots: hook, hero, proof, and pack shot. The product is locked on the film sheet and named in every generated prompt. The default aspect is 9:16.
+- `mode` `series`: send `seriesTitle` and `hook`, or a `series` object, plus `episodes` as a count from 3 to 8 or one line per episode. Episodes share one character and one place. Each episode is three shots. The default aspect is 9:16.
+- `mode` `explainer`: send `topic` and `steps` (a numbered list or an array). Each line is exactly one shot. Duration is snapped to the selected model profile (Veo accepts 4, 6, or 8 seconds; Luma accepts 5 or 9). The default aspect is 16:9.
+
+A `prompt` on an ad shot, an episode, or a step sets `promptEdited` and is kept unless `overwritePrompt` is true. An unknown mode returns 400 and the allowed list: continuous, varied, scenario, ad, series, explainer. A normal premise without these fields stays the default 5 × 3s board.
+
 ## One shot, and risk warnings
 
 Send `regenerateShot` (or `shotId`) plus `project` or `storyboard` to rebuild one shot. Every other prompt stays as it was. A shot marked `promptEdited`, or a `prompt` included in that request, is kept unless `overwritePrompt` is true. The same action is **Regenerate this shot** in `/studio`, in every mode.
@@ -96,7 +106,7 @@ Send `regenerateShot` (or `shotId`) plus `project` or `storyboard` to rebuild on
 
 ## Shared film sheet
 
-Quick idea, Step-by-step, continuous story, and scenario share one film sheet: characters, places, style, and light. Switching modes keeps that sheet and every prompt you edited. Style presets are the same families in every mode. A quick idea also detects names and places and shows the warnings so you can correct them. A field you already edited is not replaced.
+Quick idea, Step-by-step, continuous story, scenario, ad, series, and explainer share one film sheet: characters, places, style, and light. An ad also locks the product. Switching modes keeps that sheet and every prompt marked `promptEdited`. Style presets are the same families in every mode. A quick idea also detects names and places and shows the warnings so you can correct them. A field you already edited is not replaced.
 
 The personal library (`shotboard.library.v1`) saves characters, places, and styles in this browser only. Export and import that JSON file from `/studio`. Nothing is uploaded.
 

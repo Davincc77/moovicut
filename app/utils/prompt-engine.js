@@ -2,6 +2,7 @@
 import { canonicalModel, modelRegistry } from '../integrations/models/model-registry.js'
 import { profileFor, snapAspect, snapDuration } from './model-profiles.js'
 import { CAMERAS, LIGHTS, MOODS, describeCast, describePlace, findByName, looksLikeScenario, parseScenario, scenarioFromProject, scenarioPremise, sequencePacks } from './scenario.js'
+import { cameraFor, episodePacks, isPresetMode, parseAd, parseExplainer, parseSeries } from './preset-modes.js'
 import { detectProse } from './prose-detect.js'
 import { formatPresetBlock, listPresets, presetFamilies, presetGenres, resolvePreset } from './presets/index.js'
 import { cleanText, sentence } from './text.js'
@@ -417,7 +418,11 @@ function sceneOverridePrompt(raw) {
   return typeof raw.prompt === 'string' ? raw.prompt.trim().slice(0, 16000) : ''
 }
 export function createStoryboard(options = {}) {
-  if (options.scenario != null || options.sequenceMode === 'scenario' || looksLikeScenario(options.premise)) return createScenarioStoryboard(options)
+  const requestedMode = options.sequenceMode || options.mode || ''
+  if (requestedMode === 'ad' || options.ad) return createPresetStoryboard(options, 'ad')
+  if (requestedMode === 'series' || options.series) return createPresetStoryboard(options, 'series')
+  if (requestedMode === 'explainer' || options.explainer || (options.steps && !requestedMode)) return createPresetStoryboard(options, 'explainer')
+  if (options.scenario != null || requestedMode === 'scenario' || looksLikeScenario(options.premise)) return createScenarioStoryboard(options)
   const premise = cleanText(options.premise)
   if (premise.length < 8) throw new Error('Add a little more detail to your story premise (at least 8 characters).')
   if (premise.length > 6000) throw new Error('Keep your premise under 6,000 characters.')
@@ -494,8 +499,16 @@ export function formatFilmSheet(sheet, project = {}) {
     return parts.filter(Boolean).join(', ')
   }).filter(Boolean)
   const places = (sheet.places || []).map(item => [item.name, item.description].filter(Boolean).join(', ')).filter(Boolean)
-  if (!people.length && !places.length) return ''
+  const product = sheet.product?.name ? `Product (locked): ${sheet.product.name}. ${sheet.product.benefit || ''}`.trim() : ''
+  if (!people.length && !places.length && !product && !sheet.topic) return ''
   const lines = ['FILM SHEET']
+  if (product) {
+    lines.push(product)
+    lines.push('Keep this product identical in every shot. No lettering in the frame.')
+    if (sheet.product.cta) lines.push(`Spoken line: ${sheet.product.cta}`)
+  }
+  if (sheet.topic) lines.push(`Topic: ${sheet.topic}`)
+  if (sheet.audience) lines.push(`Audience: ${sheet.audience}`)
   if (people.length) lines.push(`People: ${people.join('; ')}`)
   if (places.length) lines.push(`Places: ${places.join('; ')}`)
   if (sheet.light) lines.push(`Light: ${sheet.light}`)
@@ -546,6 +559,86 @@ export function applyStylePreset(project, family, genre) {
     next.continuitySheet = { ...next.continuitySheet, style: preset.visual, lighting: preset.lighting, palette: preset.palette }
   }
   return refreshProjectPrompts(next)
+}
+function presetFailure(parsed, code) {
+  const message = parsed.errors.length === 1 ? parsed.errors[0].message : `This board has ${parsed.errors.length} problems.`
+  const error = new Error(message || 'This board needs a correction.')
+  error.status = 400
+  error.code = code
+  error.errors = parsed.errors
+  return error
+}
+function createPresetStoryboard(options, mode) {
+  const parsed = mode === 'ad' ? parseAd(options) : mode === 'series' ? parseSeries(options) : parseExplainer(options)
+  if (!parsed.ok) throw presetFailure(parsed, `invalid_${mode}`)
+  const model = canonicalModel(options.model || 'grok')
+  if (!model) throw new Error('Choose a target model: grok, google, sora, kling, runway, luma, wan, or generic.')
+  const explicit = cleanText(options.premise)
+  const premise = explicit.length >= 8 && explicit.length <= 6000 && !looksLikeScenario(explicit) ? explicit : parsed.premise
+  if (premise.length < 8) throw new Error('Add a little more detail to your story premise (at least 8 characters).')
+  if (premise.length > 6000) throw new Error('Keep your premise under 6,000 characters.')
+  const preset = resolveScenarioPreset(options)
+  const shotStyle = SHOT_STYLE_PROFILES[options.style] ? options.style : ''
+  const density = options.promptDensity === 'concise' || options.density === 'concise' ? 'concise' : 'standard'
+  const defaultDuration = canonicalDuration(options.duration)
+  const aspectRatio = options.aspectRatio ? canonicalAspect(options.aspectRatio) : parsed.aspectRatio
+  const filmSheet = { ...parsed.filmSheet, style: preset.visual, preset }
+  const shots = parsed.shots.map((draft, index) => {
+    const choice = cameraFor(draft.cam)
+    const duration = draft.duration || defaultDuration
+    const shot = {
+      id: `shot-${String(index + 1).padStart(2, '0')}`,
+      shot_id: `shot-${String(index + 1).padStart(2, '0')}`,
+      order: index + 1,
+      stage: draft.stage,
+      title: draft.title,
+      framing: choice.framing,
+      lens: preset.lens,
+      camera: choice.camera,
+      cam: draft.cam || preset.defaultCam,
+      camChosen: Boolean(draft.cam),
+      action: draft.action,
+      what: draft.what || draft.action,
+      who: draft.who || '',
+      where: draft.where || '',
+      episode: draft.episode,
+      directions: draft.action,
+      continuity: filmSheet.product?.name ? `Same product: ${filmSheet.product.name}.` : `${draft.who || 'the subject'} at ${draft.where || 'the place'}.`,
+      cue: 'natural ambience',
+      sound: preset.voiceOver || 'natural ambience consistent with the place',
+      lighting: preset.lighting,
+      duration,
+      duration_seconds: duration,
+      palette: ['#b69263', '#7c99a1', '#a88a64', '#696b80', '#af8061', '#657b6f'][index % 6]
+    }
+    if (!shot.episode) delete shot.episode
+    if (draft.prompt && !options.overwritePrompt) { shot.prompt = draft.prompt; shot.promptEdited = true }
+    return shot
+  })
+  const project = {
+    schema: 'shotboard.v1',
+    id: options.id || newId('story'),
+    title: parsed.title || titleFromPremise(premise),
+    premise,
+    model,
+    target_model: model,
+    genre: preset.genre,
+    style: shotStyle || (presetFamilies().includes(String(options.style || '').trim().toLowerCase()) ? preset.family : 'cinematic'),
+    lockedStyle: preset.visual,
+    preset,
+    promptDensity: density,
+    aspectRatio,
+    duration: defaultDuration,
+    sequenceMode: mode,
+    filmSheet,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    generationMode: 'local',
+    shots
+  }
+  fitBoard(project)
+  project.shots = project.shots.map((shot, index) => refreshShotPrompt(shot, project, index, { overwrite: options.overwritePrompt === true }))
+  return syncSequences(project)
 }
 function scenarioFailure(parsed) {
   const message = parsed.errors.length === 1 ? parsed.errors[0].message : `The scenario has ${parsed.errors.length} problems.`
@@ -662,7 +755,7 @@ export function breakdownPremise(premise, count = DEFAULT_SHOT_COUNT) {
 }
 function styleLockFor(project) {
   if (project.sequenceMode === 'continuous' && project.continuitySheet?.style) return project.continuitySheet.style
-  if (project.sequenceMode === 'scenario' && project.filmSheet?.style) return project.filmSheet.style
+  if ((project.sequenceMode === 'scenario' || isPresetMode(project.sequenceMode)) && project.filmSheet?.style) return project.filmSheet.style
   return project.lockedStyle || lockBoardStyle(project.premise, project.style, project.genre)
 }
 function shortContinuity(sheet) {
@@ -686,11 +779,12 @@ export function createPrompt(shot, project, index = 0) {
   const genre = GENRES[project.genre] || GENRES.cinematic; const style = SHOT_STYLE_PROFILES[project.style] || STYLES.find(item => item.id === project.style) || STYLES[0]
   const premise = project.premise || 'a visual story'; const aspect = canonicalAspect(project.aspectRatio); const duration = shot.duration_seconds || shot.duration || project.duration || DEFAULT_SHOT_DURATION
   const lockedStyle = styleLockFor(project)
-  const spoken = project.sequenceMode === 'scenario' ? scenarioShotForPrompt(shot, project) : spokenShot(shot, project)
+  const guided = project.sequenceMode === 'scenario' || isPresetMode(project.sequenceMode)
+  const spoken = guided ? scenarioShotForPrompt(shot, project) : spokenShot(shot, project)
   const body = modelRegistry.get(project.model || project.target_model).compose({ shot: spoken, project, index, premise, aspect, duration, genre, style, lockedStyle })
   const total = Math.max(project.shots?.length || 0, index + 1)
   const header = promptHeader(project)
-  if (project.sequenceMode === 'scenario' && project.filmSheet) return `${header}\n${body}`
+  if (guided && project.filmSheet) return `${header}\n${body}`
   if (project.sequenceMode === 'continuous' && project.continuitySheet) {
     const transition = index === 0 ? CONTINUOUS_TRANSITIONS[0] : index === total - 1 ? 'Finally,' : CONTINUOUS_TRANSITIONS[index] || 'Moments later,'
     const sheetText = formatContinuitySheet(project.continuitySheet)
@@ -709,13 +803,19 @@ export function refreshShotPrompt(shot, project, index, { overwrite = false } = 
   next.prompt = createPrompt(next, project, index)
   return next
 }
+export function syncSequences(project) {
+  if (!project) return project
+  if (project.sequenceMode === 'scenario') project.sequences = sequencePacks(project)
+  else if (isPresetMode(project.sequenceMode)) project.sequences = episodePacks(project)
+  return project
+}
 export function refreshProjectPrompts(project, options = {}) {
   const next = { ...project, shots: (project.shots || []).map((shot, index) => refreshShotPrompt(shot, project, index, options)) }
-  if (next.sequenceMode === 'scenario') next.sequences = sequencePacks(next)
-  return next
+  return syncSequences(next)
 }
 export function retargetMode(project, mode) {
-  const sequenceMode = mode === 'varied' || mode === 'continuous' || mode === 'scenario' ? mode : (project.sequenceMode || 'continuous')
+  const allowed = mode === 'varied' || mode === 'continuous' || mode === 'scenario' || isPresetMode(mode)
+  const sequenceMode = allowed ? mode : (project.sequenceMode || 'continuous')
   const next = {
     ...project,
     sequenceMode,
@@ -788,7 +888,7 @@ export function regenerateOneShot(project, shotId, { overwrite = false, prompt }
     error.status = 500
     throw error
   }
-  if (nextProject.sequenceMode === 'scenario') nextProject.sequences = sequencePacks(nextProject)
+  syncSequences(nextProject)
   return { project: nextProject, skipped: false, shotId: shots[index].id }
 }
 export function addShot(project, index = project.shots.length) {
