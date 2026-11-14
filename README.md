@@ -36,7 +36,7 @@ npm run dev -- --port 3001
 ### Quick start
 
 1. Open **Studio**.
-2. Enter a premise, choose Grok Imagine or Google as the prompt target, and create the shot list.
+2. Enter a premise, choose a prompt target, and create the shot list. The targets are Grok Imagine, Veo, Sora, Kling, Runway, Luma, Wan, and a generic profile.
 3. Edit the shots, camera, framing, lighting, sound, and prompts.
 4. Copy a prompt into the model you already use, or export JSON.
 
@@ -78,7 +78,7 @@ The command name is `moovicut`. `shotboard` remains an alias in the package bin.
 
 ## Agents
 
-`/agents` documents the stateless API. `POST /api/v1/storyboard` and the MCP tool `plan_storyboard` use the same default: 5 scenes of 3 seconds. Pass `shots` and `duration`, or a `scenes` array, for a custom scene-by-scene board. People can do that in `/studio` with Step-by-step mode. Scenario mode accepts a `scenario` object or a `CHARACTERS` / `PLACES` / `SCENES` block, and `input: "prose"` detects that structure from free text. Style presets (`anime`, `cinema`, `documentary`, plus a genre) lock one film sheet into every generated shot. A prompt you edited, or a `prompt` you send on a scene, is kept unless you reset it or send `overwritePrompt: true`. Send `regenerateShot` with the existing `project` to rebuild one shot. The response adds `warnings` only when a shot looks risky, and those warnings never block the board. Every mode shares one film sheet, and switching modes keeps it. `format: "agent"` returns `shotboard.compact.v1` so an agent can resume any project. Characters, places, and styles can be saved in the browser library and exported as a file. `studioUrl` opens `/studio#board=` in the browser. Nothing is stored. See `AGENTS.md`, `GET /openapi.json`, and `/.well-known/mcp.json`.
+`/agents` documents the stateless API. `POST /api/v1/storyboard` and the MCP tool `plan_storyboard` use the same default: 5 scenes of 3 seconds. Pass `shots` and `duration`, or a `scenes` array, for a custom scene-by-scene board. People can do that in `/studio` with Step-by-step mode. Scenario mode accepts a `scenario` object or a `CHARACTERS` / `PLACES` / `SCENES` block, and `input: "prose"` detects that structure from free text. Style presets (`anime`, `cinema`, `documentary`, plus a genre) lock one film sheet into every generated shot. A prompt you edited, or a `prompt` you send on a scene, is kept unless you reset it or send `overwritePrompt: true`. Send `regenerateShot` with the existing `project` to rebuild one shot. The response adds `warnings` only when a shot looks risky, and those warnings never block the board. Every mode shares one film sheet, and switching modes keeps it. `format: "agent"` returns `shotboard.compact.v1` so an agent can resume any project. Characters, places, and styles can be saved in the browser library and exported as a file. `model` can be `grok`, `google`, `sora`, `kling`, `runway`, `luma`, `wan`, or `generic`. Shot length, aspect, prompt form, and the risk check follow that model’s official limits, which are cited in `app/utils/model-profiles.js`. A prompt you edited stays as you left it. `studioUrl` opens `/studio#board=` in the browser. Nothing is stored. See `AGENTS.md`, `GET /openapi.json`, and `/.well-known/mcp.json`.
 
 ```json
 {

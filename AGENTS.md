@@ -59,7 +59,7 @@ curl -s https://moovicut.studio/api/v1/storyboard \
   -d '{"premise":"A lighthouse keeper races the dusk to repair a failing beacon.","model":"grok","compact":true}'
 ```
 
-Prompts still target Grok Imagine or Google. Paste them into the model you already use. Moovicut does not call that model.
+The prompt is shaped for the model you chose. Paste it into the model you already use. Moovicut does not call that model.
 
 ## Scenario mode
 
@@ -101,3 +101,9 @@ Quick idea, Step-by-step, continuous story, and scenario share one film sheet: c
 The personal library (`shotboard.library.v1`) saves characters, places, and styles in this browser only. Export and import that JSON file from `/studio`. Nothing is uploaded.
 
 Send `format: "agent"` to get `shotboard.compact.v1` for any mode: title, premise, model, aspect, mode, style, genre, film sheet, and shots. Post that document back to resume it. Shots with `promptEdited` stay as written. The default compact plan response does not add these fields.
+
+## Target models
+
+`model` accepts `grok`, `google` (Veo), `sora`, `kling`, `runway`, `luma`, `wan`, or `generic`. The same id works on `POST /api/v1/storyboard` and `plan_storyboard`. Choosing a model keeps the film sheet and any prompt you edited, and it fits shot length, aspect, prompt form, and the risk check to that model.
+
+The limits live in `app/utils/model-profiles.js`. Each profile cites the provider’s official page and the date it was checked. A value the page does not state is marked unverified. Veo accepts 4, 6, or 8 seconds, in 16:9 or 9:16. Grok Imagine and Google keep their existing labeled prompts. The other profiles export prose. A full storyboard response includes `modelProfile`. The default compact payload does not.

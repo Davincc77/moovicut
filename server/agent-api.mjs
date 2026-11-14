@@ -1,6 +1,7 @@
 import { createStoryboard, validateProject, canonicalModel, looksLikeScenario, listPresets, parseScenario, regenerateOneShot } from '../app/utils/prompt-engine.js'
 import { assessProject } from '../app/utils/shot-risk.js'
 import { AGENT_BOARD_SCHEMA, exportAgentBoard, importAgentBoard } from '../app/utils/agent-board.js'
+import { publicProfile } from '../app/utils/model-profiles.js'
 import { detectProse } from '../app/utils/prose-detect.js'
 import { SCENARIO_MAX_CHARS } from '../app/utils/scenario.js'
 import { studioUrl } from '../app/utils/studio-link.js'
@@ -84,7 +85,7 @@ function storyboardOptions(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) fail('Send a JSON object.', 'invalid_body')
   if (input.input === 'prose' || input.type === 'prose') return { prose: true, raw: input }
   const model = canonicalModel(input.model || 'grok')
-  if (!model) fail('The model must be "grok" or "google".', 'invalid_model')
+  if (!model) fail('The model must be grok, google, sora, kling, runway, luma, wan, or generic.', 'invalid_model')
   const scenarioSource = input.scenario != null
     ? input.scenario
     : (input.mode === 'scenario' || input.sequenceMode === 'scenario' || looksLikeScenario(input.premise) ? input.premise : null)
@@ -217,7 +218,7 @@ function planProse(input, { origin, compact }) {
 }
 
 function fullStoryboard(project, link) {
-  return { ...project, studioUrl: link }
+  return { ...project, studioUrl: link, modelProfile: publicProfile(project.model) }
 }
 
 function attachWarnings(body, project) {
@@ -293,7 +294,7 @@ const STORYBOARD_SCHEMA = {
   required: ['premise'],
   properties: {
     premise: { type: 'string', minLength: 8, maxLength: 6000 },
-    model: { type: 'string', enum: ['grok', 'google'], default: 'grok' },
+    model: { type: 'string', enum: ['grok', 'google', 'sora', 'kling', 'runway', 'luma', 'wan', 'generic'], default: 'grok', description: 'Target video model. Shot length, aspect, prompt form, and risk warnings follow that model’s documented profile. grok and google keep their existing labeled prompts. veo is accepted as google.' },
     shots: { type: 'integer', minimum: 1, maximum: MAX_API_SHOTS, default: 5, description: 'Scene count. Ignored when scenes is a non-empty array. Default 5.' },
     mode: { type: 'string', enum: ['continuous', 'varied', 'scenario'], description: 'Alias of sequenceMode. scenario reads the scenario field or a structured premise.' },
     sequenceMode: { type: 'string', enum: ['continuous', 'varied', 'scenario'] },
@@ -433,7 +434,7 @@ export function openApiDocument() {
 const TOOLS = [
   {
     name: 'plan_storyboard',
-    description: 'Plan a deterministic storyboard. Default is 5 scenes × 3s (15s total). Pass shots/duration, a scenes array, a scenario, input "prose", or format "agent" for the shared compact board. Returns a compact payload and a /studio# link. Nothing is stored.',
+    description: 'Plan a deterministic storyboard. Default is 5 scenes × 3s (15s total). Pass shots/duration, a scenes array, a scenario, input "prose", format "agent", or a model: grok, google, sora, kling, runway, luma, wan, or generic. Returns a compact payload and a /studio# link. Nothing is stored.',
     inputSchema: STORYBOARD_SCHEMA
   },
   {
@@ -444,7 +445,7 @@ const TOOLS = [
       additionalProperties: false,
       properties: {
         premise: { type: 'string' },
-        model: { type: 'string', enum: ['grok', 'google'], default: 'grok' },
+        model: { type: 'string', enum: ['grok', 'google', 'sora', 'kling', 'runway', 'luma', 'wan', 'generic'], default: 'grok' },
         shots: { type: 'integer', minimum: 1, maximum: MAX_API_SHOTS, default: 5 },
         duration: { type: 'integer', minimum: 2, maximum: 15, default: 3 },
         mode: { type: 'string', enum: ['continuous', 'varied'] },

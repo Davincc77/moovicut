@@ -41,12 +41,12 @@ test('storyboard API returns full and compact boards and a studio hash link', as
     assert.equal(project.schema, 'shotboard.v1')
     assert.equal(project.model, 'google')
     assert.equal(project.shots.length, 5)
-    assert.equal(project.shots[0].duration, 3)
+    assert.equal(project.shots[0].duration, 4)
     assert.match(project.studioUrl, /\/studio#board=/)
     const linked = decodeStudioBoard(new URL(project.studioUrl).hash.slice('#board='.length) ? new URL(project.studioUrl).hash.split('board=')[1] : '')
     assert.equal(linked.premise, premise)
     assert.equal(linked.shots, 5)
-    assert.equal(linked.duration, 3)
+    assert.equal(linked.duration, 4)
 
     const compact = await fetch(`${base}/api/v1/storyboard?compact=1`, {
       method: 'POST',

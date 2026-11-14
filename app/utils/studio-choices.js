@@ -1,8 +1,9 @@
 import { canonicalAspect } from './prompt-engine.js'
+import { PROFILE_IDS } from './model-profiles.js'
 
 export const STUDIO_CHOICES_KEY = 'shotboard.studio.choices.v1'
 const STYLES = ['Fun', 'Normal', 'Spicy']
-const MODELS = ['grok', 'google']
+const MODELS = PROFILE_IDS
 const SEQUENCE_MODES = ['continuous', 'varied']
 const STRENGTHS = ['standard', 'strict']
 const DENSITIES = ['standard', 'concise']

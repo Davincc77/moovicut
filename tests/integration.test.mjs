@@ -18,7 +18,7 @@ test('model selectors and formatters come from a replaceable adapter registry', 
   assert.deepEqual(registry.ids, ['custom'])
   assert.equal(registry.options[0].label, 'Custom model')
   assert.equal(registry.get('custom').compose(), 'custom prompt')
-  assert.deepEqual(MODEL_IDS, ['grok', 'google'])
+  assert.deepEqual(MODEL_IDS, ['grok', 'google', 'sora', 'kling', 'runway', 'luma', 'wan', 'generic'])
 })
 
 test('the restored creation form generates one editable storyboard per submit', () => {

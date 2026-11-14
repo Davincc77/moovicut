@@ -1,9 +1,11 @@
 <script setup>
 import { GripVertical, ChevronUp, ChevronDown, Plus, Trash2, Copy, Pencil, Check, Maximize2 } from 'lucide-vue-next'
 import { assessShot } from '~/utils/shot-risk.js'
+import { MODEL_OPTIONS } from '~/utils/prompt-engine.js'
 const props = defineProps({ shot: { type: Object, required: true }, index: { type: Number, required: true }, count: { type: Number, required: true }, model: String, warnings: { type: Array, default: () => [] } })
 const store = useProjectStore()
 const risks = computed(() => props.warnings.length ? props.warnings : assessShot(props.shot, store.project.value))
+const target = computed(() => MODEL_OPTIONS.find(item => item.id === props.model) || MODEL_OPTIONS[0])
 const emit = defineEmits(['move', 'delete', 'add', 'copy', 'update-title', 'edit', 'dragshot', 'move-to'])
 const isEditingTitle = ref(false)
 const draftTitle = ref(props.shot.title)
@@ -18,7 +20,7 @@ function saveTitle() { if (draftTitle.value.trim()) emit('update-title', draftTi
       <div class="shot-meta"><span>{{ shot.framing?.replace(' establishing shot','').replace('Medium tracking shot','Medium tracking') }}</span><span>{{ shot.duration }}s</span><span>{{ shot.lens?.split(' ')[0] }}</span></div>
       <div class="shot-prompt"><p>{{ shot.prompt }}</p><p v-if="shot.promptEdited" class="studio-edited-mark">Edited by you</p><p v-for="item in risks" :key="item.code" class="studio-edited-mark">{{ item.message }}</p></div>
     </div>
-    <div class="shot-card-footer"><span class="model-tag"><span :class="model === 'google' ? 'google-glyph' : 'x-glyph'">{{ model === 'google' ? 'G' : '𝕏' }}</span>{{ model === 'google' ? 'Google (Veo / Gemini)' : 'Grok Imagine' }}</span><button class="copy-prompt-button" :aria-label="`Copy prompt for shot ${index + 1}`" @click="emit('copy')"><Copy :size="13" />Copy prompt</button><button class="copy-prompt-button" type="button" @click="store.regenerateOne(shot.id)">Regenerate this shot</button><OpenInButtons :prompt="shot.prompt" :seed="index" /></div>
+    <div class="shot-card-footer"><span class="model-tag"><span :class="model === 'google' ? 'google-glyph' : 'x-glyph'">{{ target.mark }}</span>{{ target.label }}</span><button class="copy-prompt-button" :aria-label="`Copy prompt for shot ${index + 1}`" @click="emit('copy')"><Copy :size="13" />Copy prompt</button><button class="copy-prompt-button" type="button" @click="store.regenerateOne(shot.id)">Regenerate this shot</button><OpenInButtons :prompt="shot.prompt" :seed="index" /></div>
     <div class="shot-card-bottom-actions"><button :aria-label="`Add shot after ${index + 1}`" @click="emit('add')"><Plus :size="12" />Add shot</button><button class="delete-shot-button" :aria-label="`Delete shot ${index + 1}`" @click="emit('delete')"><Trash2 :size="12" />Delete</button><button @click="emit('edit')"><Pencil :size="12" />Edit shot</button></div>
   </article>
 </template>

@@ -1,5 +1,6 @@
 /** Deterministic pre-generation checks. Warnings never block a board. */
 import { findByName, nameParts } from './scenario.js'
+import { allowedDurations, profileFor, snapAspect } from './model-profiles.js'
 
 const ACTION_VERBS = /\b(pours|pour|spills|spill|laughs|laugh|runs|run|opens|open|walks|walk|enters|enter|leaves|leave|rides|ride|turns|turn|verse|renverse|rit|court|entre|sort|marche|revient|ouvre)\b/gi
 const TEXT_ON_SCREEN = /\b(title card|subtitle|subtitles|caption|captions|logo|on-screen text|onscreen text|écrit|ecrit|sign reads|text reading|words on screen)\b/i
@@ -40,8 +41,29 @@ export function assessShot(shot, project = {}) {
   if (duration <= 4 && (verbs.length >= 2 || /\b(and then|puis)\b/i.test(source))) {
     warnings.push(warning(shot, 'too_many_actions', 'This short shot asks for more than one action.', 'Keep one action in this shot and move the next beat to a new shot.'))
   }
-  if (TEXT_ON_SCREEN.test(source) || /[«"][^"»]{2,}[»"]/.test(source)) {
+  const profile = profileFor(project.model || project.target_model)
+  const quoted = /[«"][^"»]{2,}[»"]/.test(source)
+  if (TEXT_ON_SCREEN.test(source) || (quoted && !profile?.dialogueQuotes)) {
     warnings.push(warning(shot, 'on_screen_text', 'On-screen text is easy for a video model to misspell.', 'Describe the scene without words, titles, or captions in the frame.'))
+  }
+  const allowed = allowedDurations(profile)
+  if (allowed && !allowed.includes(duration)) {
+    warnings.push(warning(shot, 'duration_unsupported', `This clip is ${duration}s. ${profile.label} accepts ${allowed.join(', ')} seconds.`, `Set this shot to ${allowed.join(', ')} seconds.`))
+  }
+  const aspect = project.aspectRatio
+  if (profile && Array.isArray(profile.aspects) && aspect && snapAspect(aspect, profile) !== aspect && shot.order === 1) {
+    warnings.push(warning(shot, 'aspect_unsupported', `${profile.label} does not list ${aspect}.`, `Use ${snapAspect(aspect, profile)} for this model.`))
+  }
+  ;(profile?.weakSpots || []).forEach(item => {
+    if (item.when === 'duration>=8' && duration >= 8) warnings.push(warning(shot, item.code, item.message, item.fix))
+    if (!item.when && item.code !== 'veo_people_region' && item.code !== 'wan_prompt_extend') warnings.push(warning(shot, item.code, item.message, item.fix))
+  })
+  if (profile?.id === 'wan' && shot.order === 1) {
+    const extend = profile.weakSpots.find(item => item.code === 'wan_prompt_extend')
+    if (extend) warnings.push(warning(shot, extend.code, extend.message, extend.fix))
+  }
+  if (profile && Number.isFinite(profile.maxPromptLength) && String(shot.prompt || '').length > profile.maxPromptLength) {
+    warnings.push(warning(shot, 'prompt_too_long', `This prompt is longer than the ${profile.maxPromptLength} characters ${profile.label} documents.`, 'Shorten the prompt before you paste it.'))
   }
   if (CROWD.test(source)) {
     warnings.push(warning(shot, 'crowd', 'A crowd is hard to keep stable in a short clip.', 'Show one or two people instead of a crowd.'))

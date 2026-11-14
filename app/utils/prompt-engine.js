@@ -1,5 +1,6 @@
 /** A deterministic local story planner. No remote AI or video generation. */
 import { canonicalModel, modelRegistry } from '../integrations/models/model-registry.js'
+import { profileFor, snapAspect, snapDuration } from './model-profiles.js'
 import { CAMERAS, LIGHTS, MOODS, describeCast, describePlace, findByName, looksLikeScenario, parseScenario, scenarioFromProject, scenarioPremise, sequencePacks } from './scenario.js'
 import { detectProse } from './prose-detect.js'
 import { formatPresetBlock, listPresets, presetFamilies, presetGenres, resolvePreset } from './presets/index.js'
@@ -76,7 +77,7 @@ export function canonicalShotCount(value) {
 }
 export const FAQS = [
   { q: 'What is Moovicut?', a: 'Moovicut is a free, local-first storyboard and shot list. You edit the shots in the browser and copy prompts for Grok Imagine, Google, or any other AI image or video model.' },
-  { q: 'Can an AI agent build a storyboard?', a: 'Yes. The default board is 5 scenes of 3 seconds (15s total). Humans can use Step-by-step mode in /studio, and agents can pass shots, a scenes array, a scenario, input prose, or format agent to POST /api/v1/storyboard, /mcp, or a /studio# share link. Open /agents for the endpoints. No API key and no account. Every mode shares one film sheet. A prompt edited by hand is kept unless overwrite is explicit.' },
+  { q: 'Can an AI agent build a storyboard?', a: 'Yes. The default board is 5 scenes of 3 seconds (15s total). Humans can use Step-by-step mode in /studio, and agents can pass shots, a scenes array, a scenario, input prose, or format agent to POST /api/v1/storyboard, /mcp, or a /studio# share link. Open /agents for the endpoints. No API key and no account. Every mode shares one film sheet. model can be grok, google, sora, kling, runway, luma, wan, or generic. A prompt edited by hand is kept unless overwrite is explicit.' },
   { q: 'How does Moovicut work?', a: 'A premise becomes an ordered shot list on this device, with camera, action, lighting, sound, and continuity you can edit. Paste a prompt into the model you already use. Moovicut does not call that model.' },
   { q: 'Does Moovicut render video?', a: 'No. It writes prompts. Nothing is rendered inside Moovicut.' },
   { q: 'Which models does it support?', a: 'The picker offers Grok Imagine and Google. The same prompts work with any other AI image or video model. These names are prompt targets, not included accounts or rendering.' },
@@ -420,7 +421,7 @@ export function createStoryboard(options = {}) {
   const premise = cleanText(options.premise)
   if (premise.length < 8) throw new Error('Add a little more detail to your story premise (at least 8 characters).')
   if (premise.length > 6000) throw new Error('Keep your premise under 6,000 characters.')
-  const model = canonicalModel(options.model || 'grok'); if (!model) throw new Error('Choose Grok Imagine or Google (Veo / Gemini).')
+  const model = canonicalModel(options.model || 'grok'); if (!model) throw new Error('Choose a target model: grok, google, sora, kling, runway, luma, wan, or generic.')
   const sequenceMode = options.sequenceMode === 'varied' || options.sequenceMode === 'continuous' ? options.sequenceMode : undefined
   const shotStyle = SHOT_STYLE_PROFILES[options.style] ? options.style : ''
   const genre = detectGenre(premise, options.genre)
@@ -456,6 +457,7 @@ export function createStoryboard(options = {}) {
     project.detection = { language: detected.language, confidence: detected.confidence, warnings: detected.warnings }
     mergeDetectedSheet(project.filmSheet, detected, options.detectionLocks || {})
   }
+  fitBoard(project)
   if (options.overwritePrompt) project.shots = project.shots.map(shot => { const next = { ...shot }; delete next.prompt; delete next.promptEdited; return next })
   project.shots = project.shots.map((shot, index) => refreshShotPrompt(shot, project, index, { overwrite: options.overwritePrompt === true }))
   return project
@@ -558,7 +560,7 @@ function createScenarioStoryboard(options) {
   const parsed = parseScenario(source)
   if (!parsed.ok) throw scenarioFailure(parsed)
   const model = canonicalModel(options.model || 'grok')
-  if (!model) throw new Error('Choose Grok Imagine or Google (Veo / Gemini).')
+  if (!model) throw new Error('Choose a target model: grok, google, sora, kling, runway, luma, wan, or generic.')
   const explicit = cleanText(options.premise)
   const premise = explicit.length >= 8 && explicit.length <= 6000 && !looksLikeScenario(explicit) ? explicit : parsed.premise
   if (premise.length < 8) throw new Error('Add a little more detail to your story premise (at least 8 characters).')
@@ -626,6 +628,7 @@ function createScenarioStoryboard(options) {
     generationMode: 'local',
     shots
   }
+  fitBoard(project)
   project.shots = project.shots.map((shot, index) => refreshShotPrompt(shot, project, index, { overwrite: options.overwritePrompt === true }))
   project.sequences = sequencePacks(project)
   return project
@@ -738,6 +741,24 @@ export function retargetMode(project, mode) {
   }
   return refreshProjectPrompts(next)
 }
+function fitBoard(project) {
+  const profile = profileFor(project.model || project.target_model)
+  if (!profile) return project
+  project.aspectRatio = snapAspect(project.aspectRatio, profile)
+  project.duration = snapDuration(project.duration, profile)
+  project.shots = (project.shots || []).map(shot => {
+    const duration = snapDuration(shot.duration_seconds || shot.duration || project.duration, profile)
+    return { ...shot, duration, duration_seconds: duration }
+  })
+  return project
+}
+export function applyModelProfile(project, modelId) {
+  const model = canonicalModel(modelId)
+  if (!model) throw new Error('Choose a target model: grok, google, sora, kling, runway, luma, wan, or generic.')
+  const next = { ...project, model, target_model: model, shots: (project.shots || []).map(shot => ({ ...shot })) }
+  fitBoard(next)
+  return refreshProjectPrompts(next)
+}
 export function regenerateShotPrompts(project, model = project.model || project.target_model, options = {}) {
   return refreshProjectPrompts({ ...project, model, target_model: model }, options)
 }
@@ -794,7 +815,7 @@ export function validateProject(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('The document must be a JSON object.')
   const project = input.project && typeof input.project === 'object' && !Array.isArray(input.project) ? input.project : input
   const premise = cleanText(project.premise); if (premise.length < 8) throw new Error('The story premise must be at least 8 characters.'); if (premise.length > 6000) throw new Error('The story premise exceeds the 6,000-character limit.')
-  const model = canonicalModel(project.model || project.target_model); if (!model) throw new Error('The model must be either "grok" or "google".')
+  const model = canonicalModel(project.model || project.target_model); if (!model) throw new Error('Choose a target model: grok, google, sora, kling, runway, luma, wan, or generic.')
   const schema = input.schema || input.schema_version || input.version || project.schema_version; if (schema != null && schema !== 'shotboard.v1') throw new Error('This project schema is not supported. Expected shotboard.v1.')
   if (!Array.isArray(project.shots) || project.shots.length < 1) throw new Error('The storyboard must contain at least one shot.')
   const ids = new Set()

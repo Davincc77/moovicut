@@ -1,6 +1,7 @@
 /* Explicit imports keep these shared helpers available to the browser and the CLI. */
 import { createPreferences } from '../utils/preferences.js'
-import { applyStylePreset, canonicalAspect, canonicalModel, createStoryboard, normalizeProject, regenerateOneShot, regenerateShotPrompts, addShot, assignShotStages, refreshShotPrompt, retargetMode, serializeProject, STARTER, validateProject } from '../utils/prompt-engine.js'
+import { applyModelProfile, applyStylePreset, canonicalAspect, canonicalModel, createStoryboard, normalizeProject, regenerateOneShot, regenerateShotPrompts, addShot, assignShotStages, refreshShotPrompt, retargetMode, serializeProject, STARTER, validateProject } from '../utils/prompt-engine.js'
+import { profileFor } from '../utils/model-profiles.js'
 import { LIGHTS, sequencePacks } from '../utils/scenario.js'
 import { emptyLibrary, exportLibrary, importLibrary, readLibrary, saveCharacter, savePlace, saveStyle, writeLibrary } from '../utils/library.js'
 import { exportAgentBoard } from '../utils/agent-board.js'
@@ -142,7 +143,7 @@ export function useProjectStore() {
     if (!premise?.trim() && !options.scenario && options.sequenceMode !== 'scenario') throw new Error('Start with a short premise for your story.')
     const next = createStoryboard({ ...options, premise: premise || '', model }); commit(next, 'Your storyboard is ready. Make it yours.'); return next
   }
-  function selectModel(model) { const next = canonicalModel(model); if (!next || next === project.value.model) return; commit(regenerateShotPrompts(project.value, next), `Prompts adapted for ${next === 'grok' ? 'Grok Imagine' : 'Google (Veo / Gemini)'}`) }
+  function selectModel(model) { const next = canonicalModel(model); if (!next || next === project.value.model) return; commit(applyModelProfile(project.value, next), `Prompts adapted for ${profileFor(next).label}. Prompts you edited stay as you left them.`) }
   function applyPromptSettings(patch = {}) {
     mutate(next => {
       if (patch.aspectRatio) next.aspectRatio = canonicalAspect(patch.aspectRatio)
