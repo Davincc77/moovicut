@@ -1,7 +1,9 @@
 /* Explicit imports keep these shared helpers available to the browser and the CLI. */
 import { createPreferences } from '../utils/preferences.js'
-import { applyStylePreset, canonicalAspect, canonicalModel, createStoryboard, normalizeProject, regenerateOneShot, regenerateShotPrompts, addShot, assignShotStages, refreshShotPrompt, serializeProject, STARTER, validateProject } from '../utils/prompt-engine.js'
+import { applyStylePreset, canonicalAspect, canonicalModel, createStoryboard, normalizeProject, regenerateOneShot, regenerateShotPrompts, addShot, assignShotStages, refreshShotPrompt, retargetMode, serializeProject, STARTER, validateProject } from '../utils/prompt-engine.js'
 import { LIGHTS, sequencePacks } from '../utils/scenario.js'
+import { emptyLibrary, exportLibrary, importLibrary, readLibrary, saveCharacter, savePlace, saveStyle, writeLibrary } from '../utils/library.js'
+import { exportAgentBoard } from '../utils/agent-board.js'
 const clone = value => JSON.parse(JSON.stringify(value))
 const STORAGE_KEY = 'shotboard.projects.v1'
 const CURRENT_KEY = 'shotboard.current.v1'
@@ -78,6 +80,7 @@ export function useProjectStore() {
       console.warn('Local workspace was not available', error)
     }
     if (!project.value || !Array.isArray(project.value.shots)) project.value = clone(STARTER)
+    personalLibrary.value = readLibrary(hasLocalStorage() ? localStorage : null)
     hydrated.value = true
   }
   function normalizeIdentity(value) {
@@ -150,7 +153,17 @@ export function useProjectStore() {
       if (next.sequenceMode === 'scenario') next.sequences = sequencePacks(next)
     }, 'Shot prompts updated on this device. Prompts you edited stay as you left them.')
   }
-  function updateContinuity(field, value) { mutate(next => { next.continuitySheet = { ...(next.continuitySheet || {}), [field]: value }; next.shots = next.shots.map((shot, index) => refreshShotPrompt(shot, next, index)) }, 'Continuity sheet updated. Generated prompts now match it. Prompts you edited stay as you left them.') }
+  function updateContinuity(field, value) { mutate(next => {
+    next.continuitySheet = { ...(next.continuitySheet || {}), [field]: value }
+    if (next.filmSheet?.characters?.[0]) {
+      if (field === 'character') next.filmSheet.characters[0].name = value
+      if (field === 'appearance') { next.filmSheet.characters[0].look = value; next.filmSheet.characters[0].outfit = value }
+    }
+    if (field === 'place' && next.filmSheet?.places?.[0]) { next.filmSheet.places[0].name = value; next.filmSheet.places[0].description = value }
+    if (field === 'style' && next.filmSheet) next.filmSheet.style = value
+    if (field === 'time' && next.filmSheet) next.filmSheet.light = value
+    next.shots = next.shots.map((shot, index) => refreshShotPrompt(shot, next, index))
+  }, 'Continuity sheet updated. Generated prompts now match it. Prompts you edited stay as you left them.') }
   function patchFilmSheet(patch = {}) {
     mutate(next => {
       if (!next.filmSheet) return
@@ -164,9 +177,16 @@ export function useProjectStore() {
       if (typeof patch.light === 'string') {
         next.shots.forEach(shot => { if (!shot.light && !shot.promptEdited) shot.lighting = LIGHTS[light] || shot.lighting })
       }
+      if (next.continuitySheet && next.filmSheet.characters?.[0]) {
+        next.continuitySheet = { ...next.continuitySheet, character: next.filmSheet.characters[0].name, appearance: next.filmSheet.characters[0].look || next.filmSheet.characters[0].outfit || next.continuitySheet.appearance }
+        if (next.filmSheet.places?.[0]) next.continuitySheet.place = next.filmSheet.places[0].name
+      }
       next.shots = next.shots.map((shot, index) => refreshShotPrompt(shot, next, index))
-      next.sequences = sequencePacks(next)
+      if (next.sequenceMode === 'scenario') next.sequences = sequencePacks(next)
     }, 'Film sheet updated. Generated prompts now match it. Prompts you edited stay as you left them.')
+  }
+  function setSequenceMode(mode) {
+    commit(retargetMode(project.value, mode), 'The mode changed. The film sheet and your edited prompts stayed.')
   }
   function updateShot(id, field, value, regenerate = true) { mutate(next => {
     const index = next.shots.findIndex(shot => shot.id === id); if (index < 0) throw new Error(`Shot not found: ${id}`)
@@ -270,7 +290,21 @@ export function useProjectStore() {
     imported.id = savedProjects.value.some(item => item.id === imported.id) ? `imported-${Date.now().toString(36)}` : imported.id
     commit({ ...imported, title: imported.title || 'Imported story' }, 'Storyboard imported successfully'); return imported
   }
-  const api = { project, hydrated, saving, saveState, settings, setPreference, attachReference, history, future, shotCount, duration, canUndo, hydrate, persist, commit, mutate, createNew, selectModel, applyPromptSettings, updateShot, updateShotFields, updateContinuity, patchFilmSheet, setStylePreset, regenerateOne, resetShotPrompt, removeShot, moveShot, insertShot, addShotAtEnd, undo, redo, loadProject, removeSavedProject, resetWorkspace, restoreBackup, setIdentity, saveLocalIdentity, setGuestIdentity, importProject, serialized: computed(() => serializeProject(project.value)) }
+  const personalLibrary = useState('shotboard-personal-library', () => emptyLibrary())
+  function rememberLibrary(next, message) {
+    personalLibrary.value = next
+    if (hasLocalStorage()) writeLibrary(localStorage, next)
+    notify(message)
+    return next
+  }
+  function rememberCharacter(character) { return rememberLibrary(saveCharacter(personalLibrary.value, character), 'Character saved on this device.') }
+  function rememberPlace(place) { return rememberLibrary(savePlace(personalLibrary.value, place), 'Place saved on this device.') }
+  function rememberStyle(style) { return rememberLibrary(saveStyle(personalLibrary.value, style), 'Style saved on this device.') }
+  function libraryFile() { return exportLibrary(personalLibrary.value) }
+  function replaceLibrary(text) { return rememberLibrary(importLibrary(text), 'Library imported on this device.') }
+  function agentBoard() { return exportAgentBoard(project.value) }
+  const api = { project, hydrated, saving, saveState, settings, setPreference, attachReference, history, future, shotCount, duration, canUndo, hydrate, persist, commit, mutate, createNew, selectModel, applyPromptSettings, updateShot, updateShotFields, updateContinuity, patchFilmSheet, setSequenceMode, setStylePreset, regenerateOne, resetShotPrompt, removeShot, moveShot, insertShot, addShotAtEnd, undo, redo, loadProject, removeSavedProject, resetWorkspace, restoreBackup, setIdentity, saveLocalIdentity, setGuestIdentity, importProject, rememberCharacter, rememberPlace, rememberStyle, libraryFile, replaceLibrary, agentBoard, serialized: computed(() => serializeProject(project.value)) }
+  Object.defineProperty(api, 'personalLibrary', { enumerable: true, get: () => personalLibrary.value })
   Object.defineProperty(api, 'identity', { enumerable: true, get: () => identity.value })
   // Return an array property, not a ref: Vue templates unwrap refs exposed from setup.
   // A single getter/setter keeps the page, store and storage lifecycle in agreement.

@@ -12,7 +12,7 @@
   },
   "defaults": { "shots": 5, "duration": 3, "totalSeconds": 15 },
   "tools": [
-    { "name": "plan_storyboard", "description": "Plan a storyboard. Default 5 scenes × 3s. Optional scenes, scenario, input prose, or regenerateShot. Returns a compact payload and a /studio# link. Warnings are included only when a shot looks risky." },
+    { "name": "plan_storyboard", "description": "Plan a storyboard. Default 5 scenes × 3s. Optional scenes, scenario, input prose, regenerateShot, or format agent. Returns a compact payload and a /studio# link. Warnings are included only when a shot looks risky." },
     { "name": "export_prompts", "description": "Return shot prompts for a premise or an existing board." },
     { "name": "validate_storyboard", "description": "Validate a shotboard.v1 document." }
   ],

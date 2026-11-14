@@ -93,3 +93,11 @@ Free text is detected only when `input` or `type` is `prose` (the text is `prose
 Send `regenerateShot` (or `shotId`) plus `project` or `storyboard` to rebuild one shot. Every other prompt stays as it was. A shot marked `promptEdited`, or a `prompt` included in that request, is kept unless `overwritePrompt` is true. The same action is **Regenerate this shot** in `/studio`, in every mode.
 
 `warnings` is added to a response only when a shot looks risky: too many actions for a short shot, on-screen text, a crowd, more than two people, a name that is not on the film sheet, or two camera moves that fight each other. Each warning has `shotId`, `order`, `code`, `message`, and `fix`. Warnings never reject the board. A default 5 × 3s plan has no `warnings` key.
+
+## Shared film sheet
+
+Quick idea, Step-by-step, continuous story, and scenario share one film sheet: characters, places, style, and light. Switching modes keeps that sheet and every prompt you edited. Style presets are the same families in every mode. A quick idea also detects names and places and shows the warnings so you can correct them. A field you already edited is not replaced.
+
+The personal library (`shotboard.library.v1`) saves characters, places, and styles in this browser only. Export and import that JSON file from `/studio`. Nothing is uploaded.
+
+Send `format: "agent"` to get `shotboard.compact.v1` for any mode: title, premise, model, aspect, mode, style, genre, film sheet, and shots. Post that document back to resume it. Shots with `promptEdited` stay as written. The default compact plan response does not add these fields.

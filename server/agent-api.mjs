@@ -1,5 +1,6 @@
 import { createStoryboard, validateProject, canonicalModel, looksLikeScenario, listPresets, parseScenario, regenerateOneShot } from '../app/utils/prompt-engine.js'
 import { assessProject } from '../app/utils/shot-risk.js'
+import { AGENT_BOARD_SCHEMA, exportAgentBoard, importAgentBoard } from '../app/utils/agent-board.js'
 import { detectProse } from '../app/utils/prose-detect.js'
 import { SCENARIO_MAX_CHARS } from '../app/utils/scenario.js'
 import { studioUrl } from '../app/utils/studio-link.js'
@@ -242,7 +243,16 @@ function planRegenerate(input, { origin, compact }) {
   return attachWarnings(body, result.project)
 }
 
+function agentBody(project, link) {
+  return { ...exportAgentBoard(project), studioUrl: link }
+}
 export function planFromInput(input, { origin = SITE, compact = false } = {}) {
+  if (input && typeof input === 'object' && !Array.isArray(input) && input.schema === AGENT_BOARD_SCHEMA) {
+    const project = importAgentBoard(input)
+    const link = boardLink(origin, project, {})
+    if (input.regenerateShot || input.shotId) return planRegenerate({ ...input, project }, { origin, compact })
+    return agentBody(project, link)
+  }
   if (input && typeof input === 'object' && !Array.isArray(input) && (input.regenerateShot || input.shotId) && (input.project || input.storyboard)) {
     return planRegenerate(input, { origin, compact })
   }
@@ -250,6 +260,7 @@ export function planFromInput(input, { origin = SITE, compact = false } = {}) {
   if (options.prose) return planProse(options.raw, { origin, compact })
   const project = createStoryboard(options)
   const link = boardLink(origin, project, options)
+  if (input?.format === 'agent') return agentBody(project, link)
   const body = compact ? compactStoryboard(project, link) : fullStoryboard(project, link)
   return attachWarnings(body, project)
 }
@@ -300,6 +311,8 @@ const STORYBOARD_SCHEMA = {
     prose: { type: 'string', maxLength: 8000, description: 'Free-text story used when input is prose.' },
     text: { type: 'string', maxLength: 8000, description: 'Alias of prose.' },
     overwritePrompt: { type: 'boolean', default: false, description: 'Replace a client-supplied prompt. Omitted or false keeps that prompt.' },
+    format: { type: 'string', enum: ['agent'], description: 'Return shotboard.compact.v1 for every mode: title, premise, model, aspect, mode, style, genre, film sheet, and shots. The default compact plan response stays the short payload.' },
+    schema: { type: 'string', enum: ['shotboard.compact.v1'], description: 'Send a shotboard.compact.v1 document back to resume it. Prompts marked promptEdited stay as written.' },
     regenerateShot: { type: 'string', description: 'Shot id to rebuild. Send project or storyboard with it. Other shots stay unchanged. A hand-edited prompt is kept unless overwritePrompt is true.' },
     shotId: { type: 'string', description: 'Alias of regenerateShot.' },
     project: { type: 'object', additionalProperties: true, description: 'Existing shotboard.v1 used with regenerateShot.' },
@@ -420,7 +433,7 @@ export function openApiDocument() {
 const TOOLS = [
   {
     name: 'plan_storyboard',
-    description: 'Plan a deterministic storyboard. Default is 5 scenes × 3s (15s total). Pass shots/duration, a scenes array, a scenario, or input "prose". Returns a compact payload and a /studio# link. Nothing is stored.',
+    description: 'Plan a deterministic storyboard. Default is 5 scenes × 3s (15s total). Pass shots/duration, a scenes array, a scenario, input "prose", or format "agent" for the shared compact board. Returns a compact payload and a /studio# link. Nothing is stored.',
     inputSchema: STORYBOARD_SCHEMA
   },
   {

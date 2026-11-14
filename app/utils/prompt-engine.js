@@ -1,6 +1,7 @@
 /** A deterministic local story planner. No remote AI or video generation. */
 import { canonicalModel, modelRegistry } from '../integrations/models/model-registry.js'
-import { CAMERAS, LIGHTS, MOODS, describeCast, describePlace, looksLikeScenario, parseScenario, scenarioFromProject, scenarioPremise, sequencePacks } from './scenario.js'
+import { CAMERAS, LIGHTS, MOODS, describeCast, describePlace, findByName, looksLikeScenario, parseScenario, scenarioFromProject, scenarioPremise, sequencePacks } from './scenario.js'
+import { detectProse } from './prose-detect.js'
 import { formatPresetBlock, listPresets, presetFamilies, presetGenres, resolvePreset } from './presets/index.js'
 import { cleanText, sentence } from './text.js'
 export { CAMERAS, LIGHTS, MOODS, looksLikeScenario, parseScenario, scenarioFromProject } from './scenario.js'
@@ -75,7 +76,7 @@ export function canonicalShotCount(value) {
 }
 export const FAQS = [
   { q: 'What is Moovicut?', a: 'Moovicut is a free, local-first storyboard and shot list. You edit the shots in the browser and copy prompts for Grok Imagine, Google, or any other AI image or video model.' },
-  { q: 'Can an AI agent build a storyboard?', a: 'Yes. The default board is 5 scenes of 3 seconds (15s total). Humans can use Step-by-step mode in /studio, and agents can pass shots, a scenes array, a scenario, or input prose to POST /api/v1/storyboard, /mcp, or a /studio# share link. Open /agents for the endpoints. No API key and no account. A prompt edited by hand is kept unless overwrite is explicit.' },
+  { q: 'Can an AI agent build a storyboard?', a: 'Yes. The default board is 5 scenes of 3 seconds (15s total). Humans can use Step-by-step mode in /studio, and agents can pass shots, a scenes array, a scenario, input prose, or format agent to POST /api/v1/storyboard, /mcp, or a /studio# share link. Open /agents for the endpoints. No API key and no account. Every mode shares one film sheet. A prompt edited by hand is kept unless overwrite is explicit.' },
   { q: 'How does Moovicut work?', a: 'A premise becomes an ordered shot list on this device, with camera, action, lighting, sound, and continuity you can edit. Paste a prompt into the model you already use. Moovicut does not call that model.' },
   { q: 'Does Moovicut render video?', a: 'No. It writes prompts. Nothing is rendered inside Moovicut.' },
   { q: 'Which models does it support?', a: 'The picker offers Grok Imagine and Google. The same prompts work with any other AI image or video model. These names are prompt targets, not included accounts or rendering.' },
@@ -442,9 +443,61 @@ export function createStoryboard(options = {}) {
   if (shotStyle) project.shots = project.shots.map(shot => applyShotStyle(shot, shotStyle, sequenceMode === 'varied'))
   if (sequenceMode === 'continuous' && project.continuitySheet) project.shots = project.shots.map((shot, index) => applyContinuousShot(shot, project.continuitySheet, index, shotStyle))
   if (scenes.length) project.shots = project.shots.map((shot, index) => applySceneOverrides(shot, scenes[index]))
+  const baseSheet = project.continuitySheet || buildContinuitySheet(premise)
+  project.filmSheet = options.filmSheet || {
+    characters: [{ name: baseSheet.character, look: '', outfit: baseSheet.appearance || '' }],
+    places: [{ name: baseSheet.place, description: baseSheet.place }],
+    light: baseSheet.time || '',
+    mood: '',
+    style: baseSheet.style || lockedStyle
+  }
+  if (options.skipDetection !== true) {
+    const detected = detectProse(premise)
+    project.detection = { language: detected.language, confidence: detected.confidence, warnings: detected.warnings }
+    mergeDetectedSheet(project.filmSheet, detected, options.detectionLocks || {})
+  }
   if (options.overwritePrompt) project.shots = project.shots.map(shot => { const next = { ...shot }; delete next.prompt; delete next.promptEdited; return next })
   project.shots = project.shots.map((shot, index) => refreshShotPrompt(shot, project, index, { overwrite: options.overwritePrompt === true }))
   return project
+}
+export function mergeDetectedSheet(sheet, detected, locks = {}) {
+  if (!sheet || !detected) return sheet
+  if (!locks.characters) {
+    ;(detected.characters || []).forEach(character => {
+      if (!character?.name) return
+      const existing = findByName(sheet.characters, character.name)
+      if (existing) {
+        if (!existing.look && character.look) existing.look = character.look
+        if (!existing.outfit && character.outfit) existing.outfit = character.outfit
+      } else if (character.look || character.outfit) sheet.characters.push({ name: character.name, look: character.look || '', outfit: character.outfit || '' })
+    })
+  }
+  if (!locks.places) {
+    ;(detected.places || []).forEach(place => {
+      if (!place?.name || findByName(sheet.places, place.name)) return
+      sheet.places.push({ name: place.name, description: place.description || '' })
+    })
+  }
+  if (!locks.light && detected.light) sheet.light = detected.light
+  if (!locks.mood && detected.mood) sheet.mood = detected.mood
+  return sheet
+}
+export function formatFilmSheet(sheet, project = {}) {
+  if (!sheet) return ''
+  const wardrobe = project.sequenceMode === 'continuous' ? project.continuitySheet?.appearance : ''
+  const people = (sheet.characters || []).map(item => {
+    const parts = [item.name]
+    if (item.look && item.look !== item.outfit) parts.push(item.look)
+    if (item.outfit && item.outfit !== wardrobe) parts.push(item.outfit)
+    return parts.filter(Boolean).join(', ')
+  }).filter(Boolean)
+  const places = (sheet.places || []).map(item => [item.name, item.description].filter(Boolean).join(', ')).filter(Boolean)
+  if (!people.length && !places.length) return ''
+  const lines = ['FILM SHEET']
+  if (people.length) lines.push(`People: ${people.join('; ')}`)
+  if (places.length) lines.push(`Places: ${places.join('; ')}`)
+  if (sheet.light) lines.push(`Light: ${sheet.light}`)
+  return lines.join('\n')
 }
 const LEGACY_PRESET = Object.freeze({
   scifi: ['cinema', 'scifi'],
@@ -622,6 +675,8 @@ function spokenShot(shot, project) {
 function promptHeader(project) {
   const lines = [`Idea: ${ideaAnchor(project.premise || '')}`, `Style lock: ${styleLockFor(project)}`, `aspect ratio ${canonicalAspect(project.aspectRatio)}`]
   if (project.preset) lines.push(formatPresetBlock(project.preset))
+  const film = formatFilmSheet(project.filmSheet, project)
+  if (film) lines.push(film)
   return lines.join('\n')
 }
 export function createPrompt(shot, project, index = 0) {
@@ -655,6 +710,33 @@ export function refreshProjectPrompts(project, options = {}) {
   const next = { ...project, shots: (project.shots || []).map((shot, index) => refreshShotPrompt(shot, project, index, options)) }
   if (next.sequenceMode === 'scenario') next.sequences = sequencePacks(next)
   return next
+}
+export function retargetMode(project, mode) {
+  const sequenceMode = mode === 'varied' || mode === 'continuous' || mode === 'scenario' ? mode : (project.sequenceMode || 'continuous')
+  const next = {
+    ...project,
+    sequenceMode,
+    filmSheet: project.filmSheet ? {
+      ...project.filmSheet,
+      characters: project.filmSheet.characters.map(item => ({ ...item })),
+      places: project.filmSheet.places.map(item => ({ ...item }))
+    } : project.filmSheet
+  }
+  if (sequenceMode === 'continuous' && !next.continuitySheet && next.filmSheet) {
+    const character = next.filmSheet.characters[0] || {}
+    const place = next.filmSheet.places[0] || {}
+    next.continuitySheet = {
+      character: character.name || 'the protagonist',
+      appearance: [character.look, character.outfit].filter(Boolean).join(', '),
+      place: place.name || 'the location',
+      time: next.filmSheet.light || 'daylight consistent with the idea',
+      palette: next.lockedStyle || 'natural cinematic colour',
+      style: next.filmSheet.style || next.lockedStyle || 'cinematic, consistent from shot to shot',
+      lighting: next.filmSheet.light || 'consistent light'
+    }
+    if (!next.continuityStrength) next.continuityStrength = 'standard'
+  }
+  return refreshProjectPrompts(next)
 }
 export function regenerateShotPrompts(project, model = project.model || project.target_model, options = {}) {
   return refreshProjectPrompts({ ...project, model, target_model: model }, options)
