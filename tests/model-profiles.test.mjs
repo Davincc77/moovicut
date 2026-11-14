@@ -40,7 +40,7 @@ test('Veo accepts only 4, 6, and 8 seconds in 16:9 or 9:16', () => {
 })
 
 test('a grok board stays 5 × 3s and a hand-edited prompt survives a model change', () => {
-  const board = createStoryboard({ premise, model: 'grok', aspectRatio: '16:9' })
+  const board = createStoryboard({ premise, model: 'grok', aspectRatio: '16:9', promptStyle: 'detailed' })
   assert.equal(board.shots.length, 5)
   assert.equal(board.duration, 3)
   assert.equal(assessProject(board).length, 0)

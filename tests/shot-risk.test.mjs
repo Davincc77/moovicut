@@ -62,7 +62,7 @@ test('risk checks warn and never block', () => {
 })
 
 test('regenerating one shot leaves the others and an edited prompt untouched', () => {
-  const board = createStoryboard({ premise, shots: 3 })
+  const board = createStoryboard({ premise, shots: 3, promptStyle: 'detailed' })
   const original = board.shots.map(shot => shot.prompt)
   board.shots[1].prompt = 'KEEP THIS LINE'
   board.shots[1].promptEdited = true

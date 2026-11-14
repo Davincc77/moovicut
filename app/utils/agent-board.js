@@ -30,6 +30,7 @@ export function exportAgentBoard(project) {
     mode: project.sequenceMode || 'continuous',
     style: project.preset?.family || '',
     genre: project.preset?.genre || '',
+    promptStyle: project.promptStyle === 'detailed' ? 'detailed' : 'short',
     filmSheet: copySheet(project.filmSheet),
     shots: (project.shots || []).map(shot => {
       const item = {
@@ -62,6 +63,7 @@ export function importAgentBoard(board, options = {}) {
       sequenceMode: 'scenario',
       style: board.style,
       genre: board.genre,
+      promptStyle: board.promptStyle || board.prompt_style,
       overwritePrompt: overwrite,
       scenario: {
         characters: board.filmSheet.characters,
@@ -89,8 +91,10 @@ export function importAgentBoard(board, options = {}) {
     aspectRatio: board.aspectRatio,
     sequenceMode: mode === 'scenario' || isPresetMode(mode) ? 'continuous' : mode,
     count: Math.max(1, board.shots?.length || 5),
+    promptStyle: board.promptStyle || board.prompt_style,
     skipDetection: true
   })
+  project.promptStyle = project.promptStyle === 'detailed' ? 'detailed' : 'short'
   project.sequenceMode = mode
   if (board.filmSheet) project.filmSheet = copySheet(board.filmSheet)
   project.shots = (board.shots || []).map((shot, index) => {

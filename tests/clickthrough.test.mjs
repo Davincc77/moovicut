@@ -48,16 +48,16 @@ test('prose detection keeps Mara and Lena on the right people, places, and scene
 
 test('a style family locks every mode, manga aliases anime, and an unknown family is 400', () => {
   for (const sequenceMode of ['continuous', 'varied', undefined]) {
-    const board = createStoryboard({ premise, style: 'anime', genre: 'shonen', sequenceMode })
+    const board = createStoryboard({ premise, style: 'anime', genre: 'shonen', sequenceMode, promptStyle: 'detailed' })
     assert.equal(board.preset.family, 'anime')
     assert.equal(board.preset.genre, 'shonen')
     assert.match(board.shots[0].prompt, /Style lock: bold ink line art/)
     assert.doesNotMatch(board.shots[0].prompt, /Style lock: grounded cinematic realism/)
   }
-  const documentary = createStoryboard({ premise, style: 'documentary', genre: 'nature' })
+  const documentary = createStoryboard({ premise, style: 'documentary', genre: 'nature', promptStyle: 'detailed' })
   assert.equal(documentary.preset.family, 'documentary')
   assert.match(documentary.shots[0].prompt, /Style lock:/)
-  const manga = createStoryboard({ premise, style: 'manga', genre: 'shojo', sequenceMode: 'varied' })
+  const manga = createStoryboard({ premise, style: 'manga', genre: 'shojo', sequenceMode: 'varied', promptStyle: 'detailed' })
   assert.equal(manga.style, 'anime')
   assert.equal(manga.preset.family, 'anime')
   assert.equal(manga.preset.genre, 'shojo')
@@ -69,6 +69,7 @@ test('a style family locks every mode, manga aliases anime, and an unknown famil
     body: JSON.stringify({
       premise: 'A short cafe story for the board.',
       style: 'manga',
+      prompt_style: 'detailed',
       scenario: {
         characters: [{ name: 'Léa', look: 'curly hair', outfit: 'green apron' }],
         places: [{ name: 'Café', description: 'a small cafe' }],
@@ -111,7 +112,8 @@ test('Google duration plans are 3 x 4s for the short board, and storm prompts st
     style: 'Normal',
     model: 'google',
     count: 3,
-    duration: 4
+    duration: 4,
+    promptStyle: 'detailed'
   })
   assert.equal(board.continuitySheet.time, 'storm')
   assert.equal(board.shots.length, 3)
@@ -129,7 +131,7 @@ test('Google duration plans are 3 x 4s for the short board, and storm prompts st
 })
 
 test('overwritePrompt regenerates a posted agent board and otherwise keeps the edit', () => {
-  const board = createStoryboard({ premise: 'A lighthouse keeper races the dusk to repair a failing beacon before the boats arrive.', count: 2 })
+  const board = createStoryboard({ premise: 'A lighthouse keeper races the dusk to repair a failing beacon before the boats arrive.', count: 2, promptStyle: 'detailed' })
   board.shots[0].prompt = 'HAND EDITED'
   board.shots[0].promptEdited = true
   const exported = exportAgentBoard(board)

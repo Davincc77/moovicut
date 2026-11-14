@@ -110,6 +110,7 @@ function presetOptions(input, model, mode) {
     aspectRatio: input.aspectRatio,
     genre: typeof input.genre === 'string' ? input.genre : undefined,
     style: typeof input.style === 'string' ? input.style : undefined,
+    promptStyle: input.prompt_style ?? input.promptStyle,
     overwritePrompt: input.overwritePrompt === true,
     ad: input.ad,
     series: input.series,
@@ -155,6 +156,7 @@ function storyboardOptions(input) {
       aspectRatio: input.aspectRatio,
       genre: typeof input.genre === 'string' ? input.genre : undefined,
       style: typeof input.style === 'string' ? input.style : undefined,
+      promptStyle: input.prompt_style ?? input.promptStyle,
       overwritePrompt: input.overwritePrompt === true
     }
   }
@@ -183,6 +185,7 @@ function storyboardOptions(input) {
     genre: typeof input.genre === 'string' ? input.genre : undefined,
     style: typeof input.style === 'string' ? input.style : undefined,
     scenes: scenes || undefined,
+    promptStyle: input.prompt_style ?? input.promptStyle,
     overwritePrompt: input.overwritePrompt === true
   }
 }
@@ -230,6 +233,7 @@ function boardLink(origin, project, options) {
     sequenceMode: project.sequenceMode,
     continuityStrength: project.continuityStrength,
     density: project.promptDensity,
+    promptStyle: project.promptStyle,
     aspectRatio: project.aspectRatio,
     genre: project.preset?.genre || project.genre,
     style: project.preset?.family || options.style || project.style,
@@ -262,6 +266,7 @@ function planProse(input, { origin, compact }) {
     style: input.style,
     genre: input.genre,
     duration: input.duration,
+    promptStyle: input.prompt_style ?? input.promptStyle,
     overwritePrompt: input.overwritePrompt === true
   })
   const link = boardLink(origin, project, { style: input.style })
@@ -425,7 +430,9 @@ const STORYBOARD_SCHEMA = {
     mode: { type: 'string', enum: ['continuous', 'varied', 'scenario', 'ad', 'series', 'explainer'], description: 'Alias of sequenceMode. scenario reads the scenario field or a structured premise. ad, series, and explainer are light presets on the same film sheet. A prompt marked promptEdited is kept.' },
     sequenceMode: { type: 'string', enum: ['continuous', 'varied', 'scenario', 'ad', 'series', 'explainer'] },
     continuity: { type: 'string', enum: ['standard', 'strict'], default: 'standard' },
-    density: { type: 'string', enum: ['standard', 'concise'], default: 'standard', description: 'Concise keeps one short continuity line. Standard includes the shared sheet once. Strict still repeats the sheet verbatim.' },
+    density: { type: 'string', enum: ['standard', 'concise'], default: 'standard', description: 'Used by the detailed prompt. Concise keeps one short continuity line. Standard includes the shared sheet once. Strict still repeats the sheet verbatim.' },
+    prompt_style: { type: 'string', enum: ['short', 'detailed'], default: 'short', description: 'short is the default video prompt: one style line, the people in this shot, the place, the action, and the camera. It stays under about 700 characters. detailed keeps the full film sheet and continuity text in every shot. A hand-edited prompt is kept either way unless overwritePrompt is true.' },
+    promptStyle: { type: 'string', enum: ['short', 'detailed'], description: 'Alias of prompt_style.' },
     aspectRatio: { type: 'string', enum: ['9:16', '1:1', '4:5', '16:9'], default: '16:9' },
     genre: { type: 'string', description: `Story genre, or a style-preset genre. Preset families: ${listPresets().map(family => `${family.id} (${family.genres.map(genre => genre.id).join(', ')})`).join('; ')}. Default preset when a scenario omits both is cinema / drama.` },
     style: { type: 'string', description: 'Fun, Normal, Spicy, a visual style id such as cinematic or illustrative, or a preset family: anime, cinema, documentary. manga is an alias of anime. An unknown family is 400. A named family locks that preset into every mode, including a plain premise.' },
@@ -478,7 +485,7 @@ export function openApiDocument() {
       title: 'Moovicut',
       version: '1.0.0',
       summary: 'Free deterministic storyboard planning. No API key, no account, no stored premises.',
-      description: 'Moovicut plans editable storyboards. It does not render video and it does not save the premise. The default board is 5 scenes × 3 seconds (15 seconds total). Pass shots and duration, or a scenes array, for a custom scene-by-scene board. Humans can do the same in /studio Step-by-step mode. mode ad, series, and explainer are light presets on the same film sheet. A shot marked promptEdited is kept unless overwritePrompt is true. Duration snaps to the selected model profile. studioUrl is a /studio#board= link the browser can open without a server lookup.'
+      description: 'Moovicut plans editable storyboards. It does not render video and it does not save the premise. The default board is 5 scenes × 3 seconds (15 seconds total). The default video prompt is short (prompt_style short): one style line, the people in that shot, the place, the action, and the camera, capped near 700 characters. prompt_style detailed keeps the full film sheet in every shot. Pass shots and duration, or a scenes array, for a custom scene-by-scene board. Humans can do the same in /studio Step-by-step mode. mode ad, series, and explainer are light presets on the same film sheet. A shot marked promptEdited is kept unless overwritePrompt is true. Duration snaps to the selected model profile. studioUrl is a /studio#board= link the browser can open without a server lookup.'
     },
     servers: [{ url: SITE }],
     paths: {
@@ -575,7 +582,7 @@ export function openApiDocument() {
 const TOOLS = [
   {
     name: 'plan_storyboard',
-    description: 'Plan a deterministic storyboard. Default is 5 scenes × 3s (15s total). Pass shots/duration, a scenes array, a scenario, mode ad, series, or explainer, input "prose", format "agent", or a model: grok, google, sora, kling, runway, luma, wan, or generic. A prompt marked promptEdited is kept. Returns a compact payload and a /studio# link. Nothing is stored.',
+    description: 'Plan a deterministic storyboard. Default is 5 scenes × 3s (15s total) and a short per-shot video prompt. Pass prompt_style "detailed" for the full sheet in every shot. Pass shots/duration, a scenes array, a scenario, mode ad, series, or explainer, input "prose", format "agent", or a model: grok, google, sora, kling, runway, luma, wan, or generic. A prompt marked promptEdited is kept. Returns a compact payload and a /studio# link. Nothing is stored.',
     inputSchema: STORYBOARD_SCHEMA
   },
   {
@@ -593,6 +600,7 @@ const TOOLS = [
         sequenceMode: { type: 'string', enum: ['continuous', 'varied', 'scenario', 'ad', 'series', 'explainer'] },
         continuity: { type: 'string', enum: ['standard', 'strict'] },
         density: { type: 'string', enum: ['standard', 'concise'] },
+        prompt_style: { type: 'string', enum: ['short', 'detailed'], default: 'short' },
         aspectRatio: { type: 'string' },
         genre: { type: 'string' },
         style: { type: 'string' },

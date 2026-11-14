@@ -1,10 +1,11 @@
 /** A deterministic local story planner. No remote AI or video generation. */
 import { canonicalModel, modelRegistry } from '../integrations/models/model-registry.js'
 import { profileFor, snapAspect, snapDuration } from './model-profiles.js'
-import { CAMERAS, LIGHTS, MOODS, describeCast, describePlace, findByName, foldName, looksLikeScenario, parseScenario, scenarioFromProject, scenarioPremise, sequencePacks } from './scenario.js'
+import { CAMERAS, LIGHTS, MOODS, describeCast, describePlace, findByName, foldName, looksLikeScenario, nameParts, parseScenario, scenarioFromProject, scenarioPremise, sequencePacks } from './scenario.js'
 import { cameraFor, episodePacks, isPresetMode, parseAd, parseExplainer, parseSeries } from './preset-modes.js'
 import { detectProse } from './prose-detect.js'
 import { canonicalStyleFamily, formatPresetBlock, listPresets, presetFamilies, presetGenres, resolvePreset } from './presets/index.js'
+import { shotInvolvesHands } from './shot-risk.js'
 import { cleanText, sentence } from './text.js'
 export { canonicalStyleFamily, formatPresetBlock, listPresets, presetFamilies, presetGenres, resolvePreset } from './presets/index.js'
 export { MODEL_IDS, MODEL_OPTIONS, REFERENCE_MODEL_NAMES, canonicalModel, modelRegistry } from '../integrations/models/model-registry.js'
@@ -87,7 +88,7 @@ export function canonicalShotCount(value) {
 }
 export const FAQS = [
   { q: 'What is Moovicut?', a: 'Moovicut is a free, local-first storyboard and shot list. You edit the shots in the browser and copy prompts for Grok Imagine, Google, or any other AI image or video model.' },
-  { q: 'Can an AI agent build a storyboard?', a: 'Yes. The default board is 5 scenes of 3 seconds (15s total). Humans can use Step-by-step mode in /studio, and agents can pass shots, a scenes array, a scenario, input prose, or format agent to POST /api/v1/storyboard, /mcp, or a /studio# share link. Open /agents for the endpoints. No API key and no account. Every mode shares one film sheet. model can be grok, google, sora, kling, runway, luma, wan, or generic. A prompt edited by hand is kept unless overwrite is explicit.' },
+  { q: 'Can an AI agent build a storyboard?', a: 'Yes. The default board is 5 scenes of 3 seconds (15s total). Humans can use Step-by-step mode in /studio, and agents can pass shots, a scenes array, a scenario, input prose, or format agent to POST /api/v1/storyboard, /mcp, or a /studio# share link. Open /agents for the endpoints. No API key and no account. Every mode shares one film sheet. model can be grok, google, sora, kling, runway, luma, wan, or generic. The video prompt is short by default (prompt_style short or detailed). A prompt edited by hand is kept unless overwrite is explicit.' },
   { q: 'How does Moovicut work?', a: 'A premise becomes an ordered shot list on this device, with camera, action, lighting, sound, and continuity you can edit. Paste a prompt into the model you already use. Moovicut does not call that model.' },
   { q: 'Does Moovicut render video?', a: 'No. It writes prompts. Nothing is rendered inside Moovicut.' },
   { q: 'Which models does it support?', a: 'The home page and the studio list eight prompt targets: Grok Imagine, Google (Veo / Gemini), Sora, Kling, Runway, Luma, Wan, and a generic profile. These names are prompt targets, not included accounts or rendering.' },
@@ -334,7 +335,7 @@ function stageBeat(stage, facts, genre) {
   const line = facts.dialogue
   const core = {
     Opening: `A wide view of ${where} at ${when}, with ${who} entering the frame.`,
-    Introduction: `${who} is readable in a closer frame, hands and posture clear.`,
+    Introduction: `${who} is readable in a closer frame, posture and expression clear.`,
     Discovery: `One new detail appears in ${where} and changes the next gesture.`,
     Shift: `${who} stops as the situation turns.`,
     Response: line ? `${who} says “${line}.”` : `${who} chooses a direction and moves through ${where}.`,
@@ -459,6 +460,7 @@ export function requestedStylePreset(options = {}) {
 }
 
 export function createStoryboard(options = {}) {
+  const promptStyle = readPromptStyle(options.promptStyle ?? options.prompt_style)
   const chosenPreset = requestedStylePreset(options)
   const requestedMode = options.sequenceMode || options.mode || ''
   if (requestedMode === 'ad' || options.ad) return createPresetStoryboard(options, 'ad')
@@ -476,7 +478,7 @@ export function createStoryboard(options = {}) {
   const scenes = sceneOverrides(options.scenes)
   const count = scenes.length ? scenes.length : canonicalShotCount(options.count)
   const density = options.promptDensity === 'concise' || options.density === 'concise' ? 'concise' : 'standard'
-  const project = { schema: 'shotboard.v1', id: options.id || newId('story'), title: titleFromPremise(premise), premise, model, target_model: model, genre, style: shotStyle || (STYLES.some(item => item.id === options.style) ? options.style : 'cinematic'), lockedStyle, promptDensity: density, aspectRatio: canonicalAspect(options.aspectRatio), duration: canonicalDuration(options.duration), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), generationMode: 'local', shots: [] }
+  const project = { schema: 'shotboard.v1', id: options.id || newId('story'), title: titleFromPremise(premise), premise, model, target_model: model, genre, style: shotStyle || (STYLES.some(item => item.id === options.style) ? options.style : 'cinematic'), lockedStyle, promptDensity: density, promptStyle, aspectRatio: canonicalAspect(options.aspectRatio), duration: canonicalDuration(options.duration), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), generationMode: 'local', shots: [] }
   if (sequenceMode) project.sequenceMode = sequenceMode
   if (sequenceMode === 'continuous') {
     const sheet = { ...(options.continuitySheet || buildContinuitySheet(premise)) }
@@ -628,6 +630,7 @@ function presetFailure(parsed, code) {
   return error
 }
 function createPresetStoryboard(options, mode) {
+  const promptStyle = readPromptStyle(options.promptStyle ?? options.prompt_style)
   const parsed = mode === 'ad' ? parseAd(options) : mode === 'series' ? parseSeries(options) : parseExplainer(options)
   if (!parsed.ok) throw presetFailure(parsed, `invalid_${mode}`)
   const model = canonicalModel(options.model || 'grok')
@@ -686,6 +689,7 @@ function createPresetStoryboard(options, mode) {
     lockedStyle: preset.visual,
     preset,
     promptDensity: density,
+    promptStyle,
     aspectRatio,
     duration: defaultDuration,
     sequenceMode: mode,
@@ -708,6 +712,7 @@ function scenarioFailure(parsed) {
   return error
 }
 function createScenarioStoryboard(options) {
+  const promptStyle = readPromptStyle(options.promptStyle ?? options.prompt_style)
   const source = options.scenario != null ? options.scenario : options.premise
   const parsed = parseScenario(source)
   if (!parsed.ok) throw scenarioFailure(parsed)
@@ -770,6 +775,7 @@ function createScenarioStoryboard(options) {
     lockedStyle,
     preset,
     promptDensity: density,
+    promptStyle,
     aspectRatio: canonicalAspect(options.aspectRatio),
     duration: defaultDuration,
     sequenceMode: 'scenario',
@@ -827,6 +833,211 @@ function spokenShot(shot, project) {
   }
   return shot
 }
+export const SHORT_PROMPT_MAX = 700
+const STABILITY_CUE = 'Simple hands, the held object stays the same shape.'
+
+/** `detailed` keeps the long sheet prompt. Anything else, including omission, is the short default. */
+export function canonicalPromptStyle(value) {
+  return String(value ?? '').trim().toLowerCase() === 'detailed' ? 'detailed' : 'short'
+}
+
+export function readPromptStyle(value) {
+  if (value == null || value === '') return 'short'
+  const text = String(value).trim().toLowerCase()
+  if (text !== 'short' && text !== 'detailed') {
+    const error = new Error('prompt_style must be "short" or "detailed".')
+    error.status = 400
+    error.code = 'invalid_prompt_style'
+    throw error
+  }
+  return text
+}
+
+function endPeriod(text) {
+  const clean = cleanText(text).replace(/\.+$/, '')
+  return clean ? `${clean}.` : ''
+}
+
+function fewWords(text, max = 6) {
+  return cleanText(text).split(/\s+/).filter(Boolean).slice(0, max).join(' ')
+}
+
+function nameMentioned(text, name) {
+  const needle = foldName(name)
+  if (!needle) return false
+  const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, 'iu').test(foldName(text))
+}
+
+function traitPieces(text) {
+  const source = cleanText(text)
+  if (!source || /identical in every shot|from the first shot/i.test(source)) return []
+  const found = []
+  const push = value => {
+    const trait = cleanText(value).replace(/^(?:the same|same|wearing|with|a|an|the|and)\s+/i, '').replace(/\.$/, '')
+    if (!trait || trait.length > 42 || /^(?:and|the|with)$/i.test(trait)) return
+    const key = foldName(trait)
+    const index = found.findIndex(item => {
+      const other = foldName(item)
+      return other === key || other.endsWith(key) || key.endsWith(other)
+    })
+    if (index >= 0) {
+      if (trait.length < found[index].length) found[index] = trait
+      return
+    }
+    found.push(trait)
+  }
+  const hair = source.match(/\b(?:(?:curly|straight|wavy|long|short|red|black|brown|blonde|blond|silver|dark|white|grey|gray|blue|green)\s+){0,3}hair\b/i)
+  if (hair) push(hair[0])
+  const glasses = source.match(/\b(?:round\s+)?glasses\b/i)
+  if (glasses) push(glasses[0])
+  const clothes = source.match(/\b(?:[\p{L}'’-]+\s+){0,2}(?:apron|jacket|coat|cap|hat|boots|dress|shirt|suit|scarf|hoodie|cloak|robe|uniform|jeans|skirt|satchel|bag)\b/giu) || []
+  clothes.forEach(push)
+  source.split(/[,;]|\band\b|—|–/).forEach(part => {
+    if (/\b(hair|glasses|apron|jacket|coat|cap|hat|boots|dress|shirt|suit|scarf|hoodie|cloak|robe|uniform|satchel|bag|lantern|map)\b/i.test(part)) push(part)
+  })
+  return found.slice(0, 3)
+}
+
+function visualTraits(character, fallback = '') {
+  const fromLook = traitPieces([character?.look, character?.outfit].filter(Boolean).join(', '))
+  if (fromLook.length) return fromLook
+  return traitPieces(fallback).slice(0, 3)
+}
+
+function castOf(shot, project) {
+  const sheet = project.filmSheet
+  const characters = sheet?.characters || []
+  const named = nameParts(shot?.who)
+  if (named.length) {
+    return named.map(name => {
+      const match = findByName(characters, name)
+      if (match) return match
+      const lead = project.continuitySheet
+      if (lead && foldName(lead.character) === foldName(name)) return { name: lead.character, look: '', outfit: lead.appearance || '' }
+      return { name, look: '', outfit: '' }
+    })
+  }
+  const source = [shot?.action, shot?.what, shot?.title].filter(Boolean).join(' ')
+  const mentioned = characters.filter(character => nameMentioned(source, character.name))
+  if (mentioned.length) return mentioned
+  if (characters.length === 1) return [characters[0]]
+  const leadName = project.continuitySheet?.character
+  if (leadName) {
+    const lead = findByName(characters, leadName) || { name: leadName, look: '', outfit: project.continuitySheet.appearance || '' }
+    if (!mentioned.length) return [lead]
+  }
+  return []
+}
+
+function stylePhrase(project) {
+  const preset = project.preset
+  if (preset?.visual) {
+    const visual = cleanText(preset.visual)
+    const palette = cleanText(preset.palette || '')
+    const lighting = cleanText(preset.lighting || '')
+    const bits = [visual, palette.length <= 60 ? palette : '', lighting.length <= 48 ? lighting : ''].filter(Boolean)
+    const line = bits.join(', ')
+    return line.length > 180 ? visual : line
+  }
+  const locked = cleanText(styleLockFor(project))
+  const first = locked.split(/(?<=\.)\s+/)[0].replace(/\.$/, '')
+  return first.length > 150 ? first.slice(0, 147).replace(/\s+\S*$/, '') : first
+}
+
+function placePhrase(shot, project) {
+  const places = project.filmSheet?.places || []
+  if (shot?.where) {
+    return nameParts(shot.where).map(part => {
+      const match = findByName(places, part)
+      if (!match) return part
+      const extra = fewWords(match.description, 6)
+      if (!extra || foldName(extra) === foldName(match.name)) return match.name
+      return `${match.name}, ${extra}`
+    }).filter(Boolean).join('; ')
+  }
+  const named = project.continuitySheet?.place || places[0]?.name || ''
+  const extra = places[0]?.description && foldName(places[0].description) !== foldName(named) ? fewWords(places[0].description, 6) : ''
+  const time = project.continuitySheet?.time
+  const timeBit = time && !/consistent with the idea/i.test(time) ? time : ''
+  return [named, extra, timeBit].filter(Boolean).join(', ')
+}
+
+function notYetLine(shot, project, index) {
+  const characters = project.filmSheet?.characters || []
+  if (characters.length < 2) return ''
+  const shots = project.shots || []
+  const pending = []
+  for (const character of characters) {
+    const key = foldName(character.name)
+    if (!key) continue
+    if (castOf(shot, project).some(person => foldName(person.name) === key)) continue
+    let first = -1
+    shots.forEach((item, itemIndex) => {
+      if (first >= 0) return
+      if (castOf(item, project).some(person => foldName(person.name) === key)) first = itemIndex
+    })
+    if (first < 0 && castOf(shot, project).some(person => foldName(person.name) === key)) first = index
+    if (first > index) pending.push(character.name)
+    if (pending.length > 2) return ''
+  }
+  if (pending.length === 1) return `${pending[0]} is not yet in frame.`
+  if (pending.length === 2) return `${pending[0]} and ${pending[1]} are not yet in frame.`
+  return ''
+}
+
+function fitShortPrompt(lines) {
+  const filled = lines.filter(Boolean)
+  let text = filled.join('\n')
+  if (text.length <= SHORT_PROMPT_MAX) return text
+  const actionIndex = filled.findIndex(line => line.startsWith('Action: '))
+  if (actionIndex >= 0) {
+    const others = filled.reduce((total, line, index) => total + (index === actionIndex ? 0 : line.length + 1), 0)
+    const room = SHORT_PROMPT_MAX - others
+    if (room > 24) {
+      const body = filled[actionIndex].slice('Action: '.length)
+      const shortened = body.slice(0, Math.max(12, room - 'Action: '.length - 1)).replace(/\s+\S*$/, '').replace(/[.,;:\s]+$/, '')
+      filled[actionIndex] = endPeriod(`Action: ${shortened}`)
+      text = filled.join('\n')
+    }
+  }
+  if (text.length <= SHORT_PROMPT_MAX) return text
+  const placeIndex = filled.findIndex(line => line.startsWith('Place: '))
+  if (placeIndex >= 0 && filled[placeIndex].includes(',')) {
+    filled[placeIndex] = endPeriod(`Place: ${filled[placeIndex].slice('Place: '.length).split(',')[0]}`)
+    text = filled.join('\n')
+  }
+  if (text.length <= SHORT_PROMPT_MAX) return text
+  return text.slice(0, SHORT_PROMPT_MAX - 1).replace(/\s+\S*$/, '').replace(/[.,;:\s]+$/, '') + '.'
+}
+
+/** The video-model prompt: one shot, the people in it, no repeated film sheet. */
+export function createShortPrompt(shot, project, index = 0) {
+  const style = stylePhrase(project)
+  const cast = castOf(shot, project).map(character => {
+    const fallback = project.continuitySheet && foldName(project.continuitySheet.character) === foldName(character.name) ? project.continuitySheet.appearance : ''
+    const traits = visualTraits(character, fallback)
+    return traits.length ? `${character.name} — ${traits.join(', ')}.` : `${character.name}.`
+  })
+  const place = placePhrase(shot, project)
+  const action = cleanText(shot.what || shot.action || '').replace(/\s+at daylight consistent with the idea/gi, '')
+  const duration = shot.duration_seconds || shot.duration || project.duration || DEFAULT_SHOT_DURATION
+  const light = cleanText(shot.lighting || '')
+  const lightBit = light && light.length <= 80 && !/consistent with/i.test(light) ? light : ''
+  const cameraBits = [shot.framing, shot.lens, shot.camera, lightBit].map(item => cleanText(item)).filter(Boolean)
+  const stability = shotInvolvesHands(shot) ? STABILITY_CUE : ''
+  const absent = notYetLine(shot, project, index)
+  return fitShortPrompt([
+    style ? `Style: ${style}.`.replace(/\.\.$/, '.') : '',
+    ...cast,
+    place ? endPeriod(`Place: ${place}`) : '',
+    action ? endPeriod(`Action: ${action}`) : '',
+    endPeriod(`Camera: ${cameraBits.join(', ')}. ${duration} seconds`),
+    stability,
+    absent
+  ])
+}
+
 function promptHeader(project) {
   const lines = [`Idea: ${ideaAnchor(project.premise || '')}`, `Style lock: ${styleLockFor(project)}`, `aspect ratio ${canonicalAspect(project.aspectRatio)}`]
   if (project.preset) lines.push(formatPresetBlock(project.preset))
@@ -835,6 +1046,7 @@ function promptHeader(project) {
   return lines.join('\n')
 }
 export function createPrompt(shot, project, index = 0) {
+  if (canonicalPromptStyle(project?.promptStyle) !== 'detailed') return createShortPrompt(shot, project, index)
   const genre = GENRES[project.genre] || GENRES.cinematic; const style = SHOT_STYLE_PROFILES[project.style] || STYLES.find(item => item.id === project.style) || STYLES[0]
   const premise = project.premise || 'a visual story'; const aspect = canonicalAspect(project.aspectRatio); const duration = shot.duration_seconds || shot.duration || project.duration || DEFAULT_SHOT_DURATION
   const lockedStyle = styleLockFor(project)

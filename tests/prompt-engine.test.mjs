@@ -1,8 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createStoryboard, createPrompt, serializeProject, validateProject, normalizeProject, detectGenre, inferSequenceMode, shotStages, addShot, formatContinuitySheet, ideaAnchor, parseCharacter, parsePlace, DURATION_PRESETS } from '../app/utils/prompt-engine.js'
-test('five-scene default carries premise through every editable shot', () => { const project=createStoryboard({premise:'A lone astronaut discovers a light beneath the ice and must decide whether to answer it.'}); assert.equal(project.shots.length,5); assert.equal(project.duration,3); assert.equal(project.shots[0].duration,3); assert.equal(project.genre,'scifi'); project.shots.forEach((shot,index)=>{assert.equal(shot.shot_id,`shot-${String(index+1).padStart(2,'0')}`);assert.ok(shot.prompt.toLowerCase().includes('camera'));assert.ok(shot.prompt.toLowerCase().includes('continuity:'));assert.ok(shot.action.length>12)}) })
-test('model switch produces model-specific structured prompts', () => { const project=createStoryboard({premise:'A violinist follows a peculiar note through an empty railway station after midnight.',model:'grok'}); const grok=project.shots[0].prompt; project.model='google'; project.shots[0].prompt=createPrompt(project.shots[0],project,0); assert.notEqual(grok,project.shots[0].prompt);assert.ok(project.shots[0].prompt.includes('LIGHTING:'));assert.ok(project.shots[0].prompt.includes('SCENE:'));assert.ok(grok.includes('Continuity:'));assert.ok(grok.includes('3-second')) })
+test('five-scene default carries premise through every editable shot', () => { const project=createStoryboard({premise:'A lone astronaut discovers a light beneath the ice and must decide whether to answer it.', promptStyle:'detailed'}); assert.equal(project.shots.length,5); assert.equal(project.duration,3); assert.equal(project.shots[0].duration,3); assert.equal(project.genre,'scifi'); project.shots.forEach((shot,index)=>{assert.equal(shot.shot_id,`shot-${String(index+1).padStart(2,'0')}`);assert.ok(shot.prompt.toLowerCase().includes('camera'));assert.ok(shot.prompt.toLowerCase().includes('continuity:'));assert.ok(shot.action.length>12)}) })
+test('model switch produces model-specific structured prompts', () => { const project=createStoryboard({premise:'A violinist follows a peculiar note through an empty railway station after midnight.',model:'grok', promptStyle:'detailed'}); const grok=project.shots[0].prompt; project.model='google'; project.shots[0].prompt=createPrompt(project.shots[0],project,0); assert.notEqual(grok,project.shots[0].prompt);assert.ok(project.shots[0].prompt.includes('LIGHTING:'));assert.ok(project.shots[0].prompt.includes('SCENE:'));assert.ok(grok.includes('Continuity:'));assert.ok(grok.includes('3-second')) })
 test('removing and normalizing gives stable shot order and ids', () => { const project=createStoryboard({premise:'A mapmaker climbs a forgotten mountain observatory and finds an uncharted valley.'}); project.shots.splice(1,1);const normalized=normalizeProject(project);assert.equal(normalized.shots.length,4);normalized.shots.forEach((shot,index)=>assert.equal(shot.order,index+1));assert.equal(new Set(normalized.shots.map(shot=>shot.shot_id)).size,4) })
 test('exported JSON can be read and validated as a portable agent document', () => { const project=createStoryboard({premise:'A lighthouse keeper races to repair the beacon before a fishing boat reaches the rocks.'}); const data=JSON.parse(serializeProject(project)); assert.equal(data.schema,'shotboard.v1');assert.equal(data.target_model,'grok');const validated=validateProject(data);assert.equal(validated.project.premise,project.premise) })
 test('bad model and duplicate shot identifiers are refused', () => { assert.throws(()=>validateProject({premise:'A sensible and sufficiently detailed premise',model:'unknown',shots:[]}));const project=createStoryboard({premise:'A clockmaker finds a hidden note describing tomorrow morning.'});const raw=JSON.parse(serializeProject(project));raw.shots[1].shot_id=raw.shots[0].shot_id;assert.throws(()=>validateProject(raw),/unique/) })
@@ -24,7 +24,7 @@ test('two styles produce different shot text for the same idea', () => {
 })
 test('location, negation, dialogue and framing stay intact', () => {
   const baker = 'A baker in Luxembourg loses the last loaf of the day to a fox in the rain at night. No snow. Dialogue: "Not this one."'
-  const project = createStoryboard({ premise: baker, sequenceMode: 'continuous', style: 'Normal', model: 'google', count: 8, aspectRatio: '9:16', duration: 6 })
+  const project = createStoryboard({ premise: baker, sequenceMode: 'continuous', style: 'Normal', model: 'google', count: 8, aspectRatio: '9:16', duration: 6, promptStyle: 'detailed' })
   assert.equal(project.continuitySheet.place, 'Luxembourg')
   assert.equal(project.continuitySheet.character, 'Baker')
   assert.equal(project.continuitySheet.dialogue, 'Not this one.')
@@ -39,7 +39,7 @@ test('location, negation, dialogue and framing stay intact', () => {
     assert.doesNotMatch(shot.prompt, /Place: Luxembourg loses/)
   })
   const starIdea = 'An apprentice astronaut guides a damaged capsule home using only a paper star map.'
-  const star = createStoryboard({ premise: starIdea, sequenceMode: 'varied', style: 'Spicy', model: 'grok', count: 8 })
+  const star = createStoryboard({ premise: starIdea, sequenceMode: 'varied', style: 'Spicy', model: 'grok', count: 8, promptStyle: 'detailed' })
   assert.equal(star.shots[0].story_has_snow, false)
   assert.equal(star.shots[0].framing, 'Extreme wide establishing shot')
   assert.match(star.shots[0].camera, /wide/i)
@@ -56,7 +56,7 @@ test('location, negation, dialogue and framing stay intact', () => {
 test('continuous story shares one editable continuity sheet and numbered transitions', () => {
   const premise = 'A lighthouse keeper races the dusk to repair a failing beacon before the fishing boats arrive.'
   assert.equal(inferSequenceMode(premise), 'continuous')
-  const project = createStoryboard({ premise, sequenceMode: 'continuous', count: 8 })
+  const project = createStoryboard({ premise, sequenceMode: 'continuous', count: 8, promptStyle: 'detailed' })
   assert.equal(project.sequenceMode, 'continuous')
   assert.equal(project.shots.length, 8)
   assert.equal(project.continuitySheet.character, 'Lighthouse keeper')
@@ -92,8 +92,8 @@ test('every shot count gets a unique beat label, and eight shots use the story a
 })
 test('continuous story repeats character, wardrobe, and setting, and varied shots do not', () => {
   const premise = 'A lighthouse keeper races the dusk to repair a failing beacon before the fishing boats arrive.'
-  const continuous = createStoryboard({ premise, sequenceMode: 'continuous', count: 8, style: 'Normal', model: 'google' })
-  const varied = createStoryboard({ premise, sequenceMode: 'varied', count: 8, style: 'Normal', model: 'google' })
+  const continuous = createStoryboard({ premise, sequenceMode: 'continuous', count: 8, style: 'Normal', model: 'google', promptStyle: 'detailed' })
+  const varied = createStoryboard({ premise, sequenceMode: 'varied', count: 8, style: 'Normal', model: 'google', promptStyle: 'detailed' })
   const { character, appearance, place, time } = continuous.continuitySheet
   assert.equal(character, 'Lighthouse keeper')
   assert.match(appearance, /wool jacket/)
@@ -115,8 +115,8 @@ test('continuous story repeats character, wardrobe, and setting, and varied shot
 })
 test('continuous and varied modes plan different prompts for the same idea', () => {
   const premise = 'A baker in Luxembourg loses the last loaf of the day to a fox in the rain at night.'
-  const continuous = createStoryboard({ premise, sequenceMode: 'continuous', count: 8, style: 'Normal', model: 'google' })
-  const varied = createStoryboard({ premise, sequenceMode: 'varied', count: 8, style: 'Normal', model: 'google' })
+  const continuous = createStoryboard({ premise, sequenceMode: 'continuous', count: 8, style: 'Normal', model: 'google', promptStyle: 'detailed' })
+  const varied = createStoryboard({ premise, sequenceMode: 'varied', count: 8, style: 'Normal', model: 'google', promptStyle: 'detailed' })
   assert.notEqual(continuous.shots.map(shot => shot.prompt).join('\n'), varied.shots.map(shot => shot.prompt).join('\n'))
   assert.ok(continuous.shots.every(shot => shot.prompt.includes('CONTINUITY SHEET') && shot.prompt.includes('Character: Baker')))
   assert.equal(new Set(varied.shots.map(shot => shot.action)).size, 8)
@@ -129,7 +129,7 @@ test('continuous and varied modes plan different prompts for the same idea', () 
 test('varied shots stay independent and omit the continuity sheet', () => {
   const premise = 'sunlit tabletop, pear, gold light, quiet commercial mood'
   assert.equal(inferSequenceMode(premise), 'varied')
-  const project = createStoryboard({ premise: 'A lighthouse keeper races the dusk to repair a failing beacon before the fishing boats arrive.', sequenceMode: 'varied', count: 8 })
+  const project = createStoryboard({ premise: 'A lighthouse keeper races the dusk to repair a failing beacon before the fishing boats arrive.', sequenceMode: 'varied', count: 8, promptStyle: 'detailed' })
   assert.equal(project.sequenceMode, 'varied')
   assert.equal(project.continuitySheet, undefined)
   assert.equal(new Set(project.shots.map(shot => shot.framing)).size, 8)
@@ -144,7 +144,7 @@ test('varied shots stay independent and omit the continuity sheet', () => {
 test('every shot keeps the idea and one locked style, including varied boards', () => {
   const premise = 'A watercolor illustration of a lighthouse keeper racing the dusk before the boats arrive.'
   const anchor = ideaAnchor(premise)
-  const varied = createStoryboard({ premise, sequenceMode: 'varied', style: 'Spicy', count: 6, aspectRatio: '9:16', model: 'google' })
+  const varied = createStoryboard({ premise, sequenceMode: 'varied', style: 'Spicy', count: 6, aspectRatio: '9:16', model: 'google', promptStyle: 'detailed' })
   const locks = varied.shots.map(shot => shot.prompt.match(/Style lock: ([^\n]+)/)[1])
   assert.equal(new Set(locks).size, 1)
   assert.match(locks[0], /painterly gouache illustration/)
@@ -160,7 +160,7 @@ test('every shot keeps the idea and one locked style, including varied boards', 
     assert.doesNotMatch(shot.prompt, /CONTINUITY SHEET|follows directly from the previous shot/)
     assert.match(shot.action, /standalone/)
   })
-  const continuous = createStoryboard({ premise, sequenceMode: 'continuous', style: 'Normal', count: 4, aspectRatio: '4:5', model: 'grok' })
+  const continuous = createStoryboard({ premise, sequenceMode: 'continuous', style: 'Normal', count: 4, aspectRatio: '4:5', model: 'grok', promptStyle: 'detailed' })
   const continuousLocks = continuous.shots.map(shot => shot.prompt.match(/Style lock: ([^\n]+)/)[1])
   assert.equal(new Set(continuousLocks).size, 1)
   assert.equal(continuousLocks[0], continuous.continuitySheet.style)
@@ -177,12 +177,12 @@ test('every shot keeps the idea and one locked style, including varied boards', 
     if (index === 0) assert.match(shot.prompt, /The story begins in this shot/)
     else assert.match(shot.prompt, /follows directly from the previous shot/)
   })
-  const chosen = createStoryboard({ premise: 'A watercolor illustration of a baker in the rain at night.', style: 'wireframe', sequenceMode: 'varied', count: 3 })
+  const chosen = createStoryboard({ premise: 'A watercolor illustration of a baker in the rain at night.', style: 'wireframe', sequenceMode: 'varied', count: 3, promptStyle: 'detailed' })
   const chosenLocks = chosen.shots.map(shot => shot.prompt.match(/Style lock: ([^\n]+)/)[1])
   assert.equal(new Set(chosenLocks).size, 1)
   assert.match(chosenLocks[0], /wireframe guides/)
   assert.doesNotMatch(chosenLocks[0], /gouache/)
-  const illustrated = createStoryboard({ premise: 'A watercolor illustration of a lighthouse keeper racing the dusk to repair a failing beacon.', sequenceMode: 'continuous', continuityStrength: 'strict', count: 2, style: 'Normal', aspectRatio: '9:16' })
+  const illustrated = createStoryboard({ premise: 'A watercolor illustration of a lighthouse keeper racing the dusk to repair a failing beacon.', sequenceMode: 'continuous', continuityStrength: 'strict', count: 2, style: 'Normal', aspectRatio: '9:16', promptStyle: 'detailed' })
   assert.equal(illustrated.continuitySheet.character, 'Lighthouse keeper')
   assert.match(illustrated.continuitySheet.appearance, /wool jacket/)
   assert.equal(illustrated.shots[0].prompt.includes('CONTINUITY SHEET'), true)
@@ -191,8 +191,8 @@ test('every shot keeps the idea and one locked style, including varied boards', 
 })
 test('strict continuity repeats the full sheet verbatim and varied mode omits it', () => {
   const premise = 'A lighthouse keeper races the dusk to repair a failing beacon before the fishing boats arrive.'
-  const strict = createStoryboard({ premise, sequenceMode: 'continuous', continuityStrength: 'strict', count: 4, style: 'Normal' })
-  const standard = createStoryboard({ premise, sequenceMode: 'continuous', continuityStrength: 'standard', count: 4, style: 'Normal' })
+  const strict = createStoryboard({ premise, sequenceMode: 'continuous', continuityStrength: 'strict', count: 4, style: 'Normal', promptStyle: 'detailed' })
+  const standard = createStoryboard({ premise, sequenceMode: 'continuous', continuityStrength: 'standard', count: 4, style: 'Normal', promptStyle: 'detailed' })
   const sheet = formatContinuitySheet(strict.continuitySheet)
   assert.equal(strict.continuityStrength, 'strict')
   assert.equal(standard.continuityStrength, 'standard')
@@ -208,7 +208,7 @@ test('strict continuity repeats the full sheet verbatim and varied mode omits it
     assert.equal(shot.prompt.split(formatContinuitySheet(standard.continuitySheet)).length - 1, 1)
     assert.doesNotMatch(shot.prompt, /Repeat this continuity sheet verbatim/)
   })
-  const varied = createStoryboard({ premise, sequenceMode: 'varied', count: 4, aspectRatio: '1:1' })
+  const varied = createStoryboard({ premise, sequenceMode: 'varied', count: 4, aspectRatio: '1:1', promptStyle: 'detailed' })
   assert.equal(varied.continuitySheet, undefined)
   varied.shots.forEach(shot => {
     assert.doesNotMatch(shot.prompt, /CONTINUITY SHEET|Same wardrobe:|Repeat this continuity sheet/)
@@ -218,9 +218,9 @@ test('strict continuity repeats the full sheet verbatim and varied mode omits it
 })
 test('standard continuity states wardrobe once per sheet and concise drops the sheet', () => {
   const premise = 'A lighthouse keeper races the dusk to repair a failing beacon before the fishing boats arrive.'
-  const standard = createStoryboard({ premise, sequenceMode: 'continuous', continuityStrength: 'standard', density: 'standard', count: 4 })
-  const concise = createStoryboard({ premise, sequenceMode: 'continuous', continuityStrength: 'standard', density: 'concise', count: 4 })
-  const strict = createStoryboard({ premise, sequenceMode: 'continuous', continuityStrength: 'strict', density: 'concise', count: 2 })
+  const standard = createStoryboard({ premise, sequenceMode: 'continuous', continuityStrength: 'standard', density: 'standard', count: 4, promptStyle: 'detailed' })
+  const concise = createStoryboard({ premise, sequenceMode: 'continuous', continuityStrength: 'standard', density: 'concise', count: 4, promptStyle: 'detailed' })
+  const strict = createStoryboard({ premise, sequenceMode: 'continuous', continuityStrength: 'strict', density: 'concise', count: 2, promptStyle: 'detailed' })
   const sheet = formatContinuitySheet(standard.continuitySheet)
   standard.shots.forEach(shot => {
     assert.equal(shot.prompt.split(sheet).length - 1, 1)
@@ -262,6 +262,7 @@ test('scene overrides replace beats and the default preset is 5 x 3s', () => {
   assert.deepEqual(DURATION_PRESETS[0], { id: '15s', label: '15s', total: 15, count: 5, duration: 3 })
   const project = createStoryboard({
     premise: 'A lighthouse keeper races the dusk to repair a failing beacon before the boats arrive.',
+    promptStyle: 'detailed',
     scenes: [
       { action: 'The keeper shoulders the lantern.', duration: 4, framing: 'Close-up', camera: 'Handheld', lighting: 'Warm lamp', notes: 'Wind in the mic' },
       { beat: 'The beacon flashes once.', duration: 3 }

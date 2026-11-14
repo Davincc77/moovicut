@@ -102,7 +102,19 @@ A `prompt` on an ad shot, an episode, or a step sets `promptEdited` and is kept 
 
 Send `regenerateShot` (or `shotId`) plus `project` or `storyboard` to rebuild one shot. Every other prompt stays as it was. A shot marked `promptEdited`, or a `prompt` included in that request, is kept unless `overwritePrompt` is true. The same action is **Regenerate this shot** in `/studio`, in every mode.
 
-`warnings` is added to a response only when a shot looks risky: too many actions for a short shot, on-screen text, a crowd, more than two people, a name that is not on the film sheet, or two camera moves that fight each other. Each warning has `shotId`, `order`, `code`, `message`, and `fix`. Warnings never reject the board. A default 5 × 3s plan has no `warnings` key.
+`warnings` is added to a response only when a shot looks risky: too many actions for a short shot, on-screen text, a crowd, more than two people, a name that is not on the film sheet, two camera moves that fight each other, or a hand-off / very visible hands / held object (`hands_or_held_object`). Each warning has `shotId`, `order`, `code`, `message`, and `fix`. Warnings never reject the board. A default 5 × 3s plan has no `warnings` key.
+
+## Video prompt
+
+The text copied for the video model is **short by default**. Send `prompt_style` or `promptStyle` as `short` or `detailed`. An unknown value is 400 and lists the two allowed values.
+
+A short prompt is one shot, in this order: one style line from the preset; only the characters in that shot, each with two or three fixed traits from the film sheet (hair, outfit, a key prop); the place in a few words; the action; the camera, framing, and length. A shot with hands or a held object adds one line, `Simple hands, the held object stays the same shape.` When a character enters in a later shot, an earlier shot can say they are not yet in frame. It does not paste the full film sheet, a list of everyone who is absent, or the continuity paragraph. Aim for about 400–600 characters. The hard cap is about 700.
+
+`prompt_style: "detailed"` keeps the previous long prompt, with the film sheet, the style preset block, and the continuity text in every shot. The same choice is the **Short / Detailed** control in `/studio`.
+
+The film sheet, presets, and continuity data stay on the board, in the studio, and in `shotboard.compact.v1`. They are how the next shot stays consistent. They are no longer copied into every short video prompt.
+
+A prompt marked `promptEdited` is left untouched when the prompt style, mode, style preset, or model changes, and when **Regenerate this shot** runs. Reset still replaces that one prompt, and Undo puts the edit back. `overwritePrompt: true` is the explicit regenerate.
 
 ## Shared film sheet
 
