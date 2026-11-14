@@ -22,8 +22,8 @@ test('core tools are free, support opens Buy Me a Coffee and dark mode is saved'
   assert.match(support,/target="_blank"/)
   assert.match(support,/rel="noopener"/)
   assert.doesNotMatch(support,/AppModal|aria-haspopup/)
-  assert.match(creation,/Free local storyboard generation, editing and export/)
-  assert.match(source('app/components/WorkspaceHeader.vue'),/Local storyboard on this device/)
+  assert.match(creation,/Free · Local · No account/)
+  assert.match(source('app/components/WorkspaceHeader.vue'),/Free · Local · No account/)
   assert.doesNotMatch(source('app/components/WorkspaceHeader.vue'),/guest|Later|Sign in/)
   assert.match(source('app/components/SiteFooter.vue'),/buymeacoffee\.com\/enzoc1977r/)
   assert.match(source('app/components/WorkspaceHeader.vue'),/<SupportLink \/>/)
@@ -60,7 +60,7 @@ test('every active Vue single-file component parses and compiles', () => {
 
 test('Check 33 home keeps studies, FAQs, wording and named controls', () => {
   for(const title of ['Snow Fight','Dragon Chase','The Lab','The Climb','Mech Reveal','Solo Corridor','Machine Room','High Country'])assert.ok(home.includes(`title:'${title}'`),title)
-  const headings=['From one line to a shot list','Pick a genre. We speak its language.','Script &amp; Storyboard Generator','How it works','Reference stills','Frequently asked questions']
+  const headings=['Pick a genre. We speak its language.','How it works','Reference stills','Frequently asked questions','Create a storyboard']
   let previous=-1
   for(const heading of headings){const position=home.indexOf(heading);assert.ok(position>previous,heading);previous=position}
   for(const text of ['does not render a clip','Paste a prompt into Grok Imagine, Google, or any other AI image or video model','not renders from Moovicut','battles'])assert.ok(home.includes(text),text)
@@ -85,14 +85,14 @@ test('Check 34 paid plans are gone and tips stay on the support link', () => {
 })
 
 test('Check 33 Studio has a real two-column creation form and retained editor', () => {
-  for(const text of ['All storyboarding, editing and exporting features are free','My Projects','Edit storyboard'])assert.ok(studio.includes(text),text)
+  for(const text of ['Create a storyboard','My Projects','Board tools'])assert.ok(studio.includes(text),text)
   assert.match(studio,/<WorkspaceSidebar/)
   assert.match(studio,/<WorkspaceHeader/)
   assert.match(studio,/<StudioCreationPanel \/>/)
   assert.match(studio,/<StudioEditor \/>/)
   assert.match(studio,/importProject/)
   assert.match(studio,/exportJson/)
-  for(const text of ['Free local storyboard generation, editing and export','Describe your idea in detail','No plan or account is needed','Free local storyboarding, editing and exporting'])assert.ok(creation.includes(text),text)
+  for(const text of ['Free · Local · No account','Describe your idea in detail','Write an idea on the left, then create the storyboard.','Create storyboard'])assert.ok(creation.includes(text),text)
   assert.match(creation,/<form class="studio-create-form"[^>]*@submit\.prevent="createStoryboard"/)
   assert.match(creation,/class="studio-main"/)
   assert.match(creation,/async function readReference\(event\)/)
@@ -138,7 +138,7 @@ test('retired account routes open the studio instead of an account page', () => 
 })
 
 test('Check 35 Studio has no nested form and restores its two preview studies', () => {
-  assert.match(studio,/id="studio-heading" class="sr-only"/)
+  assert.match(studio,/id="studio-heading" class="studio-page-title"/)
   assert.match(creation,/<form class="studio-create-form"[\s\S]*<\/form><\/div>[\s\S]*<form class="studio-bottom-composer"/)
   assert.match(creation,/v-for="study in visibleStudies"/)
   assert.equal(new Set(STUDIO_INSPIRATIONS.slice(0,2).map(study=>study.file)).size,2)
@@ -149,7 +149,7 @@ test('Check 35 Studio has no nested form and restores its two preview studies', 
   assert.equal(legacyRedirectTarget('/ko/developers'), '/studio')
   assert.doesNotMatch(footerSource,/\/developers|For AI agents/)
   assert.match(source('app/components/SupportLink.vue'),/buymeacoffee\.com\/enzoc1977r/)
-  for(const text of ['No account or subscription is required','JSON export'])assert.ok(studio.includes(text)||creation.includes(text),text)
+  for(const text of ['Free · Local · No account','JSON export'])assert.ok(studio.includes(text)||creation.includes(text),text)
 })
 
 test('Check 35 hidden headings and duplicate layout offsets are removed', () => {
@@ -225,7 +225,8 @@ test('Check 38 applies measured typography, offsets and responsive layouts', () 
   assert.equal(declarations('.studio-main').padding,'0')
   assert.doesNotMatch(source('app/pages/index.vue'),/Passer en Français|La langue de votre navigateur/)
   assert.match(home,/v-for="example in examples"/)
-  assert.match(creation,/What will you create\?/)
+  assert.match(studio,/Create a storyboard/)
+  assert.match(creation,/Storyboard settings/)
   assert.doesNotMatch(css,/(?:body|html|\.site-shell|\.studio-shell|\.auth-shell|\.profile-layout)\s*\{[^}]*overflow(?:-x)?:hidden/)
 })
 
@@ -246,17 +247,19 @@ test('canonical CSS parses with light workspace routes and dark home/login', () 
     assert.doesNotMatch(decl.value, /var\(--[a-z-]+;/)
     assert.doesNotMatch(decl.value, /\{;/)
   })
-  for(const token of ['color-scheme:dark','--bg:#0a0a0a;--bg-alt:#0f0f0f;--surface:#141414','--text:#18181b;--text-secondary:#71717a','--text:#eae7df','#ecfdf5','#c8c3b6','#737373','#a1a1aa'])assert.ok(css.includes(token),token)
+  for(const token of ['color-scheme:dark','--bg:#0a0a0a;--bg-alt:#0f0f0f;--surface:#141414','--text:#18181b;--text-secondary:#71717a','--text:#eae7df','#ecfdf5','#c8c3b6','#a1a1aa'])assert.ok(css.includes(token),token)
+  assert.match(css,/\.process-number\s*\{[^}]*color:var\(--text-secondary\)/)
   assert.match(creation,/Copy prompt/)
   assert.doesNotMatch(creation,/Try prompt/)
   assert.deepEqual(STUDIO_INSPIRATIONS.map(study=>study.title),['Paper Star Map','Sunlit Pear Ad','Horse at Dawn','Cliffside Courier','The Prophetic Canvas','City Wakes Up','Buried Observatory','Rain Station Melody'])
   assert.deepEqual(STUDIO_INSPIRATIONS.map(study=>study.file),['paper-star-map','sunlit-pear-ad','horse-at-dawn','cliffside-courier','the-prophetic-canvas','city-wakes-up','buried-observatory','rain-station-melody'])
   assert.ok(STUDIO_INSPIRATIONS.every(study => !('credit' in study)))
   assert.doesNotMatch(creation,/Still:|study\.credit/)
+  assert.ok(creation.indexOf('studio-board-mode') < creation.indexOf('studio-prompt-editor'))
   assert.ok(creation.indexOf('studio-prompt-editor') < creation.indexOf('studio-model-selector'))
-  assert.ok(creation.indexOf('studio-model-selector') < creation.indexOf('studio-style-settings'))
-  assert.ok(creation.indexOf('studio-style-settings') < creation.indexOf('studio-sequence-mode'))
-  assert.ok(creation.indexOf('studio-sequence-mode') < creation.indexOf('studio-generate'))
+  assert.ok(creation.indexOf('studio-model-selector') < creation.indexOf('studio-generate'))
+  assert.ok(creation.indexOf('studio-generate') < creation.indexOf('studio-advanced-settings'))
+  assert.ok(creation.indexOf('studio-advanced-settings') < creation.indexOf('studio-style-settings'))
 })
 
 test('active artwork paths respect the configured application mount', () => {

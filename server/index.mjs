@@ -222,7 +222,10 @@ export function createVisitServer({ store, token = '', staticRoot = join(rootDir
         return
       }
       const type = TYPES[file.slice(file.lastIndexOf('.')).toLowerCase()] || 'application/octet-stream'
-      response.writeHead(200, { 'content-type': type, 'cache-control': file.includes(`${sep}_nuxt${sep}`) ? 'public, max-age=31536000, immutable' : 'no-cache' })
+      const cached = file.includes(`${sep}_nuxt${sep}`)
+        ? 'public, max-age=31536000, immutable'
+        : (file.includes(`${sep}media${sep}`) || file.includes(`${sep}brand${sep}`) ? 'public, max-age=2592000' : 'no-cache')
+      response.writeHead(200, { 'content-type': type, 'cache-control': cached })
       if (request.method === 'HEAD') response.end()
       else createReadStream(file).pipe(response)
     } catch {

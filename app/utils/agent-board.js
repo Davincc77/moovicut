@@ -1,18 +1,23 @@
 /** One compact board every mode can hand to an agent or the API. */
 import { canonicalModel } from '../integrations/models/model-registry.js'
 import { createStoryboard } from './prompt-engine.js'
+import { BOARD_MODES, isPresetMode } from './preset-modes.js'
 
 export const AGENT_BOARD_SCHEMA = 'shotboard.compact.v1'
 
 function copySheet(sheet) {
   if (!sheet) return undefined
-  return {
+  const copy = {
     characters: (sheet.characters || []).map(item => ({ name: item.name || '', look: item.look || '', outfit: item.outfit || '' })),
     places: (sheet.places || []).map(item => ({ name: item.name || '', description: item.description || '' })),
     light: sheet.light || '',
     mood: sheet.mood || '',
     style: sheet.style || ''
   }
+  if (sheet.product?.name) copy.product = { name: sheet.product.name, benefit: sheet.product.benefit || '', cta: sheet.product.cta || '' }
+  if (sheet.topic) copy.topic = sheet.topic
+  if (sheet.audience) copy.audience = sheet.audience
+  return copy
 }
 
 export function exportAgentBoard(project) {
@@ -47,7 +52,7 @@ export function exportAgentBoard(project) {
 
 export function importAgentBoard(board, options = {}) {
   if (!board || board.schema !== AGENT_BOARD_SCHEMA) throw new Error('This file is not a Moovicut agent board.')
-  const mode = ['continuous', 'varied', 'scenario'].includes(board.mode) ? board.mode : 'continuous'
+  const mode = BOARD_MODES.includes(board.mode) ? board.mode : 'continuous'
   if (mode === 'scenario' && board.filmSheet?.characters?.length && board.filmSheet?.places?.length) {
     const project = createStoryboard({
       premise: board.premise,
@@ -80,10 +85,11 @@ export function importAgentBoard(board, options = {}) {
     premise: board.premise,
     model: board.model,
     aspectRatio: board.aspectRatio,
-    sequenceMode: mode === 'scenario' ? 'continuous' : mode,
+    sequenceMode: mode === 'scenario' || isPresetMode(mode) ? 'continuous' : mode,
     count: Math.max(1, board.shots?.length || 5),
     skipDetection: true
   })
+  project.sequenceMode = mode
   if (board.filmSheet) project.filmSheet = copySheet(board.filmSheet)
   project.shots = (board.shots || []).map((shot, index) => {
     const current = project.shots[index] || project.shots[0]

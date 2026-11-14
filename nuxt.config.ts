@@ -15,9 +15,6 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-01-01',
   devtools: { enabled: false },
   css: [
-    '@fontsource/inter/400.css',
-    '@fontsource/inter/500.css',
-    '@fontsource/inter/600.css',
     '@fontsource/ibm-plex-sans/400.css',
     '@fontsource/ibm-plex-sans/500.css',
     '@fontsource/ibm-plex-sans/600.css',

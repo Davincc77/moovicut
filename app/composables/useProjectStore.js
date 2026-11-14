@@ -1,8 +1,8 @@
 /* Explicit imports keep these shared helpers available to the browser and the CLI. */
 import { createPreferences } from '../utils/preferences.js'
-import { applyModelProfile, applyStylePreset, canonicalAspect, canonicalModel, createStoryboard, normalizeProject, regenerateOneShot, regenerateShotPrompts, addShot, assignShotStages, refreshShotPrompt, retargetMode, serializeProject, STARTER, validateProject } from '../utils/prompt-engine.js'
+import { applyModelProfile, applyStylePreset, canonicalAspect, canonicalModel, createStoryboard, normalizeProject, regenerateOneShot, regenerateShotPrompts, addShot, assignShotStages, refreshShotPrompt, retargetMode, serializeProject, STARTER, syncSequences, validateProject } from '../utils/prompt-engine.js'
 import { profileFor } from '../utils/model-profiles.js'
-import { LIGHTS, sequencePacks } from '../utils/scenario.js'
+import { LIGHTS } from '../utils/scenario.js'
 import { emptyLibrary, exportLibrary, importLibrary, readLibrary, saveCharacter, savePlace, saveStyle, writeLibrary } from '../utils/library.js'
 import { exportAgentBoard } from '../utils/agent-board.js'
 const clone = value => JSON.parse(JSON.stringify(value))
@@ -140,7 +140,8 @@ export function useProjectStore() {
   }
   function mutate(callback, message) { const next = clone(project.value); callback(next); commit(next, message) }
   function createNew(premise, model = project.value.model, options = {}) {
-    if (!premise?.trim() && !options.scenario && options.sequenceMode !== 'scenario') throw new Error('Start with a short premise for your story.')
+    const guided = ['scenario', 'ad', 'series', 'explainer'].includes(options.sequenceMode) || options.scenario || options.ad || options.series || options.explainer || options.steps
+    if (!premise?.trim() && !guided) throw new Error('Start with a short premise for your story.')
     const next = createStoryboard({ ...options, premise: premise || '', model }); commit(next, 'Your storyboard is ready. Make it yours.'); return next
   }
   function selectModel(model) { const next = canonicalModel(model); if (!next || next === project.value.model) return; commit(applyModelProfile(project.value, next), `Prompts adapted for ${profileFor(next).label}. Prompts you edited stay as you left them.`) }
@@ -151,7 +152,7 @@ export function useProjectStore() {
       if (patch.promptDensity === 'concise' || patch.promptDensity === 'standard') next.promptDensity = patch.promptDensity
       if (patch.density === 'concise' || patch.density === 'standard') next.promptDensity = patch.density
       next.shots = next.shots.map((shot, index) => refreshShotPrompt(shot, next, index))
-      if (next.sequenceMode === 'scenario') next.sequences = sequencePacks(next)
+      syncSequences(next)
     }, 'Shot prompts updated on this device. Prompts you edited stay as you left them.')
   }
   function updateContinuity(field, value) { mutate(next => {
@@ -183,7 +184,7 @@ export function useProjectStore() {
         if (next.filmSheet.places?.[0]) next.continuitySheet.place = next.filmSheet.places[0].name
       }
       next.shots = next.shots.map((shot, index) => refreshShotPrompt(shot, next, index))
-      if (next.sequenceMode === 'scenario') next.sequences = sequencePacks(next)
+      syncSequences(next)
     }, 'Film sheet updated. Generated prompts now match it. Prompts you edited stay as you left them.')
   }
   function setSequenceMode(mode) {
@@ -195,7 +196,7 @@ export function useProjectStore() {
     if (field === 'prompt') updated.promptEdited = true
     const duration = Math.max(2, Math.min(15, Number(updated.duration) || 3)); updated.duration = duration; updated.duration_seconds = duration
     next.shots[index] = regenerate && field !== 'prompt' ? refreshShotPrompt(updated, next, index) : updated
-    if (next.sequenceMode === 'scenario') next.sequences = sequencePacks(next)
+    syncSequences(next)
   }) }
   function updateShotFields(id, patch) { mutate(next => {
     const index = next.shots.findIndex(shot => shot.id === id); if (index < 0) throw new Error(`Shot not found: ${id}`)
@@ -205,7 +206,7 @@ export function useProjectStore() {
     if ('prompt' in patch && !patch.prompt?.trim()) throw new Error('A shot prompt cannot be empty.')
     if ('prompt' in patch) updated.promptEdited = true
     next.shots[index] = 'prompt' in patch ? updated : refreshShotPrompt(updated, next, index)
-    if (next.sequenceMode === 'scenario') next.sequences = sequencePacks(next)
+    syncSequences(next)
   }) }
   function setStylePreset(family, genre) {
     mutate(next => {
@@ -227,7 +228,7 @@ export function useProjectStore() {
     const index = next.shots.findIndex(shot => shot.id === id || shot.shot_id === id)
     if (index < 0) throw new Error(`Shot not found: ${id}`)
     next.shots[index] = refreshShotPrompt(next.shots[index], next, index, { overwrite: true })
-    if (next.sequenceMode === 'scenario') next.sequences = sequencePacks(next)
+    syncSequences(next)
   }, 'Prompt reset to the generated text.') }
   function removeShot(id) { if (project.value.shots.length <= 1) { notify('Keep at least one shot in your storyboard.', 'info'); return }; mutate(next => { next.shots = next.shots.filter(shot => shot.id !== id); assignShotStages(next.shots) }, 'Shot removed. Undo is available.') }
   function moveShot(id, direction) { mutate(next => {

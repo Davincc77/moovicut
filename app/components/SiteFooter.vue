@@ -7,13 +7,9 @@ const visitTotal = ref(null)
 const visitLabel = computed(() => visitTotal.value == null ? '' : `${new Intl.NumberFormat('en').format(visitTotal.value)} ${visitTotal.value === 1 ? 'visit' : 'visits'}`)
 function showVisits(total) { if (Number.isInteger(total) && total >= 0) visitTotal.value = total }
 function onVisits(event) { showVisits(event.detail) }
-onMounted(async () => {
+onMounted(() => {
   window.addEventListener('moovicut-visits', onVisits)
-  try {
-    const response = await fetch(joinAppPath(appBaseURL, 'api/visits'), { credentials: 'omit' })
-    const type = response.headers.get('content-type') || ''
-    if (response.ok && type.includes('application/json')) showVisits((await response.json()).total)
-  } catch { /* The counter stays hidden when this host has no visit service. */ }
+  if (Number.isInteger(window.__moovicutVisits)) showVisits(window.__moovicutVisits)
 })
 onBeforeUnmount(() => window.removeEventListener('moovicut-visits', onVisits))
 </script>

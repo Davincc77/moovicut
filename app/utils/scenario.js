@@ -539,7 +539,10 @@ export function describeCast(who, characters) {
   if (!parts.length) return ''
   return parts.map(part => {
     const match = findByName(characters, part)
-    return match ? `${match.name} (${match.look}, wearing ${match.outfit})` : part
+    if (!match) return part
+    const worn = match.outfit ? `, wearing ${match.outfit}` : ''
+    const look = match.look ? `${match.look}${worn}` : (match.outfit ? `wearing ${match.outfit}` : '')
+    return look ? `${match.name} (${look})` : match.name
   }).join(' and ')
 }
 

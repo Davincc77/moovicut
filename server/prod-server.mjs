@@ -2,7 +2,8 @@ import { createServer } from 'node:http'
 import { createReadStream, existsSync, statSync } from 'node:fs'
 import { dirname, extname, join, resolve, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { createRateLimiter, handleAgentHttp, isAgentPath, isLimitedPath, publicOrigin, clientAddress } from './agent-api.mjs'
+import { createRateLimiter, handleAgentHttp, isAgentPath, isLimitedPath, publicOrigin, clientAddress, readLimitedBody } from './agent-api.mjs'
+import { createVisitStore } from './visits.mjs'
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -128,10 +129,11 @@ function cacheControl(file, root) {
   const relative = file.slice(root.length)
   if (relative.includes(`${sep}_nuxt${sep}`)) return 'public, max-age=31536000, immutable'
   if (extname(file) === '.html') return 'no-cache'
+  if (relative.includes(`${sep}media${sep}`) || relative.includes(`${sep}brand${sep}`)) return 'public, max-age=2592000'
   return 'public, max-age=3600'
 }
 
-export function createProdServer({ staticRoot, logger = () => {}, limiter = createRateLimiter() } = {}) {
+export function createProdServer({ staticRoot, logger = () => {}, limiter = createRateLimiter(), visits = createVisitStore({}) } = {}) {
   const root = resolve(staticRoot)
   return createServer(async (request, response) => {
     let url
@@ -147,6 +149,31 @@ export function createProdServer({ staticRoot, logger = () => {}, limiter = crea
     }
     if (isAgentPath(pathname)) {
       await handleAgentHttp(request, response, { pathname, searchParams: url.searchParams, origin: publicOrigin(request.headers), limiter: { allow: () => true } })
+      return
+    }
+    if (pathname === '/api/visits') {
+      const jsonHeaders = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...SECURITY }
+      if (request.method === 'GET' || request.method === 'HEAD') {
+        send(response, 200, jsonHeaders, JSON.stringify(visits.publicTotal()), request.method)
+        return
+      }
+      if (request.method === 'POST') {
+        let payload = {}
+        try { payload = JSON.parse(await readLimitedBody(request, 4096) || '{}') } catch {
+          send(response, 400, jsonHeaders, JSON.stringify({ error: 'invalid_json' }), request.method)
+          return
+        }
+        const result = visits.record({
+          address: clientAddress(request.headers, request.socket?.remoteAddress),
+          userAgent: request.headers['user-agent'] || '',
+          path: payload.path,
+          referrer: payload.referrer,
+          purpose: `${request.headers.purpose || ''} ${request.headers['sec-purpose'] || ''}`
+        })
+        send(response, 200, jsonHeaders, JSON.stringify(result), request.method)
+        return
+      }
+      send(response, 405, { 'content-type': 'text/plain; charset=utf-8', allow: 'GET, HEAD, POST', 'cache-control': 'no-store', ...SECURITY }, 'Method not allowed', request.method)
       return
     }
     if (request.method !== 'GET' && request.method !== 'HEAD') {

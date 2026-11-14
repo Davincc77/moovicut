@@ -14,7 +14,10 @@ export default defineNuxtPlugin(() => {
       const type = response.headers.get('content-type') || ''
       if (!response.ok || !type.includes('application/json')) return
       const body = await response.json()
-      if (typeof body.total === 'number') window.dispatchEvent(new CustomEvent('moovicut-visits', { detail: body.total }))
+      if (typeof body.total === 'number') {
+        window.__moovicutVisits = body.total
+        window.dispatchEvent(new CustomEvent('moovicut-visits', { detail: body.total }))
+      }
     }).catch(() => {})
   })
 })
