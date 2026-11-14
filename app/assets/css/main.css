@@ -1,18 +1,18 @@
 /* Moovicut: shared foundations and Check 37 measured route layouts. */
 :root { color-scheme:dark; --body:"IBM Plex Sans",Inter,Arial,sans-serif; --display:"Space Grotesk","IBM Plex Sans",Arial,sans-serif; }
-.shotboard-app { --bg:#0a0a0a;--bg-alt:#0f0f0f;--surface:#141414;--surface-hover:#1b1b1b;
+.moovicut-app { --bg:#0a0a0a;--bg-alt:#0f0f0f;--surface:#141414;--surface-hover:#1b1b1b;
  --bg:#0a0a0a;--bg-alt:#0f0f0f;--surface:#141414;--surface-hover:#1b1b1b;
  --text:#eae7df;--text-secondary:#9a9486;--accent:#d4a054;--accent-hover:#e8c078;
  --border:#eae7df1f;--muted-border:#eae7df0f;--error:#ef4444;
  --body:"IBM Plex Sans",Inter,Arial,sans-serif;--display:"Space Grotesk","IBM Plex Sans",Arial,sans-serif;
  color-scheme:dark;font-family:var(--body);font-synthesis:none;
 }
-.shotboard-app { --gold:#f0b429;--gold-hover:#f6c85a;color:var(--text); }
-.shotboard-app * { box-sizing:border-box; }
+.moovicut-app { --gold:#f0b429;--gold-hover:#f6c85a;color:var(--text); }
+.moovicut-app * { box-sizing:border-box; }
 html,body,#__nuxt { margin:0;width:100%;min-width:0;font-family:"IBM Plex Sans",Inter,Arial,sans-serif; }
-html:has(.shotboard-app),body:has(.shotboard-app),#__nuxt:has(.shotboard-app) { background:#0a0a0a; }
-.shotboard-app { margin:0;width:100%;min-width:0;background:var(--bg,#0a0a0a); }
-.shotboard-app { font-size:14px;line-height:1.5; }
+html:has(.moovicut-app),body:has(.moovicut-app),#__nuxt:has(.moovicut-app) { background:#0a0a0a; }
+.moovicut-app { margin:0;width:100%;min-width:0;background:var(--bg,#0a0a0a); }
+.moovicut-app { font-size:14px;line-height:1.5; }
 button,input,textarea,select { font-family:inherit;font-size:inherit;line-height:inherit; }
 button,a,summary,select,label[for] { -webkit-tap-highlight-color:transparent; }
 button { cursor:pointer; }
@@ -21,9 +21,9 @@ a { color:inherit;text-decoration:none; }
 img,video,svg { max-width:100%; }
 :where(h1:not(.sr-only),h2:not(.sr-only),h3:not(.sr-only),h4:not(.sr-only)) { margin:0; }
 :is(h1,h2,h3,h4) { margin:0; }
-:is(.shotboard-app) { font-family:"IBM Plex Sans",Inter,Arial,sans-serif;color:var(--text); }
+:is(.moovicut-app) { font-family:"IBM Plex Sans",Inter,Arial,sans-serif;color:var(--text); }
 .site-shell,.site-header,.site-footer { font-family:"IBM Plex Sans",Inter,Arial,sans-serif;color:var(--text); }
-.shotboard-app :is(h1,h2,h3,h4):not(.sr-only),.site-shell :is(h1,h2,h3,h4):not(.sr-only) { font-family:var(--display);color:var(--text); }
+.moovicut-app :is(h1,h2,h3,h4):not(.sr-only),.site-shell :is(h1,h2,h3,h4):not(.sr-only) { font-family:var(--display);color:var(--text); }
 p,figure { margin:0; }
 ul,ol { margin:0;padding:0;list-style:none; }
 input,textarea,select { min-width:0;color:var(--text); }
@@ -170,8 +170,8 @@ input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-vis
 .container-faq { width:100%; }
 /* Studio shell, compact creator, and study images. */
 .studio-shell { --bg:#0a0a0a;--bg-alt:#0f0f0f;--surface:#141414;--surface-hover:#1b1b1b;--text:#eae7df;--text-secondary:#9a9486;--accent:#d4a054;--accent-hover:#e8c078;--border:#eae7df1f;--muted-border:#eae7df0f;--error:#ef4444;background:var(--bg);color:var(--text);color-scheme:dark;font-family:var(--body);min-height:100svh; }
-.shotboard-dark .studio-shell { --bg:#0a0a0a;--bg-alt:#111113;--surface:#18181b;--text:#f5f0e6;--text-secondary:#a3a3a3;--border:#27272a;--accent:#d4a054;--accent-hover:#e8c078;background:#0a0a0a;color:#f5f0e6;color-scheme:dark; }
-.shotboard-dark .studio-shell :is(.studio-create-form,.studio-inspiration-cards>button,.studio-prompt-editor,.modal-panel) { background:#18181b;color:#f5f0e6;border-color:#27272a; }
+.moovicut-dark .studio-shell { --bg:#0a0a0a;--bg-alt:#111113;--surface:#18181b;--text:#f5f0e6;--text-secondary:#a3a3a3;--border:#27272a;--accent:#d4a054;--accent-hover:#e8c078;background:#0a0a0a;color:#f5f0e6;color-scheme:dark; }
+.moovicut-dark .studio-shell :is(.studio-create-form,.studio-inspiration-cards>button,.studio-prompt-editor,.modal-panel) { background:#18181b;color:#f5f0e6;border-color:#27272a; }
 .workspace-sidebar { position:fixed;inset:0 auto 0 0;width:72px;z-index:70;display:flex;flex-direction:column;align-items:center;padding:0;border-right:1px solid #e4e4e7;background:#fff; }
 .workspace-home { display:flex;align-items:center;justify-content:center;width:40px;height:40px;margin:12px 0 20px; }
 .workspace-home img { width:32px;height:32px; }
@@ -332,7 +332,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-vis
 .settings-form { display:flex;flex-direction:column;gap:12px; }
 .settings-form label { display:flex;align-items:center;justify-content:space-between;gap:16px;font-size:13px; }
 .toast-region { position:relative;z-index:120;display:flex;justify-content:flex-end;width:min(280px,100%);max-width:280px;margin:8px 0 0 auto;pointer-events:none; }
-.toast,.shotboard-toast { position:relative;top:auto;right:auto;bottom:auto;left:auto;z-index:1;width:100%;max-width:100%;box-sizing:border-box;pointer-events:auto;display:flex;align-items:center;gap:10px;padding:12px 16px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);box-shadow:0 12px 40px #00000033;font-size:13px; }
+.toast,.moovicut-toast { position:relative;top:auto;right:auto;bottom:auto;left:auto;z-index:1;width:100%;max-width:100%;box-sizing:border-box;pointer-events:auto;display:flex;align-items:center;gap:10px;padding:12px 16px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);box-shadow:0 12px 40px #00000033;font-size:13px; }
 .toast > span { min-width:0;flex:1 1 auto; }
 .toast-enter-active,.toast-leave-active { transition:opacity 160ms ease; }
 .toast-enter-from,.toast-leave-to { opacity:0; }
@@ -458,8 +458,8 @@ input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-vis
  .studio-inspiration-cards { grid-template-columns:repeat(2,minmax(0,1fr)); }
  .studio-still-gallery ul { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
-/* Studio uses the home tokens from .shotboard-app: dark surfaces, ivory text, gold accent. */
-.shotboard-dark .studio-shell { --bg:#0a0a0a;--bg-alt:#0f0f0f;--surface:#141414;--surface-hover:#1b1b1b;--text:#eae7df;--text-secondary:#9a9486;--accent:#d4a054;--accent-hover:#e8c078;--border:#eae7df1f;--muted-border:#eae7df0f;--error:#ef4444;background:var(--bg);color:var(--text);color-scheme:dark; }
+/* Studio uses the home tokens from .moovicut-app: dark surfaces, ivory text, gold accent. */
+.moovicut-dark .studio-shell { --bg:#0a0a0a;--bg-alt:#0f0f0f;--surface:#141414;--surface-hover:#1b1b1b;--text:#eae7df;--text-secondary:#9a9486;--accent:#d4a054;--accent-hover:#e8c078;--border:#eae7df1f;--muted-border:#eae7df0f;--error:#ef4444;background:var(--bg);color:var(--text);color-scheme:dark; }
 .studio-shell .workspace-sidebar { background:var(--bg);border-right-color:var(--border); }
 .studio-shell .workspace-nav a,.studio-shell .workspace-nav button,.studio-shell .workspace-account { color:var(--text-secondary); }
 .studio-shell .workspace-nav a:hover,.studio-shell .workspace-nav button:hover,.studio-shell .workspace-account:hover,.studio-shell .workspace-nav a.router-link-active { background:#d4a05412;color:var(--accent-hover); }
@@ -720,5 +720,5 @@ input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-vis
 }
 @media (max-width:767px) {
  .toast-region { position:fixed;top:auto;right:0;bottom:0;left:0;width:auto;max-width:none;margin:0;justify-content:center;padding:12px max(16px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
- .toast,.shotboard-toast { width:min(22rem,100%);max-width:min(22rem,100%); }
+ .toast,.moovicut-toast { width:min(22rem,100%);max-width:min(22rem,100%); }
 }

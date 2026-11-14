@@ -66,7 +66,7 @@ test('bots, prefetch, and the private stats path are not counted', () => {
 test('missing storage keeps the counter in memory', async () => {
   const warnings = []
   const store = createVisitStore({
-    filePath: '/tmp/shotboard-missing-volume/visits.json',
+    filePath: '/tmp/moovicut-missing-volume/visits.json',
     logger: { warn: message => warnings.push(message) }
   })
   assert.equal(store.persistent(), false)
@@ -80,7 +80,7 @@ test('missing storage keeps the counter in memory', async () => {
 })
 
 test('a writable directory restores totals without keeping yesterday hashes', async () => {
-  const directory = mkdtempSync(join(tmpdir(), 'shotboard-visits-'))
+  const directory = mkdtempSync(join(tmpdir(), 'moovicut-visits-'))
   const filePath = join(directory, 'visits.json')
   try {
     const first = createVisitStore({ filePath, now: () => new Date('2026-11-12T08:00:00Z'), logger: quiet })
@@ -261,7 +261,7 @@ test('production and npm start flush the counter file on shutdown', () => {
 test('private stats require the environment token and the server never logs it', async () => {
   const token = 'stats-token-should-never-be-logged'
   const logs = []
-  const directory = mkdtempSync(join(tmpdir(), 'shotboard-static-'))
+  const directory = mkdtempSync(join(tmpdir(), 'moovicut-static-'))
   const store = createVisitStore({ filePath: '' })
   const server = createVisitServer({ store, token, staticRoot: directory, logger: message => logs.push(message) })
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))

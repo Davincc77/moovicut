@@ -31,7 +31,7 @@ test('core tools are free, support opens Buy Me a Coffee and dark mode is saved'
   assert.match(preferences,/shotboard.preferences.v1/)
   assert.match(preferences,/darkMode:false/)
   assert.match(source('app/composables/usePreferences.js'),/useProjectStore/)
-  assert.match(css,/\.shotboard-dark \.studio-shell \{/)
+  assert.match(css,/\.moovicut-dark \.studio-shell \{/)
   assert.doesNotMatch(css,/\.profile-layout|\.pricing-page|\.auth-shell|\.apple-language/)
 })
 

@@ -253,11 +253,6 @@ function splitBlocks(text) {
   return blocks
 }
 
-function clausesOf(sentence) {
-  const rough = sentence.split(/\s*(?:;|\bpuis\b|\bthen\b|\band then\b)\s*/i).map(part => part.trim()).filter(Boolean)
-  return rough.filter(hasVerb)
-}
-
 function namesIn(text, characters) {
   return characters.filter(character => tokens(text).some(token => foldName(token) === foldName(character.name)))
 }
@@ -268,7 +263,22 @@ function placeIn(text, places) {
   return places.find(place => hit(place.name) || PLACES.find(item => (item.fr === place.name || item.en === place.name) && item.keys.some(key => hit(key))))
 }
 
-function detectScenes(text, characters, places, language) {
+/** True when every proper name in the sentence is a public figure, brand, or trademark. */
+function riskNamesOnly(sentence, flagged) {
+  if (!flagged || flagged.size === 0) return false
+  let sawFlagged = false
+  for (const token of tokens(sentence)) {
+    const key = foldName(token)
+    if (!key) continue
+    if (flagged.has(key)) { sawFlagged = true; continue }
+    if (!/^\p{Lu}/u.test(token)) continue
+    if (key.length < 2 || STOP.has(key) || TIME_BLOCK.has(key) || PLACE_KEYS.has(key) || NOT_A_PLACE.has(key)) continue
+    return false
+  }
+  return sawFlagged
+}
+
+function detectScenes(text, characters, places, language, flagged) {
   const warnings = []
   const scenes = []
   let lastWho = characters[0]?.name || ''
@@ -284,13 +294,14 @@ function detectScenes(text, characters, places, language) {
       const where = foundPlace?.name || lastWhere
       if (where) lastWhere = where
       const index = scenes.length
+      const flaggedOnly = riskNamesOnly(sentence, flagged)
       let confidence = 'high'
       if (!foundNames.length || !foundPlace) confidence = 'medium'
-      if (!where) {
+      if (!where && !flaggedOnly) {
         confidence = 'low'
         warnings.push({ code: 'missing_place', message: `No place found for scene ${index + 1}.`, target: 'scenes', index, options: places.map(place => place.name) })
       }
-      if (!who) {
+      if (!who && !flaggedOnly) {
         confidence = 'low'
         warnings.push({ code: 'missing_character', message: `No character found for scene ${index + 1}.`, target: 'scenes', index, options: characters.map(character => character.name) })
       }
@@ -310,10 +321,11 @@ function overall(parts) {
 export function detectProse(input) {
   const text = String(input || '').replace(/\r\n/g, '\n').trim()
   const language = languageOf(text)
+  const flagged = flaggedNameKeys(text)
   const foundPlaces = detectPlaces(text, language)
   const foundCharacters = detectCharacters(text, foundPlaces.places)
   const ambience = detectAmbience(text)
-  const foundScenes = detectScenes(text, foundCharacters.characters, foundPlaces.places, language)
+  const foundScenes = detectScenes(text, foundCharacters.characters, foundPlaces.places, language, flagged)
   const warnings = [...foundCharacters.warnings, ...foundPlaces.warnings, ...foundScenes.warnings]
   if (foundCharacters.skippedFlagged || foundPlaces.skippedFlagged) {
     warnings.push({ code: 'risk_note', tone: 'note', message: 'Public figures, brands, and trademarks in this text are covered by the risk warnings.' })

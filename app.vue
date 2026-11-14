@@ -10,6 +10,6 @@ useHead(() => {
 })
 </script>
 <template>
-  <div class="shotboard-app"><NuxtLoadingIndicator color="#d4a054" :height="2" />
+  <div class="moovicut-app"><NuxtLoadingIndicator color="#d4a054" :height="2" />
   <NuxtPage /></div>
 </template>

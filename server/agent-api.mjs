@@ -1,4 +1,5 @@
-import { createStoryboard, validateProject, canonicalModel, looksLikeScenario, listPresets, parseScenario, regenerateOneShot } from '../app/utils/prompt-engine.js'
+import { createStoryboard, validateProject, canonicalModel, listPresets, regenerateOneShot } from '../app/utils/prompt-engine.js'
+import { looksLikeScenario, parseScenario } from '../app/utils/scenario.js'
 import { assessProject } from '../app/utils/shot-risk.js'
 import { AGENT_BOARD_SCHEMA, exportAgentBoard, importAgentBoard } from '../app/utils/agent-board.js'
 import { publicProfile } from '../app/utils/model-profiles.js'
@@ -432,7 +433,7 @@ const STORYBOARD_SCHEMA = {
       description: 'Structured scenario. When present, premise may be omitted, the scene count comes from this value, and it wins over scenes. Text form uses CHARACTERS, PLACES, and SCENES blocks. JSON accepts the short aliases n/l/o, w/at/do, desc/d, cam, and s. Cap 8,000 characters.',
       oneOf: [{ type: 'string', maxLength: 8000 }, SCENARIO_OBJECT]
     },
-    input: { type: 'string', enum: ['prose'], description: 'Set to prose to detect characters, places, and scenes from free text. Ordinary premises are not auto-detected.' },
+    input: { type: 'string', enum: ['prose'], description: 'Set to prose to detect characters, places, and scenes from free text. Ordinary premises are not auto-detected. A scene whose only names are public figures, brands, or trademarks returns the neutral risk note and does not add missing-character or missing-place lines.' },
     type: { type: 'string', enum: ['prose'], description: 'Alias of input.' },
     prose: { type: 'string', maxLength: 8000, description: 'Free-text story used when input is prose.' },
     text: { type: 'string', maxLength: 8000, description: 'Alias of prose.' },
