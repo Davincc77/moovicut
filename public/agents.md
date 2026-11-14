@@ -78,7 +78,7 @@ SCENES
 Scène 1 — Léa — Café — She pours a latte
 ```
 
-JSON shape uses short fields: characters `name`/`n`, `look`/`l`, `outfit`/`o`; places `name`/`n`, `description`/`desc`/`d`; scenes `who`/`w`, `where`/`at`, `what`/`do`, plus optional `camera`, `light`, `mood`, `duration`, and `prompt`. Camera is `wide`, `medium`, `close`, `insert`, `tracking`, `static`, `push`, `crane`, or `handheld`. Light is `day`, `dawn`, `dusk`, `night`, `warm`, `cool`, `hard`, `soft`, `neon`, or `practical`. Mood is `grounded`, `playful`, `tense`, `intimate`, `bold`, `quiet`, `hopeful`, or `uneasy`. Every problem comes back in one `errors` array.
+JSON shape uses short fields: characters `name`/`n`, `look`/`l`, `outfit`/`o`; places `name`/`n`, `description`/`desc`/`d`; scenes `who`/`w`, `where`/`at`, `what`/`do`, plus optional `camera`, `light`, `mood`, `duration`, and `prompt`. Camera is `wide`, `medium`, `close`, `insert`, `tracking`, `static`, `push`, `crane`, or `handheld`. Light is `day`, `dawn`, `dusk`, `night`, `warm`, `cool`, `hard`, `soft`, `neon`, or `practical`. Mood is `grounded`, `playful`, `tense`, `intimate`, `bold`, `quiet`, `hopeful`, or `uneasy`. Every problem comes back in one `errors` array. `premise` may be omitted when `scenario` is sent. The idea line on every shot is then the character and place names only. It does not repeat the first scene’s action.
 
 Characters, places, and light live on one film sheet. Each shot names them. The generated prompt fills in the look, outfit, and place. A prompt you send on a scene is kept. Send `overwritePrompt: true` when that prompt should be replaced.
 
@@ -110,7 +110,7 @@ Quick idea, Step-by-step, continuous story, scenario, ad, series, and explainer 
 
 The personal library (`shotboard.library.v1`) saves characters, places, and styles in this browser only. Export and import that JSON file from `/studio`. Nothing is uploaded.
 
-Send `format: "agent"` to get `shotboard.compact.v1` for any mode: title, premise, model, aspect, mode, style, genre, film sheet, and shots. Post that document back to resume it. Shots with `promptEdited` stay as written unless `overwritePrompt` is true, which regenerates them. The default compact plan response does not add these fields. `/api/*` and `/mcp` are limited to 30 requests a minute per client IP. The limiter uses Railway's `X-Real-IP` (the visitor address; Cloudflare sits in front, so `X-Forwarded-For` is not read) and falls back to the socket address. The same bucket applies across connections.
+Send `format: "agent"` to get `shotboard.compact.v1` for any mode: title, premise, model, aspect, mode, style, genre, film sheet, and shots. Post that document back to resume it. Minified JSON, with no extra whitespace, is the token-efficient way to send that compact document. Shots with `promptEdited` stay as written unless `overwritePrompt` is true, which regenerates them. The default compact plan response does not add these fields. `/api/*` and `/mcp` are limited to 30 requests a minute per client IP. The limiter uses Railway's `X-Real-IP` (the visitor address; Cloudflare sits in front, so `X-Forwarded-For` is not read) and falls back to the socket address. The same bucket applies across connections.
 
 ## Target models
 

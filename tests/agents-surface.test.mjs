@@ -47,6 +47,11 @@ test('discovery files describe MCP, OpenAPI, the default board, and custom scene
     assert.match(text, /\/mcp|\/api\/v1\/storyboard/, file)
   }
   assert.match(read('AGENTS.md'), /"scenes"/)
+  assert.match(read('AGENTS.md'), /Minified JSON/)
+  assert.match(read('AGENTS.md'), /premise` may be omitted/)
+  assert.match(read('app/pages/agents.vue'), /Minified JSON/)
+  assert.match(read('public/llms.txt'), /Minified JSON/)
+  assert.match(read('public/llms-full.txt'), /Minified JSON/)
   assert.match(read('README.md'), /"scenes"/)
   const discovery = JSON.parse(read('public/.well-known/mcp.json'))
   assert.equal(discovery.transport.url, 'https://moovicut.studio/mcp')

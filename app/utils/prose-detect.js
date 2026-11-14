@@ -1,6 +1,7 @@
 /** Deterministic prose detection for FR and EN. No model call. */
 import { cleanText } from './text.js'
 import { foldName, scenarioBudget, scenarioPremise, scenarioToFields } from './scenario.js'
+import { flaggedNameKeys } from './shot-risk.js'
 
 const STOP = new Set(['the', 'a', 'an', 'he', 'she', 'they', 'it', 'his', 'her', 'their', 'then', 'when', 'after', 'before', 'later', 'next', 'once', 'this', 'that', 'there', 'here', 'un', 'une', 'le', 'la', 'les', 'il', 'elle', 'ils', 'elles', 'lui', 'leur', 'puis', 'quand', 'apres', 'avant', 'dans', 'sur', 'sous', 'avec', 'pour', 'par', 'chez', 'au', 'aux', 'du', 'des', 'en', 'et', 'mais', 'ou', 'ce', 'cette', 'ces', 'son', 'sa', 'ses', 'mon', 'ma', 'mes', 'je', 'tu', 'nous', 'vous', 'on', 'plus', 'tout', 'toute', 'tous', 'morning', 'evening', 'night', 'day', 'matin', 'soir', 'nuit', 'jour', 'aube', 'tard', 'lendemain', 'and', 'with', 'from', 'into', 'over', 'while', 'its', 'our', 'your'])
 
@@ -93,12 +94,15 @@ function traitWindow(text, name, names) {
 }
 
 function detectCharacters(text, places = []) {
+  const flagged = flaggedNameKeys(text)
   const reserved = placeTokens(places)
   const starts = sentenceStarts(text)
   const counts = new Map()
+  let skippedFlagged = false
   tokens(text).forEach(token => {
     if (!/^\p{Lu}/u.test(token)) return
     const key = foldName(token)
+    if (flagged.has(key)) { skippedFlagged = true; return }
     if (key.length < 2 || STOP.has(key) || PLACE_KEYS.has(key) || TIME_BLOCK.has(key) || reserved.has(key) || NOT_A_PLACE.has(key)) return
     const entry = counts.get(key) || { forms: new Map(), count: 0, mid: 0 }
     entry.count += 1
@@ -149,8 +153,8 @@ function detectCharacters(text, places = []) {
     if (!outfit.length) warnings.push({ code: 'missing_outfit', message: `No outfit found for ${name}.`, target: 'characters', name })
     characters.push({ name, look: look.join(', '), outfit: outfit.join(', '), confidence })
   }
-  if (!characters.length) warnings.push({ code: 'missing_character', message: 'No character name found.', target: 'characters' })
-  return { characters, warnings }
+  if (!characters.length && !skippedFlagged) warnings.push({ code: 'missing_character', message: 'No character name found.', target: 'characters' })
+  return { characters, warnings, skippedFlagged }
 }
 
 function matchOne(text, pattern) {
@@ -176,13 +180,18 @@ function pushPlace(places, name, description, confidence) {
 }
 
 function detectPlaces(text, language) {
+  const flagged = flaggedNameKeys(text)
   const places = []
   const warnings = []
+  let skippedFlagged = false
+  const namedFlag = value => tokens(value).some(token => flagged.has(foldName(token)))
   const source = String(text || '')
   for (const match of source.matchAll(/\b(village|town|city|hamlet|bourg)\s+of\s+(\p{Lu}[\p{L}'’-]*)/gu)) {
+    if (namedFlag(match[2])) { skippedFlagged = true; continue }
     pushPlace(places, match[2], language === 'fr' ? `un ${match[1]}` : `a ${match[1].toLowerCase()}`, 'high')
   }
   for (const match of source.matchAll(/\b((?:\p{Lu}[\p{L}'’-]*)(?:\s+\p{Lu}[\p{L}'’-]*){0,2})\s+(Street|Road|Avenue|Lane|Boulevard|Way|Rue)\b/gu)) {
+    if (namedFlag(match[1])) { skippedFlagged = true; continue }
     pushPlace(places, `${match[1]} ${match[2]}`, language === 'fr' ? 'une rue' : 'a street', 'high')
   }
   for (const match of source.matchAll(/\b((?:village|town|market|city)\s+square)\b/giu)) {
@@ -191,6 +200,7 @@ function detectPlaces(text, language) {
   }
   for (const match of source.matchAll(/\b(?:in|at|through)\s+(\p{Lu}[\p{L}'’-]*)/gu)) {
     const name = match[1]
+    if (flagged.has(foldName(name))) { skippedFlagged = true; continue }
     if (STOP.has(foldName(name)) || TIME_BLOCK.has(foldName(name)) || PLACE_KEYS.has(foldName(name))) continue
     pushPlace(places, name, language === 'fr' ? 'un lieu cité dans le texte' : 'a place named in the text', 'medium')
   }
@@ -206,13 +216,14 @@ function detectPlaces(text, language) {
   const unknown = [...source.matchAll(/\b(?:at the|in the|through the|to the|au|dans la|dans le|sur la|sur le)\s+([\p{Ll}'’-]+(?:\s+[\p{Ll}'’-]+){0,2})/gu)]
   unknown.forEach(match => {
     const phrase = cleanText(match[1])
+    if (namedFlag(phrase)) { skippedFlagged = true; return }
     const key = foldName(phrase.split(/\s+/).at(-1))
     if (!key || STOP.has(key) || TIME_BLOCK.has(key) || PLACE_KEYS.has(key) || NOT_A_PLACE.has(key) || /\b(?:village|town|city|of)\b/i.test(phrase) || places.some(place => foldName(place.name) === key || foldName(place.name).endsWith(key))) return
     const name = phrase.replace(/^\p{Ll}/u, char => char.toUpperCase())
     pushPlace(places, name, language === 'fr' ? 'un lieu cité dans le texte' : 'a place named in the text', 'low')
     warnings.push({ code: 'uncertain_place', message: `Confirm this place: ${name}.`, target: 'places', options: [name], name })
   })
-  return { places, warnings }
+  return { places, warnings, skippedFlagged }
 }
 
 function detectAmbience(text) {
@@ -304,6 +315,9 @@ export function detectProse(input) {
   const ambience = detectAmbience(text)
   const foundScenes = detectScenes(text, foundCharacters.characters, foundPlaces.places, language)
   const warnings = [...foundCharacters.warnings, ...foundPlaces.warnings, ...foundScenes.warnings]
+  if (foundCharacters.skippedFlagged || foundPlaces.skippedFlagged) {
+    warnings.push({ code: 'risk_note', tone: 'note', message: 'Public figures, brands, and trademarks in this text are covered by the risk warnings.' })
+  }
   const scenario = {
     characters: foundCharacters.characters.map(({ name, look, outfit }) => ({ name, look, outfit })),
     places: foundPlaces.places.map(({ name, description }) => ({ name, description })),

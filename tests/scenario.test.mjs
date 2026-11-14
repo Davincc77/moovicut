@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { applyStylePreset, createStoryboard, refreshProjectPrompts, resolveScenarioPreset } from '../app/utils/prompt-engine.js'
+import { assessProject } from '../app/utils/shot-risk.js'
 import { agentScenarioPrompt, packSequences, parseScenario } from '../app/utils/scenario.js'
 import { applyDetection, applyWarningChoice, detectProse } from '../app/utils/prose-detect.js'
 import { dispatchAgentRequest } from '../server/agent-api.mjs'
@@ -231,4 +232,76 @@ test('the API accepts scenario JSON, prose, and keeps a supplied prompt', () => 
   const plain = JSON.parse(ordinary.body)
   assert.deepEqual(Object.keys(plain).sort(), ['aspectRatio', 'model', 'premise', 'shots', 'studioUrl', 'title'])
   assert.equal(plain.shots.length, 5)
+})
+
+test('risk-flagged proper nouns are not missing-look errors', () => {
+  const idea = 'Taylor Swift wears Nike shoes beside a Disney castle at dusk. She smiles.'
+  const detected = detectProse(idea)
+  const messages = detected.warnings.map(item => item.message).join('\n')
+  assert.doesNotMatch(messages, /No look found/)
+  assert.doesNotMatch(messages, /No outfit found/)
+  for (const name of ['Taylor', 'Swift', 'Nike', 'Disney']) {
+    assert.equal(detected.characters.some(item => item.name === name), false, name)
+    assert.equal(detected.places.some(item => item.name === name), false, name)
+  }
+  const notes = detected.warnings.filter(item => item.code === 'risk_note')
+  assert.equal(notes.length, 1)
+  assert.match(notes[0].message, /risk warning/i)
+  const jules = detectProse('Jules enters the cafe. Jules waits by the counter.')
+  assert.ok(jules.warnings.some(item => item.code === 'missing_look' && item.name === 'Jules'))
+  const fields = applyDetection({}, detected, {})
+  assert.doesNotMatch(`${fields.characters}\n${fields.places}`, /Swift|Nike|Disney|Taylor/)
+  const board = createStoryboard({ premise: idea })
+  assert.doesNotMatch((board.detection?.warnings || []).map(item => item.message).join('\n'), /No look found/)
+  const codes = assessProject(board).map(item => item.code)
+  assert.ok(codes.includes('celebrity'))
+  assert.ok(codes.includes('brand_logo'))
+  assert.ok(codes.includes('copyrighted_character'))
+  board.shots[0].prompt = 'HAND EDITED'
+  board.shots[0].promptEdited = true
+  assert.equal(refreshProjectPrompts(board).shots[0].prompt, 'HAND EDITED')
+})
+
+test('a scenario without a premise does not copy scene 1 into later shots', () => {
+  const board = createStoryboard({
+    scenario: {
+      characters: [
+        { n: 'Léa', l: 'curly hair', o: 'green apron' },
+        { n: 'Marc', l: 'short hair', o: 'grey cap' }
+      ],
+      places: [
+        { n: 'Café', d: 'a small morning cafe' },
+        { n: 'Forêt', d: 'a quiet forest path' }
+      ],
+      scenes: [
+        { w: 'Léa', at: 'Café', do: 'She pours the opening latte' },
+        { w: 'Léa', at: 'Café', do: 'She wipes the counter', prompt: 'HAND WRITTEN' },
+        { w: 'Léa', at: 'Forêt', do: 'She walks under the trees' },
+        { w: 'Léa', at: 'Forêt', do: 'She finds a brass key' },
+        { w: 'Léa', at: 'Café', do: 'She locks the door' }
+      ]
+    }
+  })
+  assert.equal(board.shots.length, 5)
+  assert.equal(board.shots[1].prompt, 'HAND WRITTEN')
+  assert.equal(board.shots[1].promptEdited, true)
+  assert.match(board.shots[4].prompt.split('\n')[0], /^Idea: Léa, Marc at Café, Forêt\./)
+  assert.doesNotMatch(board.shots[4].prompt, /opening latte/)
+  assert.match(board.shots[4].prompt, /locks the door/)
+  assert.match(board.shots[0].prompt, /opening latte/)
+  assert.doesNotMatch(board.shots[0].prompt.split('\n')[0], /opening latte/)
+  assert.equal(refreshProjectPrompts(board).shots[1].prompt, 'HAND WRITTEN')
+  const explicit = createStoryboard({
+    premise: 'A quiet morning in the old town.',
+    scenario: {
+      characters: [{ name: 'Léa', look: 'curly hair', outfit: 'green apron' }],
+      places: [{ name: 'Café', description: 'a small cafe' }],
+      scenes: [
+        { who: 'Léa', where: 'Café', what: 'She pours the opening latte' },
+        { who: 'Léa', where: 'Café', what: 'She locks the door' }
+      ]
+    }
+  })
+  assert.match(explicit.shots[1].prompt.split('\n')[0], /^Idea: A quiet morning in the old town\./)
+  assert.doesNotMatch(explicit.shots[1].prompt.split('\n')[0], /opening latte/)
 })

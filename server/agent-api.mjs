@@ -3,7 +3,7 @@ import { assessProject } from '../app/utils/shot-risk.js'
 import { AGENT_BOARD_SCHEMA, exportAgentBoard, importAgentBoard } from '../app/utils/agent-board.js'
 import { publicProfile } from '../app/utils/model-profiles.js'
 import { detectProse } from '../app/utils/prose-detect.js'
-import { SCENARIO_MAX_CHARS } from '../app/utils/scenario.js'
+import { CAMERA_VALUES, LIGHT_VALUES, MOOD_VALUES, SCENARIO_MAX_CHARS } from '../app/utils/scenario.js'
 import { studioUrl } from '../app/utils/studio-link.js'
 import { cleanText } from '../app/utils/text.js'
 
@@ -339,12 +339,86 @@ const SCENE_SCHEMA = {
   }
 }
 
+function aliasOf(name) {
+  return { type: 'string', description: `Short alias of ${name}.` }
+}
+
+const SCENARIO_CHARACTER = {
+  type: 'object',
+  additionalProperties: true,
+  description: 'A character. Short fields: n for name, l for look, o for outfit.',
+  properties: {
+    name: { type: 'string' },
+    n: aliasOf('name'),
+    look: { type: 'string' },
+    l: aliasOf('look'),
+    outfit: { type: 'string' },
+    o: aliasOf('outfit')
+  }
+}
+
+const SCENARIO_PLACE = {
+  type: 'object',
+  additionalProperties: true,
+  description: 'A place. Short fields: n for name, d or desc for description.',
+  properties: {
+    name: { type: 'string' },
+    n: aliasOf('name'),
+    description: { type: 'string' },
+    desc: aliasOf('description'),
+    d: aliasOf('description')
+  }
+}
+
+const SCENARIO_SCENE = {
+  type: 'object',
+  additionalProperties: true,
+  description: 'A scene. Short fields: w for who, at for where, do for what, cam for camera, s for duration in seconds.',
+  properties: {
+    who: { type: 'string' },
+    w: aliasOf('who'),
+    character: aliasOf('who'),
+    where: { type: 'string' },
+    at: aliasOf('where'),
+    place: aliasOf('where'),
+    what: { type: 'string' },
+    do: aliasOf('what'),
+    action: aliasOf('what'),
+    beat: aliasOf('what'),
+    camera: { type: 'string', enum: [...CAMERA_VALUES] },
+    cam: { type: 'string', enum: [...CAMERA_VALUES], description: 'Short alias of camera.' },
+    light: { type: 'string', enum: [...LIGHT_VALUES] },
+    lighting: { type: 'string', enum: [...LIGHT_VALUES], description: 'Alias of light.' },
+    mood: { type: 'string', enum: [...MOOD_VALUES] },
+    duration: { type: 'integer', minimum: 2, maximum: 15 },
+    s: { type: 'integer', minimum: 2, maximum: 15, description: 'Short alias of duration, in seconds.' },
+    prompt: { type: 'string', description: 'Kept as written unless overwritePrompt is true.' }
+  }
+}
+
+const SCENARIO_OBJECT = {
+  type: 'object',
+  additionalProperties: true,
+  description: 'Characters, places, and scenes. Short aliases: characters n/l/o, places n/desc/d, scenes w/at/do, plus cam and s.',
+  properties: {
+    characters: { type: 'array', items: SCENARIO_CHARACTER },
+    places: { type: 'array', items: SCENARIO_PLACE },
+    scenes: { type: 'array', items: SCENARIO_SCENE },
+    light: { type: 'string', enum: [...LIGHT_VALUES] },
+    lighting: { type: 'string', enum: [...LIGHT_VALUES], description: 'Alias of light.' },
+    mood: { type: 'string', enum: [...MOOD_VALUES] }
+  }
+}
+
 const STORYBOARD_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['premise'],
+  anyOf: [
+    { required: ['premise'] },
+    { required: ['scenario'] }
+  ],
   properties: {
-    premise: { type: 'string', minLength: 8, maxLength: 6000 },
+    premise: { type: 'string', minLength: 8, maxLength: 6000, description: 'Story idea, 8 to 6,000 characters. Optional when scenario is sent. If it is omitted, the idea line is the character and place names only, not the first scene’s action.' },
     model: { type: 'string', enum: ['grok', 'google', 'sora', 'kling', 'runway', 'luma', 'wan', 'generic'], default: 'grok', description: 'Target video model. Shot length, aspect, prompt form, and risk warnings follow that model’s documented profile. grok and google keep their existing labeled prompts. veo is accepted as google.' },
     shots: { type: 'integer', minimum: 1, maximum: MAX_API_SHOTS, default: 5, description: 'Scene count. Ignored when scenes is a non-empty array. Default 5.' },
     mode: { type: 'string', enum: ['continuous', 'varied', 'scenario', 'ad', 'series', 'explainer'], description: 'Alias of sequenceMode. scenario reads the scenario field or a structured premise. ad, series, and explainer are light presets on the same film sheet. A prompt marked promptEdited is kept.' },
@@ -355,15 +429,15 @@ const STORYBOARD_SCHEMA = {
     genre: { type: 'string', description: `Story genre, or a style-preset genre. Preset families: ${listPresets().map(family => `${family.id} (${family.genres.map(genre => genre.id).join(', ')})`).join('; ')}. Default preset when a scenario omits both is cinema / drama.` },
     style: { type: 'string', description: 'Fun, Normal, Spicy, a visual style id such as cinematic or illustrative, or a preset family: anime, cinema, documentary. manga is an alias of anime. An unknown family is 400. A named family locks that preset into every mode, including a plain premise.' },
     scenario: {
-      description: 'Structured scenario. When present, it sets the scene count and wins over scenes. Text form uses CHARACTERS, PLACES, and SCENES blocks. Cap 8,000 characters.',
-      oneOf: [{ type: 'string', maxLength: 8000 }, { type: 'object', additionalProperties: true }]
+      description: 'Structured scenario. When present, premise may be omitted, the scene count comes from this value, and it wins over scenes. Text form uses CHARACTERS, PLACES, and SCENES blocks. JSON accepts the short aliases n/l/o, w/at/do, desc/d, cam, and s. Cap 8,000 characters.',
+      oneOf: [{ type: 'string', maxLength: 8000 }, SCENARIO_OBJECT]
     },
     input: { type: 'string', enum: ['prose'], description: 'Set to prose to detect characters, places, and scenes from free text. Ordinary premises are not auto-detected.' },
     type: { type: 'string', enum: ['prose'], description: 'Alias of input.' },
     prose: { type: 'string', maxLength: 8000, description: 'Free-text story used when input is prose.' },
     text: { type: 'string', maxLength: 8000, description: 'Alias of prose.' },
     overwritePrompt: { type: 'boolean', default: false, description: 'When false or omitted, a hand-edited prompt (promptEdited) is kept, including when a shotboard.compact.v1 board is posted back. When true, those prompts are regenerated.' },
-    format: { type: 'string', enum: ['agent'], description: 'Return shotboard.compact.v1 for every mode: title, premise, model, aspect, mode, style, genre, film sheet, and shots. The default compact plan response stays the short payload.' },
+    format: { type: 'string', enum: ['agent'], description: 'Return shotboard.compact.v1 for every mode: title, premise, model, aspect, mode, style, genre, film sheet, and shots. Minified JSON, with no extra whitespace, is the token-efficient way to send that document back. The default compact plan response stays the short payload.' },
     schema: { type: 'string', enum: ['shotboard.compact.v1'], description: 'Send a shotboard.compact.v1 document back to resume it. Prompts marked promptEdited stay as written unless overwritePrompt is true, which regenerates them.' },
     regenerateShot: { type: 'string', description: 'Shot id to rebuild. Send project or storyboard with it. Other shots stay unchanged. A hand-edited prompt is kept unless overwritePrompt is true.' },
     shotId: { type: 'string', description: 'Alias of regenerateShot.' },
@@ -411,7 +485,7 @@ export function openApiDocument() {
         post: {
           operationId: 'planStoryboard',
           summary: 'Plan a deterministic storyboard',
-          description: 'Default: 5 scenes of 3 seconds. Set shots, duration, or scenes to customize. compact=true, or the compact query, returns the low-token payload. Nothing is stored.',
+          description: 'Default: 5 scenes of 3 seconds. Set shots, duration, or scenes to customize. premise is optional when scenario is sent. compact=true, or the compact query, returns the low-token payload. Nothing is stored.',
           parameters: [{
             name: 'compact',
             in: 'query',

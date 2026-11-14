@@ -215,3 +215,17 @@ test('the studio copy matches the fixes', () => {
   assert.match(faq, /persistent volume/)
   assert.match(home, /v-for="item in MODEL_OPTIONS"/)
 })
+
+test('toasts sit below the header on desktop and at the bottom on a phone', () => {
+  const css = readFileSync('app/assets/css/main.css', 'utf8')
+  const toast = readFileSync('app/components/AppToast.vue', 'utf8')
+  assert.match(css, /\.toast-region \{[^}]*pointer-events:none/)
+  assert.match(css, /\.toast-region \{[^}]*max-width:280px/)
+  assert.match(css, /\.toast,\.shotboard-toast \{[^}]*pointer-events:auto/)
+  assert.match(css, /safe-area-inset-bottom/)
+  assert.match(css, /\.toast-region \{[^}]*bottom:0/)
+  assert.match(toast, /class="toast-region"/)
+  assert.match(toast, /notification\.action\.run\(\)/)
+  assert.match(toast, /toast-action/)
+  assert.match(readFileSync('app/composables/useProjectStore.js', 'utf8'), /label: 'Undo'/)
+})

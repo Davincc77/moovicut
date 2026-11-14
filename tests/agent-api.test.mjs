@@ -24,6 +24,46 @@ test('OpenAPI 3.1 documents the 5 x 3s default and custom scenes', () => {
   assert.equal(doc.components.schemas.StoryboardRequest.properties.duration.default, 3)
   assert.equal(doc.components.schemas.StoryboardRequest.properties.scenes.maxItems, 48)
   assert.match(doc.info.description, /5 scenes/)
+  const schema = doc.components.schemas.StoryboardRequest
+  assert.equal(schema.required, undefined)
+  assert.deepEqual(schema.anyOf.map(item => item.required), [['premise'], ['scenario']])
+  const object = schema.properties.scenario.oneOf.find(item => item.type === 'object')
+  assert.match(object.properties.characters.items.properties.n.description, /name/)
+  assert.ok(object.properties.characters.items.properties.l)
+  assert.ok(object.properties.characters.items.properties.o)
+  assert.ok(object.properties.places.items.properties.d)
+  assert.ok(object.properties.places.items.properties.desc)
+  assert.ok(object.properties.scenes.items.properties.w)
+  assert.ok(object.properties.scenes.items.properties.at)
+  assert.ok(object.properties.scenes.items.properties.do)
+  assert.ok(object.properties.scenes.items.properties.cam)
+  assert.ok(object.properties.scenes.items.properties.s)
+})
+
+test('a scenario-only body is accepted and later shots do not repeat scene 1', () => {
+  const response = dispatchAgentRequest({
+    method: 'POST',
+    pathname: '/api/v1/storyboard',
+    body: JSON.stringify({
+      scenario: {
+        characters: [{ n: 'Léa', l: 'curly hair', o: 'green apron' }],
+        places: [{ n: 'Café', d: 'a small morning cafe' }],
+        scenes: [
+          { w: 'Léa', at: 'Café', do: 'She pours the opening latte' },
+          { w: 'Léa', at: 'Café', do: 'She wipes the counter', prompt: 'HAND WRITTEN' },
+          { w: 'Léa', at: 'Café', do: 'She locks the door' }
+        ]
+      },
+      compact: true
+    })
+  })
+  assert.equal(response.status, 200)
+  const body = JSON.parse(response.body)
+  assert.equal(body.shots[1].prompt, 'HAND WRITTEN')
+  assert.match(body.shots[2].prompt.split('\n')[0], /^Idea: Léa at Café\./)
+  assert.doesNotMatch(body.shots[2].prompt, /opening latte/)
+  assert.match(body.shots[2].prompt, /locks the door/)
+  assert.doesNotMatch(body.shots[0].prompt.split('\n')[0], /opening latte/)
 })
 
 test('storyboard API returns full and compact boards and a studio hash link', async () => {
