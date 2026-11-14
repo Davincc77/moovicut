@@ -82,7 +82,7 @@ test('real store persists projects, switches safely, undoes edits and reloads', 
   assert.equal(store.project.value.shots[0].sound, 'a distant radio beneath the wind')
   assert.equal(store.project.value.shots[0].duration_seconds, 11)
   assert.ok(store.project.value.shots[0].prompt.includes('11 seconds'))
-  store.undo(); assert.equal(store.project.value.shots[0].duration, 3)
+  store.undo(); assert.equal(store.project.value.shots[0].duration, 4)
   store.redo(); assert.equal(store.project.value.shots[0].duration, 11)
   const custom = 'A deliberately edited full prompt for the second shot.'
   const id = store.project.value.shots[1].id; store.updateShotFields(id, { prompt: custom }); store.moveShot(id, -1)

@@ -166,7 +166,7 @@ test('every shot keeps the idea and one locked style, including varied boards', 
   assert.equal(continuousLocks[0], continuous.continuitySheet.style)
   continuous.shots.forEach((shot, index) => {
     assert.ok(shot.prompt.includes(`Idea: ${anchor}`))
-    assert.match(shot.prompt, /aspect ratio 4:5/)
+    assert.match(shot.prompt, /aspect ratio 1:1/)
     assert.match(shot.prompt, /CONTINUITY SHEET/)
     assert.match(shot.prompt, /Outfit:/)
     assert.match(shot.prompt, /Lighting:/)

@@ -1,4 +1,5 @@
 import { sentence } from '../../utils/text.js'
+import { MODEL_PROFILES, canonicalProfileId } from '../../utils/model-profiles.js'
 
 function endSentence(value) { return String(value || '').trim().replace(/[.]+$/, '') }
 
@@ -44,38 +45,37 @@ const google = {
     ].join('\n')
   }
 }
-export const modelRegistry = createModelRegistry([grok, google])
+function proseCompose({ shot, index, premise, aspect, duration, genre, style, lockedStyle }) {
+  const look = lockedStyle || `${genre.look}, ${style.suffix}`
+  const action = endSentence(shot.action || sentence(premise))
+  return [
+    `${shot.framing || 'Medium shot'} of ${action}.`,
+    `Camera: ${shot.camera || 'Slow cinematic camera move'}. Lens: ${shot.lens || '35mm lens'}.`,
+    `Light: ${endSentence(shot.lighting || 'cinematic dimensional light')}. Look: ${look}.`,
+    shot.directions ? `${endSentence(shot.directions)}.` : '',
+    `Continuity: ${endSentence(shot.continuity || 'Preserve established appearance, geography and lighting')}.`,
+    `Sound: ${endSentence(shot.sound || shot.cue || 'natural environmental ambience')}.`,
+    `${duration} seconds, ${aspect}. Shot ${index + 1}. No captions, titles, logos or watermarks.`
+  ].filter(Boolean).join('\n')
+}
+function proseAdapter(id, mark, markClass) {
+  const profile = MODEL_PROFILES[id]
+  return { id, label: profile.label, note: profile.providerModel || 'Any video model', mark, markClass, compose: proseCompose }
+}
+export const modelRegistry = createModelRegistry([
+  grok,
+  google,
+  proseAdapter('sora', 'S', 'model-mark'),
+  proseAdapter('kling', 'K', 'model-mark'),
+  proseAdapter('runway', 'R', 'model-mark'),
+  proseAdapter('luma', 'L', 'model-mark'),
+  proseAdapter('wan', 'W', 'model-mark'),
+  proseAdapter('generic', '•', 'model-mark')
+])
 export const MODEL_IDS = modelRegistry.ids
 export const REFERENCE_MODEL_NAMES = Object.freeze(['Grok Imagine', 'Google (Veo / Gemini)'])
 export const MODEL_OPTIONS = modelRegistry.options
 
-/** Map current ids and retired selector labels onto grok or google. Unknown values stay empty so validation still rejects them. */
-const LEGACY_MODEL_KEYS = Object.freeze({
-  grok: 'grok',
-  grokimagine: 'grok',
-  x: 'grok',
-  wan: 'grok',
-  wan26: 'grok',
-  kling: 'grok',
-  kling26: 'grok',
-  happyhorse: 'grok',
-  muse: 'grok',
-  omni: 'grok',
-  re: 'grok',
-  '24fps': 'grok',
-  cinema: 'grok',
-  portrait: 'grok',
-  commercial: 'grok',
-  google: 'google',
-  googlevoe: 'google',
-  veo: 'google',
-  gemini: 'google',
-  googlevegemini: 'google',
-  vegemini: 'google',
-  googlevoemini: 'google'
-})
-
 export function canonicalModel(value) {
-  const compact = String(value ?? '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '')
-  return LEGACY_MODEL_KEYS[compact] || ''
+  return canonicalProfileId(value)
 }

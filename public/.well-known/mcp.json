@@ -1,6 +1,6 @@
 {
   "name": "Moovicut",
-  "description": "Free deterministic storyboard planning. No API key, no account, and no stored premises. Moovicut does not render video. The default board is 5 scenes of 3 seconds (15s). Pass shots, duration, or a scenes array for a custom board.",
+  "description": "Free deterministic storyboard planning. No API key, no account, and no stored premises. Moovicut does not render video. The default board is 5 scenes of 3 seconds (15s). Pass shots, duration, a scenes array, a scenario, or input prose for a custom board.",
   "transport": {
     "type": "http",
     "url": "https://moovicut.studio/mcp"
@@ -12,7 +12,7 @@
   },
   "defaults": { "shots": 5, "duration": 3, "totalSeconds": 15 },
   "tools": [
-    { "name": "plan_storyboard", "description": "Plan a storyboard. Default 5 scenes × 3s. Optional scenes array for per-scene action, duration, camera, framing, lighting, and notes. Returns a compact payload and a /studio# link." },
+    { "name": "plan_storyboard", "description": "Plan a storyboard. Default 5 scenes × 3s. Optional scenes, scenario, input prose, regenerateShot, or format agent. model can be grok, google, sora, kling, runway, luma, wan, or generic. Returns a compact payload and a /studio# link. Warnings are included only when a shot looks risky." },
     { "name": "export_prompts", "description": "Return shot prompts for a premise or an existing board." },
     { "name": "validate_storyboard", "description": "Validate a shotboard.v1 document." }
   ],

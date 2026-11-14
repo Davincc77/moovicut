@@ -39,7 +39,7 @@ export function sharePayload(options = {}) {
     aspectRatio: canonicalAspect(options.aspectRatio),
     duration: canonicalDuration(options.duration ?? DEFAULT_SHOT_DURATION)
   }
-  if (options.sequenceMode === 'varied' || options.sequenceMode === 'continuous') payload.sequenceMode = options.sequenceMode
+  if (options.sequenceMode === 'varied' || options.sequenceMode === 'continuous' || options.sequenceMode === 'scenario') payload.sequenceMode = options.sequenceMode
   const genre = text(options.genre, 40)
   const style = text(options.style, 40)
   if (genre) payload.genre = genre
@@ -50,7 +50,55 @@ export function sharePayload(options = {}) {
     payload.scenes = scenes
     payload.shots = scenes.length
   }
+  const scenario = sanitizeScenario(options.scenario)
+  if (scenario) {
+    payload.scenario = scenario
+    payload.sequenceMode = 'scenario'
+    payload.shots = scenario.scenes.length || payload.shots
+  }
+  if (options.preset && typeof options.preset === 'object') {
+    const family = text(options.preset.family, 40)
+    const genre = text(options.preset.genre, 40)
+    if (family) payload.preset = { family, genre }
+  }
   return payload
+}
+
+function sanitizeScenario(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const characters = Array.isArray(value.characters) ? value.characters.slice(0, 48).map(item => ({
+    name: text(item?.name, 80),
+    look: text(item?.look, 300),
+    outfit: text(item?.outfit, 200)
+  })).filter(item => item.name && item.look && item.outfit) : []
+  const places = Array.isArray(value.places) ? value.places.slice(0, 48).map(item => ({
+    name: text(item?.name, 80),
+    description: text(item?.description, 300)
+  })).filter(item => item.name && item.description) : []
+  const scenes = Array.isArray(value.scenes) ? value.scenes.slice(0, 48).map(item => {
+    const scene = {
+      who: text(item?.who, 200),
+      where: text(item?.where, 200),
+      what: text(item?.what || item?.action, 400)
+    }
+    const camera = text(item?.camera, 40)
+    const light = text(item?.light, 40)
+    const mood = text(item?.mood, 40)
+    const prompt = typeof item?.prompt === 'string' ? item.prompt.trim().slice(0, 4000) : ''
+    if (camera) scene.camera = camera
+    if (light) scene.light = light
+    if (mood) scene.mood = mood
+    if (item?.duration != null && item.duration !== '') scene.duration = canonicalDuration(item.duration)
+    if (prompt) scene.prompt = prompt
+    return scene
+  }).filter(scene => scene.who && scene.where && scene.what) : []
+  if (!characters.length || !places.length || !scenes.length) return null
+  const scenario = { characters, places, scenes }
+  const light = text(value.light, 40)
+  const mood = text(value.mood, 40)
+  if (light) scenario.light = light
+  if (mood) scenario.mood = mood
+  return scenario
 }
 
 export function encodeBase64Url(value) {
@@ -78,7 +126,12 @@ export function encodeStudioBoard(options = {}) {
   if (full.premise.length < 8) return ''
   const withScenes = tokenFor(full)
   if (withScenes) return withScenes
-  const { scenes, stepByStep, ...settings } = full
+  const { scenario, ...withoutScenario } = full
+  if (scenario) {
+    const droppedScenario = tokenFor(withoutScenario)
+    if (droppedScenario) return droppedScenario
+  }
+  const { scenes, stepByStep, ...settings } = withoutScenario
   const compact = tokenFor(settings)
   if (compact) return compact
   const slim = tokenFor({ ...settings, premise: settings.premise.slice(0, 1500) })

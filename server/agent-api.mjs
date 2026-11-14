@@ -1,4 +1,9 @@
-import { createStoryboard, validateProject, canonicalModel } from '../app/utils/prompt-engine.js'
+import { createStoryboard, validateProject, canonicalModel, looksLikeScenario, listPresets, parseScenario, regenerateOneShot } from '../app/utils/prompt-engine.js'
+import { assessProject } from '../app/utils/shot-risk.js'
+import { AGENT_BOARD_SCHEMA, exportAgentBoard, importAgentBoard } from '../app/utils/agent-board.js'
+import { publicProfile } from '../app/utils/model-profiles.js'
+import { detectProse } from '../app/utils/prose-detect.js'
+import { SCENARIO_MAX_CHARS } from '../app/utils/scenario.js'
 import { studioUrl } from '../app/utils/studio-link.js'
 import { cleanText } from '../app/utils/text.js'
 
@@ -56,100 +61,82 @@ function json(status, body, extra = {}) {
   }
 }
 
-function storyboardOptions(input) {
-  if (!input || typeof input !== 'object' || Array.isArray(input)) {
-    const error = new Error('Send a JSON object.')
-    error.status = 400
-    error.code = 'invalid_body'
-    throw error
-  }
-  const premise = cleanText(input.premise)
-  if (premise.length < 8) {
-    const error = new Error('The premise must be at least 8 characters.')
-    error.status = 400
-    error.code = 'invalid_premise'
-    throw error
-  }
-  if (premise.length > 6000) {
-    const error = new Error('Keep the premise under 6,000 characters.')
-    error.status = 400
-    error.code = 'invalid_premise'
-    throw error
-  }
-  const model = canonicalModel(input.model || 'grok')
-  if (!model) {
-    const error = new Error('The model must be "grok" or "google".')
-    error.status = 400
-    error.code = 'invalid_model'
-    throw error
-  }
-  const scenes = Array.isArray(input.scenes) ? input.scenes : null
-  if (scenes && scenes.length > MAX_API_SHOTS) {
-    const error = new Error(`A storyboard can include at most ${MAX_API_SHOTS} scenes.`)
-    error.status = 400
-    error.code = 'invalid_scenes'
-    throw error
-  }
-  if (scenes && scenes.some(scene => !scene || typeof scene !== 'object' || Array.isArray(scene))) {
-    const error = new Error('Each scene must be an object.')
-    error.status = 400
-    error.code = 'invalid_scenes'
-    throw error
-  }
-  const requested = input.shots ?? input.count
-  const count = scenes?.length ? scenes.length : (requested == null || requested === '' ? 5 : Math.floor(Number(requested)))
-  if (!Number.isFinite(count) || count < 1 || count > MAX_API_SHOTS) {
-    const error = new Error(`Shots must be a whole number from 1 to ${MAX_API_SHOTS}.`)
-    error.status = 400
-    error.code = 'invalid_shots'
-    throw error
-  }
+function fail(message, code) {
+  const error = new Error(message)
+  error.status = 400
+  error.code = code
+  throw error
+}
+
+function optionalDensity(input) {
+  const density = input.density || input.promptDensity
+  if (density != null && density !== 'standard' && density !== 'concise') fail('Density must be "standard" or "concise".', 'invalid_density')
+  return density || undefined
+}
+
+function optionalDuration(input) {
   const durationValue = input.duration
   const duration = durationValue == null || durationValue === '' ? 3 : Number(durationValue)
-  if (!Number.isFinite(duration) || duration < 2 || duration > 15) {
-    const error = new Error('Duration must be from 2 to 15 seconds.')
-    error.status = 400
-    error.code = 'invalid_duration'
-    throw error
+  if (!Number.isFinite(duration) || duration < 2 || duration > 15) fail('Duration must be from 2 to 15 seconds.', 'invalid_duration')
+  return duration
+}
+
+function storyboardOptions(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) fail('Send a JSON object.', 'invalid_body')
+  if (input.input === 'prose' || input.type === 'prose') return { prose: true, raw: input }
+  const model = canonicalModel(input.model || 'grok')
+  if (!model) fail('The model must be grok, google, sora, kling, runway, luma, wan, or generic.', 'invalid_model')
+  const scenarioSource = input.scenario != null
+    ? input.scenario
+    : (input.mode === 'scenario' || input.sequenceMode === 'scenario' || looksLikeScenario(input.premise) ? input.premise : null)
+  if (scenarioSource != null) {
+    if (typeof scenarioSource === 'string' && scenarioSource.length > SCENARIO_MAX_CHARS) fail('Keep the scenario under 8,000 characters so it stays easy to paste and generate.', 'invalid_scenario')
+    const explicit = input.scenario != null && typeof input.premise === 'string' && !looksLikeScenario(input.premise) ? cleanText(input.premise) : ''
+    if (explicit.length > 6000) fail('Keep the premise under 6,000 characters.', 'invalid_premise')
+    return {
+      premise: explicit,
+      scenario: scenarioSource,
+      sequenceMode: 'scenario',
+      model,
+      duration: optionalDuration(input),
+      density: optionalDensity(input),
+      aspectRatio: input.aspectRatio,
+      genre: typeof input.genre === 'string' ? input.genre : undefined,
+      style: typeof input.style === 'string' ? input.style : undefined,
+      overwritePrompt: input.overwritePrompt === true
+    }
   }
+  const premise = cleanText(input.premise)
+  if (premise.length < 8) fail('The premise must be at least 8 characters.', 'invalid_premise')
+  if (premise.length > 6000) fail('Keep the premise under 6,000 characters.', 'invalid_premise')
+  const scenes = Array.isArray(input.scenes) ? input.scenes : null
+  if (scenes && scenes.length > MAX_API_SHOTS) fail(`A storyboard can include at most ${MAX_API_SHOTS} scenes.`, 'invalid_scenes')
+  if (scenes && scenes.some(scene => !scene || typeof scene !== 'object' || Array.isArray(scene))) fail('Each scene must be an object.', 'invalid_scenes')
+  const requested = input.shots ?? input.count
+  const count = scenes?.length ? scenes.length : (requested == null || requested === '' ? 5 : Math.floor(Number(requested)))
+  if (!Number.isFinite(count) || count < 1 || count > MAX_API_SHOTS) fail(`Shots must be a whole number from 1 to ${MAX_API_SHOTS}.`, 'invalid_shots')
   const sequenceMode = input.sequenceMode || input.mode || 'continuous'
-  if (sequenceMode !== 'continuous' && sequenceMode !== 'varied') {
-    const error = new Error('Mode must be "continuous" or "varied".')
-    error.status = 400
-    error.code = 'invalid_mode'
-    throw error
-  }
+  if (sequenceMode !== 'continuous' && sequenceMode !== 'varied') fail('Mode must be "continuous" or "varied".', 'invalid_mode')
   const continuity = input.continuity || input.continuityStrength
-  if (continuity != null && continuity !== 'standard' && continuity !== 'strict') {
-    const error = new Error('Continuity must be "standard" or "strict".')
-    error.status = 400
-    error.code = 'invalid_continuity'
-    throw error
-  }
-  const density = input.density || input.promptDensity
-  if (density != null && density !== 'standard' && density !== 'concise') {
-    const error = new Error('Density must be "standard" or "concise".')
-    error.status = 400
-    error.code = 'invalid_density'
-    throw error
-  }
+  if (continuity != null && continuity !== 'standard' && continuity !== 'strict') fail('Continuity must be "standard" or "strict".', 'invalid_continuity')
   return {
     premise,
     model,
     count,
-    duration,
+    duration: optionalDuration(input),
     sequenceMode: sequenceMode || undefined,
     continuityStrength: continuity || undefined,
-    density: density || undefined,
+    density: optionalDensity(input),
     aspectRatio: input.aspectRatio,
     genre: typeof input.genre === 'string' ? input.genre : undefined,
     style: typeof input.style === 'string' ? input.style : undefined,
-    scenes: scenes || undefined
+    scenes: scenes || undefined,
+    overwritePrompt: input.overwritePrompt === true
   }
 }
 
 export function compactStoryboard(project, link) {
-  return {
+  const body = {
     title: project.title,
     premise: project.premise,
     model: project.model,
@@ -161,16 +148,30 @@ export function compactStoryboard(project, link) {
       prompt: shot.prompt
     }))
   }
+  if (project.sequenceMode === 'scenario') {
+    if (project.sequences?.length) body.sequences = project.sequences.map(sequence => ({ order: sequence.order, duration: sequence.duration, shotIds: sequence.shotIds }))
+    if (project.scenarioBudget) body.budget = { length: project.scenarioBudget.length, suggested: project.scenarioBudget.suggested, status: project.scenarioBudget.status }
+    if (project.preset) body.preset = { style: project.preset.family, genre: project.preset.genre }
+  }
+  return body
 }
 
-function fullStoryboard(project, link) {
-  return { ...project, studioUrl: link }
-}
-
-export function planFromInput(input, { origin = SITE, compact = false } = {}) {
-  const options = storyboardOptions(input)
-  const project = createStoryboard(options)
-  const link = studioUrl(origin, {
+function boardLink(origin, project, options) {
+  const scenario = project.sequenceMode === 'scenario' && project.filmSheet ? {
+    characters: project.filmSheet.characters,
+    places: project.filmSheet.places,
+    light: project.filmSheet.light,
+    mood: project.filmSheet.mood,
+    scenes: project.shots.map(shot => {
+      const scene = { who: shot.who, where: shot.where, what: shot.what || shot.action, duration: shot.duration }
+      if (shot.cam) scene.camera = shot.cam
+      if (shot.light) scene.light = shot.light
+      if (shot.mood) scene.mood = shot.mood
+      if (shot.promptEdited) scene.prompt = shot.prompt
+      return scene
+    })
+  } : undefined
+  return studioUrl(origin, {
     premise: project.premise,
     model: project.model,
     shots: project.shots.length,
@@ -178,13 +179,91 @@ export function planFromInput(input, { origin = SITE, compact = false } = {}) {
     continuityStrength: project.continuityStrength,
     density: project.promptDensity,
     aspectRatio: project.aspectRatio,
-    genre: project.genre,
-    style: project.style,
+    genre: project.preset?.genre || project.genre,
+    style: project.preset?.family || options.style || project.style,
     duration: project.duration,
     stepByStep: Boolean(options.scenes?.length),
-    scenes: options.scenes
+    scenes: options.scenes,
+    scenario,
+    preset: project.preset ? { family: project.preset.family, genre: project.preset.genre } : undefined
   })
-  return compact ? compactStoryboard(project, link) : fullStoryboard(project, link)
+}
+
+function planProse(input, { origin, compact }) {
+  const text = String(input.prose || input.text || input.premise || '')
+  if (text.trim().length < 8) fail('Add at least 8 characters of story text.', 'invalid_prose')
+  if (text.length > SCENARIO_MAX_CHARS) fail('Keep the story under 8,000 characters so it stays easy to paste and generate.', 'invalid_prose')
+  const detected = detectProse(text)
+  const parsed = parseScenario(detected.scenario)
+  const detection = {
+    input: 'prose',
+    language: detected.language,
+    confidence: detected.confidence,
+    warnings: detected.warnings,
+    scenario: detected.scenario
+  }
+  if (!parsed.ok) return { ...detection, errors: parsed.errors }
+  const project = createStoryboard({
+    scenario: detected.scenario,
+    model: input.model,
+    aspectRatio: input.aspectRatio,
+    style: input.style,
+    genre: input.genre,
+    duration: input.duration,
+    overwritePrompt: input.overwritePrompt === true
+  })
+  const link = boardLink(origin, project, { style: input.style })
+  const board = compact ? compactStoryboard(project, link) : { ...project, studioUrl: link }
+  return attachWarnings({ ...board, ...detection }, project)
+}
+
+function fullStoryboard(project, link) {
+  return { ...project, studioUrl: link, modelProfile: publicProfile(project.model) }
+}
+
+function attachWarnings(body, project) {
+  const warnings = assessProject(project)
+  if (warnings.length) body.warnings = warnings
+  return body
+}
+
+function planRegenerate(input, { origin, compact }) {
+  const source = input.project || input.storyboard
+  if (!source || typeof source !== 'object' || Array.isArray(source)) fail('Send the storyboard to regenerate in project.', 'invalid_shot')
+  const project = validateProject(source).project
+  const shotId = input.regenerateShot || input.shotId
+  if (!shotId) fail('Send regenerateShot with the shot id to rebuild.', 'invalid_shot')
+  const result = regenerateOneShot(project, shotId, {
+    overwrite: input.overwritePrompt === true,
+    prompt: typeof input.prompt === 'string' ? input.prompt : undefined
+  })
+  const link = boardLink(origin, result.project, {})
+  const body = compact ? compactStoryboard(result.project, link) : { ...result.project, studioUrl: link }
+  body.regenerated = result.skipped ? null : result.shotId
+  if (result.skipped) body.kept = true
+  return attachWarnings(body, result.project)
+}
+
+function agentBody(project, link) {
+  return { ...exportAgentBoard(project), studioUrl: link }
+}
+export function planFromInput(input, { origin = SITE, compact = false } = {}) {
+  if (input && typeof input === 'object' && !Array.isArray(input) && input.schema === AGENT_BOARD_SCHEMA) {
+    const project = importAgentBoard(input)
+    const link = boardLink(origin, project, {})
+    if (input.regenerateShot || input.shotId) return planRegenerate({ ...input, project }, { origin, compact })
+    return agentBody(project, link)
+  }
+  if (input && typeof input === 'object' && !Array.isArray(input) && (input.regenerateShot || input.shotId) && (input.project || input.storyboard)) {
+    return planRegenerate(input, { origin, compact })
+  }
+  const options = storyboardOptions(input)
+  if (options.prose) return planProse(options.raw, { origin, compact })
+  const project = createStoryboard(options)
+  const link = boardLink(origin, project, options)
+  if (input?.format === 'agent') return agentBody(project, link)
+  const body = compact ? compactStoryboard(project, link) : fullStoryboard(project, link)
+  return attachWarnings(body, project)
 }
 
 function wantsCompact(input, searchParams) {
@@ -215,15 +294,31 @@ const STORYBOARD_SCHEMA = {
   required: ['premise'],
   properties: {
     premise: { type: 'string', minLength: 8, maxLength: 6000 },
-    model: { type: 'string', enum: ['grok', 'google'], default: 'grok' },
+    model: { type: 'string', enum: ['grok', 'google', 'sora', 'kling', 'runway', 'luma', 'wan', 'generic'], default: 'grok', description: 'Target video model. Shot length, aspect, prompt form, and risk warnings follow that model’s documented profile. grok and google keep their existing labeled prompts. veo is accepted as google.' },
     shots: { type: 'integer', minimum: 1, maximum: MAX_API_SHOTS, default: 5, description: 'Scene count. Ignored when scenes is a non-empty array. Default 5.' },
-    mode: { type: 'string', enum: ['continuous', 'varied'], description: 'Alias of sequenceMode.' },
-    sequenceMode: { type: 'string', enum: ['continuous', 'varied'] },
+    mode: { type: 'string', enum: ['continuous', 'varied', 'scenario'], description: 'Alias of sequenceMode. scenario reads the scenario field or a structured premise.' },
+    sequenceMode: { type: 'string', enum: ['continuous', 'varied', 'scenario'] },
     continuity: { type: 'string', enum: ['standard', 'strict'], default: 'standard' },
     density: { type: 'string', enum: ['standard', 'concise'], default: 'standard', description: 'Concise keeps one short continuity line. Standard includes the shared sheet once. Strict still repeats the sheet verbatim.' },
     aspectRatio: { type: 'string', enum: ['9:16', '1:1', '4:5', '16:9'], default: '16:9' },
-    genre: { type: 'string' },
-    style: { type: 'string', description: 'Fun, Normal, Spicy, or a visual style id such as cinematic or illustrative.' },
+    genre: { type: 'string', description: `Story genre, or a style-preset genre. Preset families: ${listPresets().map(family => `${family.id} (${family.genres.map(genre => genre.id).join(', ')})`).join('; ')}. Default preset when a scenario omits both is cinema / drama.` },
+    style: { type: 'string', description: 'Fun, Normal, Spicy, a visual style id such as cinematic or illustrative, or a preset family: anime, cinema, documentary.' },
+    scenario: {
+      description: 'Structured scenario. When present, it sets the scene count and wins over scenes. Text form uses CHARACTERS, PLACES, and SCENES blocks. Cap 8,000 characters.',
+      oneOf: [{ type: 'string', maxLength: 8000 }, { type: 'object', additionalProperties: true }]
+    },
+    input: { type: 'string', enum: ['prose'], description: 'Set to prose to detect characters, places, and scenes from free text. Ordinary premises are not auto-detected.' },
+    type: { type: 'string', enum: ['prose'], description: 'Alias of input.' },
+    prose: { type: 'string', maxLength: 8000, description: 'Free-text story used when input is prose.' },
+    text: { type: 'string', maxLength: 8000, description: 'Alias of prose.' },
+    overwritePrompt: { type: 'boolean', default: false, description: 'Replace a client-supplied prompt. Omitted or false keeps that prompt.' },
+    format: { type: 'string', enum: ['agent'], description: 'Return shotboard.compact.v1 for every mode: title, premise, model, aspect, mode, style, genre, film sheet, and shots. The default compact plan response stays the short payload.' },
+    schema: { type: 'string', enum: ['shotboard.compact.v1'], description: 'Send a shotboard.compact.v1 document back to resume it. Prompts marked promptEdited stay as written.' },
+    regenerateShot: { type: 'string', description: 'Shot id to rebuild. Send project or storyboard with it. Other shots stay unchanged. A hand-edited prompt is kept unless overwritePrompt is true.' },
+    shotId: { type: 'string', description: 'Alias of regenerateShot.' },
+    project: { type: 'object', additionalProperties: true, description: 'Existing shotboard.v1 used with regenerateShot.' },
+    storyboard: { type: 'object', additionalProperties: true, description: 'Alias of project.' },
+    prompt: { type: 'string', description: 'When sent with regenerateShot and without overwritePrompt, this text is stored and marked as edited.' },
     duration: { type: 'integer', minimum: 2, maximum: 15, default: 3, description: 'Seconds per scene when a scene does not set its own duration. Default 3.' },
     compact: { type: 'boolean', default: false, description: 'Return title, premise, model, aspectRatio, studioUrl, and shots of order, duration, and prompt.' },
     scenes: {
@@ -317,13 +412,19 @@ export function openApiDocument() {
             model: { type: 'string' },
             aspectRatio: { type: 'string' },
             studioUrl: { type: 'string', description: 'Hash link to /studio. The board is in the fragment and is not sent to the server on open.' },
-            shots: { type: 'array', items: { $ref: '#/components/schemas/CompactShot' } }
+            shots: { type: 'array', items: { $ref: '#/components/schemas/CompactShot' } },
+            warnings: { type: 'array', description: 'Present only when a shot has a pre-generation risk. Warnings never block the board.', items: { type: 'object', additionalProperties: true } },
+            regenerated: { type: 'string', description: 'Shot id rebuilt by regenerateShot. Null when an edited prompt was kept.' }
           }
         },
         FullStoryboard: { type: 'object', description: 'shotboard.v1 project plus studioUrl.' },
         Error: {
           type: 'object',
-          properties: { error: { type: 'string' }, message: { type: 'string' } }
+          properties: {
+            error: { type: 'string' },
+            message: { type: 'string' },
+            errors: { type: 'array', items: { type: 'object', additionalProperties: true }, description: 'Every validation problem in this response.' }
+          }
         }
       }
     }
@@ -333,7 +434,7 @@ export function openApiDocument() {
 const TOOLS = [
   {
     name: 'plan_storyboard',
-    description: 'Plan a deterministic storyboard. Default is 5 scenes × 3s (15s total). Pass shots/duration or a scenes array (action, duration, camera, framing, lighting, notes) for a custom board. Returns a compact payload and a /studio# link. Nothing is stored.',
+    description: 'Plan a deterministic storyboard. Default is 5 scenes × 3s (15s total). Pass shots/duration, a scenes array, a scenario, input "prose", format "agent", or a model: grok, google, sora, kling, runway, luma, wan, or generic. Returns a compact payload and a /studio# link. Nothing is stored.',
     inputSchema: STORYBOARD_SCHEMA
   },
   {
@@ -344,7 +445,7 @@ const TOOLS = [
       additionalProperties: false,
       properties: {
         premise: { type: 'string' },
-        model: { type: 'string', enum: ['grok', 'google'], default: 'grok' },
+        model: { type: 'string', enum: ['grok', 'google', 'sora', 'kling', 'runway', 'luma', 'wan', 'generic'], default: 'grok' },
         shots: { type: 'integer', minimum: 1, maximum: MAX_API_SHOTS, default: 5 },
         duration: { type: 'integer', minimum: 2, maximum: 15, default: 3 },
         mode: { type: 'string', enum: ['continuous', 'varied'] },
@@ -439,7 +540,8 @@ function mcp(body, origin) {
     try {
       return rpcResult(id, callTool(name, args, origin))
     } catch (error) {
-      return rpcResult(id, toolResult(error.message, true))
+      const text = Array.isArray(error.errors) ? JSON.stringify({ message: error.message, errors: error.errors }) : error.message
+      return rpcResult(id, toolResult(text, true))
     }
   }
   if (method === 'ping') return rpcResult(id, {})
@@ -491,7 +593,9 @@ export function dispatchAgentRequest({ method = 'GET', pathname = '/', searchPar
       return json(200, planned)
     } catch (error) {
       const status = error.status || 400
-      return json(status, { error: error.code || 'invalid_request', message: error.message })
+      const body = { error: error.code || 'invalid_request', message: error.message }
+      if (Array.isArray(error.errors) && error.errors.length) body.errors = error.errors
+      return json(status, body)
     }
   }
   return json(404, { error: 'not_found' })

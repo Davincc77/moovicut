@@ -15,5 +15,7 @@ test('a home premise is handed to the studio once, in this browser only', () => 
   assert.equal(storage.getItem(STUDIO_HANDOFF_KEY), null)
   assert.deepEqual(takeStudioHandoff(storage), { premise: '', model: '' })
   saveStudioHandoff(storage, { premise: 'A paper star map.', model: 'kling' })
+  assert.equal(takeStudioHandoff(storage).model, 'kling')
+  saveStudioHandoff(storage, { premise: 'A paper star map.', model: 'happyhorse' })
   assert.equal(takeStudioHandoff(storage).model, '')
 })

@@ -5,7 +5,7 @@ Moovicut is a free, local-first storyboard and shot list for short films. It doe
 ## Start
 
 - `/` explains the local planning workflow.
-- `/studio` creates and edits storyboards. The open studio page exposes `window.Shotboard` (and the `window.Moovicut` alias) for in-page automation. The default board is 5 scenes × 3 seconds. Step-by-step mode, off by default, edits each scene.
+- `/studio` creates and edits storyboards. The open studio page exposes `window.Shotboard` (and the `window.Moovicut` alias) for in-page automation. The default board is 5 scenes × 3 seconds. Step-by-step mode, off by default, edits each scene. Scenario mode takes characters, places, and scene lines, and can detect them from pasted prose. Any mode can regenerate one shot and shows risk warnings that do not block the board. Every mode shares one film sheet, and a browser library can save characters, places, and styles. The prompt target can be Grok Imagine, Veo, Sora, Kling, Runway, Luma, Wan, or a generic profile.
 - `/faq` answers common questions in English.
 - `/agents` documents `POST /mcp`, `GET /openapi.json`, and `POST /api/v1/storyboard`. `/agents.md` and `/.well-known/mcp.json` are the text and discovery files. No API key is required, and premises are not stored.
 - Optional tips open https://buymeacoffee.com/enzoc1977r in a new tab. Moovicut does not take payment itself.

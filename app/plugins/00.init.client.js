@@ -28,7 +28,7 @@ export default defineNuxtPlugin(() => {
   // Each mutation returns { ok, project } or { ok: false, error }.
   window.Shotboard = Object.freeze({
     version: 'shotboard.v1',
-    capabilities: () => ({ models: ['grok', 'google'], actions: ['get_project', 'create_project', 'update_shot', 'reorder_shot', 'delete_shot', 'export_json'], promptFields: ['title', 'action', 'camera', 'lighting', 'continuity', 'prompt'], videoGeneration: false, persistence: 'browser-local', authentication: false }),
+    capabilities: () => ({ models: ['grok', 'google', 'sora', 'kling', 'runway', 'luma', 'wan', 'generic'], actions: ['get_project', 'create_project', 'update_shot', 'reorder_shot', 'delete_shot', 'export_json'], promptFields: ['title', 'action', 'camera', 'lighting', 'continuity', 'prompt'], videoGeneration: false, persistence: 'browser-local', authentication: false }),
     getProject: () => JSON.parse(store.serialized.value),
     createProject: input => respond(() => store.createNew(input?.premise, input?.model, input)),
     updateShot: (shotId, patch) => respond(() => {
