@@ -1,5 +1,5 @@
 /** Deterministic pre-generation checks. Warnings never block a board. */
-import { findByName, nameParts } from './scenario.js'
+import { findByName, foldName, nameParts } from './scenario.js'
 import { allowedDurations, profileFor, snapAspect } from './model-profiles.js'
 
 const ACTION_VERBS = /\b(pours|pour|spills|spill|laughs|laugh|runs|run|opens|open|walks|walk|enters|enter|leaves|leave|rides|ride|turns|turn|verse|renverse|rit|court|entre|sort|marche|revient|ouvre)\b/gi
@@ -9,6 +9,32 @@ const GORE = /\b(gore|gory|bloody|blood|brutal|dismember|decapitat)\b/i
 const BRAND_LOGO = /\blogo\b/i
 const COPYRIGHT = /\b(disney(?:\s+characters?)?|mickey mouse|minnie mouse|spider-man|spiderman|batman|superman|harry potter|pikachu|mario)\b/i
 const CELEBRITIES = ['taylor swift', 'beyonce', 'beyoncé', 'elon musk', 'tom cruise', 'ariana grande', 'rihanna', 'drake', 'zendaya', 'leonardo dicaprio', 'brad pitt', 'kim kardashian', 'kanye west', 'lady gaga', 'the weeknd', 'billie eilish', 'selena gomez', 'timothee chalamet', 'timothée chalamet']
+const TRADEMARKS = ['disney', 'mickey mouse', 'minnie mouse', 'spider-man', 'spiderman', 'batman', 'superman', 'harry potter', 'pikachu', 'mario']
+const BRANDS = ['nike', 'adidas', 'gucci', 'prada', 'chanel', 'louis vuitton', 'rolex', 'starbucks', "mcdonald's", 'coca-cola', 'samsung', 'nintendo', 'pixar', 'tesla', 'porsche', 'ferrari', 'balenciaga', 'versace', 'burberry']
+
+function foldPhrase(value) {
+  return foldName(value).replace(/[’ʼ]/g, "'")
+}
+
+function containsPhrase(text, phrase) {
+  const source = foldPhrase(text)
+  const needle = foldPhrase(phrase)
+  if (!needle) return false
+  const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, 'u').test(source)
+}
+
+/** Tokens that belong to a real person, brand, or trademark the risk check flags. */
+export function flaggedNameKeys(text) {
+  const keys = new Set()
+  ;[...CELEBRITIES, ...TRADEMARKS, ...BRANDS].forEach(phrase => {
+    if (!containsPhrase(text, phrase)) return
+    const folded = foldPhrase(phrase)
+    if (folded) keys.add(folded)
+    folded.split(/\s+/).forEach(part => { if (part) keys.add(part) })
+  })
+  return keys
+}
 const CAMERA_CONFLICTS = [
   [/\bpush(?:-|\s)?in\b/i, /\bpull(?:-|\s)?(?:out|back)\b/i, 'push-in and pull-back'],
   [/\bzoom in\b/i, /\bzoom out\b/i, 'zoom in and zoom out'],
@@ -96,7 +122,7 @@ export function assessShot(shot, project = {}) {
   const celebrity = CELEBRITIES.find(name => lower.includes(name))
   if (celebrity) warnings.push(warning(shot, 'celebrity', `A public figure (${celebrity}) is hard for a video model to depict accurately.`, 'Describe a fictional person instead of a named celebrity.'))
   if (GORE.test(text)) warnings.push(warning(shot, 'gore', 'Gore and injury are unstable in a short clip and may be blocked.', 'Show the aftermath or the tension without blood or injury.'))
-  if (BRAND_LOGO.test(text)) warnings.push(warning(shot, 'brand_logo', 'A logo or brand mark is easy for a video model to misspell.', 'Describe the object without a logo, wordmark, or brand name in the frame.'))
+  if (BRAND_LOGO.test(text) || BRANDS.some(name => containsPhrase(text, name))) warnings.push(warning(shot, 'brand_logo', 'A logo or brand mark is easy for a video model to misspell.', 'Describe the object without a logo, wordmark, or brand name in the frame.'))
   if (COPYRIGHT.test(text)) warnings.push(warning(shot, 'copyrighted_character', 'Copyrighted characters are a poor fit for a generated clip.', 'Invent an original character instead of a known franchise character.'))
   return warnings
 }

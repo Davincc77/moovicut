@@ -6,6 +6,13 @@ export function useNotifier() {
     if (import.meta.client) { clearTimeout(notificationTimer); notificationTimer = setTimeout(() => { notification.value = null }, type === 'error' ? 6500 : 8000) }
   }
   function clearNotification() { notification.value = null }
+  function holdNotification() { if (import.meta.client) clearTimeout(notificationTimer) }
+  function releaseNotification() {
+    if (!import.meta.client || !notification.value) return
+    clearTimeout(notificationTimer)
+    const type = notification.value.type
+    notificationTimer = setTimeout(() => { notification.value = null }, type === 'error' ? 6500 : 8000)
+  }
   async function copyText(text, message = 'Prompt copied to clipboard') {
     try {
       if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(text)
@@ -27,5 +34,5 @@ export function useNotifier() {
     document.body.appendChild(link); link.click(); link.remove()
     setTimeout(() => URL.revokeObjectURL(url), 500); notify(`Saved ${name}`)
   }
-  return { notification, notify, clearNotification, copyText, downloadText }
+  return { notification, notify, clearNotification, holdNotification, releaseNotification, copyText, downloadText }
 }

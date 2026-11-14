@@ -22,6 +22,8 @@ const light = ref('')
 const mood = ref('')
 const prose = ref('')
 const detected = ref(null)
+const riskNote = computed(() => (detected.value?.warnings || []).find(item => item.code === 'risk_note') || null)
+const fieldWarnings = computed(() => (detected.value?.warnings || []).filter(item => item.code !== 'risk_note'))
 const locks = ref({ characters: false, places: false, scenes: false, light: false, mood: false })
 const errors = ref([])
 
@@ -117,8 +119,9 @@ defineExpose({ draft, fill: fillFromText })
       <textarea v-model="prose" aria-label="Paste a story or a formatted scenario" rows="4" placeholder="Paste free text, or a CHARACTERS / PLACES / SCENES block." @input="scheduleDetect" @change="fillFromText(prose)"></textarea>
     </label>
     <p v-if="detected" class="studio-scenario-confidence">Detection confidence: {{ detected.confidence }}. Lines you already edited stay as you left them.</p>
-    <ul v-if="detected?.warnings?.length" class="studio-scenario-warnings">
-      <li v-for="(warning, index) in detected.warnings" :key="`${warning.code}-${index}`">
+    <p v-if="riskNote" class="studio-soft-hint">{{ riskNote.message }}</p>
+    <ul v-if="fieldWarnings.length" class="studio-scenario-warnings">
+      <li v-for="(warning, index) in fieldWarnings" :key="`${warning.code}-${index}`">
         <span>{{ warning.message }}</span>
         <button v-if="warning.options?.length" type="button" @click="confirmWarning(warning, warning.options[0])">Use {{ warning.options[0] }}</button>
       </li>

@@ -250,13 +250,13 @@ export function scenarioBudget(text, durationSeconds) {
   return { length, suggested, seconds, status, message, limit: SCENARIO_MAX_CHARS, warnAt: SCENARIO_WARN_AT }
 }
 
+/** Characters and places only. The first scene's action is not copied onto every shot. */
 export function scenarioPremise(parsed) {
   const who = (parsed.characters || []).map(item => item.name).filter(Boolean).join(', ')
   const where = (parsed.places || []).map(item => item.name).filter(Boolean).join(', ')
-  const what = parsed.scenes?.[0]?.what || ''
-  const text = cleanText(`${who} at ${where}. ${what}`)
-  if (text.length >= 8) return text.slice(0, 6000)
-  return cleanText(`${who} ${where} ${what}`).slice(0, 6000)
+  const line = cleanText(who && where ? `${who} at ${where}.` : [who, where].filter(Boolean).join('. '))
+  if (line.length >= 8) return line.slice(0, 6000)
+  return 'A scenario with the listed characters and places.'.slice(0, 6000)
 }
 
 export function formatScenario({ characters = [], places = [], scenes = [], light = '', mood = '' } = {}) {
