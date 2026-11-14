@@ -85,7 +85,7 @@ export const FAQS = [
   { q: 'Is an account required?', a: 'No. The storyboard stays in this browser. There is no sign-in.' },
   { q: 'Can I import or export work?', a: 'Yes. Projects use the shotboard.v1 JSON format. The studio can export a project or a local library backup, and it can import a compatible file. Files stay on your device.' },
   { q: 'Is Moovicut free?', a: 'Yes. Planning, editing, and JSON export are free. There is no subscription. Optional tips open Buy Me a Coffee in a new tab. Moovicut does not take payment itself.' },
-  { q: 'Are visits counted?', a: 'Anonymous, cookieless visit counts via Cloudflare Web Analytics; storyboards never leave the device.' }
+  { q: 'Are visits counted?', a: 'Anonymous, cookieless visit counts via Cloudflare Web Analytics. The site also keeps a simple server-side visit count (POST /api/visits) stored on a persistent volume, with no personal data. Storyboards never leave the device.' }
 ]
 export function titleFromPremise(text) { const cleaned = cleanText(text).replace(/^(a|an|the)\s+/i, ''); if (!cleaned) return 'Untitled story'; const words = cleaned.split(' ').slice(0, 5).join(' '); return sentence(words) + (cleaned.split(' ').length > 5 ? '…' : '') }
 export function detectGenre(premise, preferred = 'cinematic') {

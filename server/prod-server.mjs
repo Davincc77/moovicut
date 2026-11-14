@@ -3,7 +3,7 @@ import { createReadStream, existsSync, statSync } from 'node:fs'
 import { dirname, extname, join, resolve, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { createRateLimiter, handleAgentHttp, isAgentPath, isLimitedPath, publicOrigin, clientAddress, readLimitedBody } from './agent-api.mjs'
-import { createVisitStore } from './visits.mjs'
+import { createCounterShutdown, createVisitStore, visitCounterPath } from './visits.mjs'
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -220,9 +220,14 @@ export function createProdServer({ staticRoot, logger = () => {}, limiter = crea
 const isMain = process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href
 if (isMain) {
   const staticRoot = resolveStaticRoot()
-  const server = createProdServer({ staticRoot })
+  const counterFile = visitCounterPath()
+  const visits = createVisitStore({ filePath: counterFile })
+  const server = createProdServer({ staticRoot, visits })
+  const shutdown = createCounterShutdown(visits, { close: callback => server.close(callback) })
+  process.once('SIGTERM', shutdown)
+  process.once('SIGINT', shutdown)
   const port = Number(process.env.PORT || 3000)
   server.listen(port, () => {
-    console.log(`Moovicut listening on ${port}, serving ${staticRoot}`)
+    console.log(`Moovicut listening on ${port}, serving ${staticRoot}. Visit storage: ${visits.persistent() ? counterFile : 'memory until the /data volume is mounted'}.`)
   })
 }

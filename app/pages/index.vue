@@ -58,7 +58,7 @@ const faqs = [
  ['How does Moovicut work?','A premise becomes an ordered shot list on this device, with camera, action, lighting, sound, and continuity you can edit. Paste a prompt into the model you already use. Moovicut does not call that model.'],
  ['Which genres can I start from?','Action, Drama, Sci-Fi, Horror, Comedy, Romance, Thriller and Documentary. Each genre card loads a premise of that genre, and you can edit it.'],
  ['Is Moovicut free?','Yes. Planning, editing, and JSON export are free. There is no subscription. Optional tips open Buy Me a Coffee in a new tab. Moovicut does not take payment itself.'],
- ['Are visits counted?','Anonymous, cookieless visit counts via Cloudflare Web Analytics; storyboards never leave the device.'],
+ ['Are visits counted?','Anonymous, cookieless visit counts via Cloudflare Web Analytics. The site also keeps a simple server-side visit count (POST /api/visits) stored on a persistent volume, with no personal data. Storyboards never leave the device.'],
  ['Does Moovicut render video?','No. It writes prompts. Nothing is rendered inside Moovicut.']
 ]
 useSeoMeta({

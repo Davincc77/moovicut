@@ -22,7 +22,7 @@ Yes. Projects use the `shotboard.v1` JSON format. The studio can export a projec
 Yes. Planning, editing, and JSON export are free. There is no subscription. Optional tips open Buy Me a Coffee in a new tab. Moovicut does not take payment itself.
 
 ## Are visits counted?
-Anonymous, cookieless visit counts via Cloudflare Web Analytics; storyboards never leave the device.
+Anonymous, cookieless visit counts via Cloudflare Web Analytics. The site also keeps a simple server-side visit count (POST /api/visits) stored on a persistent volume, with no personal data. Storyboards never leave the device.
 
 ## Can an AI agent build a storyboard?
 Yes. The default board is 5 scenes of 3 seconds (15s total). Step-by-step mode in `/studio`, or a `shots` count or `scenes` array on `POST /api/v1/storyboard` and `/mcp`, builds a custom scene list. Scenario mode and `input: "prose"` are on the same endpoints. Open `/agents` for the endpoints. No API key and no account. Mode `ad`, `series`, and `explainer` are light presets on the same endpoints. A shot marked `promptEdited` is kept when the film sheet, style preset, or model changes. Regenerate this shot rebuilds one prompt. Risk warnings never block the board. Quick idea, Step-by-step, continuous story, and scenario share one film sheet. format "agent" resumes any of them. The model can be Grok Imagine, Veo, Sora, Kling, Runway, Luma, Wan, or a generic profile. Shot length and aspect follow that model’s documented limits.

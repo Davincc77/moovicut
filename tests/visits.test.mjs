@@ -1,12 +1,31 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createVisitStore } from '../server/visits.mjs'
+import { createCounterShutdown, createVisitStore, visitCounterPath } from '../server/visits.mjs'
 import { createVisitServer } from '../server/index.mjs'
+import { createProdServer } from '../server/prod-server.mjs'
 
 const browser = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36'
+const quiet = { warn() {} }
+
+function listen(server) {
+  return new Promise((resolve, reject) => {
+    server.once('error', reject)
+    server.listen(0, '127.0.0.1', () => resolve(`http://127.0.0.1:${server.address().port}`))
+  })
+}
+
+function close(server) {
+  return new Promise(resolve => {
+    if (!server.listening) {
+      resolve()
+      return
+    }
+    server.close(() => resolve())
+  })
+}
 
 test('a visitor is counted once per day and the raw address is never stored', () => {
   const dates = [new Date('2026-11-12T10:00:00Z'), new Date('2026-11-13T01:00:00Z')]
@@ -44,28 +63,199 @@ test('bots, prefetch, and the private stats path are not counted', () => {
   assert.doesNotMatch(store.snapshot(), /\.\./)
 })
 
-test('missing storage keeps the counter in memory', () => {
-  const store = createVisitStore({ filePath: '/tmp/shotboard-missing-volume/visits.json' })
+test('missing storage keeps the counter in memory', async () => {
+  const warnings = []
+  const store = createVisitStore({
+    filePath: '/tmp/shotboard-missing-volume/visits.json',
+    logger: { warn: message => warnings.push(message) }
+  })
   assert.equal(store.persistent(), false)
+  assert.equal(warnings.length, 1)
+  assert.match(warnings[0], /Visit counter: cannot write/)
   assert.equal(store.record({ address: '2001:db8::1', userAgent: browser, path: '/' }).counted, true)
   assert.equal(store.publicTotal().total, 1)
   assert.doesNotMatch(store.snapshot(), /2001:db8/)
+  await store.flush()
+  assert.equal(warnings.length, 1)
 })
 
-test('a writable directory restores totals without keeping yesterday hashes', () => {
+test('a writable directory restores totals without keeping yesterday hashes', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'shotboard-visits-'))
   const filePath = join(directory, 'visits.json')
-  const first = createVisitStore({ filePath, now: () => new Date('2026-11-12T08:00:00Z') })
-  first.record({ address: '198.51.100.4', userAgent: browser, path: '/' })
-  const second = createVisitStore({ filePath, now: () => new Date('2026-11-12T09:00:00Z') })
-  second.record({ address: '198.51.100.4', userAgent: browser, path: '/' })
-  assert.equal(second.publicTotal().total, 2)
-  assert.equal(second.stats().days[0].uniques, 1)
-  const nextDay = createVisitStore({ filePath, now: () => new Date('2026-11-13T09:00:00Z') })
-  const stored = JSON.parse(readFileSync(filePath, 'utf8'))
-  assert.equal(stored.days['2026-11-12'].salt, undefined)
-  assert.equal(nextDay.publicTotal().total, 2)
-  rmSync(directory, { recursive: true, force: true })
+  try {
+    const first = createVisitStore({ filePath, now: () => new Date('2026-11-12T08:00:00Z'), logger: quiet })
+    first.record({ address: '198.51.100.4', userAgent: browser, path: '/' })
+    await first.flush()
+    const second = createVisitStore({ filePath, now: () => new Date('2026-11-12T09:00:00Z'), logger: quiet })
+    second.record({ address: '198.51.100.4', userAgent: browser, path: '/' })
+    assert.equal(second.publicTotal().total, 2)
+    assert.equal(second.stats().days[0].uniques, 1)
+    await second.flush()
+    const nextDay = createVisitStore({ filePath, now: () => new Date('2026-11-13T09:00:00Z'), logger: quiet })
+    const stored = JSON.parse(readFileSync(filePath, 'utf8'))
+    assert.equal(stored.days['2026-11-12'].salt, undefined)
+    assert.equal(nextDay.publicTotal().total, 2)
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('COUNTER_FILE selects the counter path', () => {
+  assert.equal(visitCounterPath({}), '/data/visits.json')
+  assert.equal(visitCounterPath({ COUNTER_FILE: '' }), '/data/visits.json')
+  assert.equal(visitCounterPath({ COUNTER_FILE: '/tmp/visits.json' }), '/tmp/visits.json')
+  assert.equal(visitCounterPath({ STATS_DATA_PATH: '/tmp/legacy.json' }), '/tmp/legacy.json')
+  assert.equal(visitCounterPath({ COUNTER_FILE: '/tmp/visits.json', STATS_DATA_PATH: '/tmp/legacy.json' }), '/tmp/visits.json')
+})
+
+test('COUNTER_FILE keeps the visit count across a restart', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'moovicut-counter-'))
+  const staticRoot = mkdtempSync(join(tmpdir(), 'moovicut-counter-static-'))
+  writeFileSync(join(staticRoot, 'index.html'), '<!doctype html><title>Home</title>')
+  const previous = process.env.COUNTER_FILE
+  process.env.COUNTER_FILE = join(directory, 'visits.json')
+  const servers = []
+  try {
+    const filePath = visitCounterPath()
+    assert.equal(filePath, process.env.COUNTER_FILE)
+    const warnings = []
+    const firstStore = createVisitStore({
+      filePath,
+      debounceMs: 60_000,
+      logger: { warn: message => warnings.push(message) }
+    })
+    assert.equal(warnings.length, 1)
+    assert.match(warnings[0], /missing/)
+    const first = createProdServer({ staticRoot, visits: firstStore })
+    servers.push(first)
+    const base = await listen(first)
+    const posted = await fetch(`${base}/api/visits`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'user-agent': browser, 'x-forwarded-for': '203.0.113.40' },
+      body: JSON.stringify({ path: '/studio', referrer: '' })
+    })
+    assert.equal(posted.status, 200)
+    assert.match(posted.headers.get('content-type'), /application\/json/)
+    assert.deepEqual(await posted.json(), { counted: true, total: 1 })
+    assert.equal(JSON.parse(readFileSync(filePath, 'utf8')).total, 0)
+    await firstStore.flush()
+    assert.equal(JSON.parse(readFileSync(filePath, 'utf8')).total, 1)
+    assert.equal(existsSync(`${filePath}.${process.pid}.tmp`), false)
+    const secondStore = createVisitStore({ filePath: visitCounterPath(), logger: quiet })
+    assert.equal(secondStore.publicTotal().total, 1)
+    assert.equal(secondStore.persistent(), true)
+    const second = createProdServer({ staticRoot, visits: secondStore })
+    servers.push(second)
+    const restarted = await listen(second)
+    assert.deepEqual(await (await fetch(`${restarted}/api/visits`)).json(), { total: 1 })
+    const head = await fetch(`${restarted}/api/visits`, { method: 'HEAD' })
+    assert.equal(head.status, 200)
+    assert.equal(await head.text(), '')
+  } finally {
+    await Promise.all(servers.map(server => close(server)))
+    if (previous === undefined) delete process.env.COUNTER_FILE
+    else process.env.COUNTER_FILE = previous
+    rmSync(directory, { recursive: true, force: true })
+    rmSync(staticRoot, { recursive: true, force: true })
+  }
+})
+
+test('a corrupt counter file falls back to 0 without throwing', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'moovicut-counter-'))
+  const filePath = join(directory, 'visits.json')
+  try {
+    writeFileSync(filePath, '{not json')
+    const warnings = []
+    const store = createVisitStore({ filePath, logger: { warn: message => warnings.push(message) } })
+    assert.equal(store.publicTotal().total, 0)
+    assert.equal(warnings.length, 1)
+    assert.match(warnings[0], /unreadable/)
+    assert.equal(store.record({ address: '203.0.113.41', userAgent: browser, path: '/' }).counted, true)
+    await store.flush()
+    assert.equal(warnings.length, 1)
+    const restarted = createVisitStore({ filePath, logger: quiet })
+    assert.equal(restarted.publicTotal().total, 1)
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('an unwritable counter path does not crash', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'moovicut-counter-'))
+  const blocker = join(directory, 'not-a-directory')
+  writeFileSync(blocker, 'nope')
+  const warnings = []
+  try {
+    const store = createVisitStore({
+      filePath: join(blocker, 'visits.json'),
+      logger: { warn: message => warnings.push(message) }
+    })
+    assert.equal(store.persistent(), false)
+    assert.equal(store.publicTotal().total, 0)
+    assert.equal(warnings.length, 1)
+    assert.match(warnings[0], /cannot write/)
+    assert.equal(store.record({ address: '203.0.113.42', userAgent: browser, path: '/faq' }).total, 1)
+    await store.flush()
+    assert.equal(store.publicTotal().total, 1)
+    assert.equal(warnings.length, 1)
+    assert.equal(existsSync(join(blocker, 'visits.json')), false)
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('shutdown flushes a debounced visit before exit', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'moovicut-counter-'))
+  const filePath = join(directory, 'visits.json')
+  try {
+    const store = createVisitStore({ filePath, debounceMs: 60_000, logger: quiet })
+    store.record({ address: '203.0.113.43', userAgent: browser, path: '/' })
+    assert.equal(JSON.parse(readFileSync(filePath, 'utf8')).total, 0)
+    let exited = null
+    const shutdown = createCounterShutdown(store, {
+      close(callback) { callback() },
+      exit(code) { exited = code }
+    })
+    await shutdown()
+    assert.equal(exited, 0)
+    await shutdown()
+    assert.equal(exited, 0)
+    const restarted = createVisitStore({ filePath, logger: quiet })
+    assert.equal(restarted.publicTotal().total, 1)
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('a visit is written on its own after the debounce', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'moovicut-counter-'))
+  const filePath = join(directory, 'visits.json')
+  try {
+    const store = createVisitStore({ filePath, debounceMs: 30, logger: quiet })
+    const before = readFileSync(filePath, 'utf8')
+    store.record({ address: '203.0.113.44', userAgent: browser, path: '/' })
+    assert.equal(readFileSync(filePath, 'utf8'), before)
+    const started = Date.now()
+    while (JSON.parse(readFileSync(filePath, 'utf8')).total !== 1) {
+      if (Date.now() - started > 2000) assert.fail('debounced counter write did not land')
+      await new Promise(resolve => setTimeout(resolve, 20))
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('production and npm start flush the counter file on shutdown', () => {
+  const prod = readFileSync('server/prod-server.mjs', 'utf8')
+  const visitServer = readFileSync('server/index.mjs', 'utf8')
+  assert.match(prod, /visitCounterPath\(\)/)
+  assert.match(prod, /createCounterShutdown/)
+  assert.match(prod, /SIGTERM/)
+  assert.match(prod, /SIGINT/)
+  assert.match(visitServer, /visitCounterPath\(\)/)
+  assert.match(visitServer, /createCounterShutdown/)
+  assert.match(readFileSync('README.md', 'utf8'), /COUNTER_FILE/)
+  assert.match(readFileSync('README.md', 'utf8'), /\/data/)
 })
 
 test('private stats require the environment token and the server never logs it', async () => {
