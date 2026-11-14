@@ -29,7 +29,9 @@ const PLACES = [
 
 const TIME_BLOCK = new Set(['matin', 'morning', 'soir', 'evening', 'nuit', 'night', 'jour', 'day', 'aube', 'dawn', 'dusk', 'soleil', 'sun', 'pluie', 'rain', 'tard', 'lendemain', 'petit'])
 const JUMP = /\b(plus tard|le lendemain|au lendemain|le matin suivant|the next morning|next morning|the next day|later)\b/i
-const VERBS = new Set(['entre', 'sort', 'verse', 'renverse', 'rit', 'rire', 'marche', 'court', 'revient', 'ouvre', 'ferme', 'regarde', 'sourit', 'prend', 'donne', 'boit', 'parle', 'dit', 'va', 'vient', 'arrive', 'part', 'tourne', 'tend', 'attrape', 'pose', 'voit', 'pleure', 'crie', 'attend', 'sert', 'quitte', 'traverse', 'monte', 'descend', 'pousse', 'tombe', 'lance', 'vole', 'opens', 'open', 'pours', 'pour', 'laughs', 'laugh', 'walks', 'walk', 'returns', 'return', 'rides', 'ride', 'stops', 'stop', 'enters', 'enter', 'leaves', 'leave', 'sits', 'sit', 'stands', 'stand', 'looks', 'look', 'turns', 'turn', 'smiles', 'smile', 'spills', 'spill', 'runs', 'run', 'flies', 'fly', 'hits', 'hit', 'watches', 'watch', 'finds', 'find', 'follows', 'follow', 'crosses', 'cross', 'drinks', 'drink', 'waits', 'wait', 'closes', 'close', 'unlocks', 'unlock'])
+const VERBS = new Set(['entre', 'sort', 'verse', 'renverse', 'rit', 'rire', 'marche', 'court', 'revient', 'ouvre', 'ferme', 'regarde', 'sourit', 'prend', 'donne', 'boit', 'parle', 'dit', 'va', 'vient', 'arrive', 'part', 'tourne', 'tend', 'attrape', 'pose', 'voit', 'pleure', 'crie', 'attend', 'sert', 'quitte', 'traverse', 'monte', 'descend', 'pousse', 'tombe', 'lance', 'vole', 'porte', 'opens', 'open', 'pours', 'pour', 'laughs', 'laugh', 'walks', 'walk', 'returns', 'return', 'rides', 'ride', 'stops', 'stop', 'enters', 'enter', 'leaves', 'leave', 'sits', 'sit', 'stands', 'stand', 'looks', 'look', 'turns', 'turn', 'smiles', 'smile', 'spills', 'spill', 'runs', 'run', 'flies', 'fly', 'hits', 'hit', 'watches', 'watch', 'finds', 'find', 'follows', 'follow', 'crosses', 'cross', 'drinks', 'drink', 'waits', 'wait', 'closes', 'close', 'unlocks', 'unlock', 'meets', 'meet', 'boards', 'board', 'knocks', 'knock', 'hands', 'hand', 'gives', 'give', 'opens'])
+const NOT_A_PLACE = new Set(['window', 'door', 'table', 'glass', 'cup', 'bottle', 'hand', 'hands', 'umbrella', 'pastry', 'apron', 'hair', 'face', 'eye', 'eyes'])
+const ROLE_WORDS = /\b(baker|boulanger|boulangère|keeper|gardien|neighbour|neighbor|courier|detective|astronaut|painter|explorer)\b/iu
 
 function languageOf(text) {
   const fr = (text.match(/\b(le|la|les|un|une|des|dans|elle|il|avec|sur|au|aux|et|est|son|sa|une)\b/gi) || []).length
@@ -66,13 +68,38 @@ function placeLexicon() {
 
 const PLACE_KEYS = placeLexicon()
 
-function detectCharacters(text) {
+function placeTokens(places) {
+  const keys = new Set()
+  places.forEach(place => tokens(place.name).forEach(token => keys.add(foldName(token))))
+  return keys
+}
+
+function traitWindow(text, name, names) {
+  const boundary = label => new RegExp(`(?<![\\p{L}])${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}])`, 'iu')
+  const match = boundary(name).exec(text)
+  if (!match) return ''
+  const after = match.index + match[0].length
+  let nextAt = text.length
+  names.forEach(other => {
+    if (foldName(other) === foldName(name)) return
+    const found = boundary(other).exec(text.slice(after))
+    if (found) nextAt = Math.min(nextAt, after + found.index)
+  })
+  const lead = text.slice(Math.max(0, nextAt - 24), nextAt)
+  const leadingAge = lead.match(/\b(?:old|young|little|poor)\s+$/iu)
+  const end = leadingAge ? nextAt - leadingAge[0].length : nextAt
+  const before = Math.max(0, match.index - 24)
+  return text.slice(before, Math.max(after, end))
+}
+
+function detectCharacters(text, places = []) {
+  const reserved = placeTokens(places)
   const starts = sentenceStarts(text)
   const counts = new Map()
   tokens(text).forEach(token => {
     if (!/^\p{Lu}/u.test(token)) return
     const key = foldName(token)
-    if (key.length < 2 || STOP.has(key) || PLACE_KEYS.has(key) || TIME_BLOCK.has(key)) return
+    if (key.length < 2 || STOP.has(key) || PLACE_KEYS.has(key) || TIME_BLOCK.has(key) || reserved.has(key) || NOT_A_PLACE.has(key)) return
     const entry = counts.get(key) || { forms: new Map(), count: 0, mid: 0 }
     entry.count += 1
     if (!starts.has(key)) entry.mid += 1
@@ -81,8 +108,13 @@ function detectCharacters(text) {
   })
   const warnings = []
   const characters = []
+  const candidateNames = [...counts.values()].map(entry => [...entry.forms.keys()][0])
   for (const [key, entry] of counts) {
-    const mentioned = sentencesOf(text).filter(sentence => tokens(sentence).some(token => foldName(token) === key)).join(' ')
+    const forms = [...entry.forms.entries()].sort((a, b) => b[1] - a[1] || Number(/[^\u0000-\u007f]/.test(b[0])) - Number(/[^\u0000-\u007f]/.test(a[0])))
+    const name = forms[0][0]
+    const mentioned = traitWindow(text, name, candidateNames)
+    const young = /\byoung\b/iu.test(mentioned) && !new RegExp(`\\byoung\\s+(?!${name}\\b)\\p{Lu}`, 'u').test(mentioned)
+    const old = new RegExp(`\\bold\\s+${name}\\b`, 'iu').test(mentioned)
     const look = unique([
       matchOne(mentioned, /cheveux\s+[\p{L}'’-]+(?:\s+[\p{L}'’-]+)?/iu),
       matchOne(mentioned, /(?:curly|wavy|straight|long|short|red|brown|black|blonde|blond|roux|rousse)\s+(?:red\s+|brown\s+|black\s+)?hair/iu),
@@ -91,12 +123,15 @@ function detectCharacters(text) {
       matchOne(mentioned, /lunettes(?:\s+rondes)?/iu),
       matchOne(mentioned, /(?:round\s+)?glasses/iu),
       matchOne(mentioned, /jeune/iu),
-      matchOne(mentioned, /young(?:\s+(?:woman|man|girl|boy))?/iu)
+      young ? 'young' : '',
+      old ? 'old' : '',
+      matchOne(mentioned, ROLE_WORDS)
     ])
     const outfit = unique([
+      matchOne(mentioned, /flour[- ]dusted\s+apron|flour on (?:her |his )?apron/iu),
       matchOne(mentioned, /tablier(?:\s+[\p{L}'’-]+)?/iu),
       matchOne(mentioned, /(?:green|red|blue|grey|gray|black|white|vert|verte|rouge|gris|grise)\s+(?:apron|tablier)/iu),
-      matchOne(mentioned, /apron/iu),
+      /flour[- ]dusted\s+apron|flour on (?:her |his )?apron/iu.test(mentioned) ? '' : matchOne(mentioned, /apron/iu),
       matchOne(mentioned, /casquette(?:\s+[\p{L}'’-]+)?/iu),
       matchOne(mentioned, /(?:grey|gray|red|black|grise|gris)\s+(?:cap|casquette)/iu),
       matchOne(mentioned, /manteau(?:\s+[\p{L}'’-]+)?/iu),
@@ -104,8 +139,6 @@ function detectCharacters(text) {
     ])
     const keep = entry.count >= 2 || entry.mid >= 1 || look.length > 0 || outfit.length > 0
     if (!keep) continue
-    const forms = [...entry.forms.entries()].sort((a, b) => b[1] - a[1] || Number(/[^\u0000-\u007f]/.test(b[0])) - Number(/[^\u0000-\u007f]/.test(a[0])))
-    const name = forms[0][0]
     if (forms.length > 1) {
       warnings.push({ code: 'name_variant', message: `${forms.map(item => item[0]).join(' or ')}?`, target: 'characters', options: forms.map(item => item[0]), name })
     }
@@ -135,26 +168,48 @@ function unique(values) {
   })
 }
 
+function pushPlace(places, name, description, confidence) {
+  const clean = cleanText(name)
+  if (!clean || NOT_A_PLACE.has(foldName(clean))) return
+  if (places.some(place => foldName(place.name) === foldName(clean))) return
+  places.push({ name: clean, description, confidence })
+}
+
 function detectPlaces(text, language) {
   const places = []
   const warnings = []
-  const folded = foldName(text)
+  const source = String(text || '')
+  for (const match of source.matchAll(/\b(village|town|city|hamlet|bourg)\s+of\s+(\p{Lu}[\p{L}'’-]*)/gu)) {
+    pushPlace(places, match[2], language === 'fr' ? `un ${match[1]}` : `a ${match[1].toLowerCase()}`, 'high')
+  }
+  for (const match of source.matchAll(/\b((?:\p{Lu}[\p{L}'’-]*)(?:\s+\p{Lu}[\p{L}'’-]*){0,2})\s+(Street|Road|Avenue|Lane|Boulevard|Way|Rue)\b/gu)) {
+    pushPlace(places, `${match[1]} ${match[2]}`, language === 'fr' ? 'une rue' : 'a street', 'high')
+  }
+  for (const match of source.matchAll(/\b((?:village|town|market|city)\s+square)\b/giu)) {
+    const name = match[1].replace(/^\p{Ll}/u, char => char.toUpperCase())
+    pushPlace(places, name, language === 'fr' ? 'une place' : 'a square', 'high')
+  }
+  for (const match of source.matchAll(/\b(?:in|at|through)\s+(\p{Lu}[\p{L}'’-]*)/gu)) {
+    const name = match[1]
+    if (STOP.has(foldName(name)) || TIME_BLOCK.has(foldName(name)) || PLACE_KEYS.has(foldName(name))) continue
+    pushPlace(places, name, language === 'fr' ? 'un lieu cité dans le texte' : 'a place named in the text', 'medium')
+  }
+  const folded = foldName(source)
+  const covered = new Set(places.flatMap(place => tokens(place.name).map(foldName)))
   PLACES.forEach(place => {
-    if (!place.keys.some(key => new RegExp(`(?:^|[^\\p{L}])${foldName(key)}(?=[^\\p{L}]|$)`, 'u').test(folded))) return
-    const preceded = place.keys.some(key => new RegExp(`(?:au|aux|dans|sur|chez|du|de|at|in|on|to)\\s+(?:la\\s+|le\\s+|l'|the\\s+)?${foldName(key)}(?=[^\\p{L}]|$)`, 'u').test(folded))
-    places.push({
-      name: language === 'fr' ? place.fr : place.en,
-      description: language === 'fr' ? place.frDesc : place.enDesc,
-      confidence: preceded ? 'high' : 'medium'
-    })
+    const hit = place.keys.find(key => new RegExp(`(?:^|[^\\p{L}])${foldName(key)}(?=[^\\p{L}]|$)`, 'u').test(folded))
+    if (!hit) return
+    if (covered.has(foldName(hit)) && places.some(item => foldName(item.name).includes(foldName(hit)) && foldName(item.name) !== foldName(hit))) return
+    const preceded = place.keys.some(key => new RegExp(`(?:au|aux|dans|sur|chez|du|de|at|in|on|to|through)\\s+(?:la\\s+|le\\s+|l'|the\\s+)?(?:[\\p{L}'’-]+\\s+){0,2}${foldName(key)}(?=[^\\p{L}]|$)`, 'u').test(folded))
+    pushPlace(places, language === 'fr' ? place.fr : place.en, language === 'fr' ? place.frDesc : place.enDesc, preceded ? 'high' : 'medium')
   })
-  const unknown = [...String(text).matchAll(/\b(?:at the|in the|on the|to the|au|dans la|dans le|sur la|sur le)\s+([A-Za-zÀ-ÿ][\p{L}'’-]+(?:\s+[\p{L}'’-]+)?)/giu)]
+  const unknown = [...source.matchAll(/\b(?:at the|in the|through the|to the|au|dans la|dans le|sur la|sur le)\s+([\p{Ll}'’-]+(?:\s+[\p{Ll}'’-]+){0,2})/gu)]
   unknown.forEach(match => {
     const phrase = cleanText(match[1])
     const key = foldName(phrase.split(/\s+/).at(-1))
-    if (!key || STOP.has(key) || TIME_BLOCK.has(key) || PLACE_KEYS.has(key) || places.some(place => foldName(place.name) === key)) return
+    if (!key || STOP.has(key) || TIME_BLOCK.has(key) || PLACE_KEYS.has(key) || NOT_A_PLACE.has(key) || /\b(?:village|town|city|of)\b/i.test(phrase) || places.some(place => foldName(place.name) === key || foldName(place.name).endsWith(key))) return
     const name = phrase.replace(/^\p{Ll}/u, char => char.toUpperCase())
-    places.push({ name, description: language === 'fr' ? 'un lieu cité dans le texte' : 'a place named in the text', confidence: 'low' })
+    pushPlace(places, name, language === 'fr' ? 'un lieu cité dans le texte' : 'a place named in the text', 'low')
     warnings.push({ code: 'uncertain_place', message: `Confirm this place: ${name}.`, target: 'places', options: [name], name })
   })
   return { places, warnings }
@@ -188,13 +243,8 @@ function splitBlocks(text) {
 }
 
 function clausesOf(sentence) {
-  const rough = sentence.split(/\s*(?:,|;|\bpuis\b|\bthen\b|\band then\b)\s*/i).flatMap(part => {
-    const sides = part.split(/\s+\b(?:et|and)\b\s+/i).map(item => item.trim()).filter(Boolean)
-    if (sides.length >= 2 && sides.every(hasVerb)) return sides
-    return [part.trim()]
-  }).filter(Boolean)
-  const verbal = rough.filter(hasVerb)
-  return verbal
+  const rough = sentence.split(/\s*(?:;|\bpuis\b|\bthen\b|\band then\b)\s*/i).map(part => part.trim()).filter(Boolean)
+  return rough.filter(hasVerb)
 }
 
 function namesIn(text, characters) {
@@ -203,7 +253,8 @@ function namesIn(text, characters) {
 
 function placeIn(text, places) {
   const folded = foldName(text)
-  return places.find(place => new RegExp(`(?:^|\\s)${foldName(place.name)}(?:\\s|$)`).test(folded) || PLACES.find(item => (item.fr === place.name || item.en === place.name) && item.keys.some(key => new RegExp(`(?:^|\\s)${foldName(key)}(?:\\s|$)`).test(folded))))
+  const hit = label => new RegExp(`(?:^|[^\\p{L}])${foldName(label)}(?=[^\\p{L}]|$)`, 'u').test(folded)
+  return places.find(place => hit(place.name) || PLACES.find(item => (item.fr === place.name || item.en === place.name) && item.keys.some(key => hit(key))))
 }
 
 function detectScenes(text, characters, places, language) {
@@ -213,28 +264,26 @@ function detectScenes(text, characters, places, language) {
   let lastWhere = places[0]?.name || ''
   splitBlocks(text).forEach(block => {
     sentencesOf(block).forEach(sentence => {
-      const actions = clausesOf(sentence)
-      if (!actions.length) return
-      actions.forEach(action => {
-        const foundNames = namesIn(`${sentence} ${action}`, characters)
-        const who = foundNames.length ? foundNames.slice(0, 2).map(item => item.name).join(language === 'fr' ? ' et ' : ' and ') : lastWho
-        if (who) lastWho = who.split(/\s+(?:et|and)\s+/)[0]
-        const foundPlace = placeIn(`${sentence} ${action}`, places)
-        const where = foundPlace?.name || lastWhere
-        if (where) lastWhere = where
-        const index = scenes.length
-        let confidence = 'high'
-        if (!foundNames.length || !foundPlace) confidence = 'medium'
-        if (!where) {
-          confidence = 'low'
-          warnings.push({ code: 'missing_place', message: `No place found for scene ${index + 1}.`, target: 'scenes', index, options: places.map(place => place.name) })
-        }
-        if (!who) {
-          confidence = 'low'
-          warnings.push({ code: 'missing_character', message: `No character found for scene ${index + 1}.`, target: 'scenes', index, options: characters.map(character => character.name) })
-        }
-        scenes.push({ number: index + 1, who: who || '', where: where || '', what: cleanText(action).replace(/[.!?]+$/, ''), duration: 3, confidence })
-      })
+      if (!hasVerb(sentence) || JUMP.test(sentence) && tokens(sentence).length < 3) return
+      const action = cleanText(sentence).replace(/^[,;:\s]+/, '').replace(/[.!?]+$/, '')
+      const foundNames = namesIn(sentence, characters)
+      const who = foundNames.length ? foundNames.slice(0, 2).map(item => item.name).join(language === 'fr' ? ' et ' : ' and ') : lastWho
+      if (who) lastWho = who.split(/\s+(?:et|and)\s+/)[0]
+      const foundPlace = placeIn(sentence, places)
+      const where = foundPlace?.name || lastWhere
+      if (where) lastWhere = where
+      const index = scenes.length
+      let confidence = 'high'
+      if (!foundNames.length || !foundPlace) confidence = 'medium'
+      if (!where) {
+        confidence = 'low'
+        warnings.push({ code: 'missing_place', message: `No place found for scene ${index + 1}.`, target: 'scenes', index, options: places.map(place => place.name) })
+      }
+      if (!who) {
+        confidence = 'low'
+        warnings.push({ code: 'missing_character', message: `No character found for scene ${index + 1}.`, target: 'scenes', index, options: characters.map(character => character.name) })
+      }
+      scenes.push({ number: index + 1, who: who || '', where: where || '', what: action, duration: 3, confidence })
     })
   })
   return { scenes, warnings }
@@ -250,8 +299,8 @@ function overall(parts) {
 export function detectProse(input) {
   const text = String(input || '').replace(/\r\n/g, '\n').trim()
   const language = languageOf(text)
-  const foundCharacters = detectCharacters(text)
   const foundPlaces = detectPlaces(text, language)
+  const foundCharacters = detectCharacters(text, foundPlaces.places)
   const ambience = detectAmbience(text)
   const foundScenes = detectScenes(text, foundCharacters.characters, foundPlaces.places, language)
   const warnings = [...foundCharacters.warnings, ...foundPlaces.warnings, ...foundScenes.warnings]

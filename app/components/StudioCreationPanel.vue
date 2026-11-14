@@ -1,6 +1,6 @@
 <script setup>
 import { Copy, Image as ImageIcon, Plus, SlidersHorizontal, CircleHelp } from 'lucide-vue-next'
-import { MODEL_OPTIONS, ASPECT_RATIOS, DURATION_PRESETS, canonicalAspect, canonicalModel, inferSequenceMode, formatContinuitySheet, listPresets } from '~/utils/prompt-engine.js'
+import { MODEL_OPTIONS, ASPECT_RATIOS, durationPlans, canonicalAspect, canonicalModel, inferSequenceMode, formatContinuitySheet, listPresets } from '~/utils/prompt-engine.js'
 import { decodeStudioBoard, boardTokenFromHash, studioHash } from '~/utils/studio-link.js'
 import { storyMarkdown } from '~/utils/story-markdown.js'
 import { combinedShotPrompts } from '~/utils/open-targets.js'
@@ -20,7 +20,10 @@ const handoff = import.meta.client ? takeStudioHandoff(sessionStorage) : { premi
 const premise = ref(handoff.premise || '')
 const model = ref(canonicalModel(handoff.model) || remembered.model || canonicalModel(project.value.target_model) || 'grok')
 watch(() => project.value.target_model, value => { const next = canonicalModel(value); if (next) model.value = next })
-const count = ref(5)
+const plans = computed(() => durationPlans(model.value))
+const count = ref(plans.value[0].count)
+const appliedPreset = ref(null)
+const presetReveal = ref(false)
 const sequenceMode = ref(remembered.sequenceMode || 'continuous')
 const sequenceTouched = ref(remembered.sequenceMode === 'varied' || remembered.sequenceMode === 'continuous')
 watch(premise, value => { if (!sequenceTouched.value) sequenceMode.value = inferSequenceMode(value) })
@@ -37,7 +40,8 @@ function storyboardOptions(mode = sequenceMode.value, overrides = {}) {
       promptDensity: density.value,
       duration: overrides.duration ?? duration.value,
       sequenceMode: mode,
-      scenes: overrides.scenes
+      scenes: overrides.scenes,
+      ...(appliedPreset.value ? { style: appliedPreset.value.family, genre: appliedPreset.value.genre } : {})
     }
   }
 }
@@ -47,11 +51,15 @@ async function chooseSequence(mode) {
   sequenceTouched.value = true
   if (mode === sequenceMode.value) return
   sequenceMode.value = mode
+  uploadError.value = ''
   if (!boardReady.value) return
+  if (mode === 'ad' || mode === 'series' || mode === 'explainer' || mode === 'scenario') return
   store.setSequenceMode(mode)
 }
 const boardKind = computed(() => ['scenario', 'ad', 'series', 'explainer'].includes(sequenceMode.value) ? sequenceMode.value : 'quick')
 function chooseBoard(kind) {
+  uploadError.value = ''
+  presetReveal.value = false
   if (kind === 'ad' || kind === 'series') aspect.value = '9:16'
   if (kind === 'explainer') aspect.value = '16:9'
   if (kind === 'quick') chooseSequence(sequenceMode.value === 'varied' ? 'varied' : 'continuous')
@@ -93,7 +101,7 @@ function chooseDensity(value) {
   if (boardReady.value) store.applyPromptSettings({ promptDensity: value })
 }
 function syncPreset() {
-  const match = DURATION_PRESETS.find(item => item.count === Number(count.value) && item.duration === Number(duration.value))
+  const match = plans.value.find(item => item.count === Number(count.value) && item.duration === Number(duration.value))
   activePreset.value = match ? match.id : ''
 }
 function blankScene() { return { action: '', duration: duration.value, framing: '', camera: '', lighting: '', notes: '' } }
@@ -185,7 +193,11 @@ function applySharedBoard(board) {
   return store.createNew(board.premise, model.value, { count: board.shots, duration: board.duration, style: style.value, aspectRatio: board.aspectRatio, sequenceMode: board.sequenceMode, continuityStrength: continuityStrength.value, promptDensity: density.value, genre: board.genre, scenes: board.scenes })
 }
 const boardOpenPrompt = computed(() => boardReady.value ? combinedShotPrompts(project.value) : '')
-const duration = ref(3)
+const duration = ref(plans.value[0].duration)
+const filmSeconds = computed(() => {
+  const plan = plans.value.find(item => item.id === activePreset.value)
+  return plan ? plan.total : Math.max(1, Number(count.value) || 1) * (Number(duration.value) || 3)
+})
 const uploadError = ref('')
 const referenceName = ref('')
 const referencePreview = ref('')
@@ -203,8 +215,16 @@ function chooseModel(item) {
   model.value = id
   if (boardReady.value) {
     store.selectModel(id)
+    count.value = project.value.shots.length
+    duration.value = project.value.duration
     if (project.value.aspectRatio) aspect.value = project.value.aspectRatio
+    syncPreset()
+    return
   }
+  const plan = durationPlans(id).find(item => item.id === (activePreset.value || '15s')) || durationPlans(id)[0]
+  count.value = plan.count
+  duration.value = plan.duration
+  activePreset.value = plan.id
 }
 const activeDetail = ref(null)
 const creating = ref(false)
@@ -214,8 +234,11 @@ const presetFamily = ref(project.value.preset?.family || 'cinema')
 const presetGenre = ref(project.value.preset?.genre || 'drama')
 const familyGenres = computed(() => listPresets().find(item => item.id === presetFamily.value)?.genres || [])
 watch(presetFamily, family => { if (!familyGenres.value.some(item => item.id === presetGenre.value)) presetGenre.value = familyGenres.value[0]?.id || 'drama' })
-function applySharedPreset() { if (boardReady.value) store.setStylePreset(presetFamily.value, presetGenre.value) }
-function copyAgentBoard() { copyText(JSON.stringify(exportAgentBoard(project.value)), 'agent-json') }
+function applySharedPreset() {
+  appliedPreset.value = { family: presetFamily.value, genre: presetGenre.value }
+  if (boardReady.value) store.setStylePreset(presetFamily.value, presetGenre.value)
+}
+function copyAgentBoard() { copyText(JSON.stringify(exportAgentBoard(project.value)), 'Agent JSON copied.') }
 function saveLibraryCharacter() {
   const character = project.value.filmSheet?.characters?.[0]
   if (character?.name && character.look && character.outfit) store.rememberCharacter(character)
@@ -239,6 +262,16 @@ function useSavedCharacter(character) {
   store.patchFilmSheet({ characters })
 }
 const shotWarnings = computed(() => boardReady.value ? assessProject(project.value) : [])
+const detectionWarnings = computed(() => {
+  const warnings = project.value.detection?.warnings || []
+  return boardKind.value === 'quick' ? warnings.filter(item => !['missing_character', 'missing_look', 'missing_outfit'].includes(item.code)) : warnings
+})
+function syncFromBoard() {
+  if (!boardReady.value) return
+  count.value = project.value.shots.length
+  duration.value = project.value.shots[0]?.duration || project.value.duration
+  syncPreset()
+}
 function warningsFor(id) { return shotWarnings.value.filter(item => item.shotId === id) }
 const appBaseURL = useRuntimeConfig().app.baseURL
 const models = MODEL_OPTIONS.map(item => ({ id: item.id, name: item.label }))
@@ -264,13 +297,14 @@ function applyScenarioPreset(choice) {
 }
 async function createStoryboard(){
  uploadError.value=''
- if (sequenceMode.value === 'ad' || sequenceMode.value === 'series' || sequenceMode.value === 'explainer') {
+  if (sequenceMode.value === 'ad' || sequenceMode.value === 'series' || sequenceMode.value === 'explainer') {
+  presetReveal.value = true
   const draft = presetForm.value?.draft?.()
   if (!draft) { uploadError.value = 'Add the fields for this mode, then create the board.'; return }
   creating.value = true
   try {
     await store.createNew(draft.premise, model.value, { ...draft.options, style: style.value, genre: presetGenre.value, aspectRatio: canonicalAspect(aspect.value), duration: duration.value, promptDensity: density.value })
-    notify('Editable storyboard created locally.', 'success')
+    notify('Editable storyboard created locally.', 'success'); syncFromBoard()
     activeTab.value = 'preview'
     await nextTick()
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
@@ -285,8 +319,8 @@ async function createStoryboard(){
   if (!referenceReady.value) { uploadError.value = 'Wait for the reference image to finish loading.'; return }
   creating.value = true
   try {
-    await store.createNew(premise.value.trim() || draft.premise, model.value, { sequenceMode: 'scenario', scenario: draft.scenario, style: draft.style, genre: draft.genre, aspectRatio: canonicalAspect(aspect.value), duration: duration.value, promptDensity: density.value })
-    notify('Editable storyboard created locally. Nothing was rendered.', 'success')
+    await store.createNew(premise.value.trim() || draft.premise, model.value, { sequenceMode: 'scenario', scenario: draft.scenario, style: presetFamily.value, genre: presetGenre.value, aspectRatio: canonicalAspect(aspect.value), duration: duration.value, promptDensity: density.value })
+    notify('Editable storyboard created locally. Nothing was rendered.', 'success'); syncFromBoard()
     activeTab.value = 'preview'
   } catch (error) { uploadError.value = error.message || 'Fix the scenario, then try again.' }
   finally { creating.value = false }
@@ -299,7 +333,7 @@ async function createStoryboard(){
   const { options } = storyboardOptions()
   if (stepByStep.value && draftScenes.value.length && !boardReady.value) options.scenes = draftScenes.value
   await store.createNew(premise.value,model.value,options)
-  notify('Editable storyboard created locally. Nothing was rendered.','success')
+  notify('Editable storyboard created locally. Nothing was rendered.','success'); syncFromBoard()
   activeTab.value='preview'
   await nextTick()
   const motion = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
@@ -385,13 +419,13 @@ onBeforeUnmount(()=>{clearTimeout(copiedTimer);if(referencePreview.value)URL.rev
  <section class="studio-main" aria-label="Storyboard creation workspace">
   <div class="studio-create-column"><header class="studio-panel-header"><p class="studio-local-badge">Free · Local · No account</p></header><form class="studio-create-form" aria-label="Create a local storyboard" @submit.prevent="createStoryboard">
    <fieldset class="studio-sequence-mode studio-board-mode"><legend>Board</legend><div><button type="button" :aria-pressed="boardKind==='quick'" @click="chooseBoard('quick')">Quick idea</button><button type="button" :aria-pressed="boardKind==='scenario'" @click="chooseBoard('scenario')">Scenario</button><button type="button" :aria-pressed="boardKind==='ad'" @click="chooseBoard('ad')">Ad</button><button type="button" :aria-pressed="boardKind==='series'" @click="chooseBoard('series')">Series</button><button type="button" :aria-pressed="boardKind==='explainer'" @click="chooseBoard('explainer')">Explainer</button></div></fieldset>
-   <div v-if="boardKind==='quick' || boardKind==='scenario'" class="studio-prompt-editor"><textarea id="studio-idea" v-model="premise" aria-label="Video scene prompt" placeholder="Describe your idea in detail — characters, setting, mood, camera style..." @input="watchMention" @keyup="watchMention" @click="watchMention" /><ul v-if="mentionOpen" class="studio-mention-list" aria-label="Uploaded images"><li v-if="referenceName"><button type="button" @click="useMention(referenceName)">{{ referenceName }}</button></li><li v-else>Upload an image to mention it.</li></ul><div v-if="!boardReady && boardKind==='quick'" class="studio-starters" aria-label="Starter ideas"><p>Try a starter idea</p><button v-for="idea in starterIdeas" :key="idea.title" type="button" @click="premise=idea.premise">{{ idea.title }}</button></div></div>
-   <StudioPresetFields v-else ref="presetForm" :mode="boardKind" />
+   <div v-if="boardKind==='quick'" class="studio-prompt-editor"><textarea id="studio-idea" v-model="premise" aria-label="Video scene prompt" placeholder="Describe your idea in detail — characters, setting, mood, camera style..." @input="watchMention" @keyup="watchMention" @click="watchMention" /><ul v-if="mentionOpen" class="studio-mention-list" aria-label="Uploaded images"><li v-if="referenceName"><button type="button" @click="useMention(referenceName)">{{ referenceName }}</button></li><li v-else>Upload an image to mention it.</li></ul><div v-if="!boardReady && boardKind==='quick'" class="studio-starters" aria-label="Starter ideas"><p>Try a starter idea</p><button v-for="idea in starterIdeas" :key="idea.title" type="button" @click="premise=idea.premise">{{ idea.title }}</button></div></div>
+   <StudioPresetFields v-else-if="boardKind==='ad' || boardKind==='series' || boardKind==='explainer'" ref="presetForm" :mode="boardKind" :reveal="presetReveal" />
    <p v-if="shortIdea && boardKind==='quick'" class="studio-idea-hint">Add a place, lighting, or a medium such as watercolor or 35mm for sharper shots.</p>
    <header class="studio-model-selector"><label class="studio-model-icon" for="studio-model"><img :src="joinAppPath(appBaseURL,promptImageSrc('paper-star-map','webp'))" alt="" width="20" height="20" /><span class="sr-only">Model</span></label><select id="studio-model" :value="model" aria-label="Prompt target" @change="chooseModel($event.target.value)"><option v-for="item in models" :key="item.id" :value="item.id">{{item.name}}</option></select><p>Shot length, aspect, and the risk check follow this model.</p><button type="button" aria-label="Model information" @click="activeDetail='model'"><CircleHelp :size="16" /></button></header>
    <fieldset v-if="boardKind==='ad' || boardKind==='series' || boardKind==='explainer'" class="studio-sequence-mode"><legend>Shot length</legend><label>Seconds<input v-model.number="duration" type="number" min="2" max="15" aria-label="Shot length in seconds" /></label><p>Each shot snaps to the selected model.</p></fieldset>
-   <fieldset v-else class="studio-sequence-mode studio-duration-presets"><legend>Total duration</legend><div><button v-for="preset in DURATION_PRESETS" :key="preset.id" type="button" :aria-pressed="activePreset===preset.id" @click="choosePreset(preset)"><span>{{ preset.label }}</span><small>{{ preset.count }} × {{ preset.duration }}s</small></button></div></fieldset>
-   <StudioScenario v-if="sequenceMode==='scenario'" ref="scenarioForm" :idea="premise" :duration="duration" @preset="applyScenarioPreset" />
+   <fieldset v-else class="studio-sequence-mode studio-duration-presets"><legend>Total duration</legend><div><button v-for="preset in plans" :key="preset.id" type="button" :aria-pressed="activePreset===preset.id" @click="choosePreset(preset)"><span>{{ preset.label }}</span><small>{{ preset.count }} × {{ preset.duration }}s</small></button></div></fieldset>
+   <StudioScenario v-if="sequenceMode==='scenario'" ref="scenarioForm" :idea="premise" :duration="duration" :total="filmSeconds" />
    <div class="studio-generate-row"><button class="studio-generate" type="submit" :disabled="creating"><Plus :size="16" />{{creating?'Creating storyboard…':'Create storyboard'}}</button><button type="button" class="studio-tips-button" :aria-expanded="tipsOpen" aria-controls="studio-tips" @click="tipsOpen=!tipsOpen">?</button></div>
    <section v-if="tipsOpen" id="studio-tips" class="studio-tips" aria-label="Storyboard tips"><h2>Tips</h2><ol><li>Name a subject, a place, an action, and a medium or style.</li><li>Continuous story keeps one world. Varied shots are separate angles.</li><li>Concise prompts stay short. Standard keeps one shared continuity sheet.</li><li>Aspect presets: 9:16 for vertical, 16:9 for wide.</li></ol></section>
    <p v-if="uploadError" class="studio-error" role="alert">{{uploadError}}</p>
@@ -402,13 +436,13 @@ onBeforeUnmount(()=>{clearTimeout(copiedTimer);if(referencePreview.value)URL.rev
     <fieldset v-if="boardKind==='quick'" class="studio-sequence-mode studio-mode-choices"><legend>Sequence mode</legend><div><button type="button" :aria-pressed="sequenceMode==='continuous'" @click="chooseSequence('continuous')">Continuous story</button><button type="button" :aria-pressed="sequenceMode==='varied'" @click="chooseSequence('varied')">Varied shots</button></div></fieldset>
     <fieldset v-if="sequenceMode==='continuous'" class="studio-sequence-mode"><legend>Continuity strength</legend><div><button type="button" :aria-pressed="continuityStrength==='standard'" @click="chooseStrength('standard')">Standard<small>Shared sheet in every shot</small></button><button type="button" :aria-pressed="continuityStrength==='strict'" @click="chooseStrength('strict')">Strict<small>Repeat the full sheet verbatim</small></button></div></fieldset>
     <fieldset class="studio-sequence-mode"><legend>Prompt density</legend><div><button type="button" :aria-pressed="density==='standard'" @click="chooseDensity('standard')">Standard<small>Shared sheet, once</small></button><button type="button" :aria-pressed="density==='concise'" @click="chooseDensity('concise')">Concise<small>One short continuity line</small></button></div></fieldset>
-    <fieldset v-if="sequenceMode!=='scenario'" class="studio-sequence-mode"><legend>Style preset</legend><label>Family<select v-model="presetFamily" aria-label="Style family"><option v-for="family in listPresets()" :key="family.id" :value="family.id">{{ family.label }}</option></select></label><label>Genre<select v-model="presetGenre" aria-label="Style genre"><option v-for="genre in familyGenres" :key="genre.id" :value="genre.id">{{ genre.label }}</option></select></label><button type="button" @click="applySharedPreset">Apply style preset</button></fieldset>
+    <fieldset class="studio-sequence-mode"><legend>Style preset</legend><label>Family<select v-model="presetFamily" aria-label="Style family"><option v-for="family in listPresets()" :key="family.id" :value="family.id">{{ family.label }}</option></select></label><label>Genre<select v-model="presetGenre" aria-label="Style genre"><option v-for="genre in familyGenres" :key="genre.id" :value="genre.id">{{ genre.label }}</option></select></label><button type="button" @click="applySharedPreset">Apply style preset</button></fieldset>
     <fieldset class="studio-sequence-mode"><legend>Library on this device</legend><p>Characters, places, and styles stay in this browser. Export the file if you want a copy.</p><button type="button" @click="saveLibraryCharacter">Save character</button><button type="button" @click="saveLibraryPlace">Save place</button><button type="button" @click="saveLibraryStyle">Save style</button><button type="button" @click="exportPersonalLibrary">Export library</button><label>Import library<input type="file" accept="application/json,.json" aria-label="Import library" @change="importPersonalLibrary" /></label><button v-for="character in store.personalLibrary.characters" :key="character.name" type="button" @click="useSavedCharacter(character)">Use {{ character.name }}</button></fieldset>
     <button v-if="boardKind==='quick'" type="button" class="studio-step-toggle" :aria-pressed="stepByStep" @click="toggleStep">Step-by-step storyboard</button>
     <StudioStepBuilder v-if="stepByStep && boardKind==='quick'" :scenes="builderScenes" :count="boardReady ? project.shots.length : count" @add="addBuilderScene" @remove="removeBuilderScene" @move="moveBuilderScene" @update="updateBuilderScene" @count="changeSceneCount" />
    </details>
   </form></div>
-  <section id="editable-shots" class="studio-preview-panel"><div class="studio-preview-heading"><h2>Editable shots</h2><p>Each shot is editable here. Copy a prompt without opening another view.</p><button v-if="boardReady" type="button" @click="copyAgentBoard">Copy agent JSON</button><ul v-if="boardReady && project.detection?.warnings?.length"><li v-for="warning in project.detection.warnings" :key="warning.code + warning.message">{{ warning.message }}</li></ul></div><section v-if="boardReady && project.filmSheet" class="studio-continuity" aria-label="Film sheet"><h3>Film sheet</h3><p>Characters and places are stored once. Generated prompts use them by name. Prompts you edited stay as you left them.</p><label v-for="(character, index) in project.filmSheet.characters" :key="`cast-${index}`">{{ character.name }} look<input :value="character.look" :aria-label="`${character.name} look`" @change="editCast(index, 'look', $event.target.value)" /></label><label v-for="(place, index) in project.filmSheet.places" :key="`place-${index}`">{{ place.name }}<input :value="place.description" :aria-label="`${place.name} description`" @change="editPlace(index, $event.target.value)" /></label><p v-for="sequence in project.sequences || []" :key="sequence.order"><button type="button" @click="copyText(sequence.export, `Sequence ${sequence.order} copied`)">Copy sequence {{ sequence.order }} ({{ sequence.duration }}s)</button></p></section><section v-if="boardReady && project.sequenceMode==='continuous' && project.continuitySheet" class="studio-continuity" aria-label="Continuity sheet"><h3>Continuity sheet</h3><p>Standard prompts include this sheet once. Strict repeats it verbatim. Concise keeps one short line. Edit it and the generated prompts update together. Prompts you edited stay as you left them.</p><label>Character<input :value="project.continuitySheet.character" aria-label="Continuity character" @change="editSheet('character',$event.target.value)" /></label><label>Outfit<input :value="project.continuitySheet.appearance" aria-label="Continuity outfit" @change="editSheet('appearance',$event.target.value)" /></label><label>Place<input :value="project.continuitySheet.place" aria-label="Continuity place" @change="editSheet('place',$event.target.value)" /></label><label>Time of day / light<input :value="project.continuitySheet.time" aria-label="Continuity time of day" @change="editSheet('time',$event.target.value)" /></label><label>Lighting<input :value="project.continuitySheet.lighting" aria-label="Continuity lighting" @change="editSheet('lighting',$event.target.value)" /></label><label>Palette<input :value="project.continuitySheet.palette" aria-label="Continuity palette" @change="editSheet('palette',$event.target.value)" /></label><label>Style<input :value="project.continuitySheet.style" aria-label="Continuity style" @change="editSheet('style',$event.target.value)" /></label><label v-if="project.continuitySheet.dialogue">Dialogue<input :value="project.continuitySheet.dialogue" aria-label="Continuity dialogue" @change="editSheet('dialogue',$event.target.value)" /></label><p v-if="project.continuitySheet.avoid">Do not show: {{ project.continuitySheet.avoid }}</p></section><div class="studio-shot-toolbar"><button class="copy-prompt-button" type="button" @click="copyAllPrompts">{{ copiedKey==='all' ? 'Copied' : 'Copy all prompts' }}</button><p class="studio-paste-hint">Paste this into Grok Imagine, Google, or any other AI image or video model.</p><OpenInButtons v-if="boardReady" :prompt="boardOpenPrompt" :seed="1" /><button class="copy-prompt-button" type="button" @click="exportStoryboardJson">Export JSON</button><button class="copy-prompt-button" type="button" @click="copyMarkdown">{{ copiedKey==='markdown' ? 'Copied' : 'Copy Markdown' }}</button><button class="copy-prompt-button" type="button" @click="downloadMarkdown">Download Markdown</button><button class="copy-prompt-button" type="button" @click="copyShareLink">{{ copiedKey==='share' ? 'Copied' : 'Copy share link' }}</button><button class="copy-prompt-button" type="button" @click="$refs.importJson.click()">Import JSON</button><input ref="importJson" class="sr-only" type="file" accept="application/json,.json" @change="importStoryboardJson" /><button class="copy-prompt-button" type="button" @click="downloadShareImage">Download share image</button></div><p v-if="!boardReady" class="studio-shot-empty">Write an idea on the left, then create the storyboard.</p><ol v-else class="studio-shot-list" aria-label="Editable shots"><li v-for="(shot,index) in project.shots" :key="shot.id"><header class="studio-shot-card-heading"><span class="shot-number">{{String(index+1).padStart(2,'0')}}</span><span>{{shot.stage}}</span></header><label>Title<input :value="shot.title" :aria-label="`Title for shot ${index+1}`" @change="store.updateShot(shot.id,'title',$event.target.value)" /></label><label>Description<textarea :value="shot.action" :aria-label="`Description for shot ${index+1}`" @change="store.updateShot(shot.id,'action',$event.target.value)"></textarea></label><label>Camera / shot type<input :value="shot.framing" :aria-label="`Shot type for shot ${index+1}`" @change="store.updateShot(shot.id,'framing',$event.target.value)" /></label><label>Camera<input :value="shot.camera" :aria-label="`Camera for shot ${index+1}`" @change="store.updateShot(shot.id,'camera',$event.target.value)" /></label><label>Duration (seconds)<input type="number" min="2" max="15" :value="shot.duration" :aria-label="`Duration for shot ${index+1}`" @change="store.updateShot(shot.id,'duration',Number($event.target.value))" /></label><label>Prompt<textarea :value="shot.prompt" :aria-label="`Prompt for shot ${index+1}`" @change="store.updateShot(shot.id,'prompt',$event.target.value,false)"></textarea></label><p v-if="shot.promptEdited" class="studio-edited-mark">Edited by you</p><ul v-if="warningsFor(shot.id).length" class="studio-scenario-warnings"><li v-for="item in warningsFor(shot.id)" :key="item.code">{{ item.message }} {{ item.fix }}</li></ul><button type="button" class="text-button" @click="store.regenerateOne(shot.id)">Regenerate this shot</button><button v-if="shot.promptEdited" type="button" class="text-button" @click="store.resetShotPrompt(shot.id)">Reset</button><button class="copy-prompt-button" :class="{ 'is-copied': copiedKey===`shot:${shot.id}` }" type="button" :aria-label="`Copy prompt for shot ${index+1}`" @click="copyShotPrompt(shot.prompt, shot.id)"><Copy :size="13" />{{ copiedKey===`shot:${shot.id}` ? 'Copied' : 'Copy prompt' }}</button><OpenInButtons :prompt="shot.prompt" :seed="index" /><p class="studio-paste-hint">Paste this into Grok Imagine, Google, or any other AI image or video model.</p></li></ol><p v-if="boardReady" class="studio-thanks">Enjoying Moovicut? <a href="https://buymeacoffee.com/enzoc1977r" target="_blank" rel="noopener">Tips keep it free</a> <span>Tips pay for hosting and keep Moovicut free.</span><a v-if="SOCIAL_X_URL" class="studio-follow" :href="SOCIAL_X_URL" target="_blank" rel="noopener">Follow on X (it's free!)</a></p><nav class="studio-view-tabs" aria-label="Storyboard views"><button type="button" :aria-pressed="activeTab==='preview'" @click="activeTab='preview'">Preview</button><button type="button" :aria-pressed="activeTab==='explore'" @click="activeTab='explore'">Explore</button><button type="button" :aria-pressed="activeTab==='prompts'" @click="activeTab='prompts'">Prompts</button></nav><nav class="studio-provider-list" aria-label="Prompt targets"><span v-for="name in REFERENCE_MODEL_NAMES" :key="name">{{name}}</span></nav><p class="sr-only">Local prompt studies and storyboard results</p>
+  <section id="editable-shots" class="studio-preview-panel"><div class="studio-preview-heading"><h2>Editable shots</h2><p>Each shot is editable here. Copy a prompt without opening another view.</p><p v-if="shotWarnings.length" class="studio-risk-summary" role="status">{{ shotWarnings.length }} risk {{ shotWarnings.length === 1 ? 'warning' : 'warnings' }}. They do not block the board.</p><p v-if="boardReady && boardKind==='quick' && project.detection?.hints?.length" class="studio-soft-hint">Names are optional on a quick idea. Add one if you want the film sheet to repeat a person.</p><ul v-if="boardReady && detectionWarnings.length" class="studio-scenario-warnings"><li v-for="warning in detectionWarnings" :key="warning.code + warning.message">{{ warning.message }}</li></ul></div><section v-if="boardReady && project.filmSheet" class="studio-continuity" aria-label="Film sheet"><h3>Film sheet</h3><p>Characters and places are stored once. Generated prompts use them by name. Prompts you edited stay as you left them.</p><label v-for="(character, index) in project.filmSheet.characters" :key="`cast-${index}`">{{ character.name }} look<input :value="character.look" :aria-label="`${character.name} look`" @change="editCast(index, 'look', $event.target.value)" /></label><label v-for="(place, index) in project.filmSheet.places" :key="`place-${index}`">{{ place.name }}<input :value="place.description" :aria-label="`${place.name} description`" @change="editPlace(index, $event.target.value)" /></label><p v-for="sequence in project.sequences || []" :key="sequence.order"><button type="button" @click="copyText(sequence.export, `Sequence ${sequence.order} copied`)">Copy sequence {{ sequence.order }} ({{ sequence.duration }}s)</button></p></section><section v-if="boardReady && project.sequenceMode==='continuous' && project.continuitySheet" class="studio-continuity" aria-label="Continuity sheet"><h3>Continuity sheet</h3><p>Standard prompts include this sheet once. Strict repeats it verbatim. Concise keeps one short line. Edit it and the generated prompts update together. Prompts you edited stay as you left them.</p><label>Character<input :value="project.continuitySheet.character" aria-label="Continuity character" @change="editSheet('character',$event.target.value)" /></label><label>Outfit<input :value="project.continuitySheet.appearance" aria-label="Continuity outfit" @change="editSheet('appearance',$event.target.value)" /></label><label>Place<input :value="project.continuitySheet.place" aria-label="Continuity place" @change="editSheet('place',$event.target.value)" /></label><label>Time of day / light<input :value="project.continuitySheet.time" aria-label="Continuity time of day" @change="editSheet('time',$event.target.value)" /></label><label>Lighting<input :value="project.continuitySheet.lighting" aria-label="Continuity lighting" @change="editSheet('lighting',$event.target.value)" /></label><label>Palette<input :value="project.continuitySheet.palette" aria-label="Continuity palette" @change="editSheet('palette',$event.target.value)" /></label><label>Style<input :value="project.continuitySheet.style" aria-label="Continuity style" @change="editSheet('style',$event.target.value)" /></label><label v-if="project.continuitySheet.dialogue">Dialogue<input :value="project.continuitySheet.dialogue" aria-label="Continuity dialogue" @change="editSheet('dialogue',$event.target.value)" /></label><p v-if="project.continuitySheet.avoid">Do not show: {{ project.continuitySheet.avoid }}</p></section><div class="studio-shot-toolbar"><button v-if="boardReady" class="copy-prompt-button" type="button" @click="copyAgentBoard">Copy agent JSON</button><button class="copy-prompt-button" type="button" @click="copyAllPrompts">{{ copiedKey==='all' ? 'Copied' : 'Copy all prompts' }}</button><p class="studio-paste-hint">Paste this into Grok Imagine, Google, or any other AI image or video model.</p><OpenInButtons v-if="boardReady" :prompt="boardOpenPrompt" :seed="1" /><button class="copy-prompt-button" type="button" @click="exportStoryboardJson">Export JSON</button><button class="copy-prompt-button" type="button" @click="copyMarkdown">{{ copiedKey==='markdown' ? 'Copied' : 'Copy Markdown' }}</button><button class="copy-prompt-button" type="button" @click="downloadMarkdown">Download Markdown</button><button class="copy-prompt-button" type="button" @click="copyShareLink">{{ copiedKey==='share' ? 'Copied' : 'Copy share link' }}</button><button class="copy-prompt-button" type="button" @click="$refs.importJson.click()">Import JSON</button><input ref="importJson" class="sr-only" type="file" accept="application/json,.json" @change="importStoryboardJson" /><button class="copy-prompt-button" type="button" @click="downloadShareImage">Download share image</button></div><p v-if="!boardReady" class="studio-shot-empty">Write an idea on the left, then create the storyboard.</p><ol v-else class="studio-shot-list" aria-label="Editable shots"><li v-for="(shot,index) in project.shots" :key="shot.id"><header class="studio-shot-card-heading"><span class="shot-number">{{String(index+1).padStart(2,'0')}}</span><span>{{shot.stage}}</span></header><label>Title<input :value="shot.title" :aria-label="`Title for shot ${index+1}`" @change="store.updateShot(shot.id,'title',$event.target.value)" /></label><label>Description<textarea :value="shot.action" :aria-label="`Description for shot ${index+1}`" @change="store.updateShot(shot.id,'action',$event.target.value)"></textarea></label><label>Camera / shot type<input :value="shot.framing" :aria-label="`Shot type for shot ${index+1}`" @change="store.updateShot(shot.id,'framing',$event.target.value)" /></label><label>Camera<input :value="shot.camera" :aria-label="`Camera for shot ${index+1}`" @change="store.updateShot(shot.id,'camera',$event.target.value)" /></label><label>Duration (seconds)<input type="number" min="2" max="15" :value="shot.duration" :aria-label="`Duration for shot ${index+1}`" @change="store.updateShot(shot.id,'duration',Number($event.target.value))" /></label><label>Prompt<textarea :value="shot.prompt" :aria-label="`Prompt for shot ${index+1}`" @change="store.updateShot(shot.id,'prompt',$event.target.value,false)"></textarea></label><p v-if="shot.promptEdited" class="studio-edited-mark">Edited by you</p><ul v-if="warningsFor(shot.id).length" class="studio-risk-list"><li v-for="item in warningsFor(shot.id)" :key="item.code"><strong>{{ item.message }}</strong> {{ item.fix }}</li></ul><button type="button" class="text-button" @click="store.regenerateOne(shot.id)">Regenerate this shot</button><button v-if="shot.promptEdited" type="button" class="text-button" @click="store.resetShotPrompt(shot.id)">Reset</button><button v-if="store.promptUndo && store.promptUndo.id === shot.id" type="button" class="text-button" @click="store.restorePromptUndo()">Undo</button><button class="copy-prompt-button" :class="{ 'is-copied': copiedKey===`shot:${shot.id}` }" type="button" :aria-label="`Copy prompt for shot ${index+1}`" @click="copyShotPrompt(shot.prompt, shot.id)"><Copy :size="13" />{{ copiedKey===`shot:${shot.id}` ? 'Copied' : 'Copy prompt' }}</button><OpenInButtons :prompt="shot.prompt" :seed="index" /><p class="studio-paste-hint">Paste this into Grok Imagine, Google, or any other AI image or video model.</p></li></ol><p v-if="boardReady" class="studio-thanks">Enjoying Moovicut? <a href="https://buymeacoffee.com/enzoc1977r" target="_blank" rel="noopener">Tips keep it free</a> <span>Tips pay for hosting and keep Moovicut free.</span><a v-if="SOCIAL_X_URL" class="studio-follow" :href="SOCIAL_X_URL" target="_blank" rel="noopener">Follow on X (it's free!)</a></p><nav class="studio-view-tabs" aria-label="Storyboard views"><button type="button" :aria-pressed="activeTab==='preview'" @click="activeTab='preview'">Preview</button><button type="button" :aria-pressed="activeTab==='explore'" @click="activeTab='explore'">Explore</button><button type="button" :aria-pressed="activeTab==='prompts'" @click="activeTab='prompts'">Prompts</button></nav><nav class="studio-provider-list" aria-label="Prompt targets"><span v-for="name in REFERENCE_MODEL_NAMES" :key="name">{{name}}</span></nav><p class="sr-only">Local prompt studies and storyboard results</p>
    <div class="studio-genre-filters" role="toolbar" aria-label="Filter prompts by genre"><button v-for="tag in genreTags" :key="tag" type="button" :aria-pressed="genreFilter===tag" @click="genreFilter=tag">{{tag}}</button></div>
    <div v-if="activeTab==='preview'" class="studio-inspiration-cards"><article v-for="study in visibleStudies" :key="study.title" class="studio-prompt-card"><picture><source :srcset="joinAppPath(appBaseURL,promptImageSrc(study.file,'webp'))" type="image/webp" /><img :src="joinAppPath(appBaseURL,promptImageSrc(study.file,'jpg'))" :alt="study.title" width="1280" height="720" loading="lazy" decoding="async" /></picture><div class="studio-prompt-card-body"><span class="studio-genre-chip">{{study.genre}}</span><strong>{{study.title}}</strong><p>{{study.premise}}</p><button class="studio-card-copy" type="button" @click="copyStudyPrompt(study)">{{ copiedKey===`study:${study.title}` ? 'Copied' : 'Copy prompt' }}</button></div></article></div>
    <div v-else-if="activeTab==='explore'" class="studio-explore"><h2>Explore story ideas</h2><p>Choose a study to use its premise in your local storyboard.</p><div class="studio-inspiration-cards"><article v-for="study in visibleStudies" :key="study.title" class="studio-prompt-card"><picture><source :srcset="joinAppPath(appBaseURL,promptImageSrc(study.file,'webp'))" type="image/webp" /><img :src="joinAppPath(appBaseURL,promptImageSrc(study.file,'jpg'))" :alt="study.title" width="1280" height="720" loading="lazy" decoding="async" /></picture><div class="studio-prompt-card-body"><span class="studio-genre-chip">{{study.genre}}</span><strong>{{study.title}}</strong><p>{{study.premise}}</p><button class="studio-card-copy" type="button" @click="useStudy(study)">Use this idea</button></div></article></div></div>

@@ -61,10 +61,10 @@ export function parseAd(input = {}) {
   const placeDescription = setting || 'a clean setting built around the product'
   const spoken = cta ? ` A voice says ${cta}.` : ''
   const shots = [
-    { stage: 'Hook', title: 'Hook', cam: 'wide', action: `The want is clear. ${benefit}`, what: `The want is clear. ${benefit}` },
-    { stage: 'Hero', title: 'Hero', cam: 'push', action: `${product} holds the frame. ${benefit}`, what: `${product} holds the frame. ${benefit}` },
-    { stage: 'Proof', title: 'Proof', cam: 'close', action: `One clear proof of the benefit. ${benefit}`, what: `One clear proof of the benefit. ${benefit}` },
-    { stage: 'Pack shot', title: 'Pack shot', cam: 'static', action: `${product} fills the frame.${spoken} No lettering in the frame.`, what: `${product} fills the frame.${spoken} No lettering in the frame.` }
+    { stage: 'Hook', title: 'Hook', cam: 'wide', action: `${product} opens the spot. ${benefit}`, what: `${product} opens the spot. ${benefit}` },
+    { stage: 'Hero', title: 'Hero', cam: 'push', action: `${product} fills the frame while ${benefit.charAt(0).toLowerCase()}${benefit.slice(1)}`, what: `${product} fills the frame while ${benefit.charAt(0).toLowerCase()}${benefit.slice(1)}` },
+    { stage: 'Proof', title: 'Proof', cam: 'close', action: `Show ${product} doing one thing: ${benefit.charAt(0).toLowerCase()}${benefit.slice(1)}`, what: `Show ${product} doing one thing: ${benefit.charAt(0).toLowerCase()}${benefit.slice(1)}` },
+    { stage: 'Pack shot', title: 'Pack shot', cam: 'static', action: `${product} rests in frame, ready to take.${spoken} No lettering in the frame.`, what: `${product} rests in frame, ready to take.${spoken} No lettering in the frame.` }
   ].map(shot => ({
     ...shot,
     who: product,

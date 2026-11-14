@@ -31,10 +31,27 @@ export function createRateLimiter({ limit = RATE_LIMIT.limit, windowMs = RATE_LI
   }
 }
 
+function headerValue(headers, name) {
+  if (!headers || typeof headers !== 'object') return ''
+  const value = headers[name] ?? headers[String(name).toLowerCase()]
+  if (Array.isArray(value)) return value.join(',')
+  return typeof value === 'string' ? value : ''
+}
+
+function normalizeAddress(value) {
+  return String(value || '').trim().replace(/^::ffff:/i, '').slice(0, 80)
+}
+
+/**
+ * Railway replaces X-Forwarded-For and sets X-Real-IP to the visitor
+ * (https://docs.railway.com/networking/public-networking/specs-and-limits).
+ * moovicut.studio is behind Cloudflare, so any X-Forwarded-For entry is a proxy hop.
+ * Never read a position in that header. The same address is used for the visit counter.
+ */
 export function clientAddress(headers = {}, fallback = '') {
-  const forwarded = headers['x-forwarded-for']
-  if (typeof forwarded === 'string' && forwarded.trim()) return forwarded.split(',')[0].trim().slice(0, 80)
-  return String(fallback || '').slice(0, 80)
+  const real = normalizeAddress(headerValue(headers, 'x-real-ip').split(',')[0])
+  if (real) return real
+  return normalizeAddress(fallback)
 }
 
 export function isLimitedPath(pathname) {
@@ -283,7 +300,7 @@ function agentBody(project, link) {
 }
 export function planFromInput(input, { origin = SITE, compact = false } = {}) {
   if (input && typeof input === 'object' && !Array.isArray(input) && input.schema === AGENT_BOARD_SCHEMA) {
-    const project = importAgentBoard(input)
+    const project = importAgentBoard(input, { overwritePrompt: input.overwritePrompt === true })
     const link = boardLink(origin, project, {})
     if (input.regenerateShot || input.shotId) return planRegenerate({ ...input, project }, { origin, compact })
     return agentBody(project, link)
@@ -336,7 +353,7 @@ const STORYBOARD_SCHEMA = {
     density: { type: 'string', enum: ['standard', 'concise'], default: 'standard', description: 'Concise keeps one short continuity line. Standard includes the shared sheet once. Strict still repeats the sheet verbatim.' },
     aspectRatio: { type: 'string', enum: ['9:16', '1:1', '4:5', '16:9'], default: '16:9' },
     genre: { type: 'string', description: `Story genre, or a style-preset genre. Preset families: ${listPresets().map(family => `${family.id} (${family.genres.map(genre => genre.id).join(', ')})`).join('; ')}. Default preset when a scenario omits both is cinema / drama.` },
-    style: { type: 'string', description: 'Fun, Normal, Spicy, a visual style id such as cinematic or illustrative, or a preset family: anime, cinema, documentary.' },
+    style: { type: 'string', description: 'Fun, Normal, Spicy, a visual style id such as cinematic or illustrative, or a preset family: anime, cinema, documentary. manga is an alias of anime. An unknown family is 400. A named family locks that preset into every mode, including a plain premise.' },
     scenario: {
       description: 'Structured scenario. When present, it sets the scene count and wins over scenes. Text form uses CHARACTERS, PLACES, and SCENES blocks. Cap 8,000 characters.',
       oneOf: [{ type: 'string', maxLength: 8000 }, { type: 'object', additionalProperties: true }]
@@ -345,9 +362,9 @@ const STORYBOARD_SCHEMA = {
     type: { type: 'string', enum: ['prose'], description: 'Alias of input.' },
     prose: { type: 'string', maxLength: 8000, description: 'Free-text story used when input is prose.' },
     text: { type: 'string', maxLength: 8000, description: 'Alias of prose.' },
-    overwritePrompt: { type: 'boolean', default: false, description: 'Replace a client-supplied prompt. Omitted or false keeps that prompt.' },
+    overwritePrompt: { type: 'boolean', default: false, description: 'When false or omitted, a hand-edited prompt (promptEdited) is kept, including when a shotboard.compact.v1 board is posted back. When true, those prompts are regenerated.' },
     format: { type: 'string', enum: ['agent'], description: 'Return shotboard.compact.v1 for every mode: title, premise, model, aspect, mode, style, genre, film sheet, and shots. The default compact plan response stays the short payload.' },
-    schema: { type: 'string', enum: ['shotboard.compact.v1'], description: 'Send a shotboard.compact.v1 document back to resume it. Prompts marked promptEdited stay as written.' },
+    schema: { type: 'string', enum: ['shotboard.compact.v1'], description: 'Send a shotboard.compact.v1 document back to resume it. Prompts marked promptEdited stay as written unless overwritePrompt is true, which regenerates them.' },
     regenerateShot: { type: 'string', description: 'Shot id to rebuild. Send project or storyboard with it. Other shots stay unchanged. A hand-edited prompt is kept unless overwritePrompt is true.' },
     shotId: { type: 'string', description: 'Alias of regenerateShot.' },
     project: { type: 'object', additionalProperties: true, description: 'Existing shotboard.v1 used with regenerateShot.' },

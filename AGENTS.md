@@ -82,7 +82,7 @@ JSON shape uses short fields: characters `name`/`n`, `look`/`l`, `outfit`/`o`; p
 
 Characters, places, and light live on one film sheet. Each shot names them. The generated prompt fills in the look, outfit, and place. A prompt you send on a scene is kept. Send `overwritePrompt: true` when that prompt should be replaced.
 
-Style presets lock one base sheet for every shot: `style` `anime`, `cinema`, or `documentary`, and a `genre` from that family (anime: shonen, shojo, seinen, slice-of-life, mecha, fantasy, ghibli; cinema: thriller, comedy, scifi, horror, drama, western, noir, romance, action; documentary: nature, history, portrait, investigation, travel). Omitted preset fields use cinema / drama. An unknown family or genre returns 400 and the allowed list. Changing the preset rewrites generated prompts and leaves a hand-edited prompt in place.
+Style presets lock one base sheet for every shot, in every mode, including a plain premise: `style` `anime`, `cinema`, or `documentary`, and a `genre` from that family (anime: shonen, shojo, seinen, slice-of-life, mecha, fantasy, ghibli; cinema: thriller, comedy, scifi, horror, drama, western, noir, romance, action; documentary: nature, history, portrait, investigation, travel). `manga` is an alias of `anime`. Omitted preset fields use cinema / drama. An unknown family or genre returns 400 and the allowed list. Changing the preset rewrites generated prompts and leaves a hand-edited prompt in place.
 
 Scenes are packed into sequences of 15–60 seconds. Each sequence is copied separately. Aim for about 1,500 characters per minute. The response warns from 6,000 characters and stops at 8,000. A normal premise stays 8–6,000 characters.
 
@@ -110,7 +110,7 @@ Quick idea, Step-by-step, continuous story, scenario, ad, series, and explainer 
 
 The personal library (`shotboard.library.v1`) saves characters, places, and styles in this browser only. Export and import that JSON file from `/studio`. Nothing is uploaded.
 
-Send `format: "agent"` to get `shotboard.compact.v1` for any mode: title, premise, model, aspect, mode, style, genre, film sheet, and shots. Post that document back to resume it. Shots with `promptEdited` stay as written. The default compact plan response does not add these fields.
+Send `format: "agent"` to get `shotboard.compact.v1` for any mode: title, premise, model, aspect, mode, style, genre, film sheet, and shots. Post that document back to resume it. Shots with `promptEdited` stay as written unless `overwritePrompt` is true, which regenerates them. The default compact plan response does not add these fields. `/api/*` and `/mcp` are limited to 30 requests a minute per client IP. The limiter uses Railway's `X-Real-IP` (the visitor address; Cloudflare sits in front, so `X-Forwarded-For` is not read) and falls back to the socket address. The same bucket applies across connections.
 
 ## Target models
 

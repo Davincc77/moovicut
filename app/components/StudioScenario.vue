@@ -1,12 +1,13 @@
 <script setup>
 import { Copy } from 'lucide-vue-next'
 import { listPresets } from '~/utils/prompt-engine.js'
-import { SCENARIO_EXAMPLE, agentScenarioPrompt, composeScenarioText, parseScenario, scenarioBudget, scenarioFieldsFromText } from '~/utils/scenario.js'
+import { agentScenarioPrompt, composeScenarioText, parseScenario, scenarioBudget, scenarioFieldsFromText } from '~/utils/scenario.js'
 import { applyDetection, applyWarningChoice, detectProse } from '~/utils/prose-detect.js'
 
 const props = defineProps({
   idea: { type: String, default: '' },
-  duration: { type: Number, default: 3 }
+  duration: { type: Number, default: 3 },
+  total: { type: Number, default: 0 }
 })
 const emit = defineEmits(['preset'])
 const { copyText } = useNotifier()
@@ -37,7 +38,13 @@ const budget = computed(() => scenarioBudget(composeScenarioText({
   scenes: scenes.value,
   light: light.value,
   mood: mood.value
-}), scenes.value.split('\n').filter(line => line.trim()).length * (Number(props.duration) || 3)))
+}), Number(props.total) || Number(props.duration) || 15))
+let detectTimer
+function scheduleDetect() {
+  clearTimeout(detectTimer)
+  detectTimer = setTimeout(() => fillFromText(prose.value), 350)
+}
+onBeforeUnmount(() => clearTimeout(detectTimer))
 
 function currentFields() {
   return { characters: characters.value, places: places.value, scenes: scenes.value, light: light.value, mood: mood.value }
@@ -106,23 +113,8 @@ defineExpose({ draft, fill: fillFromText })
 
 <template>
   <section class="studio-scenario" aria-label="Scenario">
-    <fieldset class="studio-sequence-mode">
-      <legend>Style preset</legend>
-      <div>
-        <label>Family
-          <select v-model="family" aria-label="Style family">
-            <option v-for="item in families" :key="item.id" :value="item.id">{{ item.label }}</option>
-          </select>
-        </label>
-        <label>Genre
-          <select v-model="genre" aria-label="Style genre">
-            <option v-for="item in genres" :key="item.id" :value="item.id">{{ item.label }}</option>
-          </select>
-        </label>
-      </div>
-    </fieldset>
     <label class="studio-scenario-paste">Paste a story or a formatted scenario
-      <textarea v-model="prose" aria-label="Paste a story or a formatted scenario" rows="4" placeholder="Paste free text, or a CHARACTERS / PLACES / SCENES block." @change="fillFromText(prose)"></textarea>
+      <textarea v-model="prose" aria-label="Paste a story or a formatted scenario" rows="4" placeholder="Paste free text, or a CHARACTERS / PLACES / SCENES block." @input="scheduleDetect" @change="fillFromText(prose)"></textarea>
     </label>
     <p v-if="detected" class="studio-scenario-confidence">Detection confidence: {{ detected.confidence }}. Lines you already edited stay as you left them.</p>
     <ul v-if="detected?.warnings?.length" class="studio-scenario-warnings">
@@ -138,9 +130,8 @@ defineExpose({ draft, fill: fillFromText })
       <textarea v-model="places" aria-label="Places" rows="3" placeholder="Café — a small morning cafe" @input="onEdit('places')"></textarea>
     </label>
     <label>3. Story, scene by scene
-      <textarea v-model="scenes" aria-label="Scenes" rows="4" placeholder="Scène 1 — Léa — Café — She pours a latte" @input="onEdit('scenes')"></textarea>
+      <textarea v-model="scenes" aria-label="Scenes" rows="4" placeholder="Scene 1 — Lea — Cafe — She pours a latte" @input="onEdit('scenes')"></textarea>
     </label>
-    <p class="studio-scenario-example">{{ SCENARIO_EXAMPLE }}</p>
     <div class="studio-scenario-style">
       <label>Light
         <input v-model="light" aria-label="Scenario light" placeholder="dawn" @input="onEdit('light')">

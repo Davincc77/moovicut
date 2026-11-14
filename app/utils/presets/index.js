@@ -24,6 +24,16 @@ export function presetGenres(familyId) {
   return FAMILIES.get(familyId)?.genres.map(genre => genre.id) || []
 }
 
+/** The studio label is “Anime / manga”, so manga is the same family. */
+const FAMILY_ALIASES = Object.freeze({ manga: 'anime' })
+
+export function canonicalStyleFamily(value) {
+  const id = String(value || '').trim().toLowerCase()
+  if (!id) return ''
+  const aliased = FAMILY_ALIASES[id] || id
+  return FAMILIES.has(aliased) ? aliased : ''
+}
+
 function presetError(errors) {
   const message = errors.length === 1 ? errors[0].message : `The style preset has ${errors.length} problems.`
   const error = new Error(message)
@@ -42,7 +52,15 @@ function familyByGenre(genreId) {
  * Unknown ids throw a 400 with every problem in `errors`.
  */
 export function resolvePreset(familyInput = '', genreInput = '') {
-  const familyId = String(familyInput || '').trim().toLowerCase()
+  const requested = String(familyInput || '').trim().toLowerCase()
+  const familyId = canonicalStyleFamily(requested)
+  if (requested && !familyId) {
+    const error = new Error(`Style family must be one of: ${presetFamilies().join(', ')}. manga is an alias of anime.`)
+    error.status = 400
+    error.code = 'invalid_preset'
+    error.errors = [{ field: 'style', message: error.message }]
+    throw error
+  }
   const genreId = String(genreInput || '').trim().toLowerCase()
   const errors = []
   if (familyId && !FAMILIES.has(familyId)) {

@@ -132,13 +132,13 @@ export function useProjectStore() {
     }
     return true
   }
-  function commit(next, message) {
+  function commit(next, message, action) {
     const normalized = normalizeProject(validateProject({ ...clone(next), target_model: next.model || next.target_model, updatedAt: new Date().toISOString() }).project)
     history.value.push(clone(project.value)); if (history.value.length > 40) history.value.shift()
     future.value = []; project.value = normalized; persist()
-    if (message) notify(message)
+    if (message) notify(message, 'success', action)
   }
-  function mutate(callback, message) { const next = clone(project.value); callback(next); commit(next, message) }
+  function mutate(callback, message, action) { const next = clone(project.value); callback(next); commit(next, message, action) }
   function createNew(premise, model = project.value.model, options = {}) {
     const guided = ['scenario', 'ad', 'series', 'explainer'].includes(options.sequenceMode) || options.scenario || options.ad || options.series || options.explainer || options.steps
     if (!premise?.trim() && !guided) throw new Error('Start with a short premise for your story.')
@@ -224,12 +224,28 @@ export function useProjectStore() {
     commit(result.project, 'This shot was regenerated. The other prompts stayed the same.')
     return result
   }
-  function resetShotPrompt(id) { mutate(next => {
-    const index = next.shots.findIndex(shot => shot.id === id || shot.shot_id === id)
-    if (index < 0) throw new Error(`Shot not found: ${id}`)
-    next.shots[index] = refreshShotPrompt(next.shots[index], next, index, { overwrite: true })
-    syncSequences(next)
-  }, 'Prompt reset to the generated text.') }
+  function restorePromptUndo() {
+    const saved = promptUndo.value
+    if (!saved?.prompt) return undo()
+    mutate(next => {
+      const index = next.shots.findIndex(shot => shot.id === saved.id || shot.shot_id === saved.id)
+      if (index < 0) return
+      next.shots[index] = { ...next.shots[index], prompt: saved.prompt, promptEdited: true }
+      syncSequences(next)
+    }, 'Your edited prompt is back.')
+    promptUndo.value = null
+  }
+  function resetShotPrompt(id) {
+    const current = project.value.shots.find(shot => shot.id === id || shot.shot_id === id)
+    if (!current?.promptEdited) return
+    promptUndo.value = { id: current.id, prompt: current.prompt, promptEdited: true }
+    mutate(next => {
+      const index = next.shots.findIndex(shot => shot.id === id || shot.shot_id === id)
+      if (index < 0) throw new Error(`Shot not found: ${id}`)
+      next.shots[index] = refreshShotPrompt(next.shots[index], next, index, { overwrite: true })
+      syncSequences(next)
+    }, 'Prompt reset to the generated text.', { label: 'Undo', run: restorePromptUndo })
+  }
   function removeShot(id) { if (project.value.shots.length <= 1) { notify('Keep at least one shot in your storyboard.', 'info'); return }; mutate(next => { next.shots = next.shots.filter(shot => shot.id !== id); assignShotStages(next.shots) }, 'Shot removed. Undo is available.') }
   function moveShot(id, direction) { mutate(next => {
     const index = next.shots.findIndex(shot => shot.id === id); const target = index + direction
@@ -293,6 +309,7 @@ export function useProjectStore() {
     commit({ ...imported, title: imported.title || 'Imported story' }, 'Storyboard imported successfully'); return imported
   }
   const personalLibrary = useState('shotboard-personal-library', () => emptyLibrary())
+  const promptUndo = useState('prompt-undo', () => null)
   function rememberLibrary(next, message) {
     personalLibrary.value = next
     if (hasLocalStorage()) writeLibrary(localStorage, next)
@@ -305,7 +322,8 @@ export function useProjectStore() {
   function libraryFile() { return exportLibrary(personalLibrary.value) }
   function replaceLibrary(text) { return rememberLibrary(importLibrary(text), 'Library imported on this device.') }
   function agentBoard() { return exportAgentBoard(project.value) }
-  const api = { project, hydrated, saving, saveState, settings, setPreference, attachReference, history, future, shotCount, duration, canUndo, hydrate, persist, commit, mutate, createNew, selectModel, applyPromptSettings, updateShot, updateShotFields, updateContinuity, patchFilmSheet, setSequenceMode, setStylePreset, regenerateOne, resetShotPrompt, removeShot, moveShot, insertShot, addShotAtEnd, undo, redo, loadProject, removeSavedProject, resetWorkspace, restoreBackup, setIdentity, saveLocalIdentity, setGuestIdentity, importProject, rememberCharacter, rememberPlace, rememberStyle, libraryFile, replaceLibrary, agentBoard, serialized: computed(() => serializeProject(project.value)) }
+  const api = { project, hydrated, saving, saveState, settings, setPreference, attachReference, history, future, shotCount, duration, canUndo, hydrate, persist, commit, mutate, createNew, selectModel, applyPromptSettings, updateShot, updateShotFields, updateContinuity, patchFilmSheet, setSequenceMode, setStylePreset, regenerateOne, resetShotPrompt, restorePromptUndo, removeShot, moveShot, insertShot, addShotAtEnd, undo, redo, loadProject, removeSavedProject, resetWorkspace, restoreBackup, setIdentity, saveLocalIdentity, setGuestIdentity, importProject, rememberCharacter, rememberPlace, rememberStyle, libraryFile, replaceLibrary, agentBoard, serialized: computed(() => serializeProject(project.value)) }
+  Object.defineProperty(api, 'promptUndo', { enumerable: true, get: () => promptUndo.value })
   Object.defineProperty(api, 'personalLibrary', { enumerable: true, get: () => personalLibrary.value })
   Object.defineProperty(api, 'identity', { enumerable: true, get: () => identity.value })
   // Return an array property, not a ref: Vue templates unwrap refs exposed from setup.
