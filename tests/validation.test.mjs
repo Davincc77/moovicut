@@ -40,7 +40,7 @@ test('extreme durations are bounded and valid sound survives normalization', () 
 })
 
 test('model switching is explicit and retains stable shot identifiers', () => {
-  const project = createStoryboard({ premise: 'Two friends build a solar radio for an approaching storm.', count: 3 })
+  const project = createStoryboard({ premise: 'Two friends build a solar radio for an approaching storm.', count: 3, promptStyle: 'detailed' })
   const google = regenerateShotPrompts({ ...project, model: 'google' })
   assert.equal(google.target_model, 'google')
   assert.ok(google.shots.every(shot => shot.prompt.includes('CAMERA:')))

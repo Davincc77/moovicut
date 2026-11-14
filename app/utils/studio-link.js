@@ -36,6 +36,7 @@ export function sharePayload(options = {}) {
     shots: canonicalShotCount(options.shots ?? options.count ?? DEFAULT_SHOT_COUNT),
     continuity: options.continuity === 'strict' || options.continuityStrength === 'strict' ? 'strict' : 'standard',
     density: options.density === 'concise' || options.promptDensity === 'concise' ? 'concise' : 'standard',
+    promptStyle: options.promptStyle === 'detailed' || options.prompt_style === 'detailed' ? 'detailed' : 'short',
     aspectRatio: canonicalAspect(options.aspectRatio),
     duration: canonicalDuration(options.duration ?? DEFAULT_SHOT_DURATION)
   }

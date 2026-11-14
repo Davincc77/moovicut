@@ -14,6 +14,7 @@ Later, Lea walks on the beach. The next morning she returns to the cafe.`
 test('switching modes keeps the film sheet and a hand-edited prompt', () => {
   const board = createStoryboard({
     premise,
+    promptStyle: 'detailed',
     sequenceMode: 'scenario',
     scenario: {
       characters: [{ name: 'Léa', look: 'curly hair', outfit: 'green apron' }],
@@ -40,7 +41,7 @@ test('switching modes keeps the film sheet and a hand-edited prompt', () => {
 })
 
 test('a style preset applies in continuous mode and skips an edited prompt', () => {
-  const board = createStoryboard({ premise, sequenceMode: 'continuous' })
+  const board = createStoryboard({ premise, sequenceMode: 'continuous', promptStyle: 'detailed' })
   board.shots[1].prompt = 'KEEP THIS LINE'
   board.shots[1].promptEdited = true
   const next = applyStylePreset(board, 'documentary', 'portrait')

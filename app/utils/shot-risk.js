@@ -35,6 +35,10 @@ export function flaggedNameKeys(text) {
   })
   return keys
 }
+const HAND_DIRECT = /\b(hands?|fingers?|palms?|hand-?off|handoff|holding|holds?\s+(?:the|a|an|his|her|their)|held|pours?|pouring|shoulders|grips?|grasps?|clutches)\b/i
+const HAND_TRANSFER = /\b(passes|passing|gives|giving|hands over|hands him|hands her|hands them|hands the)\b/i
+const HAND_WITH_OBJECT = /\b(carries|carrying|repairs?|repairing|lifts|raises|taking|takes)\b/i
+const HELD_OBJECT = /\b(lantern|cup|mug|glass|bottle|loaf|bread|pastry|umbrella|flashlight|phone|letter|map|key|keys|tool|rope|bag|tray|plate|bowl|hammer|lens)\b/i
 const CAMERA_CONFLICTS = [
   [/\bpush(?:-|\s)?in\b/i, /\bpull(?:-|\s)?(?:out|back)\b/i, 'push-in and pull-back'],
   [/\bzoom in\b/i, /\bzoom out\b/i, 'zoom in and zoom out'],
@@ -48,6 +52,14 @@ function warning(shot, code, message, fix) {
 
 function sourceOf(shot) {
   return [shot.what, shot.action].filter(Boolean).join(' ')
+}
+
+/** Hands, a hand-off, or a held object. The camera word "handheld" does not count. */
+export function shotInvolvesHands(shot = {}) {
+  const source = [shot.what, shot.action, shot.notes, shot.title].filter(Boolean).join('\n')
+  if (!source) return false
+  if (HAND_DIRECT.test(source) || HAND_TRANSFER.test(source)) return true
+  return HAND_WITH_OBJECT.test(source) && HELD_OBJECT.test(source)
 }
 
 function userText(shot, project) {
@@ -102,6 +114,9 @@ export function assessShot(shot, project = {}) {
   }
   if (CROWD.test(source)) {
     warnings.push(warning(shot, 'crowd', 'A crowd is hard to keep stable in a short clip.', 'Show one or two people instead of a crowd.'))
+  }
+  if (shotInvolvesHands(shot)) {
+    warnings.push(warning(shot, 'hands_or_held_object', 'Hands or a held object are easy for a video model to melt or change shape.', 'Keep the hands simple, and say the held object stays the same shape.'))
   }
   const named = new Set([
     ...nameParts(shot.who).map(name => name.toLowerCase()),

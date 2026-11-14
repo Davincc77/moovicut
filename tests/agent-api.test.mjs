@@ -54,6 +54,7 @@ test('a scenario-only body is accepted and later shots do not repeat scene 1', (
           { w: 'Léa', at: 'Café', do: 'She locks the door' }
         ]
       },
+      prompt_style: 'detailed',
       compact: true
     })
   })
@@ -91,14 +92,15 @@ test('storyboard API returns full and compact boards and a studio hash link', as
     const compact = await fetch(`${base}/api/v1/storyboard?compact=1`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ premise, compact: true, scenes: [
+      body: JSON.stringify({ premise, compact: true, prompt_style: 'detailed', scenes: [
         { action: 'The keeper shoulders the lantern.', duration: 4, camera: 'Handheld', lighting: 'Warm lamp', notes: 'Wind in the mic' },
         { beat: 'The beacon flashes once.', duration: 3 }
       ] })
     })
     assert.equal(compact.status, 200)
     const short = await compact.json()
-    assert.deepEqual(Object.keys(short).sort(), ['aspectRatio', 'model', 'premise', 'shots', 'studioUrl', 'title'])
+    assert.deepEqual(Object.keys(short).sort(), ['aspectRatio', 'model', 'premise', 'shots', 'studioUrl', 'title', 'warnings'])
+    assert.equal(short.warnings[0].code, 'hands_or_held_object')
     assert.equal(short.shots.length, 2)
     assert.equal(short.shots[0].duration, 4)
     assert.equal(short.shots[0].order, 1)

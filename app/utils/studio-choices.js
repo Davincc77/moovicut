@@ -7,6 +7,7 @@ const MODELS = PROFILE_IDS
 const SEQUENCE_MODES = ['continuous', 'varied']
 const STRENGTHS = ['standard', 'strict']
 const DENSITIES = ['standard', 'concise']
+const PROMPT_STYLES = ['short', 'detailed']
 
 function sequenceModeOf(value, fallback = '') {
   return SEQUENCE_MODES.includes(value) ? value : fallback
@@ -20,6 +21,10 @@ function densityOf(value) {
   return DENSITIES.includes(value) ? value : 'standard'
 }
 
+function promptStyleOf(value) {
+  return PROMPT_STYLES.includes(value) ? value : 'short'
+}
+
 export function readStudioChoices(storage) {
   try {
     const saved = JSON.parse(storage?.getItem(STUDIO_CHOICES_KEY) || '{}')
@@ -29,10 +34,11 @@ export function readStudioChoices(storage) {
       sequenceMode: sequenceModeOf(saved.sequenceMode),
       aspectRatio: canonicalAspect(saved.aspectRatio),
       continuityStrength: strengthOf(saved.continuityStrength),
-      promptDensity: densityOf(saved.promptDensity)
+      promptDensity: densityOf(saved.promptDensity),
+      promptStyle: promptStyleOf(saved.promptStyle)
     }
   } catch {
-    return { style: 'Normal', model: 'grok', sequenceMode: '', aspectRatio: '16:9', continuityStrength: 'standard', promptDensity: 'standard' }
+    return { style: 'Normal', model: 'grok', sequenceMode: '', aspectRatio: '16:9', continuityStrength: 'standard', promptDensity: 'standard', promptStyle: 'short' }
   }
 }
 
@@ -43,7 +49,8 @@ export function writeStudioChoices(storage, choices = {}) {
     sequenceMode: sequenceModeOf(choices.sequenceMode, 'continuous'),
     aspectRatio: canonicalAspect(choices.aspectRatio),
     continuityStrength: strengthOf(choices.continuityStrength),
-    promptDensity: densityOf(choices.promptDensity)
+    promptDensity: densityOf(choices.promptDensity),
+    promptStyle: promptStyleOf(choices.promptStyle)
   }
   storage?.setItem(STUDIO_CHOICES_KEY, JSON.stringify(next))
   return next

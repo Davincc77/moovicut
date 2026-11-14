@@ -57,7 +57,7 @@ test('scenario JSON accepts short fields and rejects a bad camera with the allow
 })
 
 test('a scenario board resolves names once and packs 15–60s sequences', () => {
-  const board = createStoryboard({ premise: text, style: 'anime', genre: 'shojo' })
+  const board = createStoryboard({ premise: text, style: 'anime', genre: 'shojo', promptStyle: 'detailed' })
   assert.equal(board.sequenceMode, 'scenario')
   assert.equal(board.shots.length, 3)
   assert.equal(board.preset.family, 'anime')
@@ -88,7 +88,7 @@ test('an unknown preset lists the allowed genres in one error', () => {
 })
 
 test('a hand-edited prompt survives preset changes and regeneration', () => {
-  const board = createStoryboard({ scenario: text, style: 'cinema', genre: 'drama' })
+  const board = createStoryboard({ scenario: text, style: 'cinema', genre: 'drama', promptStyle: 'detailed' })
   board.shots[1].prompt = 'KEEP THIS LINE'
   board.shots[1].promptEdited = true
   const changed = applyStylePreset(board, 'documentary', 'portrait')
@@ -284,6 +284,7 @@ test('an idea made only of risk-flagged names shows the neutral note and no miss
 
 test('a scenario without a premise does not copy scene 1 into later shots', () => {
   const board = createStoryboard({
+    promptStyle: 'detailed',
     scenario: {
       characters: [
         { n: 'Léa', l: 'curly hair', o: 'green apron' },
@@ -312,6 +313,7 @@ test('a scenario without a premise does not copy scene 1 into later shots', () =
   assert.doesNotMatch(board.shots[0].prompt.split('\n')[0], /opening latte/)
   assert.equal(refreshProjectPrompts(board).shots[1].prompt, 'HAND WRITTEN')
   const explicit = createStoryboard({
+    promptStyle: 'detailed',
     premise: 'A quiet morning in the old town.',
     scenario: {
       characters: [{ name: 'Léa', look: 'curly hair', outfit: 'green apron' }],
