@@ -1,4 +1,7 @@
 <script setup>
+import { socialPreviewSeo } from '~/utils/social-preview.js'
+const runtimeConfig = useRuntimeConfig()
+const socialPreview = socialPreviewSeo(runtimeConfig.public.productionOrigin || runtimeConfig.public.appUrl, runtimeConfig.app.baseURL)
 const { copyText } = useNotifier()
 const copied = ref(false)
 const agentPrompt = `Use Moovicut to plan a storyboard. No API key and no account. Moovicut does not render video and does not store the premise.
@@ -33,7 +36,8 @@ async function copyAgentPrompt() {
 }
 useSeoMeta({
   title: 'Agents — Moovicut',
-  description: 'Free storyboard API and MCP for AI agents. No API key and no account. The default board is 5 scenes of 3 seconds.'
+  description: 'Free storyboard API and MCP for AI agents. No API key and no account. The default board is 5 scenes of 3 seconds.',
+  ...socialPreview
 })
 </script>
 <template>
