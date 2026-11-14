@@ -132,7 +132,7 @@ test('API routes rate limit by IP and reject oversized or invalid input', async 
   const base = await listen(server)
   const send = (ip) => fetch(`${base}/api/v1/storyboard`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-forwarded-for': ip },
+    headers: { 'content-type': 'application/json', 'x-real-ip': ip },
     body: JSON.stringify({ premise })
   })
   try {
@@ -142,9 +142,9 @@ test('API routes rate limit by IP and reject oversized or invalid input', async 
     assert.equal(blocked.status, 429)
     assert.equal(blocked.headers.get('retry-after'), '60')
     assert.equal((await send('203.0.113.9')).status, 200)
-    const bad = await fetch(`${base}/api/v1/storyboard`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-forwarded-for': '203.0.113.10' }, body: '{"premise":"short"}' })
+    const bad = await fetch(`${base}/api/v1/storyboard`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-real-ip': '203.0.113.10' }, body: '{"premise":"short"}' })
     assert.equal(bad.status, 400)
-    const huge = await fetch(`${base}/api/v1/storyboard`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-forwarded-for': '203.0.113.11' }, body: JSON.stringify({ premise: 'x'.repeat(40000) }) })
+    const huge = await fetch(`${base}/api/v1/storyboard`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-real-ip': '203.0.113.11' }, body: JSON.stringify({ premise: 'x'.repeat(40000) }) })
     assert.equal(huge.status, 413)
     const direct = dispatchAgentRequest({ method: 'POST', pathname: '/api/v1/storyboard', body: '{', origin: 'https://moovicut.studio' })
     assert.equal(direct.status, 400)

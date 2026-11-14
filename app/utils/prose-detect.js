@@ -264,28 +264,26 @@ function detectScenes(text, characters, places, language) {
   let lastWhere = places[0]?.name || ''
   splitBlocks(text).forEach(block => {
     sentencesOf(block).forEach(sentence => {
-      const actions = clausesOf(sentence)
-      if (!actions.length) return
-      actions.forEach(action => {
-        const foundNames = namesIn(`${sentence} ${action}`, characters)
-        const who = foundNames.length ? foundNames.slice(0, 2).map(item => item.name).join(language === 'fr' ? ' et ' : ' and ') : lastWho
-        if (who) lastWho = who.split(/\s+(?:et|and)\s+/)[0]
-        const foundPlace = placeIn(`${sentence} ${action}`, places)
-        const where = foundPlace?.name || lastWhere
-        if (where) lastWhere = where
-        const index = scenes.length
-        let confidence = 'high'
-        if (!foundNames.length || !foundPlace) confidence = 'medium'
-        if (!where) {
-          confidence = 'low'
-          warnings.push({ code: 'missing_place', message: `No place found for scene ${index + 1}.`, target: 'scenes', index, options: places.map(place => place.name) })
-        }
-        if (!who) {
-          confidence = 'low'
-          warnings.push({ code: 'missing_character', message: `No character found for scene ${index + 1}.`, target: 'scenes', index, options: characters.map(character => character.name) })
-        }
-        scenes.push({ number: index + 1, who: who || '', where: where || '', what: cleanText(action).replace(/^[,;:\s]+/, '').replace(/[.!?]+$/, ''), duration: 3, confidence })
-      })
+      if (!hasVerb(sentence) || JUMP.test(sentence) && tokens(sentence).length < 3) return
+      const action = cleanText(sentence).replace(/^[,;:\s]+/, '').replace(/[.!?]+$/, '')
+      const foundNames = namesIn(sentence, characters)
+      const who = foundNames.length ? foundNames.slice(0, 2).map(item => item.name).join(language === 'fr' ? ' et ' : ' and ') : lastWho
+      if (who) lastWho = who.split(/\s+(?:et|and)\s+/)[0]
+      const foundPlace = placeIn(sentence, places)
+      const where = foundPlace?.name || lastWhere
+      if (where) lastWhere = where
+      const index = scenes.length
+      let confidence = 'high'
+      if (!foundNames.length || !foundPlace) confidence = 'medium'
+      if (!where) {
+        confidence = 'low'
+        warnings.push({ code: 'missing_place', message: `No place found for scene ${index + 1}.`, target: 'scenes', index, options: places.map(place => place.name) })
+      }
+      if (!who) {
+        confidence = 'low'
+        warnings.push({ code: 'missing_character', message: `No character found for scene ${index + 1}.`, target: 'scenes', index, options: characters.map(character => character.name) })
+      }
+      scenes.push({ number: index + 1, who: who || '', where: where || '', what: action, duration: 3, confidence })
     })
   })
   return { scenes, warnings }

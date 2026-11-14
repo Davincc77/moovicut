@@ -110,7 +110,7 @@ Quick idea, Step-by-step, continuous story, scenario, ad, series, and explainer 
 
 The personal library (`shotboard.library.v1`) saves characters, places, and styles in this browser only. Export and import that JSON file from `/studio`. Nothing is uploaded.
 
-Send `format: "agent"` to get `shotboard.compact.v1` for any mode: title, premise, model, aspect, mode, style, genre, film sheet, and shots. Post that document back to resume it. Shots with `promptEdited` stay as written unless `overwritePrompt` is true, which regenerates them. The default compact plan response does not add these fields. `/api/*` and `/mcp` are limited to 30 requests a minute per client IP. The limiter uses the rightmost `X-Forwarded-For` entry, the address the trusted proxy appends, and the same bucket applies across connections.
+Send `format: "agent"` to get `shotboard.compact.v1` for any mode: title, premise, model, aspect, mode, style, genre, film sheet, and shots. Post that document back to resume it. Shots with `promptEdited` stay as written unless `overwritePrompt` is true, which regenerates them. The default compact plan response does not add these fields. `/api/*` and `/mcp` are limited to 30 requests a minute per client IP. The limiter uses Railway's `X-Real-IP` (the visitor address; Cloudflare sits in front, so `X-Forwarded-For` is not read) and falls back to the socket address. The same bucket applies across connections.
 
 ## Target models
 

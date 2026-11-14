@@ -43,16 +43,15 @@ function normalizeAddress(value) {
 }
 
 /**
- * Railway's proxy appends the connecting client to X-Forwarded-For.
- * The rightmost entry is that hop. A leading entry is client-supplied and is ignored.
+ * Railway replaces X-Forwarded-For and sets X-Real-IP to the visitor
+ * (https://docs.railway.com/networking/public-networking/specs-and-limits).
+ * moovicut.studio is behind Cloudflare, so any X-Forwarded-For entry is a proxy hop.
+ * Never read a position in that header. The same address is used for the visit counter.
  */
 export function clientAddress(headers = {}, fallback = '') {
-  const parts = headerValue(headers, 'x-forwarded-for').split(',').map(part => part.trim()).filter(Boolean)
-  if (parts.length) return normalizeAddress(parts[parts.length - 1])
-  const socket = normalizeAddress(fallback)
-  if (socket) return socket
-  const real = headerValue(headers, 'x-real-ip').split(',')[0]
-  return normalizeAddress(real)
+  const real = normalizeAddress(headerValue(headers, 'x-real-ip').split(',')[0])
+  if (real) return real
+  return normalizeAddress(fallback)
 }
 
 export function isLimitedPath(pathname) {

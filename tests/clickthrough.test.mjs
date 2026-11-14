@@ -39,6 +39,11 @@ test('prose detection keeps Mara and Lena on the right people, places, and scene
   assert.ok(second.places.some(place => /street/i.test(place.name)))
   assert.equal(second.places.some(place => /window/i.test(place.name)), false)
   assert.equal(second.scenes.length, 4)
+  assert.match(second.scenes[0].what, /opens her tiny bakery/)
+  assert.match(second.scenes[1].what, /knocks on the window/)
+  assert.match(second.scenes[2].what, /hands him a warm pastry/)
+  assert.match(second.scenes[3].what, /returns with an umbrella/)
+  assert.equal(first.scenes.length, 3)
 })
 
 test('a style family locks every mode, manga aliases anime, and an unknown family is 400', () => {
@@ -53,6 +58,7 @@ test('a style family locks every mode, manga aliases anime, and an unknown famil
   assert.equal(documentary.preset.family, 'documentary')
   assert.match(documentary.shots[0].prompt, /Style lock:/)
   const manga = createStoryboard({ premise, style: 'manga', genre: 'shojo', sequenceMode: 'varied' })
+  assert.equal(manga.style, 'anime')
   assert.equal(manga.preset.family, 'anime')
   assert.equal(manga.preset.genre, 'shojo')
   const switched = retargetMode(manga, 'continuous')
@@ -71,7 +77,10 @@ test('a style family locks every mode, manga aliases anime, and an unknown famil
     })
   })
   assert.equal(scenario.status, 200)
-  assert.equal(JSON.parse(scenario.body).preset.family, 'anime')
+  const scenarioBody = JSON.parse(scenario.body)
+  assert.equal(scenarioBody.preset.family, 'anime')
+  assert.equal(scenarioBody.style, 'anime')
+  assert.match(scenarioBody.shots[0].prompt, /fine ink line art|Style lock:/)
   const unknown = dispatchAgentRequest({
     method: 'POST', pathname: '/api/v1/storyboard', origin: 'https://moovicut.studio',
     body: JSON.stringify({ premise, style: 'oilpaint' })
@@ -140,22 +149,24 @@ test('overwritePrompt regenerates a posted agent board and otherwise keeps the e
   assert.notEqual(body.shots[0].prompt, 'HAND EDITED')
 })
 
-test('the rate limit keys the rightmost forwarded address across connections', async () => {
-  assert.equal(clientAddress({ 'x-forwarded-for': '1.2.3.4, 203.0.113.8' }), '203.0.113.8')
-  assert.equal(clientAddress({ 'x-forwarded-for': '9.9.9.9, 203.0.113.8' }), '203.0.113.8')
-  assert.equal(clientAddress({ 'x-forwarded-for': '1.2.3.4' }, '203.0.113.8'), '1.2.3.4')
+test('the rate limit uses X-Real-IP and ignores X-Forwarded-For', async () => {
+  assert.equal(clientAddress({ 'x-real-ip': '203.0.113.8', 'x-forwarded-for': '1.2.3.4, 198.51.100.1' }), '203.0.113.8')
+  assert.equal(clientAddress({ 'x-forwarded-for': '1.2.3.4, 198.51.100.1' }, '203.0.113.8'), '203.0.113.8')
+  assert.equal(clientAddress({ 'x-real-ip': '203.0.113.9', 'x-forwarded-for': '1.2.3.4' }), '203.0.113.9')
   const directory = mkdtempSync(join(tmpdir(), 'moovicut-xff-'))
   const server = createProdServer({ staticRoot: directory, limiter: createRateLimiter({ limit: 2, windowMs: 60_000 }) })
   const base = await new Promise(resolve => server.listen(0, '127.0.0.1', () => resolve(`http://127.0.0.1:${server.address().port}`)))
-  function once(path, forwarded) {
+  function once(path, realIp, forwarded) {
     return new Promise((resolve, reject) => {
       const url = new URL(path, base)
       const body = JSON.stringify({ premise: 'A lighthouse keeper races the dusk to repair a failing beacon.' })
+      const headers = { 'x-real-ip': realIp, 'x-forwarded-for': forwarded, connection: 'close' }
+      if (!path.endsWith('/mcp')) {
+        headers['content-type'] = 'application/json'
+        headers['content-length'] = Buffer.byteLength(body)
+      }
       const req = http.request({
-        hostname: url.hostname, port: url.port, path: url.pathname, method: path.endsWith('/mcp') ? 'GET' : 'POST',
-        headers: path.endsWith('/mcp') ? { 'x-forwarded-for': forwarded, connection: 'close' } : {
-          'content-type': 'application/json', 'content-length': Buffer.byteLength(body), 'x-forwarded-for': forwarded, connection: 'close'
-        }
+        hostname: url.hostname, port: url.port, path: url.pathname, method: path.endsWith('/mcp') ? 'GET' : 'POST', headers
       }, response => { response.resume(); response.on('end', () => resolve(response.statusCode)) })
       req.on('error', reject)
       if (!path.endsWith('/mcp')) req.write(body)
@@ -163,13 +174,14 @@ test('the rate limit keys the rightmost forwarded address across connections', a
     })
   }
   try {
-    assert.equal(await once('/api/v1/storyboard', '8.8.8.8, 203.0.113.50'), 200)
-    assert.equal(await once('/api/v1/storyboard', '9.9.9.9, 203.0.113.50'), 200)
-    assert.equal(await once('/api/v1/storyboard', '7.7.7.7, 203.0.113.50'), 429)
-    assert.equal(await once('/api/v1/storyboard', '203.0.113.51'), 200)
-    assert.equal(await once('/mcp', '1.1.1.1, 203.0.113.70'), 200)
-    assert.equal(await once('/mcp', '2.2.2.2, 203.0.113.70'), 200)
-    assert.equal(await once('/mcp', '3.3.3.3, 203.0.113.70'), 429)
+    assert.equal(await once('/api/v1/storyboard', '203.0.113.50', '8.8.8.8, 198.51.100.1'), 200)
+    assert.equal(await once('/api/v1/storyboard', '203.0.113.50', '9.9.9.9, 198.51.100.2'), 200)
+    assert.equal(await once('/api/v1/storyboard', '203.0.113.50', '7.7.7.7'), 429)
+    assert.equal(await once('/api/v1/storyboard', '203.0.113.51', '203.0.113.50'), 200)
+    assert.equal(await once('/mcp', '203.0.113.70', '1.1.1.1'), 200)
+    assert.equal(await once('/mcp', '203.0.113.70', '2.2.2.2, 198.51.100.9'), 200)
+    assert.equal(await once('/mcp', '203.0.113.70', '3.3.3.3'), 429)
+    assert.equal(await once('/mcp', '203.0.113.71', '203.0.113.70'), 200)
   } finally {
     server.close()
     rmSync(directory, { recursive: true, force: true })
