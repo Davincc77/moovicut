@@ -1,6 +1,6 @@
 /* Explicit imports keep these shared helpers available to the browser and the CLI. */
 import { createPreferences } from '../utils/preferences.js'
-import { applyStylePreset, canonicalAspect, canonicalModel, createStoryboard, normalizeProject, regenerateShotPrompts, addShot, assignShotStages, refreshShotPrompt, serializeProject, STARTER, validateProject } from '../utils/prompt-engine.js'
+import { applyStylePreset, canonicalAspect, canonicalModel, createStoryboard, normalizeProject, regenerateOneShot, regenerateShotPrompts, addShot, assignShotStages, refreshShotPrompt, serializeProject, STARTER, validateProject } from '../utils/prompt-engine.js'
 import { LIGHTS, sequencePacks } from '../utils/scenario.js'
 const clone = value => JSON.parse(JSON.stringify(value))
 const STORAGE_KEY = 'shotboard.projects.v1'
@@ -193,6 +193,15 @@ export function useProjectStore() {
       next.shots = updated.shots
     }, 'Style preset applied. Generated prompts now match it. Prompts you edited stay as you left them.')
   }
+  function regenerateOne(id) {
+    const result = regenerateOneShot(project.value, id)
+    if (result.skipped) {
+      notify('This prompt was edited by you, so it stayed as you left it.', 'info')
+      return result
+    }
+    commit(result.project, 'This shot was regenerated. The other prompts stayed the same.')
+    return result
+  }
   function resetShotPrompt(id) { mutate(next => {
     const index = next.shots.findIndex(shot => shot.id === id || shot.shot_id === id)
     if (index < 0) throw new Error(`Shot not found: ${id}`)
@@ -261,7 +270,7 @@ export function useProjectStore() {
     imported.id = savedProjects.value.some(item => item.id === imported.id) ? `imported-${Date.now().toString(36)}` : imported.id
     commit({ ...imported, title: imported.title || 'Imported story' }, 'Storyboard imported successfully'); return imported
   }
-  const api = { project, hydrated, saving, saveState, settings, setPreference, attachReference, history, future, shotCount, duration, canUndo, hydrate, persist, commit, mutate, createNew, selectModel, applyPromptSettings, updateShot, updateShotFields, updateContinuity, patchFilmSheet, setStylePreset, resetShotPrompt, removeShot, moveShot, insertShot, addShotAtEnd, undo, redo, loadProject, removeSavedProject, resetWorkspace, restoreBackup, setIdentity, saveLocalIdentity, setGuestIdentity, importProject, serialized: computed(() => serializeProject(project.value)) }
+  const api = { project, hydrated, saving, saveState, settings, setPreference, attachReference, history, future, shotCount, duration, canUndo, hydrate, persist, commit, mutate, createNew, selectModel, applyPromptSettings, updateShot, updateShotFields, updateContinuity, patchFilmSheet, setStylePreset, regenerateOne, resetShotPrompt, removeShot, moveShot, insertShot, addShotAtEnd, undo, redo, loadProject, removeSavedProject, resetWorkspace, restoreBackup, setIdentity, saveLocalIdentity, setGuestIdentity, importProject, serialized: computed(() => serializeProject(project.value)) }
   Object.defineProperty(api, 'identity', { enumerable: true, get: () => identity.value })
   // Return an array property, not a ref: Vue templates unwrap refs exposed from setup.
   // A single getter/setter keeps the page, store and storage lifecycle in agreement.

@@ -87,3 +87,9 @@ Style presets lock one base sheet for every shot: `style` `anime`, `cinema`, or 
 Scenes are packed into sequences of 15–60 seconds. Each sequence is copied separately. Aim for about 1,500 characters per minute. The response warns from 6,000 characters and stops at 8,000. A normal premise stays 8–6,000 characters.
 
 Free text is detected only when `input` or `type` is `prose` (the text is `prose`, `text`, or `premise`, 8–8,000 characters). The response includes `language`, `confidence`, `warnings`, and `scenario`. A normal premise is not auto-detected. Detection is deterministic and does not call a model. In the studio, a line you already edited is not replaced when detection runs again.
+
+## One shot, and risk warnings
+
+Send `regenerateShot` (or `shotId`) plus `project` or `storyboard` to rebuild one shot. Every other prompt stays as it was. A shot marked `promptEdited`, or a `prompt` included in that request, is kept unless `overwritePrompt` is true. The same action is **Regenerate this shot** in `/studio`, in every mode.
+
+`warnings` is added to a response only when a shot looks risky: too many actions for a short shot, on-screen text, a crowd, more than two people, a name that is not on the film sheet, or two camera moves that fight each other. Each warning has `shotId`, `order`, `code`, `message`, and `fix`. Warnings never reject the board. A default 5 × 3s plan has no `warnings` key.

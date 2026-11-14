@@ -1,4 +1,5 @@
-import { createStoryboard, validateProject, canonicalModel, looksLikeScenario, listPresets, parseScenario } from '../app/utils/prompt-engine.js'
+import { createStoryboard, validateProject, canonicalModel, looksLikeScenario, listPresets, parseScenario, regenerateOneShot } from '../app/utils/prompt-engine.js'
+import { assessProject } from '../app/utils/shot-risk.js'
 import { detectProse } from '../app/utils/prose-detect.js'
 import { SCENARIO_MAX_CHARS } from '../app/utils/scenario.js'
 import { studioUrl } from '../app/utils/studio-link.js'
@@ -211,19 +212,46 @@ function planProse(input, { origin, compact }) {
   })
   const link = boardLink(origin, project, { style: input.style })
   const board = compact ? compactStoryboard(project, link) : { ...project, studioUrl: link }
-  return { ...board, ...detection }
+  return attachWarnings({ ...board, ...detection }, project)
 }
 
 function fullStoryboard(project, link) {
   return { ...project, studioUrl: link }
 }
 
+function attachWarnings(body, project) {
+  const warnings = assessProject(project)
+  if (warnings.length) body.warnings = warnings
+  return body
+}
+
+function planRegenerate(input, { origin, compact }) {
+  const source = input.project || input.storyboard
+  if (!source || typeof source !== 'object' || Array.isArray(source)) fail('Send the storyboard to regenerate in project.', 'invalid_shot')
+  const project = validateProject(source).project
+  const shotId = input.regenerateShot || input.shotId
+  if (!shotId) fail('Send regenerateShot with the shot id to rebuild.', 'invalid_shot')
+  const result = regenerateOneShot(project, shotId, {
+    overwrite: input.overwritePrompt === true,
+    prompt: typeof input.prompt === 'string' ? input.prompt : undefined
+  })
+  const link = boardLink(origin, result.project, {})
+  const body = compact ? compactStoryboard(result.project, link) : { ...result.project, studioUrl: link }
+  body.regenerated = result.skipped ? null : result.shotId
+  if (result.skipped) body.kept = true
+  return attachWarnings(body, result.project)
+}
+
 export function planFromInput(input, { origin = SITE, compact = false } = {}) {
+  if (input && typeof input === 'object' && !Array.isArray(input) && (input.regenerateShot || input.shotId) && (input.project || input.storyboard)) {
+    return planRegenerate(input, { origin, compact })
+  }
   const options = storyboardOptions(input)
   if (options.prose) return planProse(options.raw, { origin, compact })
   const project = createStoryboard(options)
   const link = boardLink(origin, project, options)
-  return compact ? compactStoryboard(project, link) : fullStoryboard(project, link)
+  const body = compact ? compactStoryboard(project, link) : fullStoryboard(project, link)
+  return attachWarnings(body, project)
 }
 
 function wantsCompact(input, searchParams) {
@@ -272,6 +300,11 @@ const STORYBOARD_SCHEMA = {
     prose: { type: 'string', maxLength: 8000, description: 'Free-text story used when input is prose.' },
     text: { type: 'string', maxLength: 8000, description: 'Alias of prose.' },
     overwritePrompt: { type: 'boolean', default: false, description: 'Replace a client-supplied prompt. Omitted or false keeps that prompt.' },
+    regenerateShot: { type: 'string', description: 'Shot id to rebuild. Send project or storyboard with it. Other shots stay unchanged. A hand-edited prompt is kept unless overwritePrompt is true.' },
+    shotId: { type: 'string', description: 'Alias of regenerateShot.' },
+    project: { type: 'object', additionalProperties: true, description: 'Existing shotboard.v1 used with regenerateShot.' },
+    storyboard: { type: 'object', additionalProperties: true, description: 'Alias of project.' },
+    prompt: { type: 'string', description: 'When sent with regenerateShot and without overwritePrompt, this text is stored and marked as edited.' },
     duration: { type: 'integer', minimum: 2, maximum: 15, default: 3, description: 'Seconds per scene when a scene does not set its own duration. Default 3.' },
     compact: { type: 'boolean', default: false, description: 'Return title, premise, model, aspectRatio, studioUrl, and shots of order, duration, and prompt.' },
     scenes: {
@@ -365,7 +398,9 @@ export function openApiDocument() {
             model: { type: 'string' },
             aspectRatio: { type: 'string' },
             studioUrl: { type: 'string', description: 'Hash link to /studio. The board is in the fragment and is not sent to the server on open.' },
-            shots: { type: 'array', items: { $ref: '#/components/schemas/CompactShot' } }
+            shots: { type: 'array', items: { $ref: '#/components/schemas/CompactShot' } },
+            warnings: { type: 'array', description: 'Present only when a shot has a pre-generation risk. Warnings never block the board.', items: { type: 'object', additionalProperties: true } },
+            regenerated: { type: 'string', description: 'Shot id rebuilt by regenerateShot. Null when an edited prompt was kept.' }
           }
         },
         FullStoryboard: { type: 'object', description: 'shotboard.v1 project plus studioUrl.' },

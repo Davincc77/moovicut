@@ -659,6 +659,35 @@ export function refreshProjectPrompts(project, options = {}) {
 export function regenerateShotPrompts(project, model = project.model || project.target_model, options = {}) {
   return refreshProjectPrompts({ ...project, model, target_model: model }, options)
 }
+export function regenerateOneShot(project, shotId, { overwrite = false, prompt } = {}) {
+  const shots = (project?.shots || []).map(shot => ({ ...shot }))
+  const index = shots.findIndex(shot => shot.id === shotId || shot.shot_id === shotId)
+  if (index < 0) {
+    const error = new Error(`Shot not found: ${shotId}`)
+    error.status = 400
+    error.code = 'invalid_shot'
+    throw error
+  }
+  const current = shots[index]
+  const untouched = shots.filter((_, item) => item !== index).map(shot => shot.prompt)
+  if (typeof prompt === 'string' && !overwrite) {
+    shots[index] = { ...current, prompt: prompt.slice(0, 16000), promptEdited: true }
+    return { project: { ...project, shots }, skipped: true, shotId: current.id }
+  }
+  if (current.promptEdited && !overwrite) {
+    return { project: { ...project, shots }, skipped: true, shotId: current.id }
+  }
+  const nextProject = { ...project, shots }
+  shots[index] = refreshShotPrompt(current, nextProject, index, { overwrite: true })
+  const unchanged = shots.filter((_, item) => item !== index).every((shot, item) => shot.prompt === untouched[item])
+  if (!unchanged) {
+    const error = new Error('Regenerating one shot changed another prompt.')
+    error.status = 500
+    throw error
+  }
+  if (nextProject.sequenceMode === 'scenario') nextProject.sequences = sequencePacks(nextProject)
+  return { project: nextProject, skipped: false, shotId: shots[index].id }
+}
 export function addShot(project, index = project.shots.length) {
   const next = JSON.parse(JSON.stringify(project)); const at = Math.max(0, Math.min(index, next.shots.length))
   const shot = { id: newId('shot'), shot_id: newId('shot'), stage: 'Additional', title: `New shot ${at + 1}`, framing: 'Medium shot', lens: '35mm standard lens', camera: 'Slow push-in at eye level', action: next.premise, directions: 'Introduce a deliberate moment that advances the story. Keep the action motivated and the camera intentional.', continuity: 'Match established character appearance, props, geography, light and time of day.', cue: 'consistent ambience and restrained score', sound: 'natural ambience consistent with the previous shot', lighting: 'consistent with the previous shot', duration: project.duration, duration_seconds: project.duration || DEFAULT_SHOT_DURATION, story_has_night: false, story_has_rain: false, story_has_snow: false, order: at + 1 }

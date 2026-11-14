@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /** Offline automation: no server, API account, or nondeterministic model call. */
 import fs from 'node:fs/promises'
-import { createStoryboard, serializeProject, validateProject, normalizeProject, refreshShotPrompt } from '../app/utils/prompt-engine.js'
+import { createStoryboard, serializeProject, validateProject, normalizeProject, refreshShotPrompt, regenerateOneShot } from '../app/utils/prompt-engine.js'
 const argv = process.argv.slice(2)
 function option(name) { const index = argv.indexOf(`--${name}`); return index >= 0 ? argv[index + 1] : undefined }
 function help() { return `Moovicut v1.0 — local storyboard automation\n\nThe default board is 5 scenes of 3 seconds (15s total). Pass --shots and --duration to override.\n\nGenerate:\n  moovicut --premise "A lighthouse keeper..." --model grok\n  moovicut --premise "A paper map in space..." --model google --shots 4 --duration 3\n\nRead a project from stdin or --input story.json. Output is a shotboard.v1 JSON document.\nEdit:\n  --set-title "My film"\n  --shot-id shot-02 --patch '{"camera":"Slow dolly"}'\n  --move shot-02 --direction -1\n  --delete shot-02\nOther: --capabilities --export-prompts --output story.json --density concise --continuity strict --sequence continuous --help\n\nshotboard is a deprecated alias for the moovicut command.\n` }
@@ -32,6 +32,10 @@ async function main() {
       const duration = Math.max(2, Math.min(15, Number(patch.duration_seconds ?? patch.duration) || 3))
       project.shots[index].duration = duration; project.shots[index].duration_seconds = duration
     }
+  }
+  if (option('regenerate')) {
+    const result = regenerateOneShot(project, option('regenerate'), { overwrite: argv.includes('--overwrite') })
+    Object.assign(project, result.project)
   }
   if (option('move')) {
     const index = project.shots.findIndex(shot => shot.shot_id === option('move'))
