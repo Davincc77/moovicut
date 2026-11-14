@@ -8,7 +8,7 @@ const items = [
   ['Can I import or export work?', 'Yes. Projects use the shotboard.v1 JSON format. The studio can export a project or a local library backup, and it can import a compatible file. Files stay on your device.'],
   ['Is Moovicut free?', 'Yes. Planning, editing, and JSON export are free. There is no subscription. Optional tips open Buy Me a Coffee in a new tab. Moovicut does not take payment itself.'],
   ['Are visits counted?', 'Anonymous, cookieless visit counts via Cloudflare Web Analytics; storyboards never leave the device.'],
-  ['Can an AI agent build a storyboard?', 'Yes. The default board is 5 scenes of 3 seconds (15s total). Step-by-step mode in /studio, or a shots count or scenes array on POST /api/v1/storyboard and /mcp, builds a custom scene list. Open /agents for the endpoints. No API key and no account.'],
+  ['Can an AI agent build a storyboard?', 'Yes. The default board is 5 scenes of 3 seconds (15s total). Step-by-step mode in /studio, or a shots count or scenes array on POST /api/v1/storyboard and /mcp, builds a custom scene list. Scenario mode and input prose are on the same endpoints. Open /agents for the endpoints. No API key and no account. A prompt you edit by hand is kept when the film sheet or style preset changes.'],
   ['What happens if browser storage is unavailable?', 'The studio reports the failure instead of claiming the save worked. Export JSON if you want a copy outside the browser.']
 ]
 useSeoMeta({ title: 'FAQ — Moovicut', description: 'Moovicut is a free, local-first storyboard and shot list. No account and no video rendering. Prompts work with Grok Imagine, Google, or any other AI image or video model.' })

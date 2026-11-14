@@ -1,6 +1,7 @@
 /* Explicit imports keep these shared helpers available to the browser and the CLI. */
 import { createPreferences } from '../utils/preferences.js'
-import { canonicalAspect, canonicalModel, createStoryboard, normalizeProject, regenerateShotPrompts, addShot, assignShotStages, createPrompt, serializeProject, STARTER, validateProject } from '../utils/prompt-engine.js'
+import { applyStylePreset, canonicalAspect, canonicalModel, createStoryboard, normalizeProject, regenerateShotPrompts, addShot, assignShotStages, refreshShotPrompt, serializeProject, STARTER, validateProject } from '../utils/prompt-engine.js'
+import { LIGHTS, sequencePacks } from '../utils/scenario.js'
 const clone = value => JSON.parse(JSON.stringify(value))
 const STORAGE_KEY = 'shotboard.projects.v1'
 const CURRENT_KEY = 'shotboard.current.v1'
@@ -135,8 +136,8 @@ export function useProjectStore() {
   }
   function mutate(callback, message) { const next = clone(project.value); callback(next); commit(next, message) }
   function createNew(premise, model = project.value.model, options = {}) {
-    if (!premise?.trim()) throw new Error('Start with a short premise for your story.')
-    const next = createStoryboard({ ...options, premise, model }); commit(next, 'Your storyboard is ready. Make it yours.'); return next
+    if (!premise?.trim() && !options.scenario && options.sequenceMode !== 'scenario') throw new Error('Start with a short premise for your story.')
+    const next = createStoryboard({ ...options, premise: premise || '', model }); commit(next, 'Your storyboard is ready. Make it yours.'); return next
   }
   function selectModel(model) { const next = canonicalModel(model); if (!next || next === project.value.model) return; commit(regenerateShotPrompts(project.value, next), `Prompts adapted for ${next === 'grok' ? 'Grok Imagine' : 'Google (Veo / Gemini)'}`) }
   function applyPromptSettings(patch = {}) {
@@ -145,16 +146,35 @@ export function useProjectStore() {
       if (next.sequenceMode === 'continuous' && (patch.continuityStrength === 'strict' || patch.continuityStrength === 'standard')) next.continuityStrength = patch.continuityStrength
       if (patch.promptDensity === 'concise' || patch.promptDensity === 'standard') next.promptDensity = patch.promptDensity
       if (patch.density === 'concise' || patch.density === 'standard') next.promptDensity = patch.density
-      next.shots = next.shots.map((shot, index) => ({ ...shot, prompt: createPrompt(shot, next, index) }))
-    }, 'Shot prompts updated on this device.')
+      next.shots = next.shots.map((shot, index) => refreshShotPrompt(shot, next, index))
+      if (next.sequenceMode === 'scenario') next.sequences = sequencePacks(next)
+    }, 'Shot prompts updated on this device. Prompts you edited stay as you left them.')
   }
-  function updateContinuity(field, value) { mutate(next => { next.continuitySheet = { ...(next.continuitySheet || {}), [field]: value }; next.shots = next.shots.map((shot, index) => ({ ...shot, prompt: createPrompt(shot, next, index) })) }, 'Continuity sheet updated. Every shot prompt now matches it.') }
+  function updateContinuity(field, value) { mutate(next => { next.continuitySheet = { ...(next.continuitySheet || {}), [field]: value }; next.shots = next.shots.map((shot, index) => refreshShotPrompt(shot, next, index)) }, 'Continuity sheet updated. Generated prompts now match it. Prompts you edited stay as you left them.') }
+  function patchFilmSheet(patch = {}) {
+    mutate(next => {
+      if (!next.filmSheet) return
+      const light = typeof patch.light === 'string' ? patch.light : next.filmSheet.light
+      next.filmSheet = {
+        ...next.filmSheet,
+        ...patch,
+        characters: patch.characters || next.filmSheet.characters.map(item => ({ ...item })),
+        places: patch.places || next.filmSheet.places.map(item => ({ ...item }))
+      }
+      if (typeof patch.light === 'string') {
+        next.shots.forEach(shot => { if (!shot.light && !shot.promptEdited) shot.lighting = LIGHTS[light] || shot.lighting })
+      }
+      next.shots = next.shots.map((shot, index) => refreshShotPrompt(shot, next, index))
+      next.sequences = sequencePacks(next)
+    }, 'Film sheet updated. Generated prompts now match it. Prompts you edited stay as you left them.')
+  }
   function updateShot(id, field, value, regenerate = true) { mutate(next => {
     const index = next.shots.findIndex(shot => shot.id === id); if (index < 0) throw new Error(`Shot not found: ${id}`)
     const updated = { ...next.shots[index], [field]: value }
+    if (field === 'prompt') updated.promptEdited = true
     const duration = Math.max(2, Math.min(15, Number(updated.duration) || 3)); updated.duration = duration; updated.duration_seconds = duration
-    if (regenerate && field !== 'prompt') updated.prompt = createPrompt(updated, next, index)
-    next.shots[index] = updated
+    next.shots[index] = regenerate && field !== 'prompt' ? refreshShotPrompt(updated, next, index) : updated
+    if (next.sequenceMode === 'scenario') next.sequences = sequencePacks(next)
   }) }
   function updateShotFields(id, patch) { mutate(next => {
     const index = next.shots.findIndex(shot => shot.id === id); if (index < 0) throw new Error(`Shot not found: ${id}`)
@@ -162,9 +182,23 @@ export function useProjectStore() {
     const duration = Math.max(2, Math.min(15, Number(patch.duration_seconds ?? patch.duration ?? updated.duration) || 3))
     updated.duration = duration; updated.duration_seconds = duration
     if ('prompt' in patch && !patch.prompt?.trim()) throw new Error('A shot prompt cannot be empty.')
-    if (!('prompt' in patch)) updated.prompt = createPrompt(updated, next, index)
-    next.shots[index] = updated
+    if ('prompt' in patch) updated.promptEdited = true
+    next.shots[index] = 'prompt' in patch ? updated : refreshShotPrompt(updated, next, index)
+    if (next.sequenceMode === 'scenario') next.sequences = sequencePacks(next)
   }) }
+  function setStylePreset(family, genre) {
+    mutate(next => {
+      const updated = applyStylePreset(next, family, genre)
+      Object.assign(next, updated)
+      next.shots = updated.shots
+    }, 'Style preset applied. Generated prompts now match it. Prompts you edited stay as you left them.')
+  }
+  function resetShotPrompt(id) { mutate(next => {
+    const index = next.shots.findIndex(shot => shot.id === id || shot.shot_id === id)
+    if (index < 0) throw new Error(`Shot not found: ${id}`)
+    next.shots[index] = refreshShotPrompt(next.shots[index], next, index, { overwrite: true })
+    if (next.sequenceMode === 'scenario') next.sequences = sequencePacks(next)
+  }, 'Prompt reset to the generated text.') }
   function removeShot(id) { if (project.value.shots.length <= 1) { notify('Keep at least one shot in your storyboard.', 'info'); return }; mutate(next => { next.shots = next.shots.filter(shot => shot.id !== id); assignShotStages(next.shots) }, 'Shot removed. Undo is available.') }
   function moveShot(id, direction) { mutate(next => {
     const index = next.shots.findIndex(shot => shot.id === id); const target = index + direction
@@ -227,7 +261,7 @@ export function useProjectStore() {
     imported.id = savedProjects.value.some(item => item.id === imported.id) ? `imported-${Date.now().toString(36)}` : imported.id
     commit({ ...imported, title: imported.title || 'Imported story' }, 'Storyboard imported successfully'); return imported
   }
-  const api = { project, hydrated, saving, saveState, settings, setPreference, attachReference, history, future, shotCount, duration, canUndo, hydrate, persist, commit, mutate, createNew, selectModel, applyPromptSettings, updateShot, updateShotFields, updateContinuity, removeShot, moveShot, insertShot, addShotAtEnd, undo, redo, loadProject, removeSavedProject, resetWorkspace, restoreBackup, setIdentity, saveLocalIdentity, setGuestIdentity, importProject, serialized: computed(() => serializeProject(project.value)) }
+  const api = { project, hydrated, saving, saveState, settings, setPreference, attachReference, history, future, shotCount, duration, canUndo, hydrate, persist, commit, mutate, createNew, selectModel, applyPromptSettings, updateShot, updateShotFields, updateContinuity, patchFilmSheet, setStylePreset, resetShotPrompt, removeShot, moveShot, insertShot, addShotAtEnd, undo, redo, loadProject, removeSavedProject, resetWorkspace, restoreBackup, setIdentity, saveLocalIdentity, setGuestIdentity, importProject, serialized: computed(() => serializeProject(project.value)) }
   Object.defineProperty(api, 'identity', { enumerable: true, get: () => identity.value })
   // Return an array property, not a ref: Vue templates unwrap refs exposed from setup.
   // A single getter/setter keeps the page, store and storage lifecycle in agreement.

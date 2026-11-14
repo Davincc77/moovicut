@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /** Offline automation: no server, API account, or nondeterministic model call. */
 import fs from 'node:fs/promises'
-import { createStoryboard, serializeProject, validateProject, createPrompt, normalizeProject } from '../app/utils/prompt-engine.js'
+import { createStoryboard, serializeProject, validateProject, normalizeProject, refreshShotPrompt } from '../app/utils/prompt-engine.js'
 const argv = process.argv.slice(2)
 function option(name) { const index = argv.indexOf(`--${name}`); return index >= 0 ? argv[index + 1] : undefined }
 function help() { return `Moovicut v1.0 — local storyboard automation\n\nThe default board is 5 scenes of 3 seconds (15s total). Pass --shots and --duration to override.\n\nGenerate:\n  moovicut --premise "A lighthouse keeper..." --model grok\n  moovicut --premise "A paper map in space..." --model google --shots 4 --duration 3\n\nRead a project from stdin or --input story.json. Output is a shotboard.v1 JSON document.\nEdit:\n  --set-title "My film"\n  --shot-id shot-02 --patch '{"camera":"Slow dolly"}'\n  --move shot-02 --direction -1\n  --delete shot-02\nOther: --capabilities --export-prompts --output story.json --density concise --continuity strict --sequence continuous --help\n\nshotboard is a deprecated alias for the moovicut command.\n` }
@@ -25,7 +25,9 @@ async function main() {
     if (!patch || typeof patch !== 'object' || Array.isArray(patch)) throw new Error('Patch must be an object.')
     const allowed = ['title', 'action', 'camera', 'lighting', 'continuity', 'prompt', 'framing', 'lens', 'sound', 'duration', 'duration_seconds']
     for (const field of allowed) if (typeof patch[field] === 'string') project.shots[index][field] = patch[field].slice(0, 16000)
-    if (!patch.prompt) project.shots[index].prompt = createPrompt(project.shots[index], project, index)
+    if (typeof patch.prompt === 'string') project.shots[index].promptEdited = true
+    else if (patch.overwritePrompt === true || patch.resetPrompt === true) project.shots[index] = refreshShotPrompt(project.shots[index], project, index, { overwrite: true })
+    else project.shots[index] = refreshShotPrompt(project.shots[index], project, index)
     if (patch.duration_seconds !== undefined || patch.duration !== undefined) {
       const duration = Math.max(2, Math.min(15, Number(patch.duration_seconds ?? patch.duration) || 3))
       project.shots[index].duration = duration; project.shots[index].duration_seconds = duration
@@ -44,7 +46,8 @@ async function main() {
     if (project.shots.length <= 1) throw new Error('The storyboard must retain at least one shot.')
     project.shots = project.shots.filter(shot => shot.shot_id !== option('delete'))
   }
-  project.shots.forEach((shot, index) => { shot.order = index + 1; if (option('move')) shot.prompt = createPrompt(shot, project, index) })
+  project.shots.forEach((shot, index) => { shot.order = index + 1 })
+  if (option('move')) project.shots = project.shots.map((shot, index) => refreshShotPrompt(shot, project, index))
   project.updatedAt = new Date().toISOString()
   if (option('export-prompts')) {
     const output = project.shots.map(shot => `SHOT ${String(shot.order).padStart(2, '0')}\n${shot.prompt}`).join('\n\n---\n\n')

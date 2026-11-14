@@ -60,3 +60,30 @@ curl -s https://moovicut.studio/api/v1/storyboard \
 ```
 
 Prompts still target Grok Imagine or Google. Paste them into the model you already use. Moovicut does not call that model.
+
+## Scenario mode
+
+Scenario mode is a guided board. Send `scenario` (an object or text) or set `mode` to `scenario`. A premise that already contains `CHARACTERS`, `PLACES`, and `SCENES` blocks is read the same way. When `scenario` is present it sets the scene count and wins over `scenes`.
+
+Text shape:
+
+```text
+CHARACTERS
+Léa — curly hair, round glasses — green apron
+
+PLACES
+Café — a small morning cafe
+
+SCENES
+Scène 1 — Léa — Café — She pours a latte
+```
+
+JSON shape uses short fields: characters `name`/`n`, `look`/`l`, `outfit`/`o`; places `name`/`n`, `description`/`desc`/`d`; scenes `who`/`w`, `where`/`at`, `what`/`do`, plus optional `camera`, `light`, `mood`, `duration`, and `prompt`. Camera is `wide`, `medium`, `close`, `insert`, `tracking`, `static`, `push`, `crane`, or `handheld`. Light is `day`, `dawn`, `dusk`, `night`, `warm`, `cool`, `hard`, `soft`, `neon`, or `practical`. Mood is `grounded`, `playful`, `tense`, `intimate`, `bold`, `quiet`, `hopeful`, or `uneasy`. Every problem comes back in one `errors` array.
+
+Characters, places, and light live on one film sheet. Each shot names them. The generated prompt fills in the look, outfit, and place. A prompt you send on a scene is kept. Send `overwritePrompt: true` when that prompt should be replaced.
+
+Style presets lock one base sheet for every shot: `style` `anime`, `cinema`, or `documentary`, and a `genre` from that family (anime: shonen, shojo, seinen, slice-of-life, mecha, fantasy, ghibli; cinema: thriller, comedy, scifi, horror, drama, western, noir, romance, action; documentary: nature, history, portrait, investigation, travel). Omitted preset fields use cinema / drama. An unknown family or genre returns 400 and the allowed list. Changing the preset rewrites generated prompts and leaves a hand-edited prompt in place.
+
+Scenes are packed into sequences of 15–60 seconds. Each sequence is copied separately. Aim for about 1,500 characters per minute. The response warns from 6,000 characters and stops at 8,000. A normal premise stays 8–6,000 characters.
+
+Free text is detected only when `input` or `type` is `prose` (the text is `prose`, `text`, or `premise`, 8–8,000 characters). The response includes `language`, `confidence`, `warnings`, and `scenario`. A normal premise is not auto-detected. Detection is deterministic and does not call a model. In the studio, a line you already edited is not replaced when detection runs again.
