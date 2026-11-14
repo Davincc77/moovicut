@@ -2,7 +2,7 @@ import { createServer } from 'node:http'
 import { createReadStream, existsSync, statSync } from 'node:fs'
 import { dirname, join, resolve, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { createVisitStore, normalizePath, tokensMatch } from './visits.mjs'
+import { createCounterShutdown, createVisitStore, normalizePath, tokensMatch, visitCounterPath } from './visits.mjs'
 import { legacyRedirectTarget } from './prod-server.mjs'
 import { createRateLimiter, handleAgentHttp, isAgentPath, isLimitedPath, publicOrigin, clientAddress } from './agent-api.mjs'
 
@@ -237,7 +237,7 @@ export function createVisitServer({ store, token = '', staticRoot = join(rootDir
 const isMain = process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href
 if (isMain) {
   const token = process.env.STATS_TOKEN || ''
-  const filePath = process.env.STATS_DATA_PATH || '/data/visits.json'
+  const filePath = visitCounterPath()
   const store = createVisitStore({ filePath })
   const server = createVisitServer({
     store,
@@ -245,8 +245,11 @@ if (isMain) {
     staticRoot: process.env.STATIC_ROOT || join(rootDir, 'dist'),
     baseURL: process.env.NUXT_APP_BASE_URL || '/'
   })
+  const shutdown = createCounterShutdown(store, { close: callback => server.close(callback) })
+  process.once('SIGTERM', shutdown)
+  process.once('SIGINT', shutdown)
   const port = Number(process.env.PORT || 3000)
   server.listen(port, () => {
-    console.log(`Moovicut listening on ${port}. Visit storage: ${store.persistent() ? 'file' : 'memory until the /data volume is mounted'}. Private stats: ${token ? 'enabled' : 'disabled until STATS_TOKEN is set'}.`)
+    console.log(`Moovicut listening on ${port}. Visit storage: ${store.persistent() ? filePath : 'memory until the /data volume is mounted'}. Private stats: ${token ? 'enabled' : 'disabled until STATS_TOKEN is set'}.`)
   })
 }

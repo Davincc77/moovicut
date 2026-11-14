@@ -1,9 +1,17 @@
 import { createHmac, randomBytes, createHash, timingSafeEqual } from 'node:crypto'
-import { readFileSync, writeFileSync, renameSync, existsSync, accessSync, constants } from 'node:fs'
+import { readFileSync, writeFileSync, renameSync, existsSync, accessSync, constants, statSync } from 'node:fs'
+import { writeFile, rename } from 'node:fs/promises'
 import { dirname } from 'node:path'
 
 const BOT = /bot\b|crawl|spider|slurp|preview|headless|facebookexternalhit|embedly|quora|whatsapp|telegram|slackbot|discord|linkedinbot|twitterbot|applebot|bingbot|googlebot|duckduck|baidu|yandex|semrush|ahrefs|petalbot|bytespider|gptbot|claudebot|amazonbot|wget|curl\b|python-requests|go-http-client/i
 const VIEW_CAP = 60
+const WRITE_DELAY_MS = 3000
+const DEFAULT_COUNTER_FILE = '/data/visits.json'
+
+export function visitCounterPath(env = process.env) {
+  const configured = env && typeof env === 'object' ? (env.COUNTER_FILE || env.STATS_DATA_PATH) : ''
+  return configured ? String(configured) : DEFAULT_COUNTER_FILE
+}
 
 export function isBot(userAgent = '') {
   return BOT.test(String(userAgent || ''))
@@ -43,6 +51,7 @@ export function tokensMatch(provided, expected) {
 function directoryWritable(directory) {
   try {
     if (!directory || !existsSync(directory)) return false
+    if (!statSync(directory).isDirectory()) return false
     accessSync(directory, constants.W_OK)
     return true
   } catch {
@@ -52,32 +61,86 @@ function directoryWritable(directory) {
 
 function readState(filePath) {
   try {
+    if (!existsSync(filePath)) return { status: 'missing' }
     const parsed = JSON.parse(readFileSync(filePath, 'utf8'))
-    if (!parsed || parsed.version !== 1 || !Number.isInteger(parsed.total) || !parsed.days || typeof parsed.days !== 'object') return null
-    return { total: parsed.total, days: parsed.days }
+    if (!parsed || parsed.version !== 1 || !Number.isInteger(parsed.total) || !parsed.days || typeof parsed.days !== 'object') return { status: 'invalid' }
+    return { status: 'ok', total: parsed.total, days: parsed.days }
   } catch {
-    return null
+    return { status: 'invalid' }
   }
 }
 
-function writeAtomic(filePath, value) {
-  const temporary = `${filePath}.tmp`
-  writeFileSync(temporary, JSON.stringify(value), 'utf8')
+function messageOf(error) {
+  return error && error.message ? error.message : 'unknown error'
+}
+
+function writeAtomicSync(filePath, text) {
+  const temporary = `${filePath}.${process.pid}.tmp`
+  writeFileSync(temporary, text, 'utf8')
   renameSync(temporary, filePath)
+}
+
+async function writeAtomic(filePath, text) {
+  const temporary = `${filePath}.${process.pid}.tmp`
+  await writeFile(temporary, text, 'utf8')
+  await rename(temporary, filePath)
 }
 
 function emptyDay(salt) {
   return { views: 0, uniques: 0, salt, seen: {}, pages: {}, referrers: {} }
 }
 
-export function createVisitStore({ filePath = '', now = () => new Date(), random = () => randomBytes(32).toString('hex') } = {}) {
+export function createVisitStore({ filePath = '', now = () => new Date(), random = () => randomBytes(32).toString('hex'), logger = console, debounceMs = WRITE_DELAY_MS } = {}) {
   const state = { total: 0, days: {} }
-  let persistent = Boolean(filePath) && directoryWritable(dirname(filePath))
-  if (persistent) {
-    const loaded = readState(filePath)
-    if (loaded) {
-      state.total = loaded.total
-      state.days = loaded.days
+  const destination = typeof filePath === 'string' ? filePath : ''
+  const delay = Number.isFinite(debounceMs) && debounceMs >= 0 ? debounceMs : WRITE_DELAY_MS
+  let durable = false
+  let dirty = false
+  let flushing = false
+  let warned = false
+  let seedWarning = ''
+  let timer = null
+  let chain = Promise.resolve()
+
+  function warn(message) {
+    if (warned) return
+    warned = true
+    const line = `Visit counter: ${message}`
+    try {
+      if (logger && typeof logger.warn === 'function') logger.warn(line)
+      else if (typeof logger === 'function') logger(line)
+      else console.warn(line)
+    } catch { /* A failing logger must not stop the server. */ }
+  }
+
+  function disable(error) {
+    durable = false
+    dirty = false
+    if (timer) {
+      clearTimeout(timer)
+      timer = null
+    }
+    warn(`cannot save ${destination} (${messageOf(error)}); keeping the count in memory`)
+  }
+
+  function payload() {
+    return JSON.stringify({ version: 1, total: state.total, days: state.days })
+  }
+
+  if (destination) {
+    if (!directoryWritable(dirname(destination))) {
+      warn(`cannot write ${destination}; keeping the count in memory`)
+    } else {
+      durable = true
+      const loaded = readState(destination)
+      if (loaded.status === 'ok') {
+        state.total = loaded.total
+        state.days = loaded.days
+      } else if (loaded.status === 'missing') {
+        seedWarning = `file ${destination} is missing; starting at 0`
+      } else {
+        seedWarning = `file ${destination} is unreadable; starting at 0`
+      }
     }
   }
 
@@ -99,10 +162,58 @@ export function createVisitStore({ filePath = '', now = () => new Date(), random
     return state.days[key]
   }
 
-  function persist() {
-    if (!persistent) return
-    try { writeAtomic(filePath, { version: 1, total: state.total, days: state.days }) }
-    catch { persistent = false }
+  function touch() {
+    if (!durable) return
+    dirty = true
+    if (flushing || timer) return
+    timer = setTimeout(() => {
+      timer = null
+      void commit()
+    }, delay)
+    if (typeof timer.unref === 'function') timer.unref()
+  }
+
+  async function writeIfDirty() {
+    if (!durable || !dirty) return
+    let text
+    try { text = payload() } catch (error) {
+      disable(error)
+      return
+    }
+    dirty = false
+    try { await writeAtomic(destination, text) } catch (error) {
+      disable(error)
+      return
+    }
+    if (dirty && durable) {
+      if (flushing) await writeIfDirty()
+      else if (!timer) touch()
+    }
+  }
+
+  function commit() {
+    const run = chain.then(writeIfDirty, writeIfDirty)
+    chain = run.then(() => {}, () => {})
+    return run
+  }
+
+  function persistSync() {
+    if (!durable) return
+    try {
+      writeAtomicSync(destination, payload())
+      dirty = false
+    } catch (error) {
+      disable(error)
+    }
+  }
+
+  function flush() {
+    if (timer) {
+      clearTimeout(timer)
+      timer = null
+    }
+    flushing = true
+    return commit().finally(() => { flushing = false })
   }
 
   function record({ address = '', userAgent = '', path = '/', referrer = '', purpose = '' } = {}) {
@@ -127,7 +238,7 @@ export function createVisitStore({ filePath = '', now = () => new Date(), random
         page.uniques += 1
       }
     }
-    persist()
+    touch()
     return { counted: true, total: state.total }
   }
 
@@ -148,7 +259,7 @@ export function createVisitStore({ filePath = '', now = () => new Date(), random
     }
     return {
       total: state.total,
-      persistent,
+      persistent: durable,
       days,
       pages: [...pages.values()].sort((left, right) => right.views - left.views).slice(0, 20),
       referrers: [...referrers.entries()].map(([host, views]) => ({ host, views })).sort((left, right) => right.views - left.views).slice(0, 20)
@@ -156,13 +267,53 @@ export function createVisitStore({ filePath = '', now = () => new Date(), random
   }
 
   todayBucket(now())
-  if (persistent) persist()
+  if (durable) persistSync()
+  if (seedWarning) warn(seedWarning)
 
   return {
     record,
     publicTotal: () => ({ total: state.total }),
     stats,
-    snapshot: () => JSON.stringify({ version: 1, total: state.total, days: state.days }),
-    persistent: () => persistent
+    snapshot: () => payload(),
+    persistent: () => durable,
+    flush
+  }
+}
+
+export function createCounterShutdown(store, { close, exit = code => process.exit(code) } = {}) {
+  let stopping = false
+  return function shutdown() {
+    if (stopping) return Promise.resolve()
+    stopping = true
+    return Promise.resolve()
+      .then(() => (store && typeof store.flush === 'function' ? store.flush() : undefined))
+      .catch(() => {})
+      .then(() => new Promise(resolve => {
+        let settled = false
+        const finish = () => {
+          if (settled) return
+          settled = true
+          resolve()
+        }
+        const timer = setTimeout(finish, 1000)
+        if (typeof close !== 'function') {
+          clearTimeout(timer)
+          finish()
+          return
+        }
+        try {
+          close(() => {
+            clearTimeout(timer)
+            finish()
+          })
+        } catch {
+          clearTimeout(timer)
+          finish()
+        }
+      }))
+      .then(() => exit(0))
+      .catch(() => {
+        try { exit(0) } catch { /* The process is already on its way out. */ }
+      })
   }
 }

@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
-const VISIT_LINE = 'Anonymous, cookieless visit counts via Cloudflare Web Analytics; storyboards never leave the device.'
+const VISIT_LINE = 'Anonymous, cookieless visit counts via Cloudflare Web Analytics. The site also keeps a simple server-side visit count (POST /api/visits) stored on a persistent volume, with no personal data. Storyboards never leave the device.'
 
 test('every page can load the public Cloudflare analytics beacon', () => {
   const config = readFileSync('nuxt.config.ts', 'utf8')

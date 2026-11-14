@@ -31,7 +31,7 @@ Open the address printed in the terminal, normally `http://localhost:3000`. The 
 npm run dev -- --port 3001
 ```
 
-`npm start` serves a built site with `server/index.mjs`, including visit counts when that server is configured. Production on Railway uses `server/prod-server.mjs`, which serves the generated site from `/`.
+`npm start` serves a built site with `server/index.mjs`, including visit counts. Production on Railway uses `server/prod-server.mjs`, which serves the generated site from `/`. Both servers keep the visit count in `COUNTER_FILE` when that path can be written. The default is `/data/visits.json`.
 
 ### Quick start
 
@@ -71,6 +71,14 @@ These addresses answer **301** and keep the query string:
 - Locale copies of FAQ, privacy, terms, and content policy go to the English page. A locale root such as `/de` goes to `/`.
 
 `shotboard.v1`, `shotboard.backup.v1`, the `shotboard` CLI name, `window.Shotboard`, and the `/shotboard` redirects stay as they are.
+
+### Visit count
+
+Mount a Railway volume at `/data` on the service that runs `node server/prod-server.mjs`. The visit count is a JSON file. `COUNTER_FILE` sets the path and defaults to `/data/visits.json`. When `COUNTER_FILE` is unset, `STATS_DATA_PATH` is used instead. `npm start` uses the same file.
+
+On startup the server reads the file and continues the count. It writes at most every few seconds, and it writes again when the process receives SIGTERM or SIGINT, which is the signal a redeploy sends. The write goes to a temporary file in the same directory and is renamed into place.
+
+A missing file starts the count at 0 and is created on the next save. A malformed file starts at 0 and is replaced on the next save. When the file or `/data` cannot be written, the server logs one warning and keeps the count in memory for that process. Visit requests return from the in-memory count, and a storage problem leaves the rest of the server running.
 
 ## Use the CLI
 
