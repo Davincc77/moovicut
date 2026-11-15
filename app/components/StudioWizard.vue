@@ -47,11 +47,12 @@ import { FRAMING_TERMS, framingOptionLabel } from '~/utils/framing.js'
 import { LIGHT_VALUES, MOOD_VALUES } from '~/utils/scenario.js'
 import { listPresets } from '~/utils/presets/index.js'
 import { combinedShotPrompts } from '~/utils/open-targets.js'
+import { textLanguageHint } from '~/utils/prose-detect.js'
 
 const emit = defineEmits(['advanced'])
 const store = useProjectStore()
 const { copyText } = useNotifier()
-const { t: translate } = useI18n()
+const { t: translate, locale } = useI18n()
 function t(key, vars) {
   const template = WIZARD_STRINGS[key]
   if (!template) return key
@@ -111,7 +112,7 @@ const genres = computed(() => {
 })
 const project = computed(() => store.project.value)
 const showOutputs = computed(() => state.value.hasGenerated && project.value?.id && project.value.id !== 'starter-project')
-const stale = computed(() => showOutputs.value && state.value.generatedSignature && state.value.generatedSignature !== optionsSignature(state.value))
+const stale = computed(() => showOutputs.value && state.value.generatedSignature && state.value.generatedSignature !== optionsSignature(state.value, locale.value))
 const notes = computed(() => (report.value?.warnings || []).filter(item => !report.value.blocking.some(block => block.code === item.code && block.shotId === item.shotId && block.message === item.message)))
 
 function describedBy(owner, field, empty, detected) {
@@ -131,8 +132,17 @@ function confidenceLabel(level) {
 }
 
 function languageLabel(code) {
-  return t(code === 'fr' ? 'detect.language.fr' : 'detect.language.en')
+  const key = `detect.language.${code || 'en'}`
+  const label = t(key)
+  return label === key ? t('detect.language.en') : label
 }
+
+const ideaHint = computed(() => {
+  const mismatch = textLanguageHint(state.value.idea, locale.value || 'en')
+  if (mismatch) return t('hint.languageDiffers', { language: languageLabel(mismatch.detected), site: languageLabel(mismatch.site) })
+  if (state.value.detection?.uncertain) return t('hint.detectionUncertain', { language: languageLabel(state.value.detection.language) })
+  return ''
+})
 
 function moveTabs(event, kind) {
   const key = event.key
@@ -162,8 +172,9 @@ function generate() {
   if (!generateEnabled.value) return
   buildError.value = ''
   try {
-    store.commit(projectFromWizard(state.value), wizardText('generate.done'))
-    state.value = markGenerated(state.value)
+    const lang = locale.value || 'en'
+    store.commit(projectFromWizard(state.value, { promptLanguage: lang }), wizardText('generate.done'))
+    state.value = markGenerated(state.value, lang)
   } catch (error) {
     buildError.value = error.message || wizardText('generate.failed')
   }
@@ -206,6 +217,8 @@ function copyAgent() {
           <label for="wizard-idea">{{ t('idea.label') }}</label>
           <textarea id="wizard-idea" name="idea" rows="5" required maxlength="6000" :value="state.idea" :aria-invalid="gaps.some(item => item.field === 'idea')" :aria-describedby="gaps.some(item => item.field === 'idea') ? 'wizard-idea-error' : undefined" @input="state = setIdea(state, $event.target.value)"></textarea>
           <p v-if="gaps.some(item => item.field === 'idea')" id="wizard-idea-error" class="wizard-error">{{ t(gaps.find(item => item.field === 'idea').key) }}</p>
+          <p v-if="ideaHint" class="wizard-hint" role="status">{{ ideaHint }}</p>
+          <CjkNameTip :locale="locale" />
         </div>
         <div class="wizard-field">
           <label for="wizard-model">{{ t('idea.model') }}</label>

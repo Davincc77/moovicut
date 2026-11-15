@@ -10,6 +10,7 @@ import { charactersInShot, lockLinesForShot, mergeCharacterExtras } from './char
 import { promptFraming, suggestFraming } from './framing.js'
 import { splitActionText } from './action-split.js'
 import { cleanText, sentence } from './text.js'
+import { localizeLight, phrase, promptLanguageOf, readPromptLanguage, stampPromptLanguage, translateBeat, translateDetailedPrompt } from './prompt-lang.js'
 export { canonicalStyleFamily, formatPresetBlock, listPresets, presetFamilies, presetGenres, resolvePreset } from './presets/index.js'
 export { MODEL_IDS, MODEL_OPTIONS, REFERENCE_MODEL_NAMES, canonicalModel, modelRegistry } from '../integrations/models/model-registry.js'
 // Shared text helpers stay in text.js to avoid duplicate auto-imports in hosts.
@@ -535,6 +536,7 @@ export function createStoryboard(options = {}) {
     if (isNamedTraitPremise(premise)) alignNamedSheet(project.filmSheet, detected)
   }
   stampPreset(project, chosenPreset)
+  stampPromptLanguage(project, readPromptLanguage(options.promptLanguage ?? options.prompt_language))
   fitBoard(project)
   if (options.overwritePrompt) project.shots = project.shots.map(shot => { const next = { ...shot }; delete next.prompt; delete next.promptEdited; return next })
   project.shots = project.shots.map((shot, index) => refreshShotPrompt(shot, project, index, { overwrite: options.overwritePrompt === true }))
@@ -734,6 +736,7 @@ function createPresetStoryboard(options, mode) {
     generationMode: 'local',
     shots
   }
+  stampPromptLanguage(project, readPromptLanguage(options.promptLanguage ?? options.prompt_language))
   fitBoard(project)
   project.shots = project.shots.map((shot, index) => refreshShotPrompt(shot, project, index, { overwrite: options.overwritePrompt === true }))
   return syncSequences(project)
@@ -820,6 +823,7 @@ function createScenarioStoryboard(options) {
     generationMode: 'local',
     shots
   }
+  stampPromptLanguage(project, readPromptLanguage(options.promptLanguage ?? options.prompt_language))
   fitBoard(project)
   project.shots = project.shots.map((shot, index) => refreshShotPrompt(shot, project, index, { overwrite: options.overwritePrompt === true }))
   project.sequences = sequencePacks(project)
@@ -933,29 +937,37 @@ function mentionsName(text, name) {
   return new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, 'iu').test(foldName(text))
 }
 
-function joinNames(names) {
+function joinNames(names, lang = 'en') {
+  const conj = phrase(lang, 'and')
   if (names.length <= 1) return names[0] || ''
-  if (names.length === 2) return `${names[0]} and ${names[1]}`
-  return `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`
+  if (names.length === 2) return `${names[0]} ${conj} ${names[1]}`
+  return `${names.slice(0, -1).join(', ')} ${conj} ${names.at(-1)}`
 }
 
-const LEAD_PRONOUN = /^(she|he|they|elle|il|ils|elles)\b/i
+const LEAD_PRONOUN = /^(she|he|they|elle|il|ils|elles|ela|ele|eles|elas|sie|er|lei|lui|si|hien|hatt)\b/i
+const CJK_PRONOUN = /^(彼女|彼|她|他)/u
 
 /** The action, unchanged except a missing subject is named. Prop nouns stay verbatim. */
-function namedAction(shot, project) {
-  const text = cleanText(shot.what || shot.action || '').replace(/\s+at daylight consistent with the idea/gi, '')
+function namedAction(shot, project, lang = 'en') {
+  let text = cleanText(shot.what || shot.action || '').replace(/\s+at daylight consistent with the idea/gi, '')
+  if (lang !== 'en' && !shot.fromPremise) {
+    const beat = translateBeat(text, lang)
+    if (beat) text = beat
+  }
   const names = charactersInShot(shot, project).map(person => person.name).filter(Boolean)
   if (!text || !names.length) return text
   if (names.every(name => mentionsName(text, name))) return text
   const pronoun = text.match(LEAD_PRONOUN)
   if (pronoun) {
     const word = pronoun[1].toLowerCase()
-    const plural = word === 'they' || word === 'ils' || word === 'elles'
-    const subject = plural ? joinNames(names) : names[0]
+    const plural = word === 'they' || word === 'ils' || word === 'elles' || word === 'eles' || word === 'elas'
+    const subject = plural ? joinNames(names, lang) : names[0]
     return text.replace(LEAD_PRONOUN, subject)
   }
-  if (/^[\p{Ll}]/u.test(text)) return `${joinNames(names)} ${text}`
-  return `${joinNames(names)}. ${text}`
+  const cjk = text.match(CJK_PRONOUN)
+  if (cjk) return text.replace(CJK_PRONOUN, names[0])
+  if (/^[\p{Ll}]/u.test(text)) return `${joinNames(names, lang)} ${text}`
+  return `${joinNames(names, lang)}. ${text}`
 }
 
 function framingLabel(shot) {
@@ -965,17 +977,19 @@ function framingLabel(shot) {
 }
 
 function stylePhrase(project) {
+  const lang = promptLanguageOf(project)
   const preset = project.preset
   if (preset?.visual) {
     const visual = cleanText(preset.visual)
     const palette = cleanText(preset.palette || '')
     const lighting = cleanText(preset.lighting || '')
     const paletteOk = palette && palette.length <= 60 && (!lighting || !palette.toLowerCase().includes(lighting.toLowerCase()))
-    return [visual, paletteOk ? palette : ''].filter(Boolean).join(', ')
+    return [phrase(lang, visual), paletteOk ? phrase(lang, palette) : ''].filter(Boolean).join(', ')
   }
   const locked = cleanText(styleLockFor(project))
   const first = locked.split(/(?<=\.)\s+/)[0].replace(/\.$/, '')
-  return first.length > 150 ? first.slice(0, 147).replace(/\s+\S*$/, '') : first
+  const clipped = first.length > 150 ? first.slice(0, 147).replace(/\s+\S*$/, '') : first
+  return phrase(lang, clipped)
 }
 
 function placePhrase(shot, project) {
@@ -1036,11 +1050,11 @@ export function agentCameraValue(shot = {}) {
   return move
 }
 
-function cameraPhrase(shot) {
+function cameraPhrase(shot, lang = 'en') {
   const move = explicitCameraMove(shot)
   const lens = shot?.lensChosen ? cleanText(shot.lens) : ''
   const moveText = !move || /locked-off/i.test(move) ? 'locked-off camera' : move
-  return [lens, moveText].filter(Boolean).join(', ')
+  return [lens, phrase(lang, moveText)].filter(Boolean).join(', ')
 }
 
 /** Shorten only on a comma or clause. Never cut a word in half. */
@@ -1098,20 +1112,21 @@ function fitShortPrompt(parts) {
 
 /** The video-model prompt: framing and the named action, then locks, place, one light, style, camera. */
 export function createShortPrompt(shot, project, index = 0) {
-  const action = namedAction(shot, project)
-  const opening = endPeriod(`${framingLabel(shot)}: ${action}`.replace(/:\s*\./, '.'))
+  const lang = promptLanguageOf(project)
+  const action = namedAction(shot, project, lang)
+  const opening = endPeriod(`${phrase(lang, framingLabel(shot))}: ${action}`.replace(/:\s*\./, '.'))
   const locks = lockLinesForShot(shot, project, index)
   const place = placePhrase(shot, project)
-  const light = oneLight(shot, project)
+  const light = localizeLight(lang, oneLight(shot, project))
   const style = stylePhrase(project)
-  const stability = shotInvolvesHands(shot) ? STABILITY_CUE : ''
+  const stability = shotInvolvesHands(shot) ? phrase(lang, STABILITY_CUE) : ''
   return fitShortPrompt({
     opening,
     locks,
     place: place ? endPeriod(place) : '',
     light: light ? endPeriod(sentence(light)) : '',
     style,
-    camera: cameraPhrase(shot),
+    camera: cameraPhrase(shot, lang),
     stability
   })
 }
@@ -1145,17 +1160,21 @@ export function createPrompt(shot, project, index = 0) {
     if (header && text.startsWith(header)) return `${header}\n${locks}\n${text.slice(header.length).replace(/^\n/, '')}`
     return `${locks}\n${text}`
   }
-  if (guided && project.filmSheet) return withLock(`${header}\n${body}`)
+  const finish = text => {
+    const lang = promptLanguageOf(project)
+    return lang === 'en' ? text : translateDetailedPrompt(text, lang)
+  }
+  if (guided && project.filmSheet) return finish(withLock(`${header}\n${body}`))
   if (project.sequenceMode === 'continuous' && project.continuitySheet) {
     const transition = index === 0 ? CONTINUOUS_TRANSITIONS[0] : index === total - 1 ? 'Finally,' : CONTINUOUS_TRANSITIONS[index] || 'Moments later,'
     const sheetText = formatContinuitySheet(project.continuitySheet)
     const follow = index === 0 ? 'The story begins in this shot.' : 'This shot follows directly from the previous shot.'
-    if (project.continuityStrength === 'strict') return withLock(`${header}\n${sheetText}\n\nShot ${index + 1} of ${total}. ${transition}\nRepeat this continuity sheet verbatim:\n${sheetText}\n${follow}\n${body}`)
-    if (project.promptDensity === 'concise') return withLock(`${header}\nShot ${index + 1} of ${total}. ${transition}\n${follow}\n${body}`)
-    return withLock(`${header}\n${sheetText}\n\nShot ${index + 1} of ${total}. ${transition}\n${follow}\n${body}`)
+    if (project.continuityStrength === 'strict') return finish(withLock(`${header}\n${sheetText}\n\nShot ${index + 1} of ${total}. ${transition}\nRepeat this continuity sheet verbatim:\n${sheetText}\n${follow}\n${body}`))
+    if (project.promptDensity === 'concise') return finish(withLock(`${header}\nShot ${index + 1} of ${total}. ${transition}\n${follow}\n${body}`))
+    return finish(withLock(`${header}\n${sheetText}\n\nShot ${index + 1} of ${total}. ${transition}\n${follow}\n${body}`))
   }
-  if (project.sequenceMode === 'varied') return withLock(`${header}\nIndependent shot ${index + 1} of ${total}. A separate angle, not a continuation.\n${body}`)
-  return withLock(`${header}\n${body}`)
+  if (project.sequenceMode === 'varied') return finish(withLock(`${header}\nIndependent shot ${index + 1} of ${total}. A separate angle, not a continuation.\n${body}`))
+  return finish(withLock(`${header}\n${body}`))
 }
 export function refreshShotPrompt(shot, project, index, { overwrite = false } = {}) {
   const framingTerm = shot?.framingChosen ? (shot.framingTerm || suggestFraming(shot).id) : suggestFraming(shot).id

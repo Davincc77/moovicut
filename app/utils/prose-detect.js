@@ -1,8 +1,9 @@
-/** Deterministic prose detection for FR and EN. No model call. */
+/** Deterministic prose detection. No model call. */
 import { cleanText } from './text.js'
 import { foldName, scenarioBudget, scenarioPremise, scenarioToFields } from './scenario.js'
 import { flaggedNameKeys } from './shot-risk.js'
 import { splitActionText } from './action-split.js'
+import { detectLocalized } from './prose-extra.js'
 
 const STOP = new Set(['the', 'a', 'an', 'he', 'she', 'they', 'it', 'his', 'her', 'their', 'then', 'when', 'after', 'before', 'later', 'next', 'once', 'this', 'that', 'there', 'here', 'un', 'une', 'le', 'la', 'les', 'il', 'elle', 'ils', 'elles', 'lui', 'leur', 'puis', 'quand', 'apres', 'avant', 'dans', 'sur', 'sous', 'avec', 'pour', 'par', 'chez', 'au', 'aux', 'du', 'des', 'en', 'et', 'mais', 'ou', 'ce', 'cette', 'ces', 'son', 'sa', 'ses', 'mon', 'ma', 'mes', 'je', 'tu', 'nous', 'vous', 'on', 'plus', 'tout', 'toute', 'tous', 'morning', 'evening', 'night', 'day', 'matin', 'soir', 'nuit', 'jour', 'aube', 'tard', 'lendemain', 'and', 'with', 'from', 'into', 'over', 'while', 'its', 'our', 'your'])
 
@@ -35,10 +36,66 @@ const VERBS = new Set(['entre', 'sort', 'verse', 'renverse', 'rit', 'rire', 'mar
 const NOT_A_PLACE = new Set(['window', 'door', 'table', 'glass', 'cup', 'bottle', 'hand', 'hands', 'umbrella', 'pastry', 'apron', 'hair', 'face', 'eye', 'eyes'])
 const ROLE_WORDS = /\b(baker|boulanger|boulangère|keeper|gardien|neighbour|neighbor|courier|detective|astronaut|painter|explorer)\b/iu
 
+const FR_MARK = /\b(le|la|les|un|une|des|dans|elle|il|avec|sur|au|aux|et|est|son|sa)\b/gi
+const EN_MARK = /\b(the|and|she|he|with|on|in|at|her|his|is|a)\b/gi
+const OTHER_MARKS = Object.freeze({
+  pt: /\b(ela|ele|eles|elas|uma|não|nao|com|seu|sua|num|numa|pelo|pela|está|esta|encontra|entrega|dele|dela|cais|lê|le)\b/gi,
+  de: /\b(und|sie|der|die|das|ein|eine|mit|ist|nicht|ihm|einen|dem|den|am|im|vom|trifft|gibt|liest)\b/gi,
+  it: /\b(lei|lui|una|uno|con|nel|nella|sul|sulla|che|non|gli|della|del|di|ha|anni|per|sono|incontra|porge|legge|cappotto|molo|lettera)\b/gi,
+  lb: /\b(hien|hie|si|eng|mat|fir|net|vun|ass|och|gëtt|vum|ëm|kënnt|geet|liest|huet|dem)\b/gi
+})
+
+function markCount(text, pattern) {
+  pattern.lastIndex = 0
+  return (String(text).match(pattern) || []).length
+}
+
+function cjkLanguage(text) {
+  const han = (String(text).match(/\p{Script=Han}/gu) || []).length
+  const kana = (String(text).match(/[\u3040-\u30ff]/gu) || []).length
+  if (kana >= 2 && han + kana >= 8) return 'ja'
+  if (han >= 8 && kana === 0) return 'zh-Hans'
+  return ''
+}
+
+function languageScores(text) {
+  const cjk = cjkLanguage(text)
+  if (cjk) return { language: cjk, score: (text.match(/\p{Script=Han}|[\u3040-\u30ff]/gu) || []).length, second: 0 }
+  const fr = markCount(text, FR_MARK)
+  const en = markCount(text, EN_MARK)
+  const scores = { fr, en }
+  for (const [code, pattern] of Object.entries(OTHER_MARKS)) scores[code] = markCount(text, pattern)
+  const ranked = Object.entries(scores).sort((a, b) => b[1] - a[1])
+  const [top, topScore] = ranked[0]
+  const second = ranked[1]?.[1] || 0
+  if ((top === 'pt' || top === 'de' || top === 'it' || top === 'lb') && topScore >= 2 && topScore > Math.max(fr, en)) {
+    return { language: top, score: topScore, second: Math.max(fr, en, second) }
+  }
+  return { language: fr > en ? 'fr' : 'en', score: Math.max(fr, en), second }
+}
+
 function languageOf(text) {
-  const fr = (text.match(/\b(le|la|les|un|une|des|dans|elle|il|avec|sur|au|aux|et|est|son|sa|une)\b/gi) || []).length
-  const en = (text.match(/\b(the|and|she|he|with|on|in|at|her|his|is|a)\b/gi) || []).length
-  return fr > en ? 'fr' : 'en'
+  return languageScores(text).language
+}
+
+export function detectTextLanguage(text) {
+  const found = languageScores(String(text || ''))
+  let confidence = 'low'
+  if (found.language === 'ja' || found.language === 'zh-Hans') confidence = found.score >= 12 ? 'high' : 'medium'
+  else if (found.score >= 4 && found.score > found.second) confidence = 'high'
+  else if (found.score >= 2) confidence = 'medium'
+  return { language: found.language, confidence }
+}
+
+/** Soft hint when the typed text is a different language from the site. Low confidence stays quiet. */
+export function textLanguageHint(text, site) {
+  const clean = String(text || '').trim()
+  if (clean.length < 12) return null
+  const found = detectTextLanguage(clean)
+  if (found.confidence === 'low') return null
+  const target = site || 'en'
+  if (found.language === target) return null
+  return { detected: found.language, site: target }
 }
 
 function tokens(text) {
@@ -467,6 +524,7 @@ function overall(parts) {
 export function detectProse(input) {
   const text = String(input || '').replace(/\r\n/g, '\n').trim()
   const language = languageOf(text)
+  if (language !== 'en' && language !== 'fr') return detectLocalized(text, language)
   const flagged = flaggedNameKeys(text)
   const foundPlaces = detectPlaces(text, language)
   const foundCharacters = detectCharacters(text, foundPlaces.places)

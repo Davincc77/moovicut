@@ -1,6 +1,7 @@
-/** Fixed cinematic framing. The prompt always uses the English term. */
+/** Fixed cinematic framing. The English term is the source. Other prompt languages translate it. */
 import { cleanText } from './text.js'
 import { foldName } from './scenario.js'
+import { framingTermsForMatch } from './prompt-lang.js'
 
 export const FRAMING_TERMS = Object.freeze([
   { id: 'ecu', label: 'extreme close-up', hint: 'très gros plan', aliases: ['extreme close up', 'close up insert', 'macro insert', 'tres gros plan', 'insert'] },
@@ -77,7 +78,8 @@ export function promptFraming(shot = {}) {
 
 export function promptHasFraming(prompt) {
   const folded = foldFraming(prompt)
-  return FRAMING_TERMS.some(term => folded.includes(foldFraming(term.label)))
+  if (FRAMING_TERMS.some(term => folded.includes(foldFraming(term.label)))) return true
+  return framingTermsForMatch().some(label => folded.includes(foldFraming(label)))
 }
 
 export function ensureFramingInPrompt(prompt, label) {

@@ -69,6 +69,7 @@ export function exportAgentBoard(project) {
     style: project.preset?.family || '',
     genre: project.preset?.genre || '',
     promptStyle: project.promptStyle === 'detailed' ? 'detailed' : 'short',
+    ...(project.promptLanguage && project.promptLanguage !== 'en' ? { promptLanguage: project.promptLanguage } : {}),
     filmSheet: copySheet(project.filmSheet),
     shots: (project.shots || []).map((shot, index) => {
       const item = {
@@ -107,6 +108,7 @@ export function importAgentBoard(board, options = {}) {
       style: board.style,
       genre: board.genre,
       promptStyle: board.promptStyle || board.prompt_style,
+      promptLanguage: board.promptLanguage || board.prompt_language,
       overwritePrompt: overwrite,
       scenario: {
         characters: board.filmSheet.characters,
@@ -142,6 +144,7 @@ export function importAgentBoard(board, options = {}) {
     sequenceMode: mode === 'scenario' || isPresetMode(mode) ? 'continuous' : mode,
     count: Math.max(1, board.shots?.length || 5),
     promptStyle: board.promptStyle || board.prompt_style,
+    promptLanguage: board.promptLanguage || board.prompt_language,
     skipDetection: true
   })
   project.promptStyle = project.promptStyle === 'detailed' ? 'detailed' : 'short'

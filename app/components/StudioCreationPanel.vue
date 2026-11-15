@@ -12,7 +12,14 @@ import { readStudioChoices, writeStudioChoices } from '~/utils/studio-choices.js
 import { assessProject } from '~/utils/shot-risk.js'
 import { exportAgentBoard } from '~/utils/agent-board.js'
 import { takeStudioHandoff } from '~/utils/studio-handoff.js'
+import { textLanguageHint } from '~/utils/prose-detect.js'
 const store = useProjectStore()
+const { locale, t } = useI18n()
+const LANGUAGE_NAMES = { en: 'English', fr: 'French', pt: 'Portuguese', de: 'German', it: 'Italian', lb: 'Luxembourgish', ja: 'Japanese', 'zh-Hans': 'Chinese' }
+function sitePromptLanguage() {
+  const lang = locale.value
+  return lang && lang !== 'en' ? { promptLanguage: lang } : {}
+}
 const project = store.project
 const { notify, copyText, downloadText } = useNotifier()
 const remembered = readStudioChoices(import.meta.client ? localStorage : null)
@@ -42,6 +49,7 @@ function storyboardOptions(mode = sequenceMode.value, overrides = {}) {
       duration: overrides.duration ?? duration.value,
       sequenceMode: mode,
       scenes: overrides.scenes,
+      ...sitePromptLanguage(),
       ...(appliedPreset.value ? { style: appliedPreset.value.family, genre: appliedPreset.value.genre } : {})
     }
   }
@@ -72,6 +80,15 @@ function editPlace(index, value) {
   store.patchFilmSheet({ places })
 }
 const boardReady = computed(() => { const current = project.value; return !!current && current.id !== 'starter-project' && Array.isArray(current.shots) && current.shots.length > 0 })
+watch(locale, value => { if (boardReady.value) store.applyPromptSettings({ promptLanguage: value || 'en' }) })
+const typedLanguageHint = computed(() => {
+  const hint = textLanguageHint(premise.value, locale.value || 'en')
+  if (!hint) return ''
+  return t('This text looks like {language}. Fixed prompt lines follow {site}. Your own words stay as you typed them.', {
+    language: t(LANGUAGE_NAMES[hint.detected] || 'English'),
+    site: t(LANGUAGE_NAMES[hint.site] || 'English')
+  })
+})
 const style = ref(remembered.style || 'Normal')
 const aspect = ref(remembered.aspectRatio || '16:9')
 const continuityStrength = ref(remembered.continuityStrength || 'standard')
@@ -192,9 +209,9 @@ function applySharedBoard(board) {
   stepByStep.value = Boolean(board.stepByStep || board.scenes?.length)
   if (board.scenes?.length) draftScenes.value = board.scenes.map(scene => ({ ...blankScene(), ...scene }))
   if (board.sequenceMode === 'scenario' && board.scenario) {
-    return store.createNew(board.premise, model.value, { sequenceMode: 'scenario', scenario: board.scenario, style: board.preset?.family || board.style, genre: board.preset?.genre || board.genre, aspectRatio: board.aspectRatio, duration: board.duration, promptDensity: density.value, promptStyle: promptStyle.value })
+    return store.createNew(board.premise, model.value, { sequenceMode: 'scenario', scenario: board.scenario, style: board.preset?.family || board.style, genre: board.preset?.genre || board.genre, aspectRatio: board.aspectRatio, duration: board.duration, promptDensity: density.value, promptStyle: promptStyle.value, ...sitePromptLanguage() })
   }
-  return store.createNew(board.premise, model.value, { count: board.shots, duration: board.duration, style: style.value, aspectRatio: board.aspectRatio, sequenceMode: board.sequenceMode, continuityStrength: continuityStrength.value, promptDensity: density.value, promptStyle: promptStyle.value, genre: board.genre, scenes: board.scenes })
+  return store.createNew(board.premise, model.value, { count: board.shots, duration: board.duration, style: style.value, aspectRatio: board.aspectRatio, sequenceMode: board.sequenceMode, continuityStrength: continuityStrength.value, promptDensity: density.value, promptStyle: promptStyle.value, genre: board.genre, scenes: board.scenes, ...sitePromptLanguage() })
 }
 const boardOpenPrompt = computed(() => boardReady.value ? combinedShotPrompts(project.value) : '')
 const duration = ref(plans.value[0].duration)
@@ -308,7 +325,7 @@ async function createStoryboard(){
   if (!draft) { uploadError.value = 'Add the fields for this mode, then create the board.'; return }
   creating.value = true
   try {
-    await store.createNew(draft.premise, model.value, { ...draft.options, style: style.value, genre: presetGenre.value, aspectRatio: canonicalAspect(aspect.value), duration: duration.value, promptDensity: density.value, promptStyle: promptStyle.value })
+    await store.createNew(draft.premise, model.value, { ...draft.options, style: style.value, genre: presetGenre.value, aspectRatio: canonicalAspect(aspect.value), duration: duration.value, promptDensity: density.value, promptStyle: promptStyle.value, ...sitePromptLanguage() })
     notify('Editable storyboard created locally.', 'success'); syncFromBoard()
     activeTab.value = 'preview'
     await nextTick()
@@ -324,7 +341,7 @@ async function createStoryboard(){
   if (!referenceReady.value) { uploadError.value = 'Wait for the reference image to finish loading.'; return }
   creating.value = true
   try {
-    await store.createNew(premise.value.trim() || draft.premise, model.value, { sequenceMode: 'scenario', scenario: draft.scenario, style: presetFamily.value, genre: presetGenre.value, aspectRatio: canonicalAspect(aspect.value), duration: duration.value, promptDensity: density.value, promptStyle: promptStyle.value })
+    await store.createNew(premise.value.trim() || draft.premise, model.value, { sequenceMode: 'scenario', scenario: draft.scenario, style: presetFamily.value, genre: presetGenre.value, aspectRatio: canonicalAspect(aspect.value), duration: duration.value, promptDensity: density.value, promptStyle: promptStyle.value, ...sitePromptLanguage() })
     notify('Editable storyboard created locally. Nothing was rendered.', 'success'); syncFromBoard()
     activeTab.value = 'preview'
   } catch (error) { uploadError.value = error.message || 'Fix the scenario, then try again.' }
@@ -426,6 +443,8 @@ onBeforeUnmount(()=>{clearTimeout(copiedTimer);if(referencePreview.value)URL.rev
    <fieldset class="studio-sequence-mode studio-board-mode"><legend>{{ $t('Board') }}</legend><div><button type="button" :aria-pressed="boardKind==='quick'" @click="chooseBoard('quick')">{{ $t('Quick idea') }}</button><button type="button" :aria-pressed="boardKind==='scenario'" @click="chooseBoard('scenario')">{{ $t('Scenario') }}</button><button type="button" :aria-pressed="boardKind==='ad'" @click="chooseBoard('ad')">{{ $t('Ad') }}</button><button type="button" :aria-pressed="boardKind==='series'" @click="chooseBoard('series')">{{ $t('Series') }}</button><button type="button" :aria-pressed="boardKind==='explainer'" @click="chooseBoard('explainer')">{{ $t('Explainer') }}</button></div></fieldset>
    <div v-if="boardKind==='quick'" class="studio-prompt-editor"><textarea id="studio-idea" v-model="premise" :aria-label="$t('Video scene prompt')" :placeholder="$t('Describe your idea in detail — characters, setting, mood, camera style...')" @input="watchMention" @keyup="watchMention" @click="watchMention" /><ul v-if="mentionOpen" class="studio-mention-list" :aria-label="$t('Uploaded images')"><li v-if="referenceName"><button type="button" @click="useMention(referenceName)">{{ referenceName }}</button></li><li v-else>{{ $t('Upload an image to mention it.') }}</li></ul><div v-if="!boardReady && boardKind==='quick'" class="studio-starters" :aria-label="$t('Starter ideas')"><p>{{ $t('Try a starter idea') }}</p><button v-for="idea in starterIdeas" :key="idea.title" type="button" @click="premise=$t(idea.premise)">{{ $t(idea.title) }}</button></div></div>
    <StudioPresetFields v-else-if="boardKind==='ad' || boardKind==='series' || boardKind==='explainer'" ref="presetForm" :mode="boardKind" :reveal="presetReveal" />
+   <CjkNameTip v-if="boardKind==='quick'" :locale="locale" />
+   <p v-if="typedLanguageHint" class="studio-soft-hint" role="status">{{ typedLanguageHint }}</p>
    <p v-if="shortIdea && boardKind==='quick'" class="studio-idea-hint">{{ $t('Add a place, lighting, or a medium such as watercolor or 35mm for sharper shots.') }}</p>
    <header class="studio-model-selector"><label class="studio-model-icon" for="studio-model"><img :src="joinAppPath(appBaseURL,promptImageSrc('paper-star-map','webp'))" alt="" width="20" height="20" /><span class="sr-only">{{ $t('Model') }}</span></label><select id="studio-model" :value="model" :aria-label="$t('Prompt target')" @change="chooseModel($event.target.value)"><option v-for="item in models" :key="item.id" :value="item.id">{{item.name}}</option></select><p>{{ $t('Shot length, aspect, and the risk check follow this model.') }}</p><button type="button" :aria-label="$t('Model information')" @click="activeDetail='model'"><CircleHelp :size="16" /></button></header>
    <fieldset v-if="boardKind==='ad' || boardKind==='series' || boardKind==='explainer'" class="studio-sequence-mode"><legend>{{ $t('Shot length') }}</legend><label>{{ $t('Seconds') }}<input v-model.number="duration" type="number" min="2" max="15" :aria-label="$t('Shot length in seconds')" /></label><p>{{ $t('Each shot snaps to the selected model.') }}</p></fieldset>

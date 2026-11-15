@@ -155,6 +155,11 @@ export function useProjectStore() {
       if (patch.density === 'concise' || patch.density === 'standard') next.promptDensity = patch.density
       if (patch.promptStyle === 'short' || patch.promptStyle === 'detailed') next.promptStyle = patch.promptStyle
       if (patch.prompt_style === 'short' || patch.prompt_style === 'detailed') next.promptStyle = patch.prompt_style
+      if (typeof patch.promptLanguage === 'string' || typeof patch.prompt_language === 'string') {
+        const lang = patch.promptLanguage || patch.prompt_language
+        if (!lang || lang === 'en') delete next.promptLanguage
+        else next.promptLanguage = lang
+      }
       next.shots = next.shots.map((shot, index) => refreshShotPrompt(shot, next, index))
       syncSequences(next)
     }, 'Shot prompts updated on this device. Prompts you edited stay as you left them.')

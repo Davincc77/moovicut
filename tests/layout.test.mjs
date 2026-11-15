@@ -53,6 +53,7 @@ test('every active Vue single-file component parses and compiles', () => {
     const script=descriptor.script||descriptor.scriptSetup
     if(!script)continue
     const compiled=compileScript(descriptor,{id:file})
+    if(!descriptor.template)continue
     const result=compileTemplate({id:file,filename:file,source:descriptor.template.content,compilerOptions:{bindingMetadata:compiled.bindings}})
     assert.deepEqual(result.errors,[],file)
   }

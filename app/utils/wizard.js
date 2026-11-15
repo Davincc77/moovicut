@@ -472,6 +472,15 @@ export function applyIdeaDetection(state) {
   if (idea.length < 8) return state
   const detected = detectProse(idea)
   const next = clone(state)
+  if (detected.reliable === false) {
+    next.detection = {
+      language: detected.language || 'en',
+      confidence: 'low',
+      uncertain: true,
+      warnings: (detected.warnings || []).map(item => item.message).filter(Boolean)
+    }
+    return next
+  }
   applyCharacters(next, detected)
   applyPlaces(next, detected)
   if (next.lightOrigin !== 'user' && detected.light && LIGHT_VALUES.includes(detected.light)) {
@@ -805,12 +814,15 @@ export function wizardStoryboardOptions(state) {
   }
 }
 
-export function optionsSignature(state) {
-  return JSON.stringify(wizardStoryboardOptions(state))
+export function optionsSignature(state, promptLanguage = 'en') {
+  const options = wizardStoryboardOptions(state)
+  if (promptLanguage && promptLanguage !== 'en') options.promptLanguage = promptLanguage
+  return JSON.stringify(options)
 }
 
-export function projectFromWizard(state, { id } = {}) {
+export function projectFromWizard(state, { id, promptLanguage = 'en' } = {}) {
   const options = wizardStoryboardOptions(state)
+  if (promptLanguage && promptLanguage !== 'en') options.promptLanguage = promptLanguage
   if (id) options.id = id
   const project = createStoryboard(options)
   const shots = project.shots.map((shot, index) => {
@@ -847,10 +859,10 @@ export function canGenerate(state) {
   return result.ok && result.blocking.length === 0 && result.gaps.length === 0
 }
 
-export function markGenerated(state) {
+export function markGenerated(state, promptLanguage = 'en') {
   const next = clone(state)
   next.hasGenerated = true
-  next.generatedSignature = optionsSignature(state)
+  next.generatedSignature = optionsSignature(state, promptLanguage)
   next.step = 'generate'
   next.maxReached = Math.max(next.maxReached || 0, stepIndex('generate'))
   return next
@@ -933,8 +945,9 @@ export function normalizeWizard(value) {
   next.genreOrigin = value.genreOrigin === 'user' ? 'user' : 'default'
   if (value.detection && typeof value.detection === 'object') {
     next.detection = {
-      language: value.detection.language === 'fr' ? 'fr' : 'en',
+      language: ['en', 'fr', 'pt', 'de', 'it', 'lb', 'ja', 'zh-Hans'].includes(value.detection.language) ? value.detection.language : 'en',
       confidence: ['high', 'medium', 'low'].includes(value.detection.confidence) ? value.detection.confidence : 'low',
+      uncertain: value.detection.uncertain === true,
       warnings: asArray(value.detection.warnings)?.filter(item => typeof item === 'string').slice(0, 24) || []
     }
   }
