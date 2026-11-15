@@ -49,6 +49,6 @@ test('the name-detection tip renders in Japanese and Simplified Chinese and not 
   assert.ok(creation.indexOf('id="studio-idea"') < creation.indexOf('<CjkNameTip'))
   const scenario = readFileSync('app/components/StudioScenario.vue', 'utf8')
   assert.ok(scenario.indexOf('v-model="prose"') < scenario.indexOf('<CjkNameTip'))
-  assert.match(readFileSync('app/components/CjkNameTip.vue', 'utf8'), /v-if="text"/)
+  assert.match(readFileSync('app/components/CjkNameTip.vue', 'utf8'), /if \(!text\) return ''/)
   assert.match(readFileSync('app/components/CjkNameTip.vue', 'utf8'), /cjkNameTip\(props\.locale\)/)
 })

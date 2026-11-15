@@ -1,14 +1,18 @@
-<script setup>
-import { computed } from 'vue'
+<script>
+import { defineComponent, h } from 'vue'
 import { cjkNameTip } from '~/utils/cjk-name-tip.js'
 
-const props = defineProps({
-  locale: { type: String, default: '' }
+export default defineComponent({
+  name: 'CjkNameTip',
+  props: {
+    locale: { type: String, default: '' }
+  },
+  setup(props) {
+    return () => {
+      const text = cjkNameTip(props.locale)
+      if (!text) return ''
+      return h('p', { class: 'studio-soft-hint', 'data-cjk-name-tip': '' }, text)
+    }
+  }
 })
-
-const text = computed(() => cjkNameTip(props.locale))
 </script>
-
-<template>
-  <p v-if="text" class="studio-soft-hint" data-cjk-name-tip>{{ text }}</p>
-</template>
