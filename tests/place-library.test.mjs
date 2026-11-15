@@ -24,8 +24,15 @@ test('the place library covers the seven site languages and records its sources'
   assert.match(data.attribution, /Bond/)
 })
 
-test('every library word that is also a common name, object, or material is tagged ambiguous', () => {
+test('every library word that is also a name, object, material, adjective, or garment is not a sure place, and a determiner is not a place', () => {
   const failures = []
+  const suffixes = {
+    de: ['pullover', 'jacke', 'mantel', 'weste', 'hemd', 'hose', 'kleid', 'schal', 'bluse', 'muetze', 'mütze', 'stiefel'],
+    en: ['sweater', 'pullover', 'jacket', 'blouse', 'scarf', 'apron', 'turtleneck'],
+    fr: ['manteau', 'écharpe', 'echarpe'],
+    it: ['maglione', 'giacca', 'cappotto', 'sciarpa'],
+    pt: ['camisola', 'casaco', 'jaqueta', 'cachecol']
+  }
   for (const [kind, lists] of Object.entries(audit)) {
     if (kind === 'note') continue
     for (const [language, words] of Object.entries(lists)) {
@@ -33,10 +40,24 @@ test('every library word that is also a common name, object, or material is tagg
       for (const word of words) {
         const key = language === 'ja' || language === 'zh-Hans' ? word : fold(word)
         const tag = table[key]
+        if (kind === 'determiners') {
+          if (tag) failures.push(`${language} determiner ${key} ${tag}`)
+          continue
+        }
         if (tag && !String(tag).startsWith('a:')) failures.push(`${language} ${kind} ${key} ${tag}`)
       }
     }
   }
+  for (const [language, list] of Object.entries(suffixes)) {
+    for (const [lemma, tag] of Object.entries(data.tags[language] || {})) {
+      if (tag === 's' && list.some(suffix => lemma.endsWith(suffix) && lemma.length > suffix.length)) failures.push(`${language} garment ${lemma}`)
+    }
+  }
+  assert.equal(placeTag('fr', 'son'), '')
+  assert.notEqual(placeTag('en', 'shallow'), 's')
+  assert.notEqual(placeTag('en', 'narrow'), 's')
+  assert.notEqual(placeTag('en', 'stairs'), 's')
+  assert.notEqual(placeTag('de', 'rollkragenpullover'), 's')
   assert.deepEqual(failures, [])
 })
 

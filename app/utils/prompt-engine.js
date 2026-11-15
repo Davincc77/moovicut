@@ -770,7 +770,7 @@ function createScenarioStoryboard(options) {
   const filmSheet = { characters: mergeCharacterExtras(parsed.characters, options.scenario), places: parsed.places, light: parsed.light || '', mood: parsed.mood || '', style: preset.visual, preset }
   const shots = parsed.scenes.map((scene, index) => {
     const choice = resolveUserCamera(scene.camera)
-    const lightId = scene.light || parsed.light || ''
+    const lightId = scene.light || ''
     const moodId = scene.mood || parsed.mood || ''
     const duration = scene.duration || defaultDuration
     const shot = {

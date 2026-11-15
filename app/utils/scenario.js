@@ -457,14 +457,14 @@ function parseScenarioObject(input, options = {}) {
     const where = cleanText(pick(entry, ['where', 'at', 'place']))
     const what = cleanText(pick(entry, ['what', 'do', 'action', 'beat']))
     if (!who) errors.push(problem(`${path} is missing who.`, { path: `${path}.who`, section: 'scenes', field: 'who', index }))
-    if (!where) errors.push(problem(`${path} is missing where.`, { path: `${path}.where`, section: 'scenes', field: 'where', index }))
+    if (!where && !options.allowMissingWhere) errors.push(problem(`${path} is missing where.`, { path: `${path}.where`, section: 'scenes', field: 'where', index }))
     if (!what) errors.push(problem(`${path} is missing what happens.`, { path: `${path}.what`, section: 'scenes', field: 'what', index }))
     const camera = readEnum(entry.camera ?? entry.cam, CAMERA_VALUES, 'camera', { path: `${path}.camera`, section: 'scenes', index }, errors)
     const sceneLight = readEnum(entry.light ?? entry.lighting, LIGHT_VALUES, 'light', { path: `${path}.light`, section: 'scenes', index }, errors)
     const sceneMood = readEnum(entry.mood, MOOD_VALUES, 'mood', { path: `${path}.mood`, section: 'scenes', index }, errors)
     const duration = readDuration(entry.duration ?? entry.s, { path: `${path}.duration`, section: 'scenes', index }, errors)
     const prompt = typeof entry.prompt === 'string' ? entry.prompt.trim().slice(0, 16000) : ''
-    if (who && where && what) {
+    if (who && what && (where || options.allowMissingWhere)) {
       const scene = { number: index + 1, who, where, what, line: index + 1, camera, light: sceneLight, mood: sceneMood, duration, prompt }
       if (entry.sceneCut === true) scene.sceneCut = true
       if (entry.cutUncertain === true) scene.cutUncertain = true

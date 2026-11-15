@@ -2,9 +2,9 @@
 
 Moovicut decides places with a static library. Nothing is downloaded and no model runs when a story is planned.
 
-A noun is either a **sure place** or **ambiguous**. A sure place can name the setting when it appears. An ambiguous word counts only inside a locative: English `in` / `at` / `inside`, French `dans` / `au` / `à la`, German `in` / `im` / `auf`, Portuguese and Italian equivalents, Japanese `で` / `に` / `の中`, Chinese `在` plus `里` / `上` / `中` / `内`. Once a scene has a place, only a new locative sentence replaces it. A word someone holds, wears, or uses is never the place. A person's name wins over a place word.
+A noun is either a **sure place** or **ambiguous**. A sure place can name the setting when it appears. An ambiguous word counts only inside a locative, or after an enter verb such as *betritt*, *entra*, or *enters*: English `in` / `at` / `inside` / `into`, French `dans` / `au` / `à la`, German `in` / `im` / `auf`, Portuguese and Italian equivalents, Japanese `で` / `に` / `の中`, Chinese `在` / `去` / `到` plus `里` / `上` / `中` / `内`. Once a scene has a place, only a new locative sentence replaces it. A place named in passing, behind something, or at the end of a valley does not. A word someone holds, wears, or uses is never the place. An adjective, a garment, and a determiner or possessive (French *son*, German *sein*, Italian *suo*, Portuguese *seu*) are never the place. A person's name wins over a place word.
 
-Ambiguous tags record the other sense: `name`, `object`, `material`, or `other` (the lemma also belongs to a non-place synset). The audit lists live in `app/data/place-audit.json`. A library entry that is on those lists and is not tagged ambiguous fails `every library word that is also a common name, object, or material is tagged ambiguous`.
+Ambiguous tags record the other sense: `name`, `object`, `material`, `adjective`, `garment`, or `other` (the lemma also belongs to a non-place synset). The audit lists live in `app/data/place-audit.json`. A library entry that is on the name, object, material, adjective, or garment lists and is tagged sure fails the audit test. A determiner on those lists must not be an entry at all.
 
 ## Licence of the shipped file
 

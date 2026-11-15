@@ -55,13 +55,13 @@ DE_SEEDS = [
 ]
 DE_EXCLUDE = ['Person', 'Tier', 'Pflanze', 'Nahrung', 'Gefühl', 'Farbe', 'Zeit', 'Stoff', 'Körperteil']
 SUPPLEMENT = {
-    'en': ['quay', 'pier', 'wharf', 'cafe', 'rink', 'boathouse', 'car wash', 'pawnshop', 'fire escape', 'sawmill', 'mine', 'hayloft', 'embankment', 'gym', 'bowling alley'],
-    'fr': ['serre', 'quai', 'piscine', 'forêt', 'foret'],
-    'de': ['kegelbahn', 'gewächshaus', 'sägewerk'],
-    'pt': ['estufa', 'cais', 'piscina'],
-    'it': ['serra', 'molo', 'piscina'],
-    'ja': ['台所', '温室', '埠頭', 'カフェ', '駅'],
-    'zh-Hans': ['厨房', '温室', '码头', '咖啡馆', '车站'],
+    'en': ['quay', 'pier', 'wharf', 'cafe', 'rink', 'boathouse', 'car wash', 'pawnshop', 'fire escape', 'sawmill', 'mine', 'hayloft', 'embankment', 'gym', 'bowling alley', 'mill', 'bakery', 'balcony', 'courthouse', 'barn', 'farmhouse', 'orchard', 'vineyard', 'playground'],
+    'fr': ['serre', 'quai', 'piscine', 'forêt', 'foret', 'bois', 'mine', 'moulin', 'banque', 'boulangerie', 'gare', 'ferme', 'grange', 'marché', 'tribunal', 'métro', 'balcon', 'véranda', 'atelier', 'usine', 'phare'],
+    'de': ['kegelbahn', 'gewächshaus', 'sägewerk', 'bank', 'konditorei', 'gericht', 'amtsgericht', 'konzertsaal', 'biergarten', 'dorf', 'bäckerei', 'bahnhof', 'wald', 'hafen', 'leuchtturm', 'balkon', 'veranda', 'werkstatt', 'fabrik', 'markt', 'rathaus', 'apotheke', 'metzgerei', 'kirche', 'scheune', 'mühle'],
+    'pt': ['estufa', 'cais', 'piscina', 'mina', 'quadra', 'comboio', 'miradouro', 'padaria', 'estação', 'floresta', 'porto', 'farol', 'varanda', 'oficina', 'fábrica', 'mercado', 'tribunal', 'metro', 'igreja', 'horta', 'moinho'],
+    'it': ['serra', 'molo', 'piscina', 'faro', 'miniera', 'panetteria', 'stazione', 'bosco', 'porto', 'balcone', 'veranda', 'officina', 'fabbrica', 'mercato', 'tribunale', 'metropolitana', 'chiesa', 'orto', 'mulino', 'fattoria'],
+    'ja': ['台所', '温室', '埠頭', 'カフェ', '駅', '森', '城', '畑', '銭湯', '縁側', '商店街', '校庭', 'パン屋', '港', '灯台', 'ベランダ', '工場', '市場', '裁判所', '地下鉄', '教会', '銀行', '農場', '小屋'],
+    'zh-Hans': ['厨房', '温室', '码头', '咖啡馆', '车站', '竹林', '银行', '煤矿', '江边', '火锅店', '王府', '地铁', '阳台', '面包店', '港口', '灯塔', '工厂', '市场', '法院', '教堂', '森林', '农场', '磨坊'],
 }
 
 
@@ -72,8 +72,8 @@ def fold(value):
 def load_audit():
     raw = json.loads(AUDIT_PATH.read_text())
     out = {}
-    for kind in ('names', 'objects', 'materials'):
-        out[kind] = {lang: {fold(word) for word in words} for lang, words in raw[kind].items()}
+    for kind in ('names', 'objects', 'materials', 'adjectives', 'garments', 'determiners'):
+        out[kind] = {lang: {fold(word) for word in words} for lang, words in raw.get(kind, {}).items()}
     return out
 
 
@@ -136,12 +136,9 @@ def ok_lemma(lemma, language):
 
 def sense_of(language, lemma, audit):
     key = fold(lemma)
-    if key in audit['names'].get(language, ()):
-        return 'name'
-    if key in audit['objects'].get(language, ()):
-        return 'object'
-    if key in audit['materials'].get(language, ()):
-        return 'material'
+    for kind in ('names', 'objects', 'materials', 'adjectives', 'garments', 'determiners'):
+        if key in audit.get(kind, {}).get(language, ()):
+            return {'names': 'name', 'objects': 'object', 'materials': 'material', 'adjectives': 'adjective', 'garments': 'garment', 'determiners': 'determiner'}[kind]
     return ''
 
 
@@ -245,6 +242,8 @@ def main():
             if not slot['place']:
                 continue
             listed = listed_sense[language].get(lemma) or sense_of(language, lemma, audit)
+            if listed == 'determiner':
+                continue
             tag = tag_for(slot, listed)
             kept[lemma] = tag
             if tag == 's':

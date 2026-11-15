@@ -301,13 +301,15 @@ function splitRequested(input) {
 }
 
 function scenesForPlan(detected) {
-  const fallbackPlace = detected.places?.find(place => place.uncertain)?.name || detected.places?.[0]?.name || ''
+  let carried = ''
   const scenes = (detected.scenes || []).map((scene, index) => {
     const row = detected.scenario?.scenes?.[index] || {}
+    const where = scene.where || row.where || carried
+    if (where) carried = where
     return {
       who: scene.who || row.who,
-      where: scene.where || row.where || fallbackPlace,
-      what: scene.what || row.what,
+      where,
+      what: scene.what || row.what || scene.action || '',
       duration: scene.duration || row.duration || 3,
       light: scene.light || '',
       timeLabel: scene.timeLabel || '',
@@ -319,7 +321,15 @@ function scenesForPlan(detected) {
       cutKind: scene.cutKind || ''
     }
   })
-  return scenes
+  const named = (detected.places || []).filter(place => place?.name && !place.uncertain)
+  if (named.length === 1) {
+    for (const scene of scenes) if (!scene.where) scene.where = named[0].name
+  }
+  let started = false
+  return scenes.filter(scene => {
+    if (scene.where) started = true
+    return started && scene.what
+  })
 }
 
 function planProse(input, { origin, compact }) {
@@ -329,7 +339,7 @@ function planProse(input, { origin, compact }) {
   const splitScenes = splitRequested(input)
   const detected = detectProse(text, { splitScenes })
   const scenario = { ...detected.scenario, scenes: scenesForPlan(detected) }
-  const parsed = parseScenario(scenario, { allowIncompleteCast: true })
+  const parsed = parseScenario(scenario, { allowIncompleteCast: true, allowMissingWhere: true })
   const promptLanguage = optionalPromptLanguage(input) || 'en'
   const detection = {
     input: 'prose',
@@ -341,7 +351,8 @@ function planProse(input, { origin, compact }) {
     cuts: splitScenes ? (detected.cuts || []) : []
   }
   if (!parsed.ok) {
-    const error = new Error(describeScenarioErrors(parsed.errors))
+    const lang = detected.language || promptLanguage
+    const error = new Error(parsed.errors.map(item => translate(lang, item.message)).filter(Boolean).join(' ') || describeScenarioErrors(parsed.errors))
     error.status = 400
     error.code = 'invalid_scenario'
     error.errors = parsed.errors

@@ -660,7 +660,7 @@ function locativePhrases(source, language) {
     if (['morning', 'evening', 'night', 'end', 'left', 'right', 'way', 'dark', 'light', 'distance', 'front', 'back', 'side', 'time', 'moment', 'meantime', 'same', 'other', 'another', 'next', 'meme', 'autre', 'cut', 'pixie', 'hair', 'eyebrow', 'scar', 'sweater', 'pocket', 'sleeve', 'collar', 'line', 'bottom', 'top', 'edge', 'middle', 'corner', 'nail', 'pipe', 'screw', 'bolt', 'rope'].includes(head)) continue
     if (PLACE_KEYS.has(head)) continue
     const tag = placeTag(language, words.join(' ')) || placeTag(language, head)
-    if (tag === 'a:object' || tag === 'a:material') continue
+    if (tag === 'a:object' || tag === 'a:material' || tag === 'a:adjective' || tag === 'a:garment' || tag === 'a:determiner') continue
     if (!tag && !placeLexiconHas(head) && !placeLexiconHas(words.join(' '))) continue
     const phrase = words.join(' ')
     const name = phrase.replace(/^\p{Ll}/u, char => char.toUpperCase())
@@ -833,7 +833,6 @@ function genericPlace(language) {
     pt: ['O lugar', 'um lugar que o texto não nomeia'],
     de: ['Der Ort', 'ein Ort, den der Text nicht nennt'],
     it: ['Il luogo', 'un luogo che il testo non nomina'],
-    lb: ['D\'Plaz', 'eng Plaz, déi den Text net nennt'],
     ja: ['場所', '文が名を挙げない場所'],
     'zh-Hans': ['场景', '文中没有点名的地点']
   }
