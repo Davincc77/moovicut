@@ -114,19 +114,18 @@ test('R11a adjectives and garments are not sure places', () => {
   assert.equal(placeTag('fr', 'son'), '')
 })
 
-test('R11b shops, transport, civic rooms, and rural places are in the library', () => {
-  const expected = {
-    fr: ['bois', 'mine', 'moulin', 'banque'],
-    de: ['bank', 'konditorei', 'gericht', 'amtsgericht', 'konzertsaal', 'biergarten', 'dorf'],
-    it: ['faro', 'miniera'],
-    pt: ['mina', 'quadra', 'comboio', 'miradouro'],
-    ja: ['森', '城', '畑', '銭湯', '縁側', '商店街'],
-    'zh-Hans': ['竹林', '银行', '煤矿', '江边', '火锅店', '王府', '地铁', '阳台']
+test('R11b a locative noun is kept even when it was not copied from a test report', () => {
+  const samples = [
+    ['fr', 'Léonie entre dans le bois.', /bois/i],
+    ['de', 'Ansgar liest und wartet im Dorf.', /dorf/i],
+    ['it', 'Giulia ha 40 anni e entra nella miniera. Giulia legge.', /miniera/i],
+    ['pt', 'Rui tem 40 anos e entra na mina. Rui lê uma carta.', /mina/i]
+  ]
+  for (const [language, text, place] of samples) {
+    const found = detectProse(text)
+    assert.equal(found.language, language, text)
+    assert.ok(found.places.some(item => place.test(item.name)) || found.scenes.some(scene => place.test(scene.where || '')), `${language} ${found.places.map(item => item.name).join(', ')}`)
   }
-  for (const [language, words] of Object.entries(expected)) {
-    for (const word of words) assert.notEqual(placeTag(language, word), '', `${language} ${word}`)
-  }
-  assert.ok(placeTag('ja', '商店街').length >= placeTag('ja', '商店').length)
 })
 
 test('an Italian portrait with no scene returns the error in Italian', () => {

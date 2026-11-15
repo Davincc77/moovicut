@@ -301,35 +301,25 @@ function splitRequested(input) {
 }
 
 function scenesForPlan(detected) {
-  let carried = ''
-  const scenes = (detected.scenes || []).map((scene, index) => {
+  return (detected.scenes || []).map((scene, index) => {
     const row = detected.scenario?.scenes?.[index] || {}
-    const where = scene.where || row.where || carried
-    if (where) carried = where
     return {
-      who: scene.who || row.who,
-      where,
+      who: scene.who || row.who || '',
+      where: scene.where || row.where || '',
       what: scene.what || row.what || scene.action || '',
       duration: scene.duration || row.duration || 3,
-      light: scene.light || '',
+      light: scene.light || row.light || '',
       timeLabel: scene.timeLabel || '',
       sceneId: scene.sceneId || index + 1,
       sceneCut: scene.sceneCut === true,
       cutCue: scene.cutCue || '',
       cutReason: scene.cutReason || '',
       cutUncertain: scene.cutUncertain === true,
-      cutKind: scene.cutKind || ''
+      cutKind: scene.cutKind || '',
+      source: scene.source || scene.what || row.what || '',
+      flags: Array.isArray(scene.flags) ? scene.flags : (Array.isArray(row.flags) ? row.flags : [])
     }
-  })
-  const named = (detected.places || []).filter(place => place?.name && !place.uncertain)
-  if (named.length === 1) {
-    for (const scene of scenes) if (!scene.where) scene.where = named[0].name
-  }
-  let started = false
-  return scenes.filter(scene => {
-    if (scene.where) started = true
-    return started && scene.what
-  })
+  }).filter(scene => scene.what)
 }
 
 function planProse(input, { origin, compact }) {
@@ -339,7 +329,8 @@ function planProse(input, { origin, compact }) {
   const splitScenes = splitRequested(input)
   const detected = detectProse(text, { splitScenes })
   const scenario = { ...detected.scenario, scenes: scenesForPlan(detected) }
-  const parsed = parseScenario(scenario, { allowIncompleteCast: true, allowMissingWhere: true })
+  const cast = detected.characters || []
+  const parsed = parseScenario(scenario, { allowIncompleteCast: true, allowMissingWhere: true, allowMissingWho: cast.length > 0 })
   const promptLanguage = optionalPromptLanguage(input) || 'en'
   const detection = {
     input: 'prose',
@@ -361,6 +352,8 @@ function planProse(input, { origin, compact }) {
   const project = withActionSplits(createStoryboard({
     scenario,
     allowIncompleteCast: true,
+    allowMissingWhere: true,
+    allowMissingWho: cast.length > 0,
     model: input.model,
     aspectRatio: input.aspectRatio,
     style: input.style,

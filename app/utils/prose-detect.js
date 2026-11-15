@@ -5,7 +5,7 @@ import { flaggedNameKeys } from './shot-risk.js'
 import { splitActionText } from './action-split.js'
 import { detectLocalized } from './prose-extra.js'
 import { inNamedVenue, inSpans, isCueStopword, isFunctionWord, isNeverPlace, isNumberWord, isQuotedOrRemembered, isVenueType, namedVenues, placeMentionIsReal, quoteSpans, splitNarrative } from './scene-split.js'
-import { libraryHits, placeLexiconHas, placeTag } from './place-lexicon.js'
+import { libraryHits, locativeHeads, placeLexiconHas, placeTag } from './place-lexicon.js'
 
 const STOP = new Set(['the', 'a', 'an', 'he', 'she', 'they', 'it', 'his', 'her', 'their', 'then', 'when', 'after', 'before', 'later', 'next', 'once', 'this', 'that', 'there', 'here', 'un', 'une', 'le', 'la', 'les', 'il', 'elle', 'ils', 'elles', 'lui', 'leur', 'puis', 'quand', 'apres', 'avant', 'dans', 'sur', 'sous', 'avec', 'pour', 'par', 'chez', 'au', 'aux', 'du', 'des', 'en', 'et', 'mais', 'ou', 'ce', 'cette', 'ces', 'son', 'sa', 'ses', 'mon', 'ma', 'mes', 'je', 'tu', 'nous', 'vous', 'on', 'plus', 'tout', 'toute', 'tous', 'morning', 'evening', 'night', 'day', 'matin', 'soir', 'nuit', 'jour', 'aube', 'tard', 'lendemain', 'and', 'with', 'from', 'into', 'over', 'while', 'its', 'our', 'your'])
 
@@ -46,9 +46,9 @@ const ROLE_WORDS = /\b(baker|boulanger|boulangère|keeper|gardien|neighbour|neig
 const FR_MARK = /\b(le|la|les|un|une|des|dans|elle|il|avec|sur|au|aux|et|est|son|sa)\b/gi
 const EN_MARK = /\b(the|and|she|he|with|on|in|at|her|his|is|a)\b/gi
 const OTHER_MARKS = Object.freeze({
-  pt: /\b(ela|ele|eles|elas|uma|não|nao|com|seu|sua|num|numa|pelo|pela|está|esta|encontra|entrega|dele|dela|cais|lê|le)\b/gi,
+  pt: /\b(ela|ele|eles|elas|uma|não|nao|com|seu|sua|num|numa|pelo|pela|está|esta|encontra|entrega|dele|dela|cais|lê|le|tem|anos|entra|na)\b/gi,
   de: /\b(und|sie|der|die|das|ein|eine|mit|ist|nicht|ihm|einen|dem|den|am|im|vom|trifft|gibt|liest)\b/gi,
-  it: /\b(lei|lui|una|uno|con|nel|nella|sul|sulla|che|non|gli|della|del|di|ha|anni|per|sono|incontra|porge|legge|cappotto|molo|lettera)\b/gi
+  it: /\b(lei|lui|una|uno|con|nel|nella|sul|sulla|che|non|gli|alla|allo|alle|dello|della|degli|delle|del|di|ha|anni|per|sono|incontra|porge|legge|cappotto|molo|lettera|più|piu|questo|questa)\b/gi
 })
 
 function markCount(text, pattern) {
@@ -71,9 +71,13 @@ function languageScores(text) {
   const en = markCount(text, EN_MARK)
   const scores = { fr, en }
   for (const [code, pattern] of Object.entries(OTHER_MARKS)) scores[code] = markCount(text, pattern)
+  const italianOnly = markCount(text, /\b(gli|alla|allo|alle|agli|dello|della|degli|delle|nello|negli|nelle|nella|anni|più|piu|questo|questa|perché|perche)\b/gi)
   const ranked = Object.entries(scores).sort((a, b) => b[1] - a[1])
   const [top, topScore] = ranked[0]
   const second = ranked[1]?.[1] || 0
+  if (italianOnly >= 2 && scores.it >= 2 && scores.it >= Math.max(scores.pt || 0, scores.de || 0)) {
+    return { language: 'it', score: scores.it, second: Math.max(fr, en, second) }
+  }
   if ((top === 'pt' || top === 'de' || top === 'it') && topScore >= 2 && topScore > Math.max(fr, en)) {
     return { language: top, score: topScore, second: Math.max(fr, en, second) }
   }
@@ -781,6 +785,10 @@ function detectPlaces(text, language, people = new Set()) {
       if (locativeSentences.has(start)) return
     }
     pushPlace(places, hit.name, hit.name, hit.tag === 's' ? 'high' : 'medium', true)
+    if (hit.tag === 'unlisted') {
+      const saved = places.find(place => foldName(place.name) === foldName(hit.name))
+      if (saved) saved.unlisted = true
+    }
   })
   let visible = places.filter(place => {
     if (venues.some(venue => foldName(venue.name).includes(foldName(place.name)) && foldName(venue.name) !== foldName(place.name))) return false
@@ -984,7 +992,7 @@ function placeRecords(places) {
     const keys = new Set([place.name])
     if (known) known.keys.forEach(key => { if (!isCueStopword(key)) keys.add(key) })
     tokens(place.name).forEach(token => { if (!isCueStopword(token)) keys.add(token) })
-    return { name: place.name, keys: [...keys], uncertain: place.uncertain === true }
+    return { name: place.name, keys: [...keys], uncertain: place.uncertain === true, unlisted: place.unlisted === true }
   })
 }
 
@@ -1004,6 +1012,8 @@ function detectScenes(text, characters, places, language, flagged, options = {})
     const foundNames = namesIn(shot.what, characters)
     const pronounWho = whoFromPronoun(shot.what, characters, genders, language)
     const who = canonicalWho(foundNames.length ? foundNames.map(item => item.name).join(' and ') : (pronounWho || shot.who), characters)
+    const head = locativeHeads(shot.what, language).find(item => !isQuotedOrRemembered(shot.what, item.index, language))
+    const genericWhere = /^(?:Le lieu|The setting|Der Ort|O lugar|Il luogo|場所|场景)$/u.test(shot.where || '')
     const flaggedOnly = riskNamesOnly(shot.what, flagged)
     let confidence = 'high'
     if (!foundNames.length) confidence = 'medium'
@@ -1018,8 +1028,10 @@ function detectScenes(text, characters, places, language, flagged, options = {})
     return {
       number: index + 1,
       who: who || '',
-      where: shot.where || '',
+      where: head && (!shot.where || genericWhere) ? head.name : (shot.where || ''),
       what: shot.what,
+      source: shot.source || shot.what,
+      flags: Array.isArray(shot.flags) ? shot.flags : [],
       duration: 3,
       confidence,
       light: shot.light || '',
@@ -1053,6 +1065,13 @@ export function detectProse(input, options = {}) {
   const foundCharacters = detectCharacters(text, foundPlaces.places, language)
   const ambience = detectAmbience(text)
   const foundScenes = detectScenes(text, foundCharacters.characters, foundPlaces.places, language, flagged, options)
+  foundScenes.scenes.forEach(scene => {
+    if (!scene.where || foundPlaces.places.some(place => foldName(place.name) === foldName(scene.where))) return
+    foundPlaces.places.push({ name: scene.where, description: scene.where, unlisted: true, confidence: 'low', trusted: true })
+  })
+  if (foundPlaces.places.some(place => place.unlisted || (place.confidence === 'high' || place.confidence === 'medium'))) {
+    foundPlaces.places = foundPlaces.places.filter(place => !place.uncertain)
+  }
   const openingShotLight = foundScenes.scenes[0]?.light || ''
   const warnings = [...foundCharacters.warnings, ...foundPlaces.warnings, ...foundScenes.warnings]
   if (foundCharacters.skippedFlagged || foundPlaces.skippedFlagged) {
@@ -1063,7 +1082,7 @@ export function detectProse(input, options = {}) {
     places: foundPlaces.places.map(({ name, description, uncertain }) => ({ name, description, ...(uncertain ? { uncertain: true } : {}) })),
     light: openingShotLight,
     mood: ambience.mood,
-    scenes: foundScenes.scenes.map(({ number, who, where, what, duration, light }) => ({ number, who, where, what, duration, ...(light ? { light } : {}) }))
+    scenes: foundScenes.scenes.map(({ number, who, where, what, duration, light, source, flags }) => ({ number, who, where, what, duration, ...(light ? { light } : {}), ...(source ? { source } : {}), ...(flags?.length ? { flags } : {}) }))
   }
   const canonical = scenarioToFields(scenario)
   const budget = scenarioBudget([canonical.characters, canonical.places, canonical.scenes].join('\n'), foundScenes.scenes.length * 3)

@@ -54,14 +54,16 @@ DE_SEEDS = [
     'Insel', 'Tal', 'Wüste', 'Höhle', 'Werkstatt', 'Fabrik', 'Geschäft',
 ]
 DE_EXCLUDE = ['Person', 'Tier', 'Pflanze', 'Nahrung', 'Gefühl', 'Farbe', 'Zeit', 'Stoff', 'Körperteil']
+# Gap-fillers the walk missed before any blind-test report. Report vocabulary stays out;
+# tests/supplement-vocab.test.mjs fails if one of those words is added back.
 SUPPLEMENT = {
-    'en': ['quay', 'pier', 'wharf', 'cafe', 'rink', 'boathouse', 'car wash', 'pawnshop', 'fire escape', 'sawmill', 'mine', 'hayloft', 'embankment', 'gym', 'bowling alley', 'mill', 'bakery', 'balcony', 'courthouse', 'barn', 'farmhouse', 'orchard', 'vineyard', 'playground'],
-    'fr': ['serre', 'quai', 'piscine', 'forêt', 'foret', 'bois', 'mine', 'moulin', 'banque', 'boulangerie', 'gare', 'ferme', 'grange', 'marché', 'tribunal', 'métro', 'balcon', 'véranda', 'atelier', 'usine', 'phare'],
-    'de': ['kegelbahn', 'gewächshaus', 'sägewerk', 'bank', 'konditorei', 'gericht', 'amtsgericht', 'konzertsaal', 'biergarten', 'dorf', 'bäckerei', 'bahnhof', 'wald', 'hafen', 'leuchtturm', 'balkon', 'veranda', 'werkstatt', 'fabrik', 'markt', 'rathaus', 'apotheke', 'metzgerei', 'kirche', 'scheune', 'mühle'],
-    'pt': ['estufa', 'cais', 'piscina', 'mina', 'quadra', 'comboio', 'miradouro', 'padaria', 'estação', 'floresta', 'porto', 'farol', 'varanda', 'oficina', 'fábrica', 'mercado', 'tribunal', 'metro', 'igreja', 'horta', 'moinho'],
-    'it': ['serra', 'molo', 'piscina', 'faro', 'miniera', 'panetteria', 'stazione', 'bosco', 'porto', 'balcone', 'veranda', 'officina', 'fabbrica', 'mercato', 'tribunale', 'metropolitana', 'chiesa', 'orto', 'mulino', 'fattoria'],
-    'ja': ['台所', '温室', '埠頭', 'カフェ', '駅', '森', '城', '畑', '銭湯', '縁側', '商店街', '校庭', 'パン屋', '港', '灯台', 'ベランダ', '工場', '市場', '裁判所', '地下鉄', '教会', '銀行', '農場', '小屋'],
-    'zh-Hans': ['厨房', '温室', '码头', '咖啡馆', '车站', '竹林', '银行', '煤矿', '江边', '火锅店', '王府', '地铁', '阳台', '面包店', '港口', '灯塔', '工厂', '市场', '法院', '教堂', '森林', '农场', '磨坊'],
+    'en': ['quay', 'pier', 'wharf', 'cafe', 'rink', 'boathouse', 'car wash', 'pawnshop', 'fire escape', 'sawmill', 'mine', 'hayloft', 'embankment', 'gym', 'bowling alley'],
+    'fr': ['serre', 'quai', 'piscine', 'forêt', 'foret'],
+    'de': ['kegelbahn', 'gewächshaus', 'sägewerk'],
+    'pt': ['estufa', 'cais', 'piscina'],
+    'it': ['serra', 'molo', 'piscina'],
+    'ja': ['台所', '温室', '埠頭', 'カフェ', '駅'],
+    'zh-Hans': ['厨房', '温室', '码头', '咖啡馆', '车站'],
 }
 
 
@@ -173,8 +175,9 @@ def read_omw(zip_path, place_offsets, audit, bucket, other):
                         continue
                     off = offset.split('-')[0]
                     is_place = off in place_offsets
-                    for part in cols[2].split('+'):
-                        add_lemma(bucket, other, language, part.replace('_', ' '), is_place, audit)
+                    # OMW writes one lemma with "+" or "_" between its words.
+                    lemma = re.sub(r'\s+', ' ', cols[2].replace('+', ' ').replace('_', ' ')).strip()
+                    add_lemma(bucket, other, language, lemma, is_place, audit)
 
 
 def read_odenet(path, audit, bucket, other):

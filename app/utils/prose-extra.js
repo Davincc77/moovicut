@@ -2,7 +2,7 @@
 import { cleanText } from './text.js'
 import { foldName, scenarioBudget, scenarioPremise, scenarioToFields } from './scenario.js'
 import { cueLight, findPlaceCue, inNamedVenue, isFunctionWord, isNumberWord, isQuotedOrRemembered, isVenueType, namedVenues } from './scene-split.js'
-import { libraryHits } from './place-lexicon.js'
+import { libraryHits, locativeHeads } from './place-lexicon.js'
 
 const LEX = {
   pt: {
@@ -125,7 +125,7 @@ function findPlaces(text, lex, language) {
   })
   libraryHits(text, language).forEach(hit => {
     if (places.some(place => foldName(place.name) === foldName(hit.name))) return
-    places.push({ name: hit.name, description: hit.name, confidence: hit.tag === 's' ? 'high' : 'medium' })
+    places.push({ name: hit.name, description: hit.name, confidence: hit.tag === 's' ? 'high' : hit.tag === 'unlisted' ? 'low' : 'medium', ...(hit.tag === 'unlisted' ? { unlisted: true } : {}) })
   })
   return places
 }
@@ -220,37 +220,59 @@ function nameInText(text, name) {
   return new RegExp(`(?<![\\p{L}])${needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}])`, 'iu').test(foldName(text))
 }
 
-function whoFromPronoun(sentence, characters, lex) {
+function whoFromPronoun(sentence, center) {
   const first = foldName(tokens(sentence)[0] || '')
-  if (lex.feminine.includes(first) && characters[0]) return characters[0].name
-  if (lex.masculine.includes(first) && characters[1]) return characters[1].name
-  if (lex.masculine.includes(first) && characters[0]) return characters[0].name
-  return ''
+  if (!/^(?:she|he|sie|er|ela|ele|lei|lui|ella)$/u.test(first)) return { who: '', flag: 'who_missing' }
+  if (!center) return { who: '', flag: 'who_unresolved' }
+  return { who: center, flag: 'who_pronoun' }
 }
 
 function findScenes(text, lex, characters, places, language) {
   const warnings = []
   const scenes = []
-  let lastWho = characters[0]?.name || ''
+  let center = ''
   let lastWhere = ''
   let light = ''
   sentences(text).forEach(sentence => {
-    if (/^[\p{Lu}][\p{L}'’-]+/u.test(sentence) && /(?:\d+\s*(?:Jahre|anni|anos|years)|cerca de\s+\d+|Anfang\s+\d+|poco più)/iu.test(sentence) && !/(?:^|[^\p{L}])(?:in|im|am|auf|bei|dans|au|aux|nel|nella|nello|sul|no|na|em|dentro|betritt|betrat|entra|entro|arriva|chega)\b/iu.test(sentence)) return
+    if (/^[\p{Lu}][\p{L}'’-]+/u.test(sentence) && /(?:\d+\s*(?:Jahre|anni|anos|years)|cerca de\s+\d+|Anfang\s+\d+|poco più)/iu.test(sentence) && !/(?:^|[^\p{L}])(?:in|im|am|auf|bei|ins|zum|zur|dans|au|aux|nel|nella|nello|alla|al|sul|no|na|em|dentro|betritt|betrat|entra|entro|arriva|chega)\b/iu.test(sentence)) return
     const action = cleanText(sentence).replace(/[.!?。！？]+$/, '')
     const foundNames = characters.filter(character => nameInText(action, character.name))
-    const who = foundNames.length ? foundNames.slice(0, 2).map(item => item.name).join(' and ') : (whoFromPronoun(action, characters, lex) || lastWho)
-    if (who) lastWho = who.split(/\s+and\s+/)[0]
+    let who = ''
+    let whoFlag = ''
+    if (foundNames.length === 1) {
+      who = foundNames[0].name
+      center = who
+    } else if (foundNames.length > 1) {
+      who = foundNames.slice(0, 2).map(item => item.name).join(' and ')
+      center = ''
+    } else {
+      const pronoun = whoFromPronoun(action, center)
+      who = pronoun.who
+      whoFlag = pronoun.flag
+    }
     const records = places.map(place => ({
       name: place.name,
-      keys: lex.places.filter(([, name]) => name === place.name).map(([key]) => key).concat(place.name)
+      keys: lex.places.filter(([, name]) => name === place.name).map(([key]) => key).concat(place.name),
+      unlisted: place.unlisted === true
     }))
-    const cue = findPlaceCue(action, language, records)
-    const owned = cue && characters.some(item => foldName(item.name) === foldName(cue.name))
+    const headed = locativeHeads(action, language)[0]
+    const cue = headed
+      ? { name: headed.name, key: headed.lemma, uncertain: false, unlisted: headed.tag === 'unlisted' }
+      : findPlaceCue(action, language, records)
+    const owned = cue && characters.some(item => foldName(item.name) === foldName(cue.name) || item.name.split(/\s+/).some(part => foldName(part) === foldName(cue.name)))
+    const flags = []
+    if (whoFlag) flags.push({ field: 'who', code: whoFlag })
     let where = lastWhere
-    if (cue?.name && !cue.uncertain && !owned) where = cue.name
+    let whereFlag = where ? 'place_carried' : 'place_missing'
+    if (cue?.name && !cue.uncertain && !owned) {
+      where = cue.name
+      whereFlag = cue.unlisted ? 'place_unlisted' : ''
+    }
+    if (whereFlag) flags.push({ field: 'where', code: whereFlag })
     if (where) lastWhere = where
     const nextLight = cueLight(sentence, language)
     if (nextLight) light = nextLight
+    else if (light) flags.push({ field: 'light', code: 'light_carried' })
     let confidence = foundNames.length && cue ? 'high' : 'medium'
     if (!where) {
       confidence = 'low'
@@ -260,7 +282,7 @@ function findScenes(text, lex, characters, places, language) {
       confidence = 'low'
       warnings.push({ code: 'missing_character', message: `No character found for scene ${scenes.length + 1}.`, target: 'scenes', index: scenes.length, options: characters.map(character => character.name) })
     }
-    scenes.push({ number: scenes.length + 1, who: who || '', where: where || '', what: action, duration: 3, confidence, ...(light ? { light } : {}) })
+    scenes.push({ number: scenes.length + 1, who: who || '', where: where || '', what: action, source: action, flags, duration: 3, confidence, ...(light ? { light } : {}) })
   })
   return { scenes, warnings }
 }
@@ -297,7 +319,7 @@ function pack(text, language, found) {
     places: found.places.map(({ name, description, uncertain }) => ({ name, description, ...(uncertain ? { uncertain: true } : {}) })),
     light: found.ambience.light,
     mood: found.ambience.mood,
-    scenes: found.scenes.scenes.map(({ number, who, where, what, duration, light }) => ({ number, who, where, what, duration, ...(light ? { light } : {}) }))
+    scenes: found.scenes.scenes.map(({ number, who, where, what, duration, light, source, flags }) => ({ number, who, where, what, duration, ...(light ? { light } : {}), ...(source ? { source } : {}), ...(flags?.length ? { flags } : {}) }))
   }
   const canonical = scenarioToFields(scenario)
   const budget = scenarioBudget([canonical.characters, canonical.places, canonical.scenes].join('\n'), found.scenes.scenes.length * 3)
@@ -340,8 +362,8 @@ function detectSpaced(text, language) {
   }
   const places = findPlaces(text, lex, language)
   const characters = findCharacters(text, lex, places, language)
-  const names = new Set(characters.characters.map(item => foldName(item.name)))
-  const keptPlaces = places.filter(place => !names.has(foldName(place.name)))
+  const nameTokens = new Set(characters.characters.flatMap(item => [foldName(item.name), ...String(item.name).split(/\s+/).map(foldName)]))
+  const keptPlaces = places.filter(place => !nameTokens.has(foldName(place.name)))
   const ambience = findAmbience(text, lex)
   const scenes = findScenes(text, lex, characters.characters, keptPlaces, language)
   return pack(text, language, { characters, places: keptPlaces, scenes, ambience })
@@ -384,11 +406,12 @@ function detectCjk(text, language) {
   })
   if (!characters.length) {
     const particle = language === 'ja'
-      ? [...String(text).matchAll(/([\p{Script=Han}]{1,4})は/gu)]
+      ? [...String(text).matchAll(/([\p{Script=Han}]{2,12})は/gu)]
       : [...String(text).matchAll(/([\p{Script=Han}]{1,3})(?:把|是)/gu)]
     particle.forEach(match => {
       const name = match[1]
-      if (['雨', '小', '在', '信', '二人', '人', '彼', '彼ら', '彼女'].includes(name) || /[着的一了是把和]/u.test(name) || isNumberWord(name, language)) return
+      const particleNoise = language === 'ja' ? /[着的了是把和]/u : /[着的一了是把和]/u
+      if (['雨', '小', '在', '信', '二人', '人', '彼', '彼ら', '彼女'].includes(name) || particleNoise.test(name) || isNumberWord(name, language)) return
       if (language === 'zh-Hans' && name.length < 2) return
       if (characters.some(item => item.name === name)) return
       characters.push({ name, look: '', outfit: '', confidence: 'low' })
@@ -419,7 +442,7 @@ function detectCjk(text, language) {
   })
   libraryHits(text, language).forEach(hit => {
     if (characters.some(item => hit.lemma.includes(item.name) || item.name.includes(hit.lemma))) return
-    if (!places.some(place => place.name === hit.name)) places.push({ name: hit.name, description: hit.name, confidence: hit.tag === 's' ? 'high' : 'medium' })
+    if (!places.some(place => place.name === hit.name)) places.push({ name: hit.name, description: hit.name, confidence: hit.tag === 's' ? 'high' : hit.tag === 'unlisted' ? 'low' : 'medium', ...(hit.tag === 'unlisted' ? { unlisted: true } : {}) })
   })
   const scenes = []
   const sceneWarnings = []
@@ -454,7 +477,13 @@ function detectCjk(text, language) {
     else if (/夜|晚上/.test(sentence)) shotLight = 'night'
     if (shotLight) light = shotLight
     else shotLight = light
-    scenes.push({ number: scenes.length + 1, who: who || '', where: where || '', what: cleanText(sentence).replace(/[。！？]+$/, ''), duration: 3, confidence, light: shotLight })
+    const cjkFlags = []
+    if (!foundNames.length && who) cjkFlags.push({ field: 'who', code: 'who_carried' })
+    if (!foundNames.length && !who) cjkFlags.push({ field: 'who', code: 'who_missing' })
+    if (where && !(cue?.name && foldName(cue.name) === foldName(where))) cjkFlags.push({ field: 'where', code: 'place_carried' })
+    if (!where) cjkFlags.push({ field: 'where', code: 'place_missing' })
+    const cjkWhat = cleanText(sentence).replace(/[。！？]+$/, '')
+    scenes.push({ number: scenes.length + 1, who: who || '', where: where || '', what: cjkWhat, source: cjkWhat, flags: cjkFlags, duration: 3, confidence, light: shotLight })
   })
   const sheetLight = scenes.find(scene => scene.light)?.light || ''
   let mood = ''

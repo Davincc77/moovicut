@@ -754,7 +754,11 @@ function scenarioFailure(parsed) {
 function createScenarioStoryboard(options) {
   const promptStyle = readPromptStyle(options.promptStyle ?? options.prompt_style)
   const source = options.scenario != null ? options.scenario : options.premise
-  const parsed = parseScenario(source, { allowIncompleteCast: options.allowIncompleteCast === true })
+  const parsed = parseScenario(source, {
+    allowIncompleteCast: options.allowIncompleteCast === true,
+    allowMissingWhere: options.allowMissingWhere === true,
+    allowMissingWho: options.allowMissingWho === true
+  })
   if (!parsed.ok) throw scenarioFailure(parsed)
   const model = canonicalModel(options.model || 'grok')
   if (!model) throw new Error('Choose a target model: grok, google, sora, kling, runway, luma, wan, or generic.')
@@ -805,7 +809,9 @@ function createScenarioStoryboard(options) {
       cutUncertain: scene.cutUncertain === true,
       cutKind: scene.cutKind || '',
       timeLabel: scene.timeLabel || '',
-      sceneId: scene.sceneId || index + 1
+      sceneId: scene.sceneId || index + 1,
+      source: scene.source || scene.what || '',
+      flags: Array.isArray(scene.flags) ? scene.flags : []
     }
     if (!shot.cutCue) delete shot.cutCue
     if (!shot.cutReason) delete shot.cutReason

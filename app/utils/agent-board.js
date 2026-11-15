@@ -100,6 +100,8 @@ export function exportAgentBoard(project) {
       if (shot.cutReason) item.cutReason = shot.cutReason
       if (shot.cutUncertain === true) item.cutUncertain = true
       if (shot.timeLabel) item.time = shot.timeLabel
+      if (shot.source) item.source = shot.source
+      if (Array.isArray(shot.flags) && shot.flags.length) item.flags = shot.flags
       return item
     }),
     ...(project.parts?.length > 1 ? { parts: project.parts.map(part => ({ index: part.index, from: part.from, to: part.to, place: part.place, time: part.time })) } : {})

@@ -11,7 +11,7 @@ const FUNCTION = Object.freeze({
   en: ['the', 'a', 'an', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them', 'my', 'your', 'his', 'our', 'their', 'this', 'that', 'these', 'those', 'then', 'than', 'so', 'and', 'but', 'or', 'if', 'when', 'while', 'after', 'before', 'later', 'next', 'once', 'only', 'just', 'still', 'already', 'now', 'today', 'tomorrow', 'yesterday', 'suddenly', 'finally', 'in', 'on', 'at', 'to', 'from', 'into', 'over', 'with', 'without', 'of', 'for', 'by', 'as', 'there', 'here', 'its', 'suddenly'],
   fr: ['le', 'la', 'les', 'un', 'une', 'des', 'je', 'tu', 'il', 'elle', 'on', 'nous', 'vous', 'ils', 'elles', 'lui', 'leur', 'moi', 'toi', 'ce', 'cette', 'ces', 'son', 'sa', 'ses', 'mon', 'ma', 'mes', 'et', 'mais', 'ou', 'donc', 'or', 'ni', 'car', 'puis', 'ensuite', 'alors', 'soudain', 'enfin', 'donc', 'hier', 'demain', 'aujourd', 'hui', 'apres', 'avant', 'plus', 'tard', 'lendemain', 'dans', 'sur', 'sous', 'avec', 'sans', 'pour', 'par', 'chez', 'au', 'aux', 'du', 'en', 'vers', 'pendant', 'toujours', 'jamais', 'ici', 'quand', 'comme', 'si'],
   pt: ['o', 'a', 'os', 'as', 'um', 'uma', 'eu', 'tu', 'ele', 'ela', 'nos', 'voce', 'eles', 'elas', 'meu', 'minha', 'seu', 'sua', 'e', 'mas', 'ou', 'depois', 'entao', 'de', 'repente', 'subitamente', 'enfim', 'ontem', 'amanha', 'hoje', 'mais', 'tarde', 'no', 'na', 'nos', 'nas', 'em', 'por', 'para', 'com', 'sem', 'so', 'apenas', 'ainda', 'ja', 'agora', 'quando', 'se'],
-  de: ['der', 'die', 'das', 'den', 'dem', 'des', 'ein', 'eine', 'einen', 'ich', 'du', 'er', 'sie', 'es', 'wir', 'ihr', 'mich', 'ihn', 'uns', 'mein', 'dein', 'sein', 'und', 'aber', 'oder', 'dann', 'danach', 'plotzlich', 'endlich', 'so', 'gestern', 'morgen', 'heute', 'spater', 'nach', 'vor', 'in', 'im', 'an', 'auf', 'mit', 'ohne', 'von', 'zu', 'nur', 'noch', 'schon', 'wenn', 'als'],
+  de: ['der', 'die', 'das', 'den', 'dem', 'des', 'ein', 'eine', 'einen', 'ich', 'du', 'er', 'sie', 'es', 'wir', 'ihr', 'mich', 'ihn', 'uns', 'mein', 'dein', 'sein', 'und', 'aber', 'oder', 'dann', 'danach', 'plotzlich', 'endlich', 'so', 'gestern', 'morgen', 'heute', 'spater', 'nach', 'vor', 'in', 'im', 'am', 'an', 'auf', 'ins', 'zum', 'zur', 'mit', 'ohne', 'von', 'zu', 'nur', 'noch', 'schon', 'wenn', 'als', 'abend', 'abends', 'nacht', 'mittag', 'vormittag', 'nachmittag', 'sonnenaufgang', 'sohn', 'tochter', 'mutter', 'vater'],
   it: ['il', 'lo', 'la', 'i', 'gli', 'le', 'un', 'una', 'uno', 'io', 'tu', 'lui', 'lei', 'noi', 'voi', 'loro', 'mio', 'tuo', 'suo', 'e', 'ma', 'o', 'poi', 'quindi', 'allora', 'improvvisamente', 'infine', 'ieri', 'domani', 'oggi', 'dopo', 'prima', 'piu', 'tardi', 'nel', 'nella', 'in', 'su', 'sul', 'con', 'senza', 'per', 'da', 'solo', 'ancora', 'gia', 'adesso', 'quando', 'se'],
   ja: ['それから', 'そして', 'その後', 'すると', '突然', 'ついに', '次の日', '翌日', 'あとで', '今朝', '今夜'],
   'zh-Hans': ['然后', '接着', '随后', '于是', '突然', '终于', '后来', '第二天', '次日', '之后', '今晚', '今早']
@@ -70,11 +70,11 @@ const GLANCE = Object.freeze({
 })
 
 const LOCATIVE = Object.freeze({
-  en: /(?:^|[^\p{L}])(?:in|at|on|to|inside|through|into|within|outside)\s+(?:the\s+|a\s+|an\s+|her\s+|his\s+|their\s+)?(?:(?!(?:behind|near|of|from|toward|towards|across|about)\b)[\p{L}'’-]+\s+){0,4}$/iu,
-  fr: /(?:^|[^\p{L}])(?:dans|à|a|au|aux|chez|sur|en|dehors|dedans)\s+(?:la\s+|le\s+|les\s+|l['’]|un\s+|une\s+|son\s+|sa\s+|ses\s+|leur\s+|du\s+|des\s+|mon\s+|ma\s+)?(?:[\p{L}'’-]+\s+){0,5}$/iu,
-  pt: /\b(?:em|no|na|nos|nas|dentro|através|atraves|para|chega|entra)\s+(?:o\s+|a\s+|os\s+|as\s+|um\s+|uma\s+|ao\s+|à\s+)?(?:[\p{L}'’-]+\s+){0,5}$/iu,
-  de: /\b(?:in|im|am|an|auf|bei|durch|innerhalb|außerhalb|ausserhalb|betritt|betrat)\s+(?:der\s+|die\s+|den\s+|dem\s+|das\s+|des\s+|einem\s+|einer\s+|eine\s+|einen\s+)?(?:[\p{L}'’-]+\s+){0,5}$/iu,
-  it: /\b(?:in|nel|nello|nella|sul|sullo|sulla|dentro|attraverso|entra|entro|arriva)\s+(?:il\s+|lo\s+|la\s+|un\s+|una\s+|al\s+|alla\s+)?(?:[\p{L}'’-]+\s+){0,5}$/iu,
+  en: /(?:^|[^\p{L}])(?:in|at|on|to|inside|through|into|within|outside|reaches|reach)\s+(?:the\s+|a\s+|an\s+|her\s+|his\s+|their\s+)?(?:(?:old|little|small|tiny|narrow|big|large|young|new|tin)\s+){0,3}$/iu,
+  fr: /(?:^|[^\p{L}])(?:dans|à|a|au|aux|chez|sur)\s+(?:la\s+|le\s+|les\s+|l['’]|un\s+|une\s+|des\s+|du\s+)?(?:(?:vieux|vieille|petit|petite|grand|grande)\s+){0,2}$/iu,
+  pt: /\b(?:em|no|na|nos|nas|num|numa|ao|à|aos|às|dentro|chega|entra)\s+(?:o\s+|a\s+|os\s+|as\s+|um\s+|uma\s+)?(?:(?:velho|velha|pequeno|pequena|grande|antigo)\s+){0,2}$/iu,
+  de: /\b(?:in|im|am|an|auf|bei|ins|zum|zur|beim|betritt|betrat)\s+(?:der\s+|die\s+|den\s+|dem\s+|das\s+|des\s+|ein(?:e[mnrs]?)?\s+)?(?:(?:alte[nrs]?|kleine[nrs]?|große[nrs]?|grosse[nrs]?)\s+){0,2}$/iu,
+  it: /\b(?:in|nel|nello|nella|negli|nelle|sul|sullo|sulla|sui|sugli|sulle|al|allo|alla|ai|agli|alle|dentro|entra|entro|arriva)\s+(?:il\s+|lo\s+|la\s+|i\s+|gli\s+|le\s+|l['’]|un\s+|una\s+)?(?:(?:vecchio|vecchia|piccolo|piccola|grande|antico|antica)\s+){0,2}$/iu,
   ja: /(?:で|に|へ)[^。]{0,16}$/,
   'zh-Hans': /(?:在|到)[^。]{0,16}$/
 })
@@ -656,12 +656,22 @@ export function splitNarrative(text, options = {}) {
   let pending = []
   const names = characters.map(item => item.name).filter(Boolean)
 
-  function whoIn(sentence, last) {
+  let center = ''
+  function whoIn(sentence) {
     const found = names.filter(name => new RegExp(`(?<![\\p{L}])${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}])`, 'iu').test(sentence))
-    if (found.length) return found.slice(0, 2).join(language === 'fr' ? ' et ' : language === 'de' ? ' und ' : ' and ')
-    return last
+    if (found.length === 1) {
+      center = found[0]
+      return { who: found[0], flag: '' }
+    }
+    if (found.length > 1) {
+      center = ''
+      return { who: found.slice(0, 2).join(language === 'fr' ? ' et ' : language === 'de' ? ' und ' : ' and '), flag: '' }
+    }
+    if (/^\s*(she|he|elle|il|sie|er|ela|ele|lei|lui)\b/iu.test(sentence)) {
+      return center ? { who: center, flag: 'who_pronoun' } : { who: '', flag: 'who_unresolved' }
+    }
+    return { who: '', flag: 'who_missing' }
   }
-  let lastWho = names[0] || ''
 
   sentencesOf(text).forEach(sentence => {
     if (typeof options.skip === 'function' && options.skip(sentence)) {
@@ -770,14 +780,24 @@ export function splitNarrative(text, options = {}) {
         time: state.timeLabel || ''
       })
     }
-    lastWho = whoIn(sentence, lastWho)
+    const spoken = whoIn(sentence)
     const bits = splitPieces(actionText(sentence), language, extraVerbs)
+    const statedLight = cueLight(sentence, language)
     bits.forEach((bit, index) => {
       const opening = index === 0
+      const person = whoIn(bit)
+      const flags = []
+      const whoFlag = person.who ? person.flag : spoken.flag
+      if (whoFlag) flags.push({ field: 'who', code: whoFlag })
+      if (state.place && !(place && !place.uncertain && foldName(place.name) === foldName(state.place))) flags.push({ field: 'where', code: 'place_carried' })
+      if (place?.unlisted || places.find(item => foldName(item.name) === foldName(state.place))?.unlisted) flags.push({ field: 'where', code: 'place_unlisted' })
+      if (state.light && !statedLight) flags.push({ field: 'light', code: 'light_carried' })
       shots.push({
-        who: whoIn(bit, lastWho) || lastWho,
+        who: person.who || spoken.who,
         where: state.place,
         what: bit,
+        source: sentence,
+        flags,
         timeLabel: state.timeLabel || '',
         light: state.light || '',
         sceneId: state.sceneId || 1,

@@ -32,6 +32,31 @@ export function parseFountain(text) {
   const places = []
   const scenes = []
   let mode = ''
+  let placeName = ''
+  let placeLight = ''
+  const takeLine = (line, speakerBox) => {
+    if (!line || line.startsWith('#')) return
+    if (/^\([^)]+\)$/.test(line)) return
+    const spoken = /^[\p{Lu}0-9][\p{Lu}0-9 .''-]{0,40}$/u.test(line) && line === line.toUpperCase() && !/^(?:INT|EXT|I\/E)\b/.test(line)
+    if (spoken) {
+      speakerBox.name = cleanText(line.replace(/\s*\^$/, ''))
+      if (speakerBox.name && !characters.some(person => person.name.toLowerCase() === speakerBox.name.toLowerCase())) {
+        characters.push({ name: speakerBox.name, look: '', outfit: '' })
+      }
+      return
+    }
+    const named = characters.find(person => line.toLowerCase().startsWith(`${person.name.toLowerCase()} `) || line.toLowerCase() === person.name.toLowerCase())
+    const who = named?.name || speakerBox.name || ''
+    scenes.push({
+      who,
+      where: placeName,
+      what: cleanText(line),
+      source: cleanText(line),
+      flags: who ? (named ? [] : [{ field: 'who', code: 'who_dialogue' }]) : [{ field: 'who', code: 'who_missing' }],
+      ...(placeLight ? { light: placeLight } : {})
+    })
+    if (named) speakerBox.name = ''
+  }
   for (const block of blocks) {
     const lines = block.split('\n').map(line => line.trim()).filter(Boolean)
     const head = lines[0] || ''
@@ -47,15 +72,18 @@ export function parseFountain(text) {
     const heading = head.match(HEADING)
     if (heading) {
       mode = 'scene'
-      const place = cleanText(heading[2])
-      const light = timeOf(heading[3])
-      if (place && !places.some(item => item.name.toLowerCase() === place.toLowerCase())) {
-        places.push({ name: place, description: place })
+      placeName = cleanText(heading[2])
+      placeLight = timeOf(heading[3])
+      if (placeName && !places.some(item => item.name.toLowerCase() === placeName.toLowerCase())) {
+        places.push({ name: placeName, description: placeName })
       }
-      lines.slice(1).forEach(line => {
-        if (!line || line.startsWith('#')) return
-        scenes.push({ who: '', where: place, what: cleanText(line), ...(light ? { light } : {}) })
-      })
+      const speakerBox = { name: '' }
+      lines.slice(1).forEach(line => takeLine(line, speakerBox))
+      continue
+    }
+    if (mode === 'scene') {
+      const speakerBox = { name: '' }
+      lines.forEach(line => takeLine(line, speakerBox))
       continue
     }
     if (mode === 'characters') {
