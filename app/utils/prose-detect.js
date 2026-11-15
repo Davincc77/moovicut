@@ -2,6 +2,7 @@
 import { cleanText } from './text.js'
 import { foldName, scenarioBudget, scenarioPremise, scenarioToFields } from './scenario.js'
 import { flaggedNameKeys } from './shot-risk.js'
+import { splitActionText } from './action-split.js'
 
 const STOP = new Set(['the', 'a', 'an', 'he', 'she', 'they', 'it', 'his', 'her', 'their', 'then', 'when', 'after', 'before', 'later', 'next', 'once', 'this', 'that', 'there', 'here', 'un', 'une', 'le', 'la', 'les', 'il', 'elle', 'ils', 'elles', 'lui', 'leur', 'puis', 'quand', 'apres', 'avant', 'dans', 'sur', 'sous', 'avec', 'pour', 'par', 'chez', 'au', 'aux', 'du', 'des', 'en', 'et', 'mais', 'ou', 'ce', 'cette', 'ces', 'son', 'sa', 'ses', 'mon', 'ma', 'mes', 'je', 'tu', 'nous', 'vous', 'on', 'plus', 'tout', 'toute', 'tous', 'morning', 'evening', 'night', 'day', 'matin', 'soir', 'nuit', 'jour', 'aube', 'tard', 'lendemain', 'and', 'with', 'from', 'into', 'over', 'while', 'its', 'our', 'your'])
 
@@ -30,7 +31,7 @@ const PLACES = [
 
 const TIME_BLOCK = new Set(['matin', 'morning', 'soir', 'evening', 'nuit', 'night', 'jour', 'day', 'aube', 'dawn', 'dusk', 'soleil', 'sun', 'pluie', 'rain', 'tard', 'lendemain', 'petit'])
 const JUMP = /\b(plus tard|le lendemain|au lendemain|le matin suivant|the next morning|next morning|the next day|later)\b/i
-const VERBS = new Set(['entre', 'sort', 'verse', 'renverse', 'rit', 'rire', 'marche', 'court', 'revient', 'ouvre', 'ferme', 'regarde', 'sourit', 'prend', 'donne', 'boit', 'parle', 'dit', 'va', 'vient', 'arrive', 'part', 'tourne', 'tend', 'attrape', 'pose', 'voit', 'pleure', 'crie', 'attend', 'sert', 'quitte', 'traverse', 'monte', 'descend', 'pousse', 'tombe', 'lance', 'vole', 'porte', 'opens', 'open', 'pours', 'pour', 'laughs', 'laugh', 'walks', 'walk', 'returns', 'return', 'rides', 'ride', 'stops', 'stop', 'enters', 'enter', 'leaves', 'leave', 'sits', 'sit', 'stands', 'stand', 'looks', 'look', 'turns', 'turn', 'smiles', 'smile', 'spills', 'spill', 'runs', 'run', 'flies', 'fly', 'hits', 'hit', 'watches', 'watch', 'finds', 'find', 'follows', 'follow', 'crosses', 'cross', 'drinks', 'drink', 'waits', 'wait', 'closes', 'close', 'unlocks', 'unlock', 'meets', 'meet', 'boards', 'board', 'knocks', 'knock', 'hands', 'hand', 'gives', 'give', 'opens'])
+const VERBS = new Set(['entre', 'sort', 'verse', 'renverse', 'rit', 'rire', 'marche', 'court', 'revient', 'ouvre', 'ferme', 'regarde', 'sourit', 'prend', 'donne', 'boit', 'parle', 'dit', 'va', 'vient', 'arrive', 'part', 'tourne', 'tend', 'attrape', 'pose', 'voit', 'pleure', 'crie', 'attend', 'sert', 'quitte', 'traverse', 'monte', 'descend', 'pousse', 'tombe', 'lance', 'vole', 'porte', 'opens', 'open', 'pours', 'pour', 'laughs', 'laugh', 'walks', 'walk', 'returns', 'return', 'rides', 'ride', 'stops', 'stop', 'enters', 'enter', 'leaves', 'leave', 'sits', 'sit', 'stands', 'stand', 'looks', 'look', 'turns', 'turn', 'smiles', 'smile', 'spills', 'spill', 'runs', 'run', 'flies', 'fly', 'hits', 'hit', 'watches', 'watch', 'finds', 'find', 'follows', 'follow', 'crosses', 'cross', 'drinks', 'drink', 'waits', 'wait', 'closes', 'close', 'unlocks', 'unlock', 'meets', 'meet', 'boards', 'board', 'knocks', 'knock', 'hands', 'hand', 'gives', 'give', 'opens', 'reads', 'read'])
 const NOT_A_PLACE = new Set(['window', 'door', 'table', 'glass', 'cup', 'bottle', 'hand', 'hands', 'umbrella', 'pastry', 'apron', 'hair', 'face', 'eye', 'eyes'])
 const ROLE_WORDS = /\b(baker|boulanger|boulangère|keeper|gardien|neighbour|neighbor|courier|detective|astronaut|painter|explorer)\b/iu
 
@@ -68,6 +69,90 @@ function placeLexicon() {
 }
 
 const PLACE_KEYS = placeLexicon()
+const NAME_STOP = new Set(['the', 'a', 'an', 'she', 'he', 'they', 'une', 'le', 'la', 'les', 'il', 'elle', 'un'])
+const LOOK_TRAIT = /\b(?:(?:early|mid|late)\s+)?\d{1,2}s\b|\b(?:short|long|curly|wavy|straight|black|brown|blonde|blond|red|grey|gray|silver|white|dark)\s+(?:black\s+|brown\s+|red\s+|grey\s+|gray\s+)?(?:pixie cut|bob|bangs|braid|hair)\b|\b(?:grey|gray|white|black|red|dark)\s+stubble\b|\bstubble\b|\bbeard\b|\bmoustache\b|\bmustache\b|\b(?:round\s+)?glasses\b|\b(?:blue|green|brown|amber|hazel)\s+eyes\b/giu
+const OUTFIT_TRAIT = /\b(?:[\p{L}'’-]+\s+){0,3}(?:peacoats?|overcoats?|coats?|jackets?|scarves|scarf|aprons?|sweaters?|boots?|dresses|dress|shirts?|suits?|hoodies?|cloaks?|robes?|uniforms?|jeans|skirts?|caps?|hats?|hakama)\b/giu
+const TRAIT_STOP = /\b(?:meets|sees|finds|wears|opens|walks|runs|enters|leaves|pours|hands|gives|sits|stands|laughs|reads|turns|crosses|follows|carries|holds|watches|on|in|at|inside|through|across)\b/i
+
+function traitHits(clause) {
+  const source = String(clause || '')
+  const looks = []
+  const outfits = []
+  for (const match of source.matchAll(new RegExp(LOOK_TRAIT.source, 'giu'))) looks.push(cleanText(match[0]))
+  for (const match of source.matchAll(new RegExp(OUTFIT_TRAIT.source, 'giu'))) {
+    outfits.push(cleanText(match[0]).replace(/^(?:a|an|the)\s+/i, ''))
+  }
+  return { looks, outfits }
+}
+
+function absorbTrait(list, value) {
+  const clean = cleanText(value)
+  const key = foldName(clean)
+  if (!key) return
+  const index = list.findIndex(item => {
+    const other = foldName(item)
+    return other === key || other.includes(key) || key.includes(other)
+  })
+  if (index < 0) list.push(clean)
+  else if (clean.length > list[index].length) list[index] = clean
+}
+
+function textAfterName(text, name, names) {
+  const boundary = label => new RegExp(`(?<![\\p{L}])${String(label).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}])`, 'iu')
+  const match = boundary(name).exec(text)
+  if (!match) return ''
+  const after = text.slice(match.index + match[0].length)
+  if (!/^\s*,/.test(after)) return ''
+  let nextAt = after.length
+  names.forEach(other => {
+    if (foldName(other) === foldName(name)) return
+    const found = boundary(other).exec(after)
+    if (found) nextAt = Math.min(nextAt, found.index)
+  })
+  const slice = after.slice(0, nextAt).replace(/^\s*,\s*/, '')
+  const stop = slice.search(TRAIT_STOP)
+  return stop >= 0 ? slice.slice(0, stop) : slice
+}
+
+function commaTraits(text, name, names) {
+  const slice = textAfterName(text, name, names)
+  const looks = []
+  const outfits = []
+  if (!slice) return { looks, outfits }
+  slice.split(',').forEach(part => {
+    const found = traitHits(part)
+    found.looks.forEach(item => absorbTrait(looks, item))
+    found.outfits.forEach(item => absorbTrait(outfits, item))
+  })
+  return { looks, outfits }
+}
+
+/** A capitalized name followed by at least two comma-separated look or outfit traits. */
+export function isNamedTraitPremise(text) {
+  const source = cleanText(text)
+  const match = source.match(/^(\p{Lu}[\p{L}'’-]{1,40}),\s+([^.]{0,500})/u)
+  if (!match || NAME_STOP.has(foldName(match[1]))) return false
+  const stop = match[2].search(TRAIT_STOP)
+  const slice = stop >= 0 ? match[2].slice(0, stop) : match[2]
+  let parts = 0
+  slice.split(',').forEach(part => {
+    const found = traitHits(part)
+    if (found.looks.length || found.outfits.length) parts += 1
+  })
+  return parts >= 2
+}
+
+export function premiseShotPlan(text) {
+  if (!isNamedTraitPremise(text)) return null
+  const detected = detectProse(text)
+  if (!detected.characters.length || !detected.scenes.length) return null
+  const where = detected.places[0]?.name || ''
+  return detected.scenes.map(scene => ({
+    what: cleanText(scene.what).replace(/[.!?]+$/, ''),
+    who: scene.who || '',
+    where: scene.where || where
+  }))
+}
 
 function placeTokens(places) {
   const keys = new Set()
@@ -141,6 +226,9 @@ function detectCharacters(text, places = []) {
       matchOne(mentioned, /manteau(?:\s+[\p{L}'’-]+)?/iu),
       matchOne(mentioned, /jacket/iu)
     ])
+    const extra = commaTraits(text, name, candidateNames)
+    extra.looks.forEach(item => absorbTrait(look, item))
+    extra.outfits.forEach(item => absorbTrait(outfit, item))
     const keep = entry.count >= 2 || entry.mid >= 1 || look.length > 0 || outfit.length > 0
     if (!keep) continue
     if (forms.length > 1) {
@@ -203,6 +291,13 @@ function detectPlaces(text, language) {
     if (flagged.has(foldName(name))) { skippedFlagged = true; continue }
     if (STOP.has(foldName(name)) || TIME_BLOCK.has(foldName(name)) || PLACE_KEYS.has(foldName(name))) continue
     pushPlace(places, name, language === 'fr' ? 'un lieu cité dans le texte' : 'a place named in the text', 'medium')
+  }
+  for (const match of source.matchAll(/\b(?:on|in|at|along)\s+(?:a|an|the)\s+((?:[\p{L}'’-]+\s+){0,3}(?:quay|quayside|pier|dock|wharf|alley|rooftop|courtyard))\b/giu)) {
+    const phrase = cleanText(match[1])
+    const name = phrase.replace(/^\p{Ll}/u, char => char.toUpperCase())
+    const head = foldName(phrase.split(/\s+/).at(-1))
+    if (places.some(place => foldName(place.name) === foldName(name) || foldName(place.name) === head)) continue
+    pushPlace(places, name, `a ${phrase}`, 'high')
   }
   const folded = foldName(source)
   const covered = new Set(places.flatMap(place => tokens(place.name).map(foldName)))
@@ -278,34 +373,85 @@ function riskNamesOnly(sentence, flagged) {
   return sawFlagged
 }
 
+function genderMap(text, characters) {
+  const map = new Map()
+  const intro = String(text || '').match(/(\p{Lu}[\p{L}'’-]{1,40}),(?:[^.]{0,400}?)\bmeets\s+(\p{Lu}[\p{L}'’-]{1,40})\b/u)
+  if (intro && /\bshe\b/i.test(text) && /\bhim\b/i.test(text)) {
+    map.set(foldName(intro[1]), 'she')
+    map.set(foldName(intro[2]), 'he')
+    return map
+  }
+  if (intro && /\bhe\b/i.test(text) && /\bher\b/i.test(text)) {
+    map.set(foldName(intro[1]), 'he')
+    map.set(foldName(intro[2]), 'she')
+    return map
+  }
+  if (characters.length === 1) {
+    const key = foldName(characters[0].name)
+    if (/\bshe\b|\bher\b/i.test(text)) map.set(key, 'she')
+    else if (/\bhe\b|\bhim\b|\bhis\b/i.test(text)) map.set(key, 'he')
+  }
+  return map
+}
+
+function whoFromPronoun(sentence, characters, genders, language) {
+  const subject = String(sentence || '').match(/^\s*(she|he)\b/i)
+  if (!subject) return ''
+  const want = subject[1].toLowerCase()
+  const people = characters.filter(character => genders.get(foldName(character.name)) === want)
+  if (people.length !== 1) return ''
+  const object = sentence.match(/\b(him|her)\b/i)
+  if (!object) return people[0].name
+  const other = object[1].toLowerCase() === 'him' ? 'he' : 'she'
+  const objects = characters.filter(character => genders.get(foldName(character.name)) === other && foldName(character.name) !== foldName(people[0].name))
+  if (objects.length !== 1) return people[0].name
+  return `${people[0].name}${language === 'fr' ? ' et ' : ' and '}${objects[0].name}`
+}
+
+function isMeetIntro(sentence) {
+  if (!/\bmeets\b/i.test(sentence)) return false
+  if ((sentence.match(/,/g) || []).length < 2) return false
+  const stripped = sentence.replace(/\bmeets\b/gi, '')
+  if (hasVerb(stripped)) return false
+  const names = (sentence.match(/\p{Lu}[\p{L}'’-]+/gu) || []).filter(token => !STOP.has(foldName(token)) && !NAME_STOP.has(foldName(token)))
+  return names.length >= 2
+}
+
 function detectScenes(text, characters, places, language, flagged) {
   const warnings = []
   const scenes = []
+  const genders = genderMap(text, characters)
   let lastWho = characters[0]?.name || ''
   let lastWhere = places[0]?.name || ''
   splitBlocks(text).forEach(block => {
     sentencesOf(block).forEach(sentence => {
+      if (isMeetIntro(sentence)) return
       if (!hasVerb(sentence) || JUMP.test(sentence) && tokens(sentence).length < 3) return
       const action = cleanText(sentence).replace(/^[,;:\s]+/, '').replace(/[.!?]+$/, '')
-      const foundNames = namesIn(sentence, characters)
-      const who = foundNames.length ? foundNames.slice(0, 2).map(item => item.name).join(language === 'fr' ? ' et ' : ' and ') : lastWho
-      if (who) lastWho = who.split(/\s+(?:et|and)\s+/)[0]
-      const foundPlace = placeIn(sentence, places)
-      const where = foundPlace?.name || lastWhere
-      if (where) lastWhere = where
-      const index = scenes.length
-      const flaggedOnly = riskNamesOnly(sentence, flagged)
-      let confidence = 'high'
-      if (!foundNames.length || !foundPlace) confidence = 'medium'
-      if (!where && !flaggedOnly) {
-        confidence = 'low'
-        warnings.push({ code: 'missing_place', message: `No place found for scene ${index + 1}.`, target: 'scenes', index, options: places.map(place => place.name) })
-      }
-      if (!who && !flaggedOnly) {
-        confidence = 'low'
-        warnings.push({ code: 'missing_character', message: `No character found for scene ${index + 1}.`, target: 'scenes', index, options: characters.map(character => character.name) })
-      }
-      scenes.push({ number: index + 1, who: who || '', where: where || '', what: action, duration: 3, confidence })
+      const parts = splitActionText(action)
+      const bits = parts.length >= 2 ? parts : [action]
+      bits.forEach(bit => {
+        const foundNames = namesIn(bit, characters)
+        const pronounWho = whoFromPronoun(bit, characters, genders, language)
+        const who = foundNames.length ? foundNames.slice(0, 2).map(item => item.name).join(language === 'fr' ? ' et ' : ' and ') : (pronounWho || lastWho)
+        if (who) lastWho = who.split(/\s+(?:et|and)\s+/)[0]
+        const foundPlace = placeIn(bit, places)
+        const where = foundPlace?.name || lastWhere
+        if (where) lastWhere = where
+        const index = scenes.length
+        const flaggedOnly = riskNamesOnly(bit, flagged)
+        let confidence = 'high'
+        if (!foundNames.length || !foundPlace) confidence = 'medium'
+        if (!where && !flaggedOnly) {
+          confidence = 'low'
+          warnings.push({ code: 'missing_place', message: `No place found for scene ${index + 1}.`, target: 'scenes', index, options: places.map(place => place.name) })
+        }
+        if (!who && !flaggedOnly) {
+          confidence = 'low'
+          warnings.push({ code: 'missing_character', message: `No character found for scene ${index + 1}.`, target: 'scenes', index, options: characters.map(character => character.name) })
+        }
+        scenes.push({ number: index + 1, who: who || '', where: where || '', what: bit, duration: 3, confidence })
+      })
     })
   })
   return { scenes, warnings }

@@ -129,7 +129,11 @@ function parsePlaceLine(text, line) {
 }
 
 function parseSceneLine(text, line) {
-  const parts = splitParts(text)
+  const source = String(text || '').trim()
+  const divider = source.includes('—') ? '—' : source.includes('–') ? '–' : source.includes('|') ? '|' : null
+  const raw = (divider ? source.split(divider) : source.split(/\s+-\s+/)).map(part => part.trim())
+  while (raw.length && !raw[raw.length - 1]) raw.pop()
+  const parts = raw.some(part => part === '') ? raw : raw.filter(Boolean)
   let rest = parts
   let number = null
   if (parts[0] && /^(?:scène|scene)\s+\d+$/i.test(parts[0])) {
@@ -195,6 +199,12 @@ export function parseSceneBlock(text) {
   return { scenes, errors }
 }
 
+export function describeScenarioErrors(errors) {
+  const lines = (errors || []).map(item => item?.message).filter(Boolean)
+  if (lines.length <= 1) return lines[0] || 'The scenario needs a correction.'
+  return lines.join(' ')
+}
+
 function finish(characters, places, scenes, light, mood, errors, sourceText) {
   const seenCharacters = new Set()
   characters.forEach((character, index) => {
@@ -208,9 +218,10 @@ function finish(characters, places, scenes, light, mood, errors, sourceText) {
     if (seenPlaces.has(key)) errors.push(problem(`The place ${place.name} is repeated. Use each place name once.`, { section: 'places', field: 'name' }))
     seenPlaces.add(key)
   })
-  if (!characters.length) errors.push(problem('Add at least one character: Name — look — outfit.', { section: 'characters', field: 'name' }))
-  if (!places.length) errors.push(problem('Add at least one place: Name — short description.', { section: 'places', field: 'name' }))
-  if (!scenes.length) errors.push(problem('Add at least one scene line: Scène 1 — who — where — what happens.', { section: 'scenes', field: 'what' }))
+  const mentioned = section => errors.some(item => item.section === section)
+  if (!characters.length && !mentioned('characters')) errors.push(problem('Add at least one character: Name — look — outfit.', { section: 'characters', field: 'name' }))
+  if (!places.length && !mentioned('places')) errors.push(problem('Add at least one place: Name — short description.', { section: 'places', field: 'name' }))
+  if (!scenes.length && !mentioned('scenes')) errors.push(problem('Add at least one scene line: Scène 1 — who — where — what happens.', { section: 'scenes', field: 'what' }))
   if (scenes.length > MAX_SCENARIO_SCENES) errors.push(problem(`A storyboard can include at most ${MAX_SCENARIO_SCENES} scenes.`, { section: 'scenes', field: 'scenes' }))
   const text = formatScenario({ characters, places, scenes, light, mood })
   const counted = String(sourceText || text)

@@ -1,9 +1,9 @@
 /** A deterministic local story planner. No remote AI or video generation. */
 import { canonicalModel, modelRegistry } from '../integrations/models/model-registry.js'
 import { profileFor, snapAspect, snapDuration } from './model-profiles.js'
-import { CAMERAS, LIGHTS, MOODS, describeCast, describePlace, findByName, foldName, looksLikeScenario, nameParts, parseScenario, scenarioFromProject, scenarioPremise, sequencePacks } from './scenario.js'
+import { CAMERAS, LIGHTS, MOODS, describeCast, describePlace, describeScenarioErrors, findByName, foldName, looksLikeScenario, nameParts, parseScenario, scenarioFromProject, scenarioPremise, sequencePacks } from './scenario.js'
 import { cameraFor, episodePacks, isPresetMode, parseAd, parseExplainer, parseSeries } from './preset-modes.js'
-import { detectProse } from './prose-detect.js'
+import { detectProse, isNamedTraitPremise, premiseShotPlan } from './prose-detect.js'
 import { canonicalStyleFamily, formatPresetBlock, listPresets, presetFamilies, presetGenres, resolvePreset } from './presets/index.js'
 import { shotInvolvesHands } from './shot-risk.js'
 import { charactersInShot, lockLinesForShot, mergeCharacterExtras } from './character-lock.js'
@@ -91,7 +91,7 @@ export function canonicalShotCount(value) {
 }
 export const FAQS = [
   { q: 'What is Moovicut?', a: 'Moovicut is a free, local-first storyboard and shot list. You edit the shots in the browser and copy prompts for Grok Imagine, Google, or any other AI image or video model.' },
-  { q: 'Can an AI agent build a storyboard?', a: 'Yes. The default board is 5 scenes of 3 seconds (15s total). Humans can use Step-by-step mode in /studio, and agents can pass shots, a scenes array, a scenario, input prose, or format agent to POST /api/v1/storyboard, /mcp, or a /studio# share link. Open /agents for the endpoints. No API key and no account. Every mode shares one film sheet. model can be grok, google, sora, kling, runway, luma, wan, or generic. The video prompt is short by default (prompt_style short or detailed). Each character has one lock line, copied unchanged into every shot they are in. A prompt edited by hand is kept unless overwrite is explicit.' },
+  { q: 'Can an AI agent build a storyboard?', a: 'Yes. The default board is 5 scenes of 3 seconds (15s total). Humans can use Step-by-step mode in /studio, and agents can pass shots, a scenes array, a scenario, input prose, or format agent to POST /api/v1/storyboard, /mcp, or a /studio# share link. A premise shaped as Name, trait, trait keeps those people and the real actions. Prose that cannot be planned returns 400 and lists what is missing. splitActions false keeps a multi-action line in one shot. format agent includes warnings when a shot looks risky. Open /agents for the endpoints. No API key and no account. Every mode shares one film sheet. model can be grok, google, sora, kling, runway, luma, wan, or generic. The video prompt is short by default (prompt_style short or detailed). Each character has one lock line, copied unchanged into every shot they are in. A prompt edited by hand is kept unless overwrite is explicit.' },
   { q: 'How does Moovicut work?', a: 'A premise becomes an ordered shot list on this device, with camera, action, lighting, sound, and continuity you can edit. Paste a prompt into the model you already use. Moovicut does not call that model.' },
   { q: 'Does Moovicut render video?', a: 'No. It writes prompts. Nothing is rendered inside Moovicut.' },
   { q: 'Which models does it support?', a: 'The home page and the studio list eight prompt targets: Grok Imagine, Google (Veo / Gemini), Sora, Kling, Runway, Luma, Wan, and a generic profile. These names are prompt targets, not included accounts or rendering.' },
@@ -152,12 +152,15 @@ function fallbackPhrase(source, skip = []) {
   const chosen = (words.length ? words : contentWords(source)).slice(0, 3)
   return chosen.length ? sentence(chosen.join(' ')) : sentence(cleanText(source).slice(0, 48))
 }
+const LEADING_NAME_STOP = new Set(['the', 'a', 'an', 'she', 'he', 'they', 'une', 'le', 'la', 'les', 'il', 'elle', 'un'])
 export function parseCharacter(text) {
   const source = cleanText(text)
   const cjk = source.match(/^([\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}ー]{1,16})(?:が|は)/u)
   if (cjk) return cjk[1]
   const cyrillic = source.match(/^([\p{Script=Cyrillic}][\p{Script=Cyrillic}'’-]{1,32})(?=\s+\p{Script=Cyrillic})/u)
   if (cyrillic) return sentence(cyrillic[1])
+  const leading = source.match(/^(\p{Lu}[\p{L}'’-]{1,40}),\s+\p{L}/u)
+  if (leading && !LEADING_NAME_STOP.has(leading[1].toLowerCase())) return leading[1]
   const verbMatch = new RegExp(`\\b(?:${CHARACTER_VERBS})\\b`, 'iu').exec(source)
   if (verbMatch) {
     const before = source.slice(0, verbMatch.index)
@@ -240,20 +243,26 @@ export function buildContinuitySheet(premise) {
   if (!time && /夕暮れ|黄昏|crépuscule|crepuscule|anochecer|dämmerung|сумерк/.test(text)) time = 'dusk'
   if (!time && (/夜|ночь/.test(text) || mentionedCue(lower, 'nuit') || mentionedCue(lower, 'noche') || mentionedCue(lower, 'nacht'))) time = 'night'
   if (!time && (mentionedCue(lower, 'storm') || mentionedCue(lower, 'thunder') || mentionedCue(lower, 'tempest'))) time = 'storm'
-  if (!time && (mentionedCue(lower, 'rain') || mentionedCue(lower, 'pluie') || mentionedCue(lower, 'lluvia') || mentionedCue(lower, 'regen') || /雨/.test(text))) time = 'rain'
+  if (!time && (mentionedCue(lower, 'rain') || mentionedCue(lower, 'rainy') || mentionedCue(lower, 'raining') || mentionedCue(lower, 'pluie') || mentionedCue(lower, 'lluvia') || mentionedCue(lower, 'regen') || /雨/.test(text))) time = 'rain'
   if (!time) time = 'daylight consistent with the idea'
   const snow = mentionedCue(lower, 'snow') || mentionedCue(lower, 'ice') || mentionedCue(lower, 'winter') || mentionedCue(lower, 'frost') || mentionedCue(lower, 'neige') || mentionedCue(lower, 'nieve')
   let palette = 'natural cinematic colour with restrained contrast'
   if (mentionedCue(lower, 'dusk') || mentionedCue(lower, 'sunset') || /golden hour/.test(lower)) palette = 'warm amber light, deep shadows and muted gold'
   else if (mentionedCue(lower, 'dawn') || mentionedCue(lower, 'sunrise') || mentionedCue(lower, 'morning')) palette = 'cool blue shadows warming into soft gold'
   else if (mentionedCue(lower, 'night') || mentionedCue(lower, 'midnight') || mentionedCue(lower, 'neon')) palette = 'deep navy, sparse practical lights and cool highlights'
-  else if (mentionedCue(lower, 'storm') || mentionedCue(lower, 'thunder') || mentionedCue(lower, 'rain') || mentionedCue(lower, 'pluie') || mentionedCue(lower, 'lluvia') || mentionedCue(lower, 'regen') || /雨/.test(text)) palette = 'wet dark tones, reflected light and cool teal'
+  else if (mentionedCue(lower, 'storm') || mentionedCue(lower, 'thunder') || mentionedCue(lower, 'rain') || mentionedCue(lower, 'rainy') || mentionedCue(lower, 'raining') || mentionedCue(lower, 'pluie') || mentionedCue(lower, 'lluvia') || mentionedCue(lower, 'regen') || /雨/.test(text)) palette = 'wet dark tones, reflected light and cool teal'
   else if (snow) palette = 'cold whites, steel blue and a pale gold accent'
   const dialogue = extractDialogue(text)
   const avoid = []
   if (/\bsnow\b/i.test(text) && !mentionedCue(text, 'snow')) avoid.push('snow')
-  const character = parseCharacter(text)
-  const sheet = { character, appearance: appearanceFor(character), place: parsePlace(text), time, palette, lighting: `${time}, ${palette}`, style: 'cinematic, consistent from shot to shot' }
+  const named = isNamedTraitPremise(text) ? detectProse(text) : null
+  const primary = named?.characters?.[0]
+  const character = primary?.name || parseCharacter(text)
+  const appearance = primary ? [primary.look, primary.outfit].filter(Boolean).join(', ') : appearanceFor(character)
+  const place = named?.places?.[0]?.name || parsePlace(text)
+  const sheet = { character, appearance, place, time, palette, lighting: `${time}, ${palette}`, style: 'cinematic, consistent from shot to shot' }
+  if (named?.characters?.length) sheet.characters = named.characters.map(item => ({ name: item.name, look: item.look || '', outfit: item.outfit || '' }))
+  if (named?.places?.[0]?.description) sheet.placeDescription = named.places[0].description
   if (dialogue[0]) sheet.dialogue = dialogue[0]
   if (avoid.length) sheet.avoid = avoid.join(', ')
   return sheet
@@ -353,7 +362,7 @@ function applyContinuousShot(shot, sheet, index, styleName) {
   const profile = SHOT_STYLE_PROFILES[styleName]
   const appearance = sheet.appearance || appearanceFor(sheet.character)
   const genre = GENRES[shot.genre] || GENRES.cinematic
-  const beat = stageBeat(shot.stage, { ...sheet, appearance }, genre)
+  const beat = shot.fromPremise && shot.action ? shot.action : stageBeat(shot.stage, { ...sheet, appearance }, genre)
   const mood = styleName && styleName !== 'Normal' && profile ? `${profile.mood}: ` : ''
   const lighting = sheet.lighting || `${sheet.time}, ${sheet.palette}`
   return {
@@ -491,15 +500,16 @@ export function createStoryboard(options = {}) {
     project.continuitySheet = sheet
     project.continuityStrength = options.continuityStrength === 'strict' ? 'strict' : 'standard'
   }
-  project.shots = breakdownPremise(premise, count).map((shot, index) => ({ ...shot, duration: project.duration, duration_seconds: project.duration, palette: ['#b69263', '#7c99a1', '#a88a64', '#696b80', '#af8061', '#657b6f'][index % 6] }))
+  project.shots = breakdownPremise(premise, count, scenes.length === 0).map((shot, index) => ({ ...shot, duration: project.duration, duration_seconds: project.duration, palette: ['#b69263', '#7c99a1', '#a88a64', '#696b80', '#af8061', '#657b6f'][index % 6] }))
   if (sequenceMode === 'varied') project.shots = project.shots.map((shot, index) => applyVariedShot(shot, premise, index))
   if (shotStyle) project.shots = project.shots.map(shot => applyShotStyle(shot, shotStyle, sequenceMode === 'varied'))
   if (sequenceMode === 'continuous' && project.continuitySheet) project.shots = project.shots.map((shot, index) => applyContinuousShot(shot, project.continuitySheet, index, shotStyle))
   if (scenes.length) project.shots = project.shots.map((shot, index) => applySceneOverrides(shot, scenes[index]))
   const baseSheet = project.continuitySheet || buildContinuitySheet(premise)
+  const seededPeople = (baseSheet.characters || []).filter(item => item?.name)
   project.filmSheet = options.filmSheet || {
-    characters: [{ name: baseSheet.character, look: '', outfit: baseSheet.appearance || '' }],
-    places: [{ name: baseSheet.place, description: '' }],
+    characters: seededPeople.length ? seededPeople.map(item => ({ name: item.name, look: item.look || '', outfit: item.outfit || '' })) : [{ name: baseSheet.character, look: '', outfit: baseSheet.appearance || '' }],
+    places: [{ name: baseSheet.place, description: baseSheet.placeDescription || '' }],
     light: baseSheet.time || '',
     mood: '',
     style: baseSheet.style || lockedStyle
@@ -514,12 +524,32 @@ export function createStoryboard(options = {}) {
       hints
     }
     mergeDetectedSheet(project.filmSheet, detected, options.detectionLocks || {})
+    if (isNamedTraitPremise(premise)) alignNamedSheet(project.filmSheet, detected)
   }
   stampPreset(project, chosenPreset)
   fitBoard(project)
   if (options.overwritePrompt) project.shots = project.shots.map(shot => { const next = { ...shot }; delete next.prompt; delete next.promptEdited; return next })
   project.shots = project.shots.map((shot, index) => refreshShotPrompt(shot, project, index, { overwrite: options.overwritePrompt === true }))
   return project
+}
+const PLACEHOLDER_OUTFIT = /^(?:the same clothes, hair, and face from the first shot|the same wool jacket, knit cap, and weathered boots|the same flour-dusted apron, rolled sleeves, and worn shoes|the same worn flight suit and scuffed boots)\.?$/i
+function outfitIsPlaceholder(value) {
+  const text = cleanText(value)
+  return !text || PLACEHOLDER_OUTFIT.test(text)
+}
+function alignNamedSheet(sheet, detected) {
+  if (!sheet || !detected?.characters?.length) return sheet
+  sheet.characters = detected.characters.map(character => {
+    const existing = findByName(sheet.characters, character.name) || {}
+    return { name: character.name, look: character.look || existing.look || '', outfit: character.outfit || existing.outfit || '' }
+  })
+  if (detected.places?.length) {
+    sheet.places = detected.places.map(place => ({
+      name: place.name,
+      description: place.description || findByName(sheet.places, place.name)?.description || ''
+    }))
+  }
+  return sheet
 }
 export function mergeDetectedSheet(sheet, detected, locks = {}) {
   if (!sheet || !detected) return sheet
@@ -529,7 +559,7 @@ export function mergeDetectedSheet(sheet, detected, locks = {}) {
       const existing = findByName(sheet.characters, character.name)
       if (existing) {
         if (!existing.look && character.look) existing.look = character.look
-        if (!existing.outfit && character.outfit) existing.outfit = character.outfit
+        if (outfitIsPlaceholder(existing.outfit) && character.outfit) existing.outfit = character.outfit
       } else if (character.look || character.outfit) sheet.characters.push({ name: character.name, look: character.look || '', outfit: character.outfit || '' })
     })
   }
@@ -707,7 +737,7 @@ function createPresetStoryboard(options, mode) {
   return syncSequences(project)
 }
 function scenarioFailure(parsed) {
-  const message = parsed.errors.length === 1 ? parsed.errors[0].message : `The scenario has ${parsed.errors.length} problems.`
+  const message = describeScenarioErrors(parsed.errors)
   const error = new Error(message || 'The scenario needs a correction.')
   error.status = 400
   error.code = 'invalid_scenario'
@@ -811,15 +841,49 @@ function scenarioShotForPrompt(shot, project) {
     continuity: [cast ? `Same character: ${cast}` : '', place ? `Same place: ${place}` : ''].filter(Boolean).join('. ') || shot.continuity
   }
 }
-export function breakdownPremise(premise, count = DEFAULT_SHOT_COUNT) {
+function premiseWeather(text) {
+  const night = ['night', 'midnight', 'evening', 'neon', 'moon', 'nuit', 'noche', 'nacht'].some(word => mentionedCue(text, word)) || /夜|ночь/.test(text)
+  const rain = ['rain', 'rainy', 'raining', 'storm', 'puddle', 'drizzle', 'pluie', 'lluvia', 'regen'].some(word => mentionedCue(text, word)) || /雨/.test(text)
+  const snow = ['snow', 'ice', 'winter', 'frost', 'neige', 'nieve'].some(word => mentionedCue(text, word))
+  return { night, rain, snow }
+}
+function shotFromPremiseAction(text, item, index, total) {
+  const template = TEMPLATES[index % TEMPLATES.length]
+  const stages = shotStages(total)
+  const weather = premiseWeather(text)
+  const genre = detectGenre(text)
+  const what = cleanText(item.what)
+  return {
+    ...template,
+    sound: template.cue,
+    lighting: index === 0 ? 'soft environmental light with cinematic shadow detail' : 'consistent with the established scene',
+    id: `shot-${String(index + 1).padStart(2, '0')}`,
+    shot_id: `shot-${String(index + 1).padStart(2, '0')}`,
+    order: index + 1,
+    story_has_night: weather.night,
+    story_has_rain: weather.rain,
+    story_has_snow: weather.snow,
+    genre,
+    stage: stages[index] || 'Opening',
+    title: sentence(what).slice(0, 80) || template.title,
+    action: what,
+    what,
+    who: item.who || '',
+    where: item.where || '',
+    fromPremise: true
+  }
+}
+export function breakdownPremise(premise, count = DEFAULT_SHOT_COUNT, usePremiseActions = true) {
   const text = cleanText(premise); if (text.length < 8) throw new Error('Add a little more detail to your story premise (at least 8 characters).')
+  if (usePremiseActions) {
+    const planned = premiseShotPlan(text)
+    if (planned?.length) return planned.map((item, index) => shotFromPremiseAction(text, item, index, planned.length))
+  }
   const genre = detectGenre(text)
   const total = canonicalShotCount(count)
   const stages = shotStages(total)
-  const night = ['night', 'midnight', 'evening', 'neon', 'moon', 'nuit', 'noche', 'nacht'].some(word => mentionedCue(text, word)) || /夜|ночь/.test(text)
-  const rain = ['rain', 'storm', 'puddle', 'drizzle', 'pluie', 'lluvia', 'regen'].some(word => mentionedCue(text, word)) || /雨/.test(text)
-  const snow = ['snow', 'ice', 'winter', 'frost', 'neige', 'nieve'].some(word => mentionedCue(text, word))
-  return Array.from({length:total},(_,index)=>{const template=TEMPLATES[index%TEMPLATES.length];return { ...template, sound: template.cue, lighting: index === 0 ? 'soft environmental light with cinematic shadow detail' : 'consistent with the established scene', id: `shot-${String(index + 1).padStart(2, '0')}`, shot_id: `shot-${String(index + 1).padStart(2, '0')}`, order: index + 1, story_has_night: night, story_has_rain: rain, story_has_snow: snow, genre, stage: stages[index], action: actionForBeat(text, index, stages[index]) } })
+  const weather = premiseWeather(text)
+  return Array.from({length:total},(_,index)=>{const template=TEMPLATES[index%TEMPLATES.length];return { ...template, sound: template.cue, lighting: index === 0 ? 'soft environmental light with cinematic shadow detail' : 'consistent with the established scene', id: `shot-${String(index + 1).padStart(2, '0')}`, shot_id: `shot-${String(index + 1).padStart(2, '0')}`, order: index + 1, story_has_night: weather.night, story_has_rain: weather.rain, story_has_snow: weather.snow, genre, stage: stages[index], action: actionForBeat(text, index, stages[index]) } })
 }
 function styleLockFor(project) {
   if (project.sequenceMode === 'continuous' && project.continuitySheet?.style) return project.continuitySheet.style
