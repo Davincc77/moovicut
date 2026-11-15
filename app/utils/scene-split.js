@@ -1,0 +1,556 @@
+/** Zero-AI scene cuts. Closed word lists only. No model call. */
+import { cleanText } from './text.js'
+import { foldName } from './scenario.js'
+import { splitActionText } from './action-split.js'
+
+const LOCALES = ['en', 'fr', 'pt', 'de', 'it', 'lb', 'ja', 'zh-Hans']
+
+/** Connectors, pronouns, and time or sequence words. Never a character name. */
+const FUNCTION = Object.freeze({
+  en: ['the', 'a', 'an', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them', 'my', 'your', 'his', 'our', 'their', 'this', 'that', 'these', 'those', 'then', 'than', 'so', 'and', 'but', 'or', 'if', 'when', 'while', 'after', 'before', 'later', 'next', 'once', 'only', 'just', 'still', 'already', 'now', 'today', 'tomorrow', 'yesterday', 'suddenly', 'finally', 'in', 'on', 'at', 'to', 'from', 'into', 'over', 'with', 'without', 'of', 'for', 'by', 'as', 'there', 'here', 'its', 'suddenly'],
+  fr: ['le', 'la', 'les', 'un', 'une', 'des', 'je', 'tu', 'il', 'elle', 'on', 'nous', 'vous', 'ils', 'elles', 'lui', 'leur', 'moi', 'toi', 'ce', 'cette', 'ces', 'son', 'sa', 'ses', 'mon', 'ma', 'mes', 'et', 'mais', 'ou', 'donc', 'or', 'ni', 'car', 'puis', 'ensuite', 'alors', 'soudain', 'enfin', 'donc', 'hier', 'demain', 'aujourd', 'hui', 'apres', 'avant', 'plus', 'tard', 'lendemain', 'dans', 'sur', 'sous', 'avec', 'sans', 'pour', 'par', 'chez', 'au', 'aux', 'du', 'en', 'vers', 'pendant', 'toujours', 'jamais', 'ici', 'quand', 'comme', 'si'],
+  pt: ['o', 'a', 'os', 'as', 'um', 'uma', 'eu', 'tu', 'ele', 'ela', 'nos', 'voce', 'eles', 'elas', 'meu', 'minha', 'seu', 'sua', 'e', 'mas', 'ou', 'depois', 'entao', 'de', 'repente', 'subitamente', 'enfim', 'ontem', 'amanha', 'hoje', 'mais', 'tarde', 'no', 'na', 'nos', 'nas', 'em', 'por', 'para', 'com', 'sem', 'so', 'apenas', 'ainda', 'ja', 'agora', 'quando', 'se'],
+  de: ['der', 'die', 'das', 'den', 'dem', 'des', 'ein', 'eine', 'einen', 'ich', 'du', 'er', 'sie', 'es', 'wir', 'ihr', 'mich', 'ihn', 'uns', 'mein', 'dein', 'sein', 'und', 'aber', 'oder', 'dann', 'danach', 'plotzlich', 'endlich', 'so', 'gestern', 'morgen', 'heute', 'spater', 'nach', 'vor', 'in', 'im', 'an', 'auf', 'mit', 'ohne', 'von', 'zu', 'nur', 'noch', 'schon', 'wenn', 'als'],
+  it: ['il', 'lo', 'la', 'i', 'gli', 'le', 'un', 'una', 'uno', 'io', 'tu', 'lui', 'lei', 'noi', 'voi', 'loro', 'mio', 'tuo', 'suo', 'e', 'ma', 'o', 'poi', 'quindi', 'allora', 'improvvisamente', 'infine', 'ieri', 'domani', 'oggi', 'dopo', 'prima', 'piu', 'tardi', 'nel', 'nella', 'in', 'su', 'sul', 'con', 'senza', 'per', 'da', 'solo', 'ancora', 'gia', 'adesso', 'quando', 'se'],
+  lb: ['de', 'den', 'dem', 'd', 'en', 'eng', 'een', 'ech', 'du', 'hien', 'hie', 'si', 'mir', 'dir', 'him', 'hatt', 'an', 'awer', 'oder', 'dann', 'duerno', 'endlech', 'geschter', 'muer', 'haut', 'mei', 'speit', 'am', 'op', 'mat', 'ouni', 'vun', 'fir', 'nemmen', 'nach', 'schonn', 'wann', 'wei'],
+  ja: ['それから', 'そして', 'その後', 'すると', '突然', 'ついに', '次の日', '翌日', 'あとで', '今朝', '今夜'],
+  'zh-Hans': ['然后', '接着', '随后', '于是', '突然', '终于', '后来', '第二天', '次日', '之后', '今晚', '今早']
+})
+
+const FUNCTION_SET = Object.freeze(Object.fromEntries(
+  LOCALES.map(code => [code, new Set(FUNCTION[code].map(word => foldName(word)))])
+))
+
+/** Body parts, clothing, and abstract nouns. Never a place. */
+const NOT_A_PLACE = new Set([
+  'hand', 'hands', 'eye', 'eyes', 'face', 'hair', 'head', 'arm', 'arms', 'leg', 'legs', 'foot', 'feet', 'finger', 'fingers', 'mouth', 'ear', 'ears', 'nose', 'back', 'shoulder', 'eyebrow', 'brow', 'sourcil', 'yeux', 'oeil', 'main', 'mains', 'visage', 'cheveux', 'tete', 'bras', 'jambe', 'pied', 'dos', 'epaule', 'bouche', 'oreille',
+  'olho', 'olhos', 'mao', 'maos', 'rosto', 'cabelo', 'cabeca', 'braco', 'perna', 'pe', 'costas', 'sobrancelha',
+  'auge', 'augen', 'hand', 'haende', 'gesicht', 'haar', 'kopf', 'arm', 'bein', 'fuss', 'ruecken', 'braue',
+  'occhio', 'occhi', 'mano', 'mani', 'viso', 'capelli', 'testa', 'braccio', 'gamba', 'piede', 'schiena', 'sopracciglio',
+  'a', 'ae', 'hand', 'gesiicht', 'hoer', 'kapp', 'been', 'fouss', 'reck',
+  'coat', 'jacket', 'sweater', 'shirt', 'dress', 'skirt', 'scarf', 'hat', 'cap', 'boots', 'shoes', 'bag', 'sleeve', 'pocket', 'apron', 'ring', 'glove', 'manteau', 'pull', 'veste', 'robe', 'echarpe', 'chapeau', 'casquette', 'bottes', 'sac', 'manche', 'poche', 'tablier', 'bague', 'gant', 'cire', 'ärmel', 'armel',
+  'casaco', 'camisa', 'vestido', 'cachecol', 'chapeu', 'bolsa', 'manga', 'bolso', 'avental', 'anel',
+  'mantel', 'pullover', 'hemd', 'kleid', 'schal', 'hut', 'tasche', 'aermel', 'schuerze', 'ring',
+  'cappotto', 'maglione', 'camicia', 'vestito', 'sciarpa', 'cappello', 'borsa', 'manica', 'tasca', 'grembiule', 'anello',
+  'mantel', 'pulli', 'hemd', 'kleed', 'schal', 'hutt', 'tasch', 'aermel',
+  'silence', 'light', 'darkness', 'distance', 'drawing', 'photo', 'photograph', 'letter', 'envelope', 'paper', 'name', 'voice', 'dream', 'memory', 'thought', 'silence', 'lumiere', 'obscurite', 'loin', 'dessin', 'photo', 'lettre', 'enveloppe', 'papier', 'nom', 'voix', 'reve', 'souvenir', 'pensee', 'silence',
+  'silencio', 'luz', 'escuro', 'distancia', 'desenho', 'carta', 'envelope', 'nome', 'voz', 'sonho',
+  'stille', 'licht', 'dunkelheit', 'ferne', 'zeichnung', 'brief', 'umschlag', 'name', 'stimme', 'traum',
+  'silenzio', 'luce', 'buio', 'distanza', 'disegno', 'lettera', 'busta', 'nome', 'voce', 'sogno',
+  'rou', 'liicht', 'donkel', 'distanz', 'zeechnung', 'bréif', 'numm', 'stëmm',
+  'window', 'door', 'table', 'glass', 'cup', 'bottle', 'counter', 'fridge', 'lamp', 'drawer', 'clock', 'ticket', 'fenetre', 'porte', 'table', 'verre', 'tasse', 'bouteille', 'comptoir', 'frigo', 'lampe', 'tiroir', 'horloge', 'billet',
+  'janela', 'porta', 'mesa', 'copo', 'balcao', 'geladeira', 'lampada', 'gaveta',
+  'fenster', 'tur', 'tisch', 'glas', 'tasse', 'theke', 'kuehlschrank', 'lampe', 'schublade',
+  'finestra', 'porta', 'tavolo', 'bicchiere', 'bancone', 'frigo', 'lampada', 'cassetto',
+  'fënster', 'dir', 'dësch', 'glas', 'taass', 'frigo', 'lamp',
+  '目', '眼', '眼睛', '沈黙', '沉默', '光'
+].map(word => foldName(word)))
+
+const MEMORY = Object.freeze({
+  en: /\b(thinks?|thought|thinking|remembers?|remembered|remembering|dreams?|dreamed|dreaming|talks?|talked|talking)\b[^.]{0,48}$/i,
+  fr: /\b(pense|pensais|pensent|penser|souvient|souvenait|souvenir|rêve|reve|rêvais|revais|rêvent|parle|parlait|parlé|parle)\b[^.]{0,48}$/i,
+  pt: /\b(pensa|pensava|lembra|lembrava|sonha|sonhava|fala|falava|falou)\b[^.]{0,48}$/i,
+  de: /\b(denkt|dachte|gedacht|erinnert|erinnerte|träumt|traumt|träumte|spricht|sprach|redet|redete)\b[^.]{0,48}$/i,
+  it: /\b(pensa|pensava|ricorda|ricordava|sogna|sognava|parla|parlava)\b[^.]{0,48}$/i,
+  lb: /\b(denkt|geduecht|erënnert|erennert|dreemt|schwätzt|schwatzt)\b[^.]{0,48}$/i,
+  ja: /(思い出す|思い出|考える|考え|夢を見|話す|話した)[^。]{0,24}$/,
+  'zh-Hans': /(想起|记得|想到|梦见|做梦|谈到|说起|谈到)[^。]{0,24}$/
+})
+
+const GLANCE = Object.freeze({
+  en: /\b(glances?|glancing|peeks?|peering|looks?\s+toward|looking\s+toward|looks?\s+at)\b[^.]{0,48}$/i,
+  fr: /\b(jette un regard|jeter un regard|regarde vers|regard vers|aperçoit|apercoit|sans quitter)\b[^.]{0,60}$/i,
+  pt: /\b(olha para|olha em direção|sem sair|dá uma olhada)\b[^.]{0,48}$/i,
+  de: /\b(blickt|schaut zu|wirft einen blick|ohne zu verlassen)\b[^.]{0,48}$/i,
+  it: /\b(guarda verso|dà un'occhiata|da un'occhiata|senza lasciare)\b[^.]{0,48}$/i,
+  lb: /\b(kuckt op|kuckt a Richtung|ouni ze verloossen)\b[^.]{0,48}$/i,
+  ja: /(ちらっと|目をやる|見やる)[^。]{0,24}$/,
+  'zh-Hans': /(看向|瞥向|望向|没有离开)[^。]{0,24}$/
+})
+
+const LOCATIVE = Object.freeze({
+  en: /(?:^|[^\p{L}])(?:in|at|on|to|inside|through|into|within|outside)\s+(?:the\s+|a\s+|an\s+|her\s+|his\s+|their\s+)?(?:[\p{L}'’-]+\s+){0,5}$/iu,
+  fr: /(?:^|[^\p{L}])(?:dans|à|a|au|aux|chez|sur|en|dehors|dedans)\s+(?:la\s+|le\s+|les\s+|l['’]|un\s+|une\s+|son\s+|sa\s+|ses\s+|leur\s+|du\s+|des\s+|mon\s+|ma\s+)?(?:[\p{L}'’-]+\s+){0,5}$/iu,
+  pt: /\b(?:em|no|na|nos|nas|dentro|através|atraves|para)\s+(?:o\s+|a\s+|os\s+|as\s+|um\s+|uma\s+)?(?:[\p{L}'’-]+\s+){0,5}$/iu,
+  de: /\b(?:in|im|am|an|auf|bei|durch|innerhalb|außerhalb|ausserhalb)\s+(?:der\s+|die\s+|den\s+|dem\s+|das\s+|des\s+|einem\s+|einer\s+)?(?:[\p{L}'’-]+\s+){0,5}$/iu,
+  it: /\b(?:in|nel|nello|nella|sul|sullo|sulla|dentro|attraverso|da)\s+(?:il\s+|lo\s+|la\s+|un\s+|una\s+)?(?:[\p{L}'’-]+\s+){0,5}$/iu,
+  lb: /\b(?:an|am|op|bei|duerch|bannen|baussen)\s+(?:der\s+|dem\s+|d['’]|eng\s+|en\s+)?(?:[\p{L}'’-]+\s+){0,5}$/iu,
+  ja: /(?:で|に|へ)[^。]{0,16}$/,
+  'zh-Hans': /(?:在|到)[^。]{0,16}$/
+})
+
+const WEAK_PLACE = Object.freeze({
+  en: /\b(?:toward|towards|near|around|by|across)\s+(?:the\s+|a\s+|her\s+|his\s+)?(?:[\p{L}'’-]+\s+){0,4}$/iu,
+  fr: /\b(?:vers|près|pres|autour|en face)\s+(?:de\s+|du\s+|de\s+la\s+|des\s+|l['’])?(?:[\p{L}'’-]+\s+){0,4}$/iu,
+  pt: /\b(?:para|perto|em volta|em frente)\s+(?:de\s+|do\s+|da\s+)?(?:[\p{L}'’-]+\s+){0,4}$/iu,
+  de: /\b(?:Richtung|nahe|in der nähe|gegenüber)\s+(?:der\s+|dem\s+|des\s+)?(?:[\p{L}'’-]+\s+){0,4}$/iu,
+  it: /\b(?:verso|vicino|intorno|di fronte)\s+(?:a\s+|al\s+|alla\s+|di\s+)?(?:[\p{L}'’-]+\s+){0,4}$/iu,
+  lb: /\b(?:a Richtung|no bei|géinteniwwer)\s+(?:der\s+|dem\s+)?(?:[\p{L}'’-]+\s+){0,4}$/iu,
+  ja: /(?:の方|へ向か)[^。]{0,12}$/,
+  'zh-Hans': /(?:朝着|附近|对面)[^。]{0,12}$/
+})
+
+const SEQUENCE = Object.freeze({
+  en: /\b(then|after that|so|suddenly|finally|next)\b/i,
+  fr: /\b(puis|ensuite|alors|soudain|enfin|donc)\b/i,
+  pt: /\b(depois|então|entao|de repente|subitamente|enfim|em seguida)\b/i,
+  de: /\b(dann|danach|plötzlich|plotzlich|sodann|endlich|darauf)\b/i,
+  it: /\b(poi|quindi|allora|improvvisamente|infine|dopodiché|dopodiche)\b/i,
+  lb: /\b(dann|duerno|op eemol|endlech|dono)\b/i,
+  ja: /(それから|そして|その後|突然|ついに|次に)/,
+  'zh-Hans': /(然后|接着|随后|于是|突然|终于|后来)/
+})
+
+const TIME_RULES = [
+  { re: /(?<![\p{L}])(le lendemain|au lendemain|the next day|the next morning|no dia seguinte|am nächsten tag|am naechsten tag|il giorno dopo|den aneren dag|次の日|翌日|第二天|次日)(?![\p{L}])/iu, id: 'next-day', jump: 'day' },
+  { re: /(?<![\p{L}])(trois jours plus tard|trois jours après|trois jours apres|three days later|três dias depois|tres dias depois|drei tage später|drei tage spater|tre giorni dopo|dräi deeg drop|dräi deeg méi spéit|三日後|三天后|三天之后)(?![\p{L}])/iu, id: 'plus-3d', jump: 'day' },
+  { re: /(?<![\p{L}])(à l['’]aube|a l['’]aube|at dawn|au petit matin|en début de matinée|ao amanhecer|im morgengrauen|all['’]alba|am muergrauen|夜明け|黎明|拂晓)(?![\p{L}])/iu, id: 'dawn', jump: 'part', light: 'dawn' },
+  { re: /(?<![\p{L}])(à la nuit tombée|a la nuit tombee|la nuit tombe|at nightfall|nightfall|ao anoitecer|bei einbruch der nacht|al calar della notte|bei der nuecht|夜になる|夜幕降临|入夜)(?![\p{L}])/iu, id: 'nightfall', jump: 'part', light: 'night' },
+  { re: /(?<![\p{L}])(au crépuscule|au crepuscule|at dusk|ao crepúsculo|ao crepusculo|in der dämmerung|in der dammerung|al crepuscolo|an der dämmerung|黄昏|夕暮れ)(?![\p{L}])/iu, id: 'dusk', jump: 'part', light: 'dusk' },
+  { re: /(?<![\p{L}])(en début de soirée|en debut de soiree|début de soirée|debut de soiree|in the early evening|early evening|ao início da noite|am frühen abend|in prima serata|fréi owes|夕方|傍晚)(?![\p{L}])/iu, id: 'evening', jump: 'part', light: 'dusk' },
+  { re: /(?<![\p{L}])(vers midi|around noon|por volta do meio-dia|gegen mittag|verso mezzogiorno|géint mëtteg|正午ごろ|中午|正午)(?![\p{L}])/iu, id: 'noon', jump: 'part', light: 'day' },
+  { re: /(?<![\p{L}])(plus tard|later|mais tarde|später|spater|più tardi|piu tardi|méi spéit|mei speit|あとで|后来)(?![\p{L}])/iu, id: 'later', jump: 'later' }
+]
+
+const CLOCK = Object.freeze({
+  en: /\bat\s+(\d{1,2})(?::(\d{2}))?\s*(a\.?\s*m\.?|p\.?\s*m\.?)?/i,
+  fr: /(?<![\p{L}])à\s*(\d{1,2})\s*h\s*(\d{2})?/iu,
+  pt: /\bàs\s*(\d{1,2})\s*h\s*(\d{2})?/i,
+  de: /\bum\s*(\d{1,2})(?::(\d{2}))?\s*uhr/i,
+  it: /\balle\s*(\d{1,2})(?::(\d{2}))?/i,
+  lb: /\bëm\s*(\d{1,2})(?::(\d{2}))?\s*auer/i,
+  ja: /(\d{1,2})時(\d{1,2})?分?/,
+  'zh-Hans': /(\d{1,2})点(\d{1,2})?分?/
+})
+
+const OPEN_PLACE = Object.freeze({
+  en: /\b(?:opens?|enters?)\s+(?:her\s+|his\s+|the\s+|a\s+|an\s+)?(?:tiny\s+|small\s+|little\s+)?$/i,
+  fr: /\b(?:ouvre|ouvrir|entre au|entre à|entre a)\s+(?:la\s+|le\s+|l['’]|son\s+|sa\s+|un\s+|une\s+)?(?:petit\s+|petite\s+)?$/i,
+  pt: /\b(?:abre|entra n[oa])\s+(?:o\s+|a\s+|um\s+|uma\s+)?$/i,
+  de: /\b(?:öffnet|betritt)\s+(?:den\s+|die\s+|das\s+|dem\s+)?$/i,
+  it: /\b(?:apre|entra nel|entra nella)\s+(?:il\s+|lo\s+|la\s+|un\s+|una\s+)?$/i,
+  lb: /\b(?:mécht op|geet an)\s+(?:d['’]|den\s+|dem\s+)?$/i,
+  ja: /$/,
+  'zh-Hans': /$/
+})
+
+const CAST_VERB = /\b(porte|portent|wears?|trägt|tragt|veste|indossa|dréit|dreit|穿着|身着|着ている)\b/i
+
+const BUILTIN_VERBS = Object.freeze({
+  en: ['reads', 'read', 'sets', 'set', 'stands', 'stand', 'tidies', 'tidy', 'folds', 'fold', 'switches', 'switch', 'takes', 'take', 'opens', 'open', 'pours', 'pour', 'waits', 'wait', 'comes', 'come', 'leaves', 'leave', 'looks', 'look', 'says', 'say', 'smiles', 'smile', 'closes', 'close', 'hands', 'hand', 'finds', 'find', 'compare', 'compares', 'sits', 'sit', 'puts', 'put', 'walks', 'walk', 'stops', 'stop', 'checks', 'check', 'answers', 'answer', 'watch', 'watches', 'steps', 'step', 'pulls', 'pull', 'stays', 'stay', 'remains', 'remain', 'pushes', 'push', 'lifts', 'lift', 'holds', 'hold', 'arrives', 'arrive', 'shuts', 'shut', 'listens', 'listen', 'unrolls', 'unroll', 'points', 'point', 'talks', 'talk', 'enters', 'enter', 'returns', 'return', 'knocks', 'knock', 'laughs', 'laugh', 'boards', 'board', 'meets', 'meet', 'gives', 'give', 'rides', 'turns', 'follows', 'crosses', 'drinks', 'writes', 'calls', 'runs', 'sits'],
+  fr: ['lit', 'pose', 'leve', 'range', 'eteint', 'ouvre', 'verse', 'attend', 'entre', 'laisse', 'cherche', 'dit', 'sourit', 'referme', 'tend', 'boit', 'repose', 'retrouve', 'comparent', 'comparent', 'glisse', 'restent', 'ajuste', 'assoient', 'sort', 'regarde', 'apporte', 'pousse', 'releve', 'allume', 'arrive', 'ferme', 'ecoute', 'deroule', 'montre', 'parlent', 'enfilent', 'marchent', 'arrete', 'relit', 'assoit', 'reste', 'repondent', 'reprennent', 'regardent', 'approche', 'serre', 'pense', 'sont'],
+  pt: ['entrega', 'lê', 'le', 'afasta', 'observa', 'abre', 'entra', 'poe', 'diz', 'sorri', 'fecha', 'anda', 'espera', 'pega'],
+  de: ['gibt', 'liest', 'geht', 'sieht', 'öffnet', 'lacht', 'reicht', 'legt', 'nimmt', 'wartet', 'sagt', 'kommt', 'setzt', 'bleibt'],
+  it: ['porge', 'legge', 'allontana', 'guarda', 'entra', 'esce', 'apre', 'dice', 'sorride', 'chiude', 'cammina', 'aspetta'],
+  lb: ['gëtt', 'liest', 'geet', 'kuckt', 'kënnt', 'seet', 'laacht', 'hëlt', 'bleift', 'mécht'],
+  ja: ['渡す', '渡した', '読む', '読んだ', '歩き去る', '歩いて', '見る', '見た', '笑う', '入る', '出る', '開ける', '置く', '言う', '座る'],
+  'zh-Hans': ['交给', '读了', '读', '走开', '看着', '看', '笑', '走进', '打开', '递给', '说', '坐下', '放下']
+})
+
+export function isFunctionWord(token, language = 'en') {
+  const key = foldName(token)
+  if (!key) return false
+  if (FUNCTION_SET[language]?.has(key)) return true
+  if (language !== 'en' && FUNCTION_SET.en.has(key)) return true
+  if (language !== 'fr' && FUNCTION_SET.fr.has(key)) return true
+  return false
+}
+
+export function isNeverPlace(token) {
+  const key = foldName(token)
+  if (!key) return false
+  if (NOT_A_PLACE.has(key)) return true
+  return key.split(/\s+/).some(part => NOT_A_PLACE.has(part))
+}
+
+export function quoteSpans(text) {
+  const spans = []
+  const source = String(text || '')
+  const re = /«[^»]*»|“[^”]*”|"[^"]*"|「[^」]*」|『[^』]*』/g
+  for (const match of source.matchAll(re)) spans.push([match.index, match.index + match[0].length])
+  return spans
+}
+
+export function inSpans(index, spans) {
+  return spans.some(([start, end]) => index >= start && index < end)
+}
+
+export function isQuotedOrRemembered(text, index, language = 'en') {
+  const source = String(text || '')
+  if (inSpans(index, quoteSpans(source))) return true
+  const before = source.slice(Math.max(0, index - 64), index)
+  const pattern = MEMORY[languageOf(language)]
+  if (!pattern) return false
+  pattern.lastIndex = 0
+  return pattern.test(before)
+}
+
+export function sentencesOf(text) {
+  const source = String(text || '').replace(/\r\n/g, '\n')
+  const spans = quoteSpans(source)
+  const parts = []
+  let start = 0
+  for (let i = 0; i < source.length; i += 1) {
+    const char = source[i]
+    if (!/[.!?。！？]/.test(char) || inSpans(i, spans)) continue
+    const next = source[i + 1] || ''
+    if (next && !/\s/.test(next) && next !== '\n') continue
+    const piece = source.slice(start, i + 1).trim()
+    if (piece) parts.push(piece)
+    start = i + 1
+  }
+  const tail = source.slice(start).trim()
+  if (tail) parts.push(tail)
+  return parts.flatMap(part => part.split(/\n+/).map(item => item.trim()).filter(Boolean))
+}
+
+function languageOf(language) {
+  return LOCALES.includes(language) ? language : 'en'
+}
+
+function windowBefore(sentence, index) {
+  return sentence.slice(Math.max(0, index - 70), index)
+}
+
+function mentionedIn(sentence, key) {
+  const folded = foldName(sentence)
+  const needle = foldName(key)
+  if (!needle) return []
+  const hits = []
+  const re = new RegExp(`(?:^|[^\\p{L}])(${needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})(?=[^\\p{L}]|$)`, 'gu')
+  for (const match of folded.matchAll(re)) hits.push(match.index + match[0].indexOf(match[1]))
+  return hits
+}
+
+function clauseLooks(before, language, table) {
+  const pattern = table[languageOf(language)]
+  if (!pattern) return false
+  pattern.lastIndex = 0
+  return pattern.test(before)
+}
+
+function placeKeys(place) {
+  const keys = []
+  const name = cleanText(place?.name)
+  if (name) keys.push(name)
+  ;(place?.keys || []).forEach(key => { if (key) keys.push(key) })
+  return keys
+    .map(key => cleanText(key))
+    .filter(Boolean)
+    .sort((a, b) => foldName(b).length - foldName(a).length)
+}
+
+function findKeyHits(sentence, key) {
+  const needle = String(key).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const re = new RegExp(`(?<![\\p{L}])(${needle})(?![\\p{L}])`, 'giu')
+  const hits = []
+  for (const match of String(sentence || '').matchAll(re)) {
+    if (foldName(match[1]) !== foldName(key)) continue
+    hits.push(match.index)
+  }
+  return hits
+}
+
+export function findPlaceCue(sentence, language, places) {
+  const spans = quoteSpans(sentence)
+  let best = null
+  for (const place of places || []) {
+    if (isNeverPlace(place.name)) continue
+    for (const key of placeKeys(place)) {
+      if (isNeverPlace(key) || foldName(key).length < 3) continue
+      for (const index of findKeyHits(sentence, key)) {
+        if (inSpans(index, spans)) continue
+        const before = windowBefore(sentence, index)
+        const after = sentence.slice(index, index + key.length + 4)
+        if (clauseLooks(before, language, MEMORY)) continue
+        const afterClause = sentence.slice(index, Math.min(sentence.length, index + key.length + 16))
+        if ((language === 'ja' || language === 'zh-Hans') && /(思い出す|考える|話す|想起|记得|想到|梦见|说起|ちらっと|望向|看向|没有离开)/.test(afterClause)) continue
+        if (clauseLooks(before, language, GLANCE)) continue
+        if (/\b(?:across|d['’]en face)\s+(?:the\s+|la\s+|le\s+)?$/i.test(before)) continue
+        const locative = clauseLooks(before, language, LOCATIVE) || (language === 'ja' && /(?:で|に|へ)/.test(after))
+        const opener = clauseLooks(before, language, OPEN_PLACE)
+        const weak = clauseLooks(before, language, WEAK_PLACE)
+        if (!locative && !opener && !weak) continue
+        const cueStart = Math.max(0, index - 28)
+        const cue = cleanText(sentence.slice(cueStart, index + key.length))
+        const found = { name: place.name, key, cue, uncertain: Boolean(weak && !locative && !opener), index }
+        if (!best || found.index > best.index) best = found
+      }
+    }
+  }
+  return best
+}
+
+export function placeMentionIsReal(text, key, language = 'en') {
+  if (isNeverPlace(key)) return false
+  const sentence = String(text || '')
+  return Boolean(findPlaceCue(sentence, language, [{ name: key, keys: [key] }]))
+}
+
+function clockOf(sentence, language) {
+  const pattern = CLOCK[languageOf(language)]
+  if (!pattern) return null
+  const match = sentence.match(pattern)
+  if (!match) return null
+  let hour = Number(match[1])
+  const minute = Number(match[2] || 0)
+  const marker = String(match[3] || '').toLowerCase()
+  if (!Number.isInteger(hour) || hour > 24 || minute > 59) return null
+  if (marker.startsWith('p') && hour < 12) hour += 12
+  if (marker.startsWith('a') && hour === 12) hour = 0
+  return { hour, minute, minutes: hour * 60 + minute, cue: cleanText(match[0]) }
+}
+
+function timeCues(sentence, language) {
+  const cues = []
+  for (const rule of TIME_RULES) {
+    const match = sentence.match(rule.re)
+    if (!match) continue
+    cues.push({ id: rule.id, jump: rule.jump, light: rule.light || '', cue: cleanText(match[0]) })
+  }
+  const clock = clockOf(sentence, language)
+  if (clock) cues.push({ id: 'clock', jump: 'clock', light: clock.hour < 6 || clock.hour >= 21 ? 'night' : clock.hour < 9 ? 'dawn' : clock.hour >= 18 ? 'dusk' : 'day', cue: clock.cue, minutes: clock.minutes })
+  return cues
+}
+
+function sequenceCue(sentence, language) {
+  const pattern = SEQUENCE[languageOf(language)]
+  if (!pattern) return ''
+  const match = sentence.match(pattern)
+  return match ? cleanText(match[0]) : ''
+}
+
+function hasAction(sentence, language, extra) {
+  const folded = foldName(sentence)
+  const verbs = new Set([...(BUILTIN_VERBS[languageOf(language)] || []), ...(extra || [])].map(foldName))
+  const tokens = folded.match(/[\p{L}][\p{L}'’-]+/gu) || []
+  if (tokens.some(token => verbs.has(token))) return true
+  if (language === 'ja' || language === 'zh-Hans') {
+    return (BUILTIN_VERBS[language] || []).some(verb => sentence.includes(verb))
+  }
+  return splitActionText(sentence).length >= 1 && tokens.some(token => verbs.has(token))
+}
+
+function isCastLine(sentence) {
+  return CAST_VERB.test(sentence) && (sentence.match(/,/g) || []).length >= 2
+}
+
+function samePlace(a, b) {
+  if (!a || !b) return false
+  const left = foldName(a)
+  const right = foldName(b)
+  return left === right || left.includes(right) || right.includes(left)
+}
+
+function applyTime(cues, state) {
+  let changed = false
+  for (const cue of cues) {
+    if (cue.light) {
+      state.light = cue.light
+      if (!state.firstLight) state.firstLight = cue.light
+    }
+    state.timeLabel = cue.cue
+    if (cue.jump === 'clock') {
+      const close = state.minutes != null && Math.abs(cue.minutes - state.minutes) <= 15
+      if (state.started && !close) changed = true
+      state.minutes = cue.minutes
+      state.timeId = `clock-${cue.minutes}`
+      continue
+    }
+    if (!state.started) {
+      state.timeId = cue.id
+      continue
+    }
+    if (state.timeId !== cue.id) {
+      changed = true
+      state.timeId = cue.id
+      if (cue.jump === 'day') state.minutes = null
+    }
+  }
+  return { changed }
+}
+
+function actionText(sentence) {
+  return cleanText(sentence).replace(/^[,;:\s]+/, '').replace(/[.!?。！？]+$/, '')
+}
+
+/**
+ * Split free prose into shots. At most one scene cut per sentence.
+ * A place or time change opens a scene. A sequence word alone opens a shot.
+ */
+export function splitNarrative(text, options = {}) {
+  const language = languageOf(options.language || 'en')
+  const places = options.places || []
+  const characters = options.characters || []
+  const extraVerbs = options.verbs || []
+  const enabled = options.splitScenes !== false
+  const shots = []
+  const cuts = []
+  const state = { place: '', timeId: '', timeLabel: '', minutes: null, light: '', firstLight: '', started: false, sceneId: 0 }
+  let pending = []
+  const names = characters.map(item => item.name).filter(Boolean)
+
+  function whoIn(sentence, last) {
+    const found = names.filter(name => new RegExp(`(?<![\\p{L}])${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}])`, 'iu').test(sentence))
+    if (found.length) return found.slice(0, 2).join(language === 'fr' ? ' et ' : language === 'de' ? ' und ' : ' and ')
+    return last
+  }
+  let lastWho = names[0] || ''
+
+  sentencesOf(text).forEach(sentence => {
+    if (typeof options.skip === 'function' && options.skip(sentence)) {
+      const place = findPlaceCue(sentence, language, places)
+      if (place) state.place = place.name
+      const times = timeCues(sentence, language)
+      if (times.length) {
+        state.timeId = times[0].id
+        state.timeLabel = times.map(item => item.cue).join(', ')
+        if (times[0].light) state.light = times[0].light
+        const clock = times.find(item => item.jump === 'clock')
+        if (clock) state.minutes = clock.minutes
+      }
+      return
+    }
+    const place = findPlaceCue(sentence, language, places)
+    const times = timeCues(sentence, language)
+    const sequence = sequenceCue(sentence, language)
+    const cast = isCastLine(sentence)
+    const action = hasAction(sentence, language, extraVerbs) && !cast
+    if (!action) {
+      if (cast) {
+        if (place) state.place = place.name
+        if (times.length) applyTime(times, state)
+        return
+      }
+      if (place || times.length || sequence) pending.push({ place, times, sequence, sentence })
+      return
+    }
+    const bundledPlace = [place, ...pending.map(item => item.place)].filter(Boolean).pop() || null
+    const bundledTimes = [...pending.flatMap(item => item.times), ...times]
+    const bundledSequence = sequence || pending.map(item => item.sequence).filter(Boolean)[0] || ''
+    pending = []
+    let sceneCut = false
+    let uncertain = false
+    const reasons = []
+    if (bundledPlace && !samePlace(bundledPlace.name, state.place)) {
+      sceneCut = true
+      uncertain = bundledPlace.uncertain
+      state.place = bundledPlace.name
+      reasons.push(uncertain ? `Uncertain place cue: ${bundledPlace.cue}` : `Place cue: ${bundledPlace.cue}`)
+    }
+    if (bundledTimes.length) {
+      const next = applyTime(bundledTimes, state)
+      if (next.changed && enabled) {
+        sceneCut = true
+        reasons.push(`Time cue: ${bundledTimes.map(item => item.cue).join(', ')}`)
+      }
+    }
+    if (!state.place && places[0]?.name) state.place = places[0].name
+    if (!state.started) {
+      state.started = true
+      state.sceneId = 1
+      sceneCut = false
+    } else if (sceneCut && enabled) state.sceneId += 1
+    else if (!enabled) sceneCut = false
+    const shotCut = Boolean(enabled && !sceneCut && bundledSequence)
+    const cue = sceneCut
+      ? (reasons[0]?.replace(/^[^:]+:\s*/, '') || bundledSequence)
+      : bundledSequence
+    const reason = sceneCut
+      ? reasons.join('; ')
+      : (shotCut ? `Sequence cue: ${bundledSequence}` : '')
+    if (sceneCut && enabled) {
+      cuts.push({
+        shotIndex: shots.length,
+        order: shots.length + 1,
+        cue,
+        reason: uncertain ? `Uncertain. ${reason}` : reason,
+        uncertain,
+        kind: 'scene',
+        place: state.place,
+        time: state.timeLabel || ''
+      })
+    } else if (shotCut) {
+      cuts.push({
+        shotIndex: shots.length,
+        order: shots.length + 1,
+        cue: bundledSequence,
+        reason: `Sequence cue: ${bundledSequence}`,
+        uncertain: false,
+        kind: 'shot',
+        place: state.place,
+        time: state.timeLabel || ''
+      })
+    }
+    lastWho = whoIn(sentence, lastWho)
+    const bits = splitPieces(actionText(sentence), language, extraVerbs)
+    bits.forEach((bit, index) => {
+      const opening = index === 0
+      shots.push({
+        who: whoIn(bit, lastWho) || lastWho,
+        where: state.place,
+        what: bit,
+        timeLabel: state.timeLabel || '',
+        light: state.light || '',
+        sceneId: state.sceneId || 1,
+        sceneCut: Boolean(opening && sceneCut && enabled),
+        cutCue: opening ? cue : '',
+        cutReason: opening ? (sceneCut ? (uncertain ? `Uncertain. ${reasons.join('; ')}` : reasons.join('; ')) : (shotCut ? `Sequence cue: ${bundledSequence}` : '')) : '',
+        cutUncertain: Boolean(opening && uncertain),
+        cutKind: opening ? (sceneCut ? 'scene' : (shotCut ? 'shot' : '')) : ''
+      })
+    })
+  })
+  return { shots, cuts, place: state.place, time: state.timeLabel, light: state.light, firstLight: state.firstLight || state.light }
+}
+
+function splitPieces(text, language, extraVerbs) {
+  const english = splitActionText(text)
+  if (english.length >= 2) return english
+  if (language !== 'fr' && language !== 'pt' && language !== 'it' && language !== 'de' && language !== 'lb') return [text]
+  const pattern = language === 'de' ? /\s+\b(?:und dann|und|dann)\b\s+/i : language === 'pt' ? /\s+\b(?:e depois|e então|e)\b\s+/i : language === 'it' ? /\s+\b(?:e poi|e)\b\s+/i : /\s+\b(?:et puis|puis|et)\b\s+/i
+  const parts = text.split(pattern).map(part => part.trim()).filter(Boolean)
+  if (parts.length < 2) return [text]
+  if (!parts.every(part => hasAction(part, language, extraVerbs) || splitActionText(part).length >= 1)) return [text]
+  return parts
+}
+
+/** A user merge drops a scene boundary. A split promotes a shot cue into a scene. */
+export function editCut(cuts, index, mode) {
+  const next = (cuts || []).map(cut => ({ ...cut }))
+  const cut = next[index]
+  if (!cut) return next
+  if (mode === 'merge') {
+    cut.kind = 'shot'
+    cut.uncertain = false
+    cut.merged = true
+    cut.reason = `Merged. ${cut.reason || cut.cue || ''}`.trim()
+  } else if (mode === 'split') {
+    cut.kind = 'scene'
+    cut.merged = false
+    cut.reason = cut.uncertain ? `Uncertain. Split. ${cut.cue || ''}` : `Split. ${cut.reason || cut.cue || ''}`
+  }
+  return next
+}
+
+export function supportedCueLanguages() {
+  return [...LOCALES]
+}
+
+const CAST_WARNING = Object.freeze({
+  en: { missing_look: name => `No look found for ${name}.`, missing_outfit: name => `No outfit found for ${name}.` },
+  fr: { missing_look: name => `Aucune apparence trouvée pour ${name}.`, missing_outfit: name => `Aucun vêtement trouvé pour ${name}.` },
+  pt: { missing_look: name => `Nenhuma aparência encontrada para ${name}.`, missing_outfit: name => `Nenhuma roupa encontrada para ${name}.` },
+  de: { missing_look: name => `Kein Aussehen für ${name} gefunden.`, missing_outfit: name => `Keine Kleidung für ${name} gefunden.` },
+  it: { missing_look: name => `Nessun aspetto trovato per ${name}.`, missing_outfit: name => `Nessun abito trovato per ${name}.` },
+  lb: { missing_look: name => `Keen Ausgesi fir ${name} fonnt.`, missing_outfit: name => `Keng Kleeder fir ${name} fonnt.` },
+  ja: { missing_look: name => `${name} の見た目が見つかりません。`, missing_outfit: name => `${name} の服装が見つかりません。` },
+  'zh-Hans': { missing_look: name => `没有找到 ${name} 的外形。`, missing_outfit: name => `没有找到 ${name} 的服装。` }
+})
+
+export function proseWarningMessage(warning, language = 'en') {
+  const catalog = CAST_WARNING[language] || CAST_WARNING.en
+  const format = catalog[warning?.code]
+  if (!format || !warning?.name) return warning?.message || ''
+  return format(warning.name)
+}

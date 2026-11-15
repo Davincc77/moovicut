@@ -930,5 +930,19 @@
   "{path} must be an object with who, where, and what.": "{path} tem de ser um objeto com who, where e what.",
   "{title} storyboard study": "Estudo de storyboard {title}",
   "{title} — Moovicut": "{title} — Moovicut",
-  "“{trait}” is repeated in the same line.": "“{trait}” está repetido na mesma linha."
+  "“{trait}” is repeated in the same line.": "“{trait}” está repetido na mesma linha.",
+  "Scene cuts": "Cortes de cena",
+  "Before generating, these are the cuts found in the story. Nothing is sent to a model.": "Antes de gerar, estes são os cortes encontrados na história. Nada é enviado a um modelo.",
+  "Cut here: {cue}": "Cortar aqui: {cue}",
+  "New shot in this scene: {cue}": "Novo plano nesta cena: {cue}",
+  "Uncertain cut": "Corte incerto",
+  "Reason: {reason}": "Motivo: {reason}",
+  "Merge with the previous scene": "Juntar com a cena anterior",
+  "Split into a new scene": "Separar numa cena nova",
+  "No scene cut in this text.": "Nenhum corte de cena neste texto.",
+  "A place changes here without a place or time cue.": "Um lugar muda aqui sem uma pista de lugar ou de tempo.",
+  "Add a place or time cue, or merge this shot into the previous scene.": "Acrescente uma pista de lugar ou de tempo, ou junte este plano à cena anterior.",
+  "The time of day changes here without a cue.": "A hora do dia muda aqui sem uma pista.",
+  "Mark the time cue, or keep the previous time of day.": "Marque a pista de tempo, ou mantenha a hora anterior.",
+  "Free prose is split on place and time cues. A sequence word alone stays in the same scene. splitScenes defaults to true. Each cut has a cue and a reason. A character with no look still returns a board and a warning.": "A prosa livre é cortada por pistas de lugar e de tempo. Uma palavra de sequência sozinha fica na mesma cena. splitScenes é verdadeiro por omissão. Cada corte tem uma pista e um motivo. Uma personagem sem aparência continua a devolver um quadro, com um aviso."
 }

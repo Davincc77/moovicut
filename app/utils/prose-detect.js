@@ -4,6 +4,7 @@ import { foldName, scenarioBudget, scenarioPremise, scenarioToFields } from './s
 import { flaggedNameKeys } from './shot-risk.js'
 import { splitActionText } from './action-split.js'
 import { detectLocalized } from './prose-extra.js'
+import { isFunctionWord, isNeverPlace, isQuotedOrRemembered, placeMentionIsReal, splitNarrative } from './scene-split.js'
 
 const STOP = new Set(['the', 'a', 'an', 'he', 'she', 'they', 'it', 'his', 'her', 'their', 'then', 'when', 'after', 'before', 'later', 'next', 'once', 'this', 'that', 'there', 'here', 'un', 'une', 'le', 'la', 'les', 'il', 'elle', 'ils', 'elles', 'lui', 'leur', 'puis', 'quand', 'apres', 'avant', 'dans', 'sur', 'sous', 'avec', 'pour', 'par', 'chez', 'au', 'aux', 'du', 'des', 'en', 'et', 'mais', 'ou', 'ce', 'cette', 'ces', 'son', 'sa', 'ses', 'mon', 'ma', 'mes', 'je', 'tu', 'nous', 'vous', 'on', 'plus', 'tout', 'toute', 'tous', 'morning', 'evening', 'night', 'day', 'matin', 'soir', 'nuit', 'jour', 'aube', 'tard', 'lendemain', 'and', 'with', 'from', 'into', 'over', 'while', 'its', 'our', 'your'])
 
@@ -27,7 +28,10 @@ const PLACES = [
   { keys: ['pont', 'bridge'], fr: 'Pont', en: 'Bridge', frDesc: 'un pont', enDesc: 'a bridge' },
   { keys: ['bureau', 'office'], fr: 'Bureau', en: 'Office', frDesc: 'un bureau', enDesc: 'an office' },
   { keys: ['restaurant'], fr: 'Restaurant', en: 'Restaurant', frDesc: 'un restaurant', enDesc: 'a restaurant' },
-  { keys: ['bar'], fr: 'Bar', en: 'Bar', frDesc: 'un bar', enDesc: 'a bar' }
+  { keys: ['bar'], fr: 'Bar', en: 'Bar', frDesc: 'un bar', enDesc: 'a bar' },
+  { keys: ['salon', 'living room'], fr: 'Salon', en: 'Living room', frDesc: 'un salon', enDesc: 'a living room' },
+  { keys: ['atelier', 'workshop'], fr: 'Atelier', en: 'Workshop', frDesc: 'un atelier', enDesc: 'a workshop' },
+  { keys: ['quai', 'quay', 'harbour', 'harbor'], fr: 'Quai', en: 'Quay', frDesc: 'un quai', enDesc: 'a quay' }
 ]
 
 const TIME_BLOCK = new Set(['matin', 'morning', 'soir', 'evening', 'nuit', 'night', 'jour', 'day', 'aube', 'dawn', 'dusk', 'soleil', 'sun', 'pluie', 'rain', 'tard', 'lendemain', 'petit'])
@@ -235,23 +239,70 @@ function traitWindow(text, name, names) {
   return text.slice(before, Math.max(after, end))
 }
 
-function detectCharacters(text, places = []) {
+const OUTFIT_WORD = /(?<![\p{L}])(?:coats?|peacoats?|sweaters?|shirts?|dresses?|scarves?|scarf|aprons?|jackets?|boots?|bags?|rings?|manteaux?|manteau|pulls?|pull|tabliers?|tablier|casquettes?|vestes?|cirés?|ciré|cire|bottes|sacs?|sac|bagues?|bague|raincoats?|sleeves?|manches?|manche)(?![\p{L}])/iu
+const LOOK_WORD = /(?<![\p{L}])(?:hair|cheveux|beards?|barbe|scars?|cicatrice|glasses|lunettes|eyes|yeux|stubble|pixie|thirties|forties|fifties|trentaine|quarantaine|cinquantaine|\d{1,2}s|\d+\s+ans|years|young|old|jeune)(?![\p{L}])/iu
+
+function traitsInClause(clause) {
+  const looks = []
+  const outfits = []
+  if (!clause) return { looks, outfits }
+  const worn = clause.split(/\b(?:porte|portent|wears?|trägt|tragt|veste|indossa|dréit)\b/i)
+  if (worn.length >= 2) {
+    const look = cleanText(worn[0].replace(/^[^,]*,\s*/, ''))
+    const outfit = cleanText(worn.slice(1).join(' '))
+    if (look && (LOOK_WORD.test(look) || look.length < 180)) looks.push(look)
+    const wornOutfit = cleanText(String(outfit || '').split(/\s+\b(?:in|inside|dans|sur|à|au|aux|on|at)\b\s+/i)[0])
+    if (wornOutfit) outfits.push(wornOutfit)
+    return { looks, outfits }
+  }
+  clause.split(',').slice(1).forEach(part => {
+    const bit = cleanText(part)
+    if (!bit || /\b(?:meets|entre|enters|comes|ouvre|opens|walks|lit|reads)\b/i.test(bit)) return
+    if (OUTFIT_WORD.test(bit)) outfits.push(bit)
+    else if (LOOK_WORD.test(bit)) looks.push(bit)
+  })
+  return { looks, outfits }
+}
+
+function castTraits(text, name, names) {
+  const boundary = label => new RegExp(`(?<![\\p{L}])${String(label).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}])`, 'giu')
+  const finder = boundary(name)
+  let best = { looks: [], outfits: [] }
+  for (const match of String(text || '').matchAll(finder)) {
+    const endNames = names.filter(other => foldName(other) !== foldName(name))
+    let end = Math.min(text.length, match.index + 320)
+    endNames.forEach(other => {
+      const found = boundary(other).exec(text.slice(match.index + match[0].length))
+      if (found) end = Math.min(end, match.index + match[0].length + found.index)
+    })
+    const slice = text.slice(match.index, end)
+    const period = slice.search(/[.!?。！？]/)
+    const found = traitsInClause(period >= 0 ? slice.slice(0, period) : slice)
+    if (found.looks.length + found.outfits.length > best.looks.length + best.outfits.length) best = found
+  }
+  return best
+}
+
+function detectCharacters(text, places = [], language = 'en') {
   const flagged = flaggedNameKeys(text)
   const reserved = placeTokens(places)
   const starts = sentenceStarts(text)
   const counts = new Map()
   let skippedFlagged = false
-  tokens(text).forEach(token => {
-    if (!/^\p{Lu}/u.test(token)) return
+  for (const match of String(text || '').matchAll(/[\p{L}][\p{L}'’-]+/gu)) {
+    const token = match[0]
+    if (!/^\p{Lu}/u.test(token)) continue
+    if (/['’]s$/i.test(token)) continue
+    if (isQuotedOrRemembered(text, match.index, language)) continue
     const key = foldName(token)
-    if (flagged.has(key)) { skippedFlagged = true; return }
-    if (key.length < 2 || STOP.has(key) || PLACE_KEYS.has(key) || TIME_BLOCK.has(key) || reserved.has(key) || NOT_A_PLACE.has(key)) return
+    if (flagged.has(key)) { skippedFlagged = true; continue }
+    if (key.length < 2 || STOP.has(key) || isFunctionWord(token, language) || PLACE_KEYS.has(key) || TIME_BLOCK.has(key) || reserved.has(key) || NOT_A_PLACE.has(key) || isNeverPlace(token)) continue
     const entry = counts.get(key) || { forms: new Map(), count: 0, mid: 0 }
     entry.count += 1
     if (!starts.has(key)) entry.mid += 1
     entry.forms.set(token, (entry.forms.get(token) || 0) + 1)
     counts.set(key, entry)
-  })
+  }
   const warnings = []
   const characters = []
   const candidateNames = [...counts.values()].map(entry => [...entry.forms.keys()][0])
@@ -286,6 +337,9 @@ function detectCharacters(text, places = []) {
     const extra = commaTraits(text, name, candidateNames)
     extra.looks.forEach(item => absorbTrait(look, item))
     extra.outfits.forEach(item => absorbTrait(outfit, item))
+    const cast = castTraits(text, name, candidateNames)
+    if (!look.length) cast.looks.forEach(item => absorbTrait(look, item))
+    if (!outfit.length) cast.outfits.forEach(item => absorbTrait(outfit, item))
     const keep = entry.count >= 2 || entry.mid >= 1 || look.length > 0 || outfit.length > 0
     if (!keep) continue
     if (forms.length > 1) {
@@ -317,11 +371,11 @@ function unique(values) {
   })
 }
 
-function pushPlace(places, name, description, confidence) {
+function pushPlace(places, name, description, confidence, trusted = false) {
   const clean = cleanText(name)
-  if (!clean || NOT_A_PLACE.has(foldName(clean))) return
+  if (!clean || NOT_A_PLACE.has(foldName(clean)) || isNeverPlace(clean)) return
   if (places.some(place => foldName(place.name) === foldName(clean))) return
-  places.push({ name: clean, description, confidence })
+  places.push({ name: clean, description, confidence, trusted })
 }
 
 function detectPlaces(text, language) {
@@ -333,28 +387,31 @@ function detectPlaces(text, language) {
   const source = String(text || '')
   for (const match of source.matchAll(/\b(village|town|city|hamlet|bourg)\s+of\s+(\p{Lu}[\p{L}'’-]*)/gu)) {
     if (namedFlag(match[2])) { skippedFlagged = true; continue }
-    pushPlace(places, match[2], language === 'fr' ? `un ${match[1]}` : `a ${match[1].toLowerCase()}`, 'high')
+    pushPlace(places, match[2], language === 'fr' ? `un ${match[1]}` : `a ${match[1].toLowerCase()}`, 'high', true)
   }
   for (const match of source.matchAll(/\b((?:\p{Lu}[\p{L}'’-]*)(?:\s+\p{Lu}[\p{L}'’-]*){0,2})\s+(Street|Road|Avenue|Lane|Boulevard|Way|Rue)\b/gu)) {
     if (namedFlag(match[1])) { skippedFlagged = true; continue }
-    pushPlace(places, `${match[1]} ${match[2]}`, language === 'fr' ? 'une rue' : 'a street', 'high')
+    pushPlace(places, `${match[1]} ${match[2]}`, language === 'fr' ? 'une rue' : 'a street', 'high', true)
   }
   for (const match of source.matchAll(/\b((?:village|town|market|city)\s+square)\b/giu)) {
     const name = match[1].replace(/^\p{Ll}/u, char => char.toUpperCase())
-    pushPlace(places, name, language === 'fr' ? 'une place' : 'a square', 'high')
+    pushPlace(places, name, language === 'fr' ? 'une place' : 'a square', 'high', true)
   }
   for (const match of source.matchAll(/\b(?:in|at|through)\s+(\p{Lu}[\p{L}'’-]*)/gu)) {
     const name = match[1]
     if (flagged.has(foldName(name))) { skippedFlagged = true; continue }
-    if (STOP.has(foldName(name)) || TIME_BLOCK.has(foldName(name)) || PLACE_KEYS.has(foldName(name))) continue
-    pushPlace(places, name, language === 'fr' ? 'un lieu cité dans le texte' : 'a place named in the text', 'medium')
+    if (isQuotedOrRemembered(source, match.index, language)) continue
+    const after = source.slice(match.index + match[0].length)
+    if (/['’]s\b/i.test(name) || /^['’]s\b/i.test(after)) continue
+    if (STOP.has(foldName(name)) || isFunctionWord(name, language) || TIME_BLOCK.has(foldName(name)) || PLACE_KEYS.has(foldName(name)) || isNeverPlace(name)) continue
+    pushPlace(places, name, language === 'fr' ? 'un lieu cité dans le texte' : 'a place named in the text', 'medium', true)
   }
   for (const match of source.matchAll(/\b(?:on|in|at|along)\s+(?:a|an|the)\s+((?:[\p{L}'’-]+\s+){0,3}(?:quay|quayside|pier|dock|wharf|alley|rooftop|courtyard))\b/giu)) {
     const phrase = cleanText(match[1])
     const name = phrase.replace(/^\p{Ll}/u, char => char.toUpperCase())
     const head = foldName(phrase.split(/\s+/).at(-1))
     if (places.some(place => foldName(place.name) === foldName(name) || foldName(place.name) === head)) continue
-    pushPlace(places, name, `a ${phrase}`, 'high')
+    pushPlace(places, name, `a ${phrase}`, 'high', true)
   }
   const folded = foldName(source)
   const covered = new Set(places.flatMap(place => tokens(place.name).map(foldName)))
@@ -370,12 +427,19 @@ function detectPlaces(text, language) {
     const phrase = cleanText(match[1])
     if (namedFlag(phrase)) { skippedFlagged = true; return }
     const key = foldName(phrase.split(/\s+/).at(-1))
-    if (!key || STOP.has(key) || TIME_BLOCK.has(key) || PLACE_KEYS.has(key) || NOT_A_PLACE.has(key) || /\b(?:village|town|city|of)\b/i.test(phrase) || places.some(place => foldName(place.name) === key || foldName(place.name).endsWith(key))) return
+    if (!key || STOP.has(key) || TIME_BLOCK.has(key) || !PLACE_KEYS.has(key) || NOT_A_PLACE.has(key) || isNeverPlace(phrase) || isNeverPlace(key) || /\b(?:village|town|city|of)\b/i.test(phrase) || places.some(place => foldName(place.name) === key || foldName(place.name).endsWith(key))) return
+    if (!placeMentionIsReal(source, key, language)) return
     const name = phrase.replace(/^\p{Ll}/u, char => char.toUpperCase())
     pushPlace(places, name, language === 'fr' ? 'un lieu cité dans le texte' : 'a place named in the text', 'low')
     warnings.push({ code: 'uncertain_place', message: `Confirm this place: ${name}.`, target: 'places', options: [name], name })
   })
-  return { places, warnings, skippedFlagged }
+  const visible = places.filter(place => {
+    if (place.trusted) return true
+    const known = PLACES.find(item => item.fr === place.name || item.en === place.name)
+    const keys = known ? known.keys : [place.name]
+    return keys.some(key => placeMentionIsReal(source, key, language))
+  })
+  return { places: visible, warnings, skippedFlagged }
 }
 
 function detectAmbience(text) {
@@ -424,7 +488,7 @@ function riskNamesOnly(sentence, flagged) {
     if (!key) continue
     if (flagged.has(key)) { sawFlagged = true; continue }
     if (!/^\p{Lu}/u.test(token)) continue
-    if (key.length < 2 || STOP.has(key) || TIME_BLOCK.has(key) || PLACE_KEYS.has(key) || NOT_A_PLACE.has(key)) continue
+    if (key.length < 2 || STOP.has(key) || isFunctionWord(token, 'en') || TIME_BLOCK.has(key) || PLACE_KEYS.has(key) || NOT_A_PLACE.has(key) || isNeverPlace(token)) continue
     return false
   }
   return sawFlagged
@@ -474,44 +538,60 @@ function isMeetIntro(sentence) {
   return names.length >= 2
 }
 
-function detectScenes(text, characters, places, language, flagged) {
-  const warnings = []
-  const scenes = []
-  const genders = genderMap(text, characters)
-  let lastWho = characters[0]?.name || ''
-  let lastWhere = places[0]?.name || ''
-  splitBlocks(text).forEach(block => {
-    sentencesOf(block).forEach(sentence => {
-      if (isMeetIntro(sentence)) return
-      if (!hasVerb(sentence) || JUMP.test(sentence) && tokens(sentence).length < 3) return
-      const action = cleanText(sentence).replace(/^[,;:\s]+/, '').replace(/[.!?]+$/, '')
-      const parts = splitActionText(action)
-      const bits = parts.length >= 2 ? parts : [action]
-      bits.forEach(bit => {
-        const foundNames = namesIn(bit, characters)
-        const pronounWho = whoFromPronoun(bit, characters, genders, language)
-        const who = foundNames.length ? foundNames.slice(0, 2).map(item => item.name).join(language === 'fr' ? ' et ' : ' and ') : (pronounWho || lastWho)
-        if (who) lastWho = who.split(/\s+(?:et|and)\s+/)[0]
-        const foundPlace = placeIn(bit, places)
-        const where = foundPlace?.name || lastWhere
-        if (where) lastWhere = where
-        const index = scenes.length
-        const flaggedOnly = riskNamesOnly(bit, flagged)
-        let confidence = 'high'
-        if (!foundNames.length || !foundPlace) confidence = 'medium'
-        if (!where && !flaggedOnly) {
-          confidence = 'low'
-          warnings.push({ code: 'missing_place', message: `No place found for scene ${index + 1}.`, target: 'scenes', index, options: places.map(place => place.name) })
-        }
-        if (!who && !flaggedOnly) {
-          confidence = 'low'
-          warnings.push({ code: 'missing_character', message: `No character found for scene ${index + 1}.`, target: 'scenes', index, options: characters.map(character => character.name) })
-        }
-        scenes.push({ number: index + 1, who: who || '', where: where || '', what: bit, duration: 3, confidence })
-      })
-    })
+function placeRecords(places) {
+  return places.map(place => {
+    const known = PLACES.find(item => item.fr === place.name || item.en === place.name)
+    const keys = new Set([place.name])
+    if (known) known.keys.forEach(key => keys.add(key))
+    tokens(place.name).forEach(token => keys.add(token))
+    return { name: place.name, keys: [...keys] }
   })
-  return { scenes, warnings }
+}
+
+function detectScenes(text, characters, places, language, flagged, options = {}) {
+  const warnings = []
+  const genders = genderMap(text, characters)
+  const narrative = splitNarrative(text, {
+    language,
+    places: placeRecords(places),
+    characters,
+    verbs: [...VERBS],
+    splitScenes: options.splitScenes !== false,
+    skip: sentence => isMeetIntro(sentence)
+  })
+  const scenes = narrative.shots.map((shot, index) => {
+    const foundNames = namesIn(shot.what, characters)
+    const pronounWho = whoFromPronoun(shot.what, characters, genders, language)
+    const who = foundNames.length ? shot.who : (pronounWho || shot.who)
+    const flaggedOnly = riskNamesOnly(shot.what, flagged)
+    let confidence = 'high'
+    if (!foundNames.length) confidence = 'medium'
+    if (!shot.where && !flaggedOnly) {
+      confidence = 'low'
+      warnings.push({ code: 'missing_place', message: `No place found for scene ${index + 1}.`, target: 'scenes', index, options: places.map(place => place.name) })
+    }
+    if (!who && !flaggedOnly) {
+      confidence = 'low'
+      warnings.push({ code: 'missing_character', message: `No character found for scene ${index + 1}.`, target: 'scenes', index, options: characters.map(character => character.name) })
+    }
+    return {
+      number: index + 1,
+      who: who || '',
+      where: shot.where || '',
+      what: shot.what,
+      duration: 3,
+      confidence,
+      light: shot.light || '',
+      timeLabel: shot.timeLabel || '',
+      sceneId: shot.sceneId,
+      sceneCut: shot.sceneCut === true,
+      cutCue: shot.cutCue || '',
+      cutReason: shot.cutReason || '',
+      cutUncertain: shot.cutUncertain === true,
+      cutKind: shot.cutKind || ''
+    }
+  })
+  return { scenes, warnings, cuts: narrative.cuts, light: narrative.light, firstLight: narrative.firstLight || narrative.light }
 }
 
 function overall(parts) {
@@ -521,15 +601,15 @@ function overall(parts) {
   return values.length ? 'high' : 'low'
 }
 
-export function detectProse(input) {
+export function detectProse(input, options = {}) {
   const text = String(input || '').replace(/\r\n/g, '\n').trim()
   const language = languageOf(text)
-  if (language !== 'en' && language !== 'fr') return detectLocalized(text, language)
+  if (language !== 'en' && language !== 'fr') return detectLocalized(text, language, options)
   const flagged = flaggedNameKeys(text)
   const foundPlaces = detectPlaces(text, language)
-  const foundCharacters = detectCharacters(text, foundPlaces.places)
+  const foundCharacters = detectCharacters(text, foundPlaces.places, language)
   const ambience = detectAmbience(text)
-  const foundScenes = detectScenes(text, foundCharacters.characters, foundPlaces.places, language, flagged)
+  const foundScenes = detectScenes(text, foundCharacters.characters, foundPlaces.places, language, flagged, options)
   const warnings = [...foundCharacters.warnings, ...foundPlaces.warnings, ...foundScenes.warnings]
   if (foundCharacters.skippedFlagged || foundPlaces.skippedFlagged) {
     warnings.push({ code: 'risk_note', tone: 'note', message: 'Public figures, brands, and trademarks in this text are covered by the risk warnings.' })
@@ -537,9 +617,9 @@ export function detectProse(input) {
   const scenario = {
     characters: foundCharacters.characters.map(({ name, look, outfit }) => ({ name, look, outfit })),
     places: foundPlaces.places.map(({ name, description }) => ({ name, description })),
-    light: ambience.light,
+    light: foundScenes.firstLight || ambience.light,
     mood: ambience.mood,
-    scenes: foundScenes.scenes.map(({ number, who, where, what, duration }) => ({ number, who, where, what, duration }))
+    scenes: foundScenes.scenes.map(({ number, who, where, what, duration, light }) => ({ number, who, where, what, duration, ...(light ? { light } : {}) }))
   }
   const canonical = scenarioToFields(scenario)
   const budget = scenarioBudget([canonical.characters, canonical.places, canonical.scenes].join('\n'), foundScenes.scenes.length * 3)
@@ -555,9 +635,10 @@ export function detectProse(input) {
     warnings,
     characters: foundCharacters.characters,
     places: foundPlaces.places,
-    light: ambience.light,
+    light: foundScenes.firstLight || ambience.light,
     mood: ambience.mood,
     scenes: foundScenes.scenes,
+    cuts: options.splitScenes === false ? [] : (foundScenes.cuts || []),
     scenario,
     premise: scenarioPremise(scenario),
     budget

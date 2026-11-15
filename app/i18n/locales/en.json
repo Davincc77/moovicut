@@ -930,5 +930,19 @@
   "{path} must be an object with who, where, and what.": "{path} must be an object with who, where, and what.",
   "{title} storyboard study": "{title} storyboard study",
   "{title} — Moovicut": "{title} — Moovicut",
-  "“{trait}” is repeated in the same line.": "“{trait}” is repeated in the same line."
+  "“{trait}” is repeated in the same line.": "“{trait}” is repeated in the same line.",
+  "Scene cuts": "Scene cuts",
+  "Before generating, these are the cuts found in the story. Nothing is sent to a model.": "Before generating, these are the cuts found in the story. Nothing is sent to a model.",
+  "Cut here: {cue}": "Cut here: {cue}",
+  "New shot in this scene: {cue}": "New shot in this scene: {cue}",
+  "Uncertain cut": "Uncertain cut",
+  "Reason: {reason}": "Reason: {reason}",
+  "Merge with the previous scene": "Merge with the previous scene",
+  "Split into a new scene": "Split into a new scene",
+  "No scene cut in this text.": "No scene cut in this text.",
+  "A place changes here without a place or time cue.": "A place changes here without a place or time cue.",
+  "Add a place or time cue, or merge this shot into the previous scene.": "Add a place or time cue, or merge this shot into the previous scene.",
+  "The time of day changes here without a cue.": "The time of day changes here without a cue.",
+  "Mark the time cue, or keep the previous time of day.": "Mark the time cue, or keep the previous time of day.",
+  "Free prose is split on place and time cues. A sequence word alone stays in the same scene. splitScenes defaults to true. Each cut has a cue and a reason. A character with no look still returns a board and a warning.": "Free prose is split on place and time cues. A sequence word alone stays in the same scene. splitScenes defaults to true. Each cut has a cue and a reason. A character with no look still returns a board and a warning."
 }

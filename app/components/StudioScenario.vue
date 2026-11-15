@@ -11,7 +11,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['preset'])
 const { copyText } = useNotifier()
-const { locale } = useI18n()
+const { locale, t } = useI18n()
 const families = listPresets()
 const family = ref('cinema')
 const genre = ref('drama')
@@ -82,6 +82,27 @@ function fillFromText(value) {
   errors.value = []
 }
 
+function warningLabel(warning) {
+  if (warning.code === 'missing_look') return t('No look found for {name}.', { name: warning.name })
+  if (warning.code === 'missing_outfit') return t('No outfit found for {name}.', { name: warning.name })
+  if (warning.code === 'uncertain_place') return t('Confirm this place: {name}.', { name: warning.name })
+  if (warning.code === 'name_variant') return t('Which spelling: {options}?', { options: String(warning.message).replace(/\?$/, '') })
+  return t(warning.message)
+}
+
+function mergeDetectedCut(cut) {
+  const lines = String(scenes.value || '').split('\n')
+  const index = cut?.shotIndex
+  if (!Number.isInteger(index) || !lines[index] || !lines[index - 1]) return
+  const previous = lines[index - 1].split('—').map(part => part.trim())
+  const current = lines[index].split('—').map(part => part.trim())
+  if (previous.length < 4 || current.length < 4) return
+  current[2] = previous[2]
+  lines[index] = current.join(' — ')
+  scenes.value = lines.join('\n')
+  locks.value.scenes = true
+}
+
 function confirmWarning(warning, choice) {
   const next = applyWarningChoice(currentFields(), warning, choice || warning.options?.[0])
   const lockKeys = warning.target === 'scenes' ? ['scenes'] : warning.target === 'places' ? ['places'] : ['characters', 'scenes']
@@ -123,9 +144,10 @@ defineExpose({ draft, fill: fillFromText })
     <p class="studio-soft-hint">{{ $t('Free-prose detection reads all eight site languages. It does not call a model. When the reading is uncertain, names and places are left for you to fill. Your own words stay as typed.') }}</p>
     <p v-if="detected" class="studio-scenario-confidence">{{ $t('Detection confidence: {confidence}. Lines you already edited stay as you left them.', { confidence: detected.confidence }) }}</p>
     <p v-if="riskNote" class="studio-soft-hint">{{ $t(riskNote.message) }}</p>
+    <SceneCuts v-if="detected?.cuts?.length" :cuts="detected.cuts" @merge="mergeDetectedCut" />
     <ul v-if="fieldWarnings.length" class="studio-scenario-warnings">
       <li v-for="(warning, index) in fieldWarnings" :key="`${warning.code}-${index}`">
-        <span>{{ warning.code === 'name_variant' ? $t('Which spelling: {options}?', { options: String(warning.message).replace(/\?$/, '') }) : $t(warning.message) }}</span>
+        <span>{{ warningLabel(warning) }}</span>
         <button v-if="warning.options?.length" type="button" @click="confirmWarning(warning, warning.options[0])">{{ $t('Use {name}', { name: warning.options[0] }) }}</button>
       </li>
     </ul>

@@ -930,5 +930,19 @@
   "{path} must be an object with who, where, and what.": "{path} muss ein Objekt mit who, where und what sein.",
   "{title} storyboard study": "Storyboard-Studie {title}",
   "{title} — Moovicut": "{title} — Moovicut",
-  "“{trait}” is repeated in the same line.": "„{trait}“ steht zweimal in derselben Zeile."
+  "“{trait}” is repeated in the same line.": "„{trait}“ steht zweimal in derselben Zeile.",
+  "Scene cuts": "Szenenwechsel",
+  "Before generating, these are the cuts found in the story. Nothing is sent to a model.": "Vor dem Erzeugen stehen hier die Schnitte aus der Geschichte. Nichts wird an ein Modell gesendet.",
+  "Cut here: {cue}": "Hier schneiden: {cue}",
+  "New shot in this scene: {cue}": "Neue Einstellung in dieser Szene: {cue}",
+  "Uncertain cut": "Unsicherer Schnitt",
+  "Reason: {reason}": "Grund: {reason}",
+  "Merge with the previous scene": "Mit der vorigen Szene zusammenlegen",
+  "Split into a new scene": "In eine neue Szene teilen",
+  "No scene cut in this text.": "Kein Szenenschnitt in diesem Text.",
+  "A place changes here without a place or time cue.": "Ein Ort wechselt hier ohne Orts- oder Zeitzeichen.",
+  "Add a place or time cue, or merge this shot into the previous scene.": "Setzen Sie ein Orts- oder Zeitzeichen, oder legen Sie diese Einstellung in die vorige Szene.",
+  "The time of day changes here without a cue.": "Die Tageszeit wechselt hier ohne Zeichen.",
+  "Mark the time cue, or keep the previous time of day.": "Markieren Sie das Zeitzeichen, oder behalten Sie die vorige Tageszeit.",
+  "Free prose is split on place and time cues. A sequence word alone stays in the same scene. splitScenes defaults to true. Each cut has a cue and a reason. A character with no look still returns a board and a warning.": "Freier Text wird an Orts- und Zeitzeichen geschnitten. Ein Folgewort allein bleibt in derselben Szene. splitScenes ist standardmäßig wahr. Jeder Schnitt hat ein Zeichen und einen Grund. Eine Figur ohne Aussehen ergibt trotzdem ein Board, mit einer Warnung."
 }

@@ -5,6 +5,7 @@ import { assessProject } from '../app/utils/shot-risk.js'
 import { AGENT_BOARD_SCHEMA, exportAgentBoard, importAgentBoard } from '../app/utils/agent-board.js'
 import { publicProfile } from '../app/utils/model-profiles.js'
 import { detectProse } from '../app/utils/prose-detect.js'
+import { proseWarningMessage } from '../app/utils/scene-split.js'
 import { CAMERA_VALUES, LIGHT_VALUES, MOOD_VALUES, SCENARIO_MAX_CHARS } from '../app/utils/scenario.js'
 import { studioUrl } from '../app/utils/studio-link.js'
 import { cleanText } from '../app/utils/text.js'
@@ -259,18 +260,58 @@ function boardLink(origin, project, options) {
   })
 }
 
+function splitRequested(input) {
+  const value = input?.splitScenes ?? input?.split_scenes
+  return !(value === false || value === 0 || value === 'false' || value === '0')
+}
+
+function scenesForPlan(detected) {
+  const scenes = (detected.scenes || []).map((scene, index) => {
+    const row = detected.scenario?.scenes?.[index] || {}
+    return {
+      who: scene.who || row.who,
+      where: scene.where || row.where,
+      what: scene.what || row.what,
+      duration: scene.duration || row.duration || 3,
+      light: scene.light || '',
+      timeLabel: scene.timeLabel || '',
+      sceneId: scene.sceneId || index + 1,
+      sceneCut: scene.sceneCut === true,
+      cutCue: scene.cutCue || '',
+      cutReason: scene.cutReason || '',
+      cutUncertain: scene.cutUncertain === true,
+      cutKind: scene.cutKind || ''
+    }
+  })
+  if (scenes.length <= 48) return scenes
+  const required = []
+  const optional = []
+  scenes.forEach((scene, index) => {
+    if (index === 0 || scene.sceneCut) required.push(scene)
+    else optional.push(scene)
+  })
+  const room = Math.max(0, 48 - required.length)
+  const keep = new Set([...required, ...optional.slice(0, room)])
+  return scenes.filter(scene => keep.has(scene)).slice(0, 48)
+}
+
 function planProse(input, { origin, compact }) {
   const text = String(input.prose || input.text || input.premise || '')
   if (text.trim().length < 8) fail('Add at least 8 characters of story text.', 'invalid_prose')
   if (text.length > SCENARIO_MAX_CHARS) fail('Keep the story under 8,000 characters so it stays easy to paste and generate.', 'invalid_prose')
-  const detected = detectProse(text)
-  const parsed = parseScenario(detected.scenario)
+  const splitScenes = splitRequested(input)
+  const detected = detectProse(text, { splitScenes })
+  const scenario = { ...detected.scenario, scenes: scenesForPlan(detected) }
+  const parsed = parseScenario(scenario, { allowIncompleteCast: true })
+  const promptLanguage = optionalPromptLanguage(input) || 'en'
   const detection = {
     input: 'prose',
     language: detected.language,
     confidence: detected.confidence,
-    warnings: detected.warnings,
-    scenario: detected.scenario
+    warnings: (detected.warnings || []).map(item => ({ ...item, message: proseWarningMessage(item, promptLanguage) })),
+    scenario: detected.scenario,
+    splitScenes,
+    cuts: splitScenes ? (detected.cuts || []) : []
   }
   if (!parsed.ok) {
     const error = new Error(describeScenarioErrors(parsed.errors))
@@ -280,7 +321,8 @@ function planProse(input, { origin, compact }) {
     throw error
   }
   const project = withActionSplits(createStoryboard({
-    scenario: detected.scenario,
+    scenario,
+    allowIncompleteCast: true,
     model: input.model,
     aspectRatio: input.aspectRatio,
     style: input.style,
@@ -290,6 +332,8 @@ function planProse(input, { origin, compact }) {
     promptLanguage: optionalPromptLanguage(input),
     overwritePrompt: input.overwritePrompt === true
   }), input)
+  project.sceneSplit = splitScenes
+  project.cuts = detection.cuts
   const link = boardLink(origin, project, { style: input.style })
   const board = compact ? compactStoryboard(project, link) : { ...project, studioUrl: link }
   const body = { ...board, ...detection }
@@ -488,12 +532,13 @@ const STORYBOARD_SCHEMA = {
       description: 'Structured scenario. When present, premise may be omitted, the scene count comes from this value, and it wins over scenes. Text form uses CHARACTERS, PLACES, and SCENES blocks. JSON accepts the short aliases n/l/o, w/at/do, desc/d, cam, and s. Cap 8,000 characters.',
       oneOf: [{ type: 'string', maxLength: 8000 }, SCENARIO_OBJECT]
     },
-    input: { type: 'string', enum: ['prose'], description: 'Set to prose to detect characters, places, and scenes from free text. Ordinary premises are not auto-detected. A paragraph that cannot be planned returns 400 with error, a message that lists each missing piece, and errors. A scene whose only names are public figures, brands, or trademarks returns the neutral risk note and does not add missing-character or missing-place lines.' },
+    input: { type: 'string', enum: ['prose'], description: 'Set to prose to detect characters, places, and scenes from free text. Ordinary premises are not auto-detected. A detected character with no look or outfit does not reject the board: each one is a warning (missing_look, missing_outfit), in promptLanguage when that field is set. A paragraph that cannot be planned returns 400 with error, a message that lists each missing piece, and errors. A scene whose only names are public figures, brands, or trademarks returns the neutral risk note and does not add missing-character or missing-place lines. Free prose is split on place and time cues by default. See splitScenes.' },
     type: { type: 'string', enum: ['prose'], description: 'Alias of input.' },
     prose: { type: 'string', maxLength: 8000, description: 'Free-text story used when input is prose.' },
     text: { type: 'string', maxLength: 8000, description: 'Alias of prose.' },
     overwritePrompt: { type: 'boolean', default: false, description: 'When false or omitted, a hand-edited prompt (promptEdited) is kept, including when a shotboard.compact.v1 board is posted back. When true, those prompts are regenerated.' },
     splitActions: { type: 'boolean', default: true, description: 'When true or omitted, a shot whose action contains more than one verb is split into one shot per action. Set false to keep the line in one shot. The studio Fix button still splits one shot. A shot marked promptEdited is not split.' },
+    splitScenes: { type: 'boolean', default: true, description: 'Free prose only. Default true. Place and time cues open a scene; a sequence word alone opens a shot in the current scene. At most one cut per sentence. The response cuts array gives each cut cue, reason, kind (scene or shot), place, time, and uncertain. Set false to omit that cut list. Dialogue, memory, body parts, clothing, and abstract nouns still do not move the scene. split_scenes is the same field.' },
     format: { type: 'string', enum: ['agent'], description: 'Return shotboard.compact.v1 for every mode: title, premise, model, aspect, mode, style, genre, film sheet (with each character lockLine and character sheet), shots, and warnings when a shot looks risky. Minified JSON, with no extra whitespace, is the token-efficient way to send that document back. The default compact plan response stays the short payload.' },
     schema: { type: 'string', enum: ['shotboard.compact.v1'], description: 'Send a shotboard.compact.v1 document back to resume it. Prompts marked promptEdited stay as written unless overwritePrompt is true, which regenerates them.' },
     regenerateShot: { type: 'string', description: 'Shot id to rebuild. Send project or storyboard with it. Other shots stay unchanged. A hand-edited prompt is kept unless overwritePrompt is true.' },
@@ -631,7 +676,7 @@ export function openApiDocument() {
 const TOOLS = [
   {
     name: 'plan_storyboard',
-    description: 'Plan a deterministic storyboard. Default is 5 scenes × 3s (15s total) and a short per-shot video prompt: framing, the named action, the lock line, the place, one light, and locked-off camera unless a movement was set. Each character lock line is copied unchanged into every shot they appear in. Pass prompt_style "detailed" for the full sheet in every shot. Pass shots/duration, a scenes array, a scenario, mode ad, series, or explainer, input "prose", format "agent", or a model: grok, google, sora, kling, runway, luma, wan, or generic. A prompt marked promptEdited is kept. Returns a compact payload and a /studio# link. Nothing is stored.',
+    description: 'Plan a deterministic storyboard. Default is 5 scenes × 3s (15s total) and a short per-shot video prompt: framing, the named action, the lock line, the place, one light, and locked-off camera unless a movement was set. Each character lock line is copied unchanged into every shot they appear in. Pass prompt_style "detailed" for the full sheet in every shot. Pass shots/duration, a scenes array, a scenario, mode ad, series, or explainer, input "prose", format "agent", or a model: grok, google, sora, kling, runway, luma, wan, or generic. Free prose splits on place and time cues unless splitScenes is false. The cuts array gives each cue and reason. A character with no look is a warning, not a 400. A prompt marked promptEdited is kept. Returns a compact payload and a /studio# link. Nothing is stored.',
     inputSchema: STORYBOARD_SCHEMA
   },
   {
