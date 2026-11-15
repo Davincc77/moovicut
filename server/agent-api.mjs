@@ -445,7 +445,7 @@ const STORYBOARD_SCHEMA = {
     prose: { type: 'string', maxLength: 8000, description: 'Free-text story used when input is prose.' },
     text: { type: 'string', maxLength: 8000, description: 'Alias of prose.' },
     overwritePrompt: { type: 'boolean', default: false, description: 'When false or omitted, a hand-edited prompt (promptEdited) is kept, including when a shotboard.compact.v1 board is posted back. When true, those prompts are regenerated.' },
-    format: { type: 'string', enum: ['agent'], description: 'Return shotboard.compact.v1 for every mode: title, premise, model, aspect, mode, style, genre, film sheet, and shots. Minified JSON, with no extra whitespace, is the token-efficient way to send that document back. The default compact plan response stays the short payload.' },
+    format: { type: 'string', enum: ['agent'], description: 'Return shotboard.compact.v1 for every mode: title, premise, model, aspect, mode, style, genre, film sheet (with each character lockLine and character sheet), and shots. Minified JSON, with no extra whitespace, is the token-efficient way to send that document back. The default compact plan response stays the short payload.' },
     schema: { type: 'string', enum: ['shotboard.compact.v1'], description: 'Send a shotboard.compact.v1 document back to resume it. Prompts marked promptEdited stay as written unless overwritePrompt is true, which regenerates them.' },
     regenerateShot: { type: 'string', description: 'Shot id to rebuild. Send project or storyboard with it. Other shots stay unchanged. A hand-edited prompt is kept unless overwritePrompt is true.' },
     shotId: { type: 'string', description: 'Alias of regenerateShot.' },
@@ -582,7 +582,7 @@ export function openApiDocument() {
 const TOOLS = [
   {
     name: 'plan_storyboard',
-    description: 'Plan a deterministic storyboard. Default is 5 scenes × 3s (15s total) and a short per-shot video prompt. Pass prompt_style "detailed" for the full sheet in every shot. Pass shots/duration, a scenes array, a scenario, mode ad, series, or explainer, input "prose", format "agent", or a model: grok, google, sora, kling, runway, luma, wan, or generic. A prompt marked promptEdited is kept. Returns a compact payload and a /studio# link. Nothing is stored.',
+    description: 'Plan a deterministic storyboard. Default is 5 scenes × 3s (15s total) and a short per-shot video prompt. Each character lock line is copied unchanged into every shot they appear in. Pass prompt_style "detailed" for the full sheet in every shot. Pass shots/duration, a scenes array, a scenario, mode ad, series, or explainer, input "prose", format "agent", or a model: grok, google, sora, kling, runway, luma, wan, or generic. A prompt marked promptEdited is kept. Returns a compact payload and a /studio# link. Nothing is stored.',
     inputSchema: STORYBOARD_SCHEMA
   },
   {

@@ -2,13 +2,28 @@
 import { canonicalModel } from '../integrations/models/model-registry.js'
 import { createStoryboard, refreshProjectPrompts } from './prompt-engine.js'
 import { BOARD_MODES, isPresetMode } from './preset-modes.js'
+import { asCharacter, lockLineFor, lockLinesForShot, publicSheet } from './character-lock.js'
+import { promptFraming } from './framing.js'
 
 export const AGENT_BOARD_SCHEMA = 'shotboard.compact.v1'
+
+function copyCharacter(item) {
+  const person = asCharacter(item)
+  const copy = { name: person.name, look: person.look, outfit: person.outfit }
+  ;['body', 'face', 'hair', 'colors', 'marks'].forEach(key => { if (person[key]) copy[key] = person[key] })
+  const line = person.lockEdited ? person.lockLine : lockLineFor(person, 1)
+  if (line) copy.lockLine = line
+  if (person.lockEdited) copy.lockEdited = true
+  if (person.states.length) copy.states = person.states
+  const sheet = publicSheet(person)
+  if (Object.keys(sheet).length) copy.sheet = sheet
+  return copy
+}
 
 function copySheet(sheet) {
   if (!sheet) return undefined
   const copy = {
-    characters: (sheet.characters || []).map(item => ({ name: item.name || '', look: item.look || '', outfit: item.outfit || '' })),
+    characters: (sheet.characters || []).map(copyCharacter),
     places: (sheet.places || []).map(item => ({ name: item.name || '', description: item.description || '' })),
     light: sheet.light || '',
     mood: sheet.mood || '',
@@ -32,7 +47,7 @@ export function exportAgentBoard(project) {
     genre: project.preset?.genre || '',
     promptStyle: project.promptStyle === 'detailed' ? 'detailed' : 'short',
     filmSheet: copySheet(project.filmSheet),
-    shots: (project.shots || []).map(shot => {
+    shots: (project.shots || []).map((shot, index) => {
       const item = {
         id: shot.id || shot.shot_id,
         order: shot.order,
@@ -43,8 +58,13 @@ export function exportAgentBoard(project) {
         camera: shot.cam || '',
         light: shot.light || '',
         mood: shot.mood || '',
-        prompt: shot.prompt || ''
+        prompt: shot.prompt || '',
+        framing: promptFraming(shot)
       }
+      if (shot.framingTerm) item.framingTerm = shot.framingTerm
+      if (shot.framingChosen === true) item.framingChosen = true
+      const lines = lockLinesForShot(shot, project, index)
+      if (lines.length) item.lockLines = lines
       if (shot.promptEdited === true) item.promptEdited = true
       return item
     })

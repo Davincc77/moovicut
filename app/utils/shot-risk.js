@@ -1,6 +1,8 @@
 /** Deterministic pre-generation checks. Warnings never block a board. */
 import { findByName, foldName, nameParts } from './scenario.js'
 import { allowedDurations, profileFor, snapAspect } from './model-profiles.js'
+import { continuityWarnings } from './continuity-check.js'
+import { splitActionText } from './action-split.js'
 
 const ACTION_VERBS = /\b(pours|pour|spills|spill|laughs|laugh|runs|run|opens|open|walks|walk|enters|enter|leaves|leave|rides|ride|turns|turn|verse|renverse|rit|court|entre|sort|marche|revient|ouvre)\b/gi
 const TEXT_ON_SCREEN = /\b(title card|subtitle|subtitles|caption|captions|logo|on-screen text|onscreen text|écrit|ecrit|sign reads|text reading|words on screen)\b/i
@@ -46,8 +48,8 @@ const CAMERA_CONFLICTS = [
   [/\bpan left\b/i, /\bpan right\b/i, 'pan left and pan right']
 ]
 
-function warning(shot, code, message, fix) {
-  return { shotId: shot.id || shot.shot_id, order: shot.order, code, message, fix }
+function warning(shot, code, message, fix, extra = {}) {
+  return { shotId: shot.id || shot.shot_id, order: shot.order, code, message, fix, ...extra }
 }
 
 function sourceOf(shot) {
@@ -86,7 +88,8 @@ export function assessShot(shot, project = {}) {
   const duration = Number(shot.duration_seconds || shot.duration || project.duration || 3)
   const verbs = source.match(ACTION_VERBS) || []
   if (duration <= 4 && (verbs.length >= 2 || /\b(and then|puis)\b/i.test(source))) {
-    warnings.push(warning(shot, 'too_many_actions', 'This short shot asks for more than one action.', 'Keep one action in this shot and move the next beat to a new shot.'))
+    const canSplit = splitActionText(source).length >= 2
+    warnings.push(warning(shot, 'too_many_actions', 'This short shot asks for more than one action.', canSplit ? 'Split it so each new shot has one action.' : 'Keep one action in this shot and move the next beat to a new shot.', canSplit ? { fixId: 'split-shot' } : {}))
   }
   const profile = profileFor(project.model || project.target_model)
   const quoted = /[«"][^"»]{2,}[»"]/.test(source)
@@ -139,6 +142,12 @@ export function assessShot(shot, project = {}) {
   if (GORE.test(text)) warnings.push(warning(shot, 'gore', 'Gore and injury are unstable in a short clip and may be blocked.', 'Show the aftermath or the tension without blood or injury.'))
   if (BRAND_LOGO.test(text) || BRANDS.some(name => containsPhrase(text, name))) warnings.push(warning(shot, 'brand_logo', 'A logo or brand mark is easy for a video model to misspell.', 'Describe the object without a logo, wordmark, or brand name in the frame.'))
   if (COPYRIGHT.test(text)) warnings.push(warning(shot, 'copyrighted_character', 'Copyrighted characters are a poor fit for a generated clip.', 'Invent an original character instead of a known franchise character.'))
+  const extra = continuityWarnings(shot, project)
+  const covered = warnings.some(item => item.code === 'too_many_actions')
+  extra.forEach(item => {
+    if (covered && item.code === 'several_actions') return
+    warnings.push(item)
+  })
   return warnings
 }
 
