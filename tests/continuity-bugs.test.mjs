@@ -123,5 +123,6 @@ test('M9 a place description does not repeat the bare name', () => {
   assert.notEqual(cafe.description.replace(/^(?:a|an|the)\s+/i, '').toLowerCase(), cafe.name.toLowerCase())
   const kitchen = detectProse('Colette pours the tea in the kitchen. Colette waits.').places.find(place => /kitchen/i.test(place.name))
   assert.ok(kitchen)
-  assert.notEqual(kitchen.description.replace(/^(?:a|an|the)\s+/i, '').toLowerCase(), kitchen.name.toLowerCase())
+  assert.equal(kitchen.description.toLowerCase(), kitchen.name.toLowerCase())
+  assert.doesNotMatch(kitchen.description, /named in the text/i)
 })

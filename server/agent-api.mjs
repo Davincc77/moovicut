@@ -272,11 +272,12 @@ function splitRequested(input) {
 }
 
 function scenesForPlan(detected) {
+  const fallbackPlace = detected.places?.find(place => place.uncertain)?.name || detected.places?.[0]?.name || ''
   const scenes = (detected.scenes || []).map((scene, index) => {
     const row = detected.scenario?.scenes?.[index] || {}
     return {
       who: scene.who || row.who,
-      where: scene.where || row.where,
+      where: scene.where || row.where || fallbackPlace,
       what: scene.what || row.what,
       duration: scene.duration || row.duration || 3,
       light: scene.light || '',

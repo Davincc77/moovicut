@@ -67,9 +67,19 @@ export function stateAt(project, index) {
   return state
 }
 
+/** Place and time of the first shot in a part. An empty shot light stays empty. */
+export function partOpening(project, index) {
+  const shot = project?.shots?.[index]
+  const carried = stateAt(project, index)
+  if (!shot) return carried
+  const place = cleanText(shot.where) || carried.place
+  const time = cleanText(shot.light) || carried.time
+  return { place, time }
+}
+
 export function describeParts(project, ranges = partitionShots(project?.shots)) {
   return ranges.map((range, index) => {
-    const state = stateAt(project, range.start)
+    const state = partOpening(project, range.start)
     return {
       index: index + 1,
       from: range.start + 1,
@@ -133,9 +143,9 @@ export function partJoinWarnings(project) {
     const prev = shots[ranges[index].start - 1]
     const next = shots[ranges[index].start]
     if (!prev || !next) continue
-    const carried = stateAt(project, ranges[index].start)
+    const opening = partOpening(project, ranges[index].start)
     const published = parts[index]
-    if (published && (published.place !== carried.place || published.time !== carried.time)) {
+    if (published && (published.place !== opening.place || published.time !== opening.time)) {
       warnings.push({
         shotId: next.id || next.shot_id,
         order: next.order,

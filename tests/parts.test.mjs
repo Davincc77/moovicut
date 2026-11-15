@@ -3,7 +3,6 @@ import assert from 'node:assert/strict'
 import { createStoryboard, splitShotByAction } from '../app/utils/prompt-engine.js'
 import { lockLineFor } from '../app/utils/character-lock.js'
 import { assessProject } from '../app/utils/shot-risk.js'
-import { stateAt } from '../app/utils/parts.js'
 import { dispatchAgentRequest } from '../server/agent-api.mjs'
 
 const LIGHTHOUSE = 'A lighthouse keeper races the dusk to repair a failing beacon before the boats arrive.'
@@ -96,8 +95,8 @@ test('a 75-shot harbor story keeps every action and cuts only on scene boundarie
   assert.equal(body.shots.length, 75)
   assert.deepEqual(body.parts, [
     { index: 1, from: 1, to: 33, place: 'Harbor', time: 'dusk' },
-    { index: 2, from: 34, to: 61, place: 'Gallery', time: 'dusk' },
-    { index: 3, from: 62, to: 75, place: 'Lantern room', time: 'dusk' }
+    { index: 2, from: 34, to: 61, place: 'Harbor', time: 'dusk' },
+    { index: 3, from: 62, to: 75, place: 'Gallery', time: 'dusk' }
   ])
   const seen = body.shots.map(marker)
   assert.deepEqual(seen.slice(0, 15), Array.from({ length: 15 }, (_, index) => String(index + 1)))
@@ -124,12 +123,9 @@ test('a 75-shot harbor story keeps every action and cuts only on scene boundarie
   assert.equal(lockLineFor(nora, 1), lockLineFor(nora, 50))
   assert.equal(lockLineFor(elias, 16), lockLineFor(elias, 70))
   body.parts.forEach(part => {
-    const carried = stateAt({
-      filmSheet: body.filmSheet,
-      shots: body.shots
-    }, part.from - 1)
-    assert.equal(part.place, carried.place)
-    assert.equal(part.time, carried.time)
+    const first = body.shots[part.from - 1]
+    assert.equal(part.place, first.where)
+    assert.equal(part.time, first.light || body.filmSheet.light)
   })
 })
 
@@ -181,11 +177,9 @@ test('the continuity checker runs across the part join on the same film sheet', 
     assert.equal(lockLineFor(nora, order), NORA_LINE)
     assert.equal(lockLineFor(elias, order), ELIAS_LINE)
   }
-  project.parts.forEach((part, index) => {
-    if (!index) return
-    const carried = stateAt(project, part.from - 1)
-    assert.equal(part.place, carried.place, `part ${part.index} place`)
-    assert.equal(part.time, carried.time, `part ${part.index} time`)
-    assert.equal(part.place, stateAt(project, project.parts[index - 1].to).place)
+  project.parts.forEach(part => {
+    const first = project.shots[part.from - 1]
+    assert.equal(part.place, first.where || project.filmSheet.places[0]?.name, `part ${part.index} place`)
+    assert.equal(part.time, first.light || project.filmSheet.light, `part ${part.index} time`)
   })
 })

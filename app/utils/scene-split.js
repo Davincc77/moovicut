@@ -106,6 +106,8 @@ const SEQUENCE = Object.freeze({
 
 const TIME_RULES = [
   { re: /(?<![\p{L}])(late that night|later that night|that night|tonight|last night|tard cette nuit|cette nuit-là|cette nuit|esta noite|essa noite|hoje à noite|heute nacht|heute abend|stanotte|quella notte|haut an der nuecht|その夜|夜遅く|那天夜里|那天晚上|深夜)(?![\p{L}])/iu, id: 'that-night', jump: 'part', light: 'night' },
+  { re: /(?<![\p{L}])(in the morning|one morning|early morning|dans la matinée|de manhã|am morgen|di mattina|moies)(?![\p{L}])/iu, id: 'in-the-morning', jump: 'part', light: 'dawn' },
+  { re: /(?<![\p{L}])(at night|in the night|by night|la nuit|de noite|nachts|di notte|an der nuecht)(?![\p{L}])/iu, id: 'at-night', jump: 'part', light: 'night' },
   { re: /(?<![\p{L}])(that morning|this morning|early that morning|ce matin-là|ce matin|esta manhã|hoje de manhã|heute morgen|stamattina|haut de moien|その朝|那天早上|那天早晨)(?![\p{L}])/iu, id: 'that-morning', jump: 'part', light: 'dawn' },
   { re: /(?<![\p{L}])(that afternoon|this afternoon|cet après-midi|cet apres-midi|à tarde|a tarde|heute nachmittag|nel pomeriggio|その午後|那天下午)(?![\p{L}])/iu, id: 'that-afternoon', jump: 'part', light: 'day' },
   { re: /(?<![\p{L}])(this evening|that evening|ce soir-là|ce soir|hoje à noite|heute abend|stasera|haut owes|その夕方|那天傍晚)(?![\p{L}])/iu, id: 'that-evening', jump: 'part', light: 'dusk' },
@@ -574,6 +576,23 @@ export function isCastLine(sentence) {
   return false
 }
 
+function mentionedPlace(sentence, places) {
+  for (const place of places || []) {
+    if (place?.uncertain) continue
+    const labels = [place.name, ...(place.keys || [])].filter(Boolean)
+    for (const label of labels) {
+      if (/[\u3040-\u30ff\u4e00-\u9fff]/.test(label) && String(sentence || '').includes(label)) return place
+      const pattern = new RegExp(`(?<![\\p{L}])${String(label).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}])`, 'giu')
+      for (const match of String(sentence || '').matchAll(pattern)) {
+        const after = sentence.slice(match.index + match[0].length)
+        if (/^(?:\s+\p{L}[\p{L}'’-]*){0,3}\s+(?:window|door|table|wall|sill|pane|glass|frame|ledge|counter|desk|shutter|fenêtre|fenetre|porte|fenster|finestra|fënster|窗户|窗|窓)/iu.test(after)) continue
+        return place
+      }
+    }
+  }
+  return null
+}
+
 function samePlace(a, b) {
   if (!a || !b) return false
   const left = foldName(a)
@@ -695,7 +714,11 @@ export function splitNarrative(text, options = {}) {
         reasons.push(`Time cue: ${bundledTimes.map(item => item.cue).join(', ')}`)
       }
     }
-    if (!state.place && places[0]?.name) state.place = places[0].name
+    if (!state.place) {
+      const mentioned = mentionedPlace(sentence, places)
+      if (mentioned) state.place = mentioned.name
+      else if (places[0]?.uncertain) state.place = places[0].name
+    }
     if (!state.started) {
       state.started = true
       state.sceneId = 1
@@ -752,7 +775,7 @@ export function splitNarrative(text, options = {}) {
       })
     })
   })
-  return { shots, cuts, place: state.place, time: state.timeLabel, light: state.light, firstLight: state.firstLight || state.light }
+  return { shots, cuts, place: state.place, time: state.timeLabel, light: state.light, firstLight: state.firstLight }
 }
 
 function splitPieces(text, language, extraVerbs) {
