@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { MODEL_PROFILES, allowedDurations, profileFor, publicProfile, snapAspect, snapDuration } from '../app/utils/model-profiles.js'
+import { MODEL_PROFILES, allowedDurations, plannedShotSeconds, profileFor, publicProfile, snapAspect, snapDuration } from '../app/utils/model-profiles.js'
 import { applyModelProfile, createStoryboard } from '../app/utils/prompt-engine.js'
 import { assessProject } from '../app/utils/shot-risk.js'
 import { dispatchAgentRequest } from '../server/agent-api.mjs'
@@ -209,4 +209,51 @@ test('Pika offers 5 and 10 seconds, a seed, and a negative prompt', async () => 
   assert.equal(board.schema, 'shotboard.compact.v1')
   assert.equal(board.model, 'pika')
   assert.equal(board.shots[0].duration, 5)
+})
+
+test('each model plans the shortest documented length that fits one action', () => {
+  const chosen = {
+    grok: 3,
+    google: 4,
+    sora: 4,
+    kling: 3,
+    runway: 3,
+    luma: 5,
+    wan: 3,
+    chatgpt: 3,
+    midjourney: 5,
+    hailuo: 6,
+    seedance: 4,
+    pika: 5,
+    generic: 3
+  }
+  for (const [id, seconds] of Object.entries(chosen)) {
+    const profile = MODEL_PROFILES[id]
+    assert.equal(profile.shotSeconds, seconds, id)
+    assert.equal(profile.shotSecondsNote.length > 40, true, id)
+    assert.equal(profile.promptForm === 'structured' || profile.promptForm === 'prose', true, id)
+    assert.equal(profile.lengthBudget.characters, 700, id)
+    assert.equal(plannedShotSeconds(profile), seconds, id)
+    const allowed = allowedDurations(profile)
+    if (allowed) assert.equal(allowed.includes(seconds), true, id)
+    else assert.equal(profile.durations.unverified, true, id)
+    const board = createStoryboard({ premise, model: id })
+    assert.equal(board.duration, seconds, id)
+    assert.equal(board.shots.every(shot => shot.duration === seconds), true, id)
+    assert.equal(board.aspectRatio, profile.defaultAspect, id)
+  }
+  assert.equal(MODEL_PROFILES.grok.promptForm, 'structured')
+  assert.equal(MODEL_PROFILES.google.promptForm, 'structured')
+  assert.equal(MODEL_PROFILES.chatgpt.durations.unverified, true)
+  assert.equal(MODEL_PROFILES.generic.durations.unverified, true)
+  assert.equal(MODEL_PROFILES.grok.durations.default, 8)
+  assert.equal(MODEL_PROFILES.kling.durations.default, 10)
+  assert.equal(MODEL_PROFILES.runway.durations.default, 2)
+  assert.equal(MODEL_PROFILES.wan.durations.default, 5)
+  const held = createStoryboard({ premise, model: 'grok', duration: 8, aspectRatio: '9:16' })
+  assert.equal(held.duration, 8)
+  assert.equal(held.aspectRatio, '9:16')
+  const framed = createStoryboard({ premise, model: 'midjourney', aspectRatio: '16:9' })
+  assert.equal(framed.aspectRatio, '16:9')
+  assert.equal(framed.duration, 5)
 })

@@ -1,6 +1,6 @@
 /** A deterministic local story planner. No remote AI or video generation. */
 import { canonicalModel, modelRegistry } from '../integrations/models/model-registry.js'
-import { profileFor, snapAspect, snapDuration } from './model-profiles.js'
+import { plannedAspect, plannedLengthBudget, plannedShotSeconds, profileFor, snapAspect, snapDuration } from './model-profiles.js'
 import { LIGHTS, MOODS, describeCast, describePlace, describeScenarioErrors, findByName, foldName, looksLikeScenario, nameParts, parseScenario, resolveUserCamera, scenarioFromProject, scenarioPremise, sequencePacks } from './scenario.js'
 import { episodePacks, isPresetMode, parseAd, parseExplainer, parseSeries } from './preset-modes.js'
 import { detectProse, isNamedTraitPremise, premiseShotPlan } from './prose-detect.js'
@@ -75,11 +75,19 @@ export const DURATION_PRESETS = Object.freeze([
 export function durationPlans(modelId) {
   const profile = profileFor(modelId)
   return DURATION_PRESETS.map(preset => {
-    const duration = snapDuration(preset.duration, profile)
+    const duration = snapDuration(plannedShotSeconds(profile), profile)
     const count = Math.min(48, Math.max(1, Math.floor(preset.total / duration)))
     const total = count * duration
     return { id: preset.id, label: `${total}s`, total, count, duration }
   })
+}
+function requestedDuration(value, profile) {
+  if (value == null || value === '') return plannedShotSeconds(profile)
+  return canonicalDuration(value)
+}
+function requestedAspect(value, profile) {
+  if (value) return canonicalAspect(value)
+  return plannedAspect(profile)
 }
 export function canonicalDuration(value) {
   const number = Number(value)
@@ -499,7 +507,8 @@ export function createStoryboard(options = {}) {
   const scenes = sceneOverrides(options.scenes)
   const count = scenes.length ? scenes.length : canonicalShotCount(options.count)
   const density = options.promptDensity === 'concise' || options.density === 'concise' ? 'concise' : 'standard'
-  const project = { schema: 'shotboard.v1', id: options.id || newId('story'), title: titleFromPremise(premise), premise, model, target_model: model, genre, style: shotStyle || (STYLES.some(item => item.id === options.style) ? options.style : 'cinematic'), lockedStyle, promptDensity: density, promptStyle, aspectRatio: canonicalAspect(options.aspectRatio), duration: canonicalDuration(options.duration), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), generationMode: 'local', shots: [] }
+  const profile = profileFor(model)
+  const project = { schema: 'shotboard.v1', id: options.id || newId('story'), title: titleFromPremise(premise), premise, model, target_model: model, genre, style: shotStyle || (STYLES.some(item => item.id === options.style) ? options.style : 'cinematic'), lockedStyle, promptDensity: density, promptStyle, aspectRatio: requestedAspect(options.aspectRatio, profile), duration: requestedDuration(options.duration, profile), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), generationMode: 'local', shots: [] }
   if (sequenceMode) project.sequenceMode = sequenceMode
   if (sequenceMode === 'continuous') {
     const sheet = { ...(options.continuitySheet || buildContinuitySheet(premise)) }
@@ -680,7 +689,7 @@ function createPresetStoryboard(options, mode) {
   const preset = resolveScenarioPreset(options)
   const shotStyle = SHOT_STYLE_PROFILES[options.style] ? options.style : ''
   const density = options.promptDensity === 'concise' || options.density === 'concise' ? 'concise' : 'standard'
-  const defaultDuration = canonicalDuration(options.duration)
+  const defaultDuration = requestedDuration(options.duration, profileFor(model))
   const aspectRatio = options.aspectRatio ? canonicalAspect(options.aspectRatio) : parsed.aspectRatio
   const filmSheet = { ...parsed.filmSheet, style: preset.visual, preset }
   const shots = parsed.shots.map((draft, index) => {
@@ -770,7 +779,8 @@ function createScenarioStoryboard(options) {
   const shotStyle = SHOT_STYLE_PROFILES[options.style] ? options.style : ''
   const lockedStyle = preset.visual
   const density = options.promptDensity === 'concise' || options.density === 'concise' ? 'concise' : 'standard'
-  const defaultDuration = canonicalDuration(options.duration)
+  const profile = profileFor(model)
+  const defaultDuration = requestedDuration(options.duration, profile)
   const filmSheet = { characters: mergeCharacterExtras(parsed.characters, options.scenario), places: parsed.places, light: parsed.light || '', mood: parsed.mood || '', style: preset.visual, preset }
   const shots = parsed.scenes.map((scene, index) => {
     const choice = resolveUserCamera(scene.camera)
@@ -835,7 +845,7 @@ function createScenarioStoryboard(options) {
     preset,
     promptDensity: density,
     promptStyle,
-    aspectRatio: canonicalAspect(options.aspectRatio),
+    aspectRatio: requestedAspect(options.aspectRatio, profile),
     duration: defaultDuration,
     sequenceMode: 'scenario',
     filmSheet,
@@ -1093,7 +1103,7 @@ function cutAtClause(text, limit) {
   return clean.slice(0, at).replace(/[\s,;.—–-]+$/g, '')
 }
 
-function fitShortPrompt(parts) {
+function fitShortPrompt(parts, max = SHORT_PROMPT_MAX) {
   const opening = parts.opening
   const locks = parts.locks.filter(Boolean)
   let place = parts.place
@@ -1103,17 +1113,17 @@ function fitShortPrompt(parts) {
   let stability = parts.stability
   const closing = () => endPeriod([style, camera].filter(Boolean).join(', '))
   const assemble = () => [opening, ...locks, place, light, closing(), stability].filter(Boolean).join('\n')
-  const over = () => assemble().length > SHORT_PROMPT_MAX
+  const over = () => assemble().length > max
   const shrinkLine = (value, setter) => {
     if (!over() || !value) return
-    const room = SHORT_PROMPT_MAX - (assemble().length - value.length)
+    const room = max - (assemble().length - value.length)
     const next = room > 12 ? cutAtClause(value, room) : ''
     setter(next ? endPeriod(next) : '')
   }
   if (!over()) return assemble()
   if (style) {
     const closingText = closing()
-    const room = SHORT_PROMPT_MAX - (assemble().length - closingText.length)
+    const room = max - (assemble().length - closingText.length)
     const cameraTail = camera ? `, ${camera}` : ''
     const styleRoom = room - cameraTail.length - 1
     style = styleRoom > 12 ? cutAtClause(style, styleRoom) : ''
@@ -1151,7 +1161,7 @@ export function createShortPrompt(shot, project, index = 0) {
     style,
     camera: cameraPhrase(shot, lang),
     stability
-  })
+  }, plannedLengthBudget(profileFor(project.model || project.target_model)))
 }
 
 function promptHeader(project) {

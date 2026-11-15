@@ -1,6 +1,28 @@
 # Video prompt profiles
 
-Checked 2026-11-16. Moovicut does not call these services. A fact the provider page does not state stays unverified and uses the generic profile: scene length inside 2–15 seconds, and the studio aspect the person already chose (9:16, 1:1, 4:5, or 16:9). The profiles live in `app/utils/model-profiles.js`. Sora stays its own profile.
+Checked 2026-11-14 for the first profiles, and 2026-11-16 for ChatGPT video, Midjourney, Hailuo, Seedance, and Pika. Moovicut does not call these services. A fact the provider page does not state stays unverified and uses the generic profile. The profiles live in `app/utils/model-profiles.js`. Sora stays its own profile.
+
+`shotSeconds` is the length planned for one action: the shortest documented length that still fits one action. Two seconds is inside some ranges and is treated as shorter than one action, so the next documented integer is used. When the page states no lengths, the generic default is 3 seconds. `durations.default` stays the provider default, or the documented minimum when the page names none. A request that names a duration still uses that duration, snapped into the documented set.
+
+The prompt form is `structured` for Grok Imagine and Veo, and `prose` for every other target. The short-prompt budget is 700 characters. Where a page states a maximum, 700 stays inside it and no shorter ideal is invented. Where a page states no length, 700 is the generic budget and is marked unverified.
+
+| Model | Allowed durations | Chosen seconds | Why |
+|---|---|---:|---|
+| grok | 1–15, API default 8. [xAI video generation](https://docs.x.ai/developers/model-capabilities/video/generation) | 3 | Shortest length in that range that fits one action. 1 is below the scene floor. 2 is shorter than one action. 8 is the API default and is not used for a single action. |
+| google | 4, 6, or 8. [Gemini video](https://ai.google.dev/gemini-api/docs/video) | 4 | Shortest documented length. 8 is required for 1080p, 4K, reference images, and extension. |
+| sora | 4, 8, or 12. [Videos API](https://developers.openai.com/api/reference/resources/videos/methods/create) | 4 | Shortest documented length. The prompting guide says a shorter clip follows instructions more reliably. |
+| kling | 3–30, API default 10. [Kling 4.0 text-to-video](https://klingai.com/document-api/api/video/4-0/text-to-video.md) | 3 | Shortest documented length. 10 is the API default and is not used for a single action. |
+| runway | 2–10, no named default. [Runway gen4.5](https://docs.dev.runwayml.com/api.md) | 3 | 2 is the documented minimum and is shorter than one action. 3 is the next integer in the range. |
+| luma | 5 or 9. [Create generation](https://docs.lumalabs.ai/reference/creategeneration) | 5 | Shortest documented generation length. |
+| wan | 2–30, API default 5. [Wan 3.0](https://www.alibabacloud.com/help/en/model-studio/wan3-video-generation-api-reference) | 3 | 2 is shorter than one action. 3 is the next integer. 5 is the API default and is not used for a single action. |
+| chatgpt | Not documented. [Images in ChatGPT](https://help.openai.com/en/articles/11084440-images-in-chatgpt) | 3 | Generic default. No clip length is published. |
+| midjourney | 5 for one generation. [Video](https://docs.midjourney.com/hc/en-us/articles/37460773864589-Video) | 5 | The only single-generation length. Extensions are separate actions. |
+| hailuo | 6 or 10, default 6. [Text-to-video](https://platform.minimax.io/docs/api-reference/video-generation-t2v) | 6 | Shortest documented length. Nothing from 3 to 5 seconds is documented. |
+| seedance | 4–15 for 2.0. [Seedance 2.0](https://docs.byteplus.com/docs/en/modelark/seedance-2-0.md) | 4 | Shortest documented length. The page does not name a numeric default. |
+| pika | 5 or 10, default 5. [Pika 2.5](https://dev.pika.art/llms/pika/pika-2.5/text-to-video) | 5 | Shortest documented length. |
+| generic | Not documented. | 3 | Generic default. No provider is named. |
+
+Aspect when a board does not name one: 16:9, except Midjourney video, which uses 1:1 because a video follows the starting image and the image default is 1:1. ChatGPT video and Hailuo do not document a ratio, so they use the generic 16:9. Seedance’s documented default is adaptive, which the studio cannot set, so a board uses 16:9, a documented ratio. Pika does not name a default ratio, so a board uses 16:9, a documented option.
 
 ## ChatGPT video (`chatgpt`)
 
