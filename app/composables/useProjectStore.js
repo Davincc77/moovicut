@@ -198,6 +198,8 @@ export function useProjectStore() {
     const index = next.shots.findIndex(shot => shot.id === id); if (index < 0) throw new Error(`Shot not found: ${id}`)
     const updated = { ...next.shots[index], [field]: value }
     if (field === 'prompt') updated.promptEdited = true
+    if (field === 'camera') { updated.cameraChosen = Boolean(String(value || '').trim()); updated.camChosen = false }
+    if (field === 'lens') updated.lensChosen = Boolean(String(value || '').trim())
     const duration = Math.max(2, Math.min(15, Number(updated.duration) || 3)); updated.duration = duration; updated.duration_seconds = duration
     next.shots[index] = regenerate && field !== 'prompt' ? refreshShotPrompt(updated, next, index) : updated
     syncSequences(next)
@@ -209,6 +211,8 @@ export function useProjectStore() {
     updated.duration = duration; updated.duration_seconds = duration
     if ('prompt' in patch && !patch.prompt?.trim()) throw new Error('A shot prompt cannot be empty.')
     if ('prompt' in patch) updated.promptEdited = true
+    if ('camera' in patch) { updated.cameraChosen = Boolean(String(patch.camera || '').trim()); updated.camChosen = false }
+    if ('lens' in patch) updated.lensChosen = Boolean(String(patch.lens || '').trim())
     next.shots[index] = 'prompt' in patch ? updated : refreshShotPrompt(updated, next, index)
     syncSequences(next)
   }) }

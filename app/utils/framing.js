@@ -85,5 +85,6 @@ export function ensureFramingInPrompt(prompt, label) {
   const term = cleanText(label)
   if (!term || foldFraming(text).includes(foldFraming(term))) return text
   if (/^Camera:/m.test(text)) return text.replace(/^Camera:\s*/m, `Camera: ${term}, `)
-  return `${text.trim()}\nCamera: ${term}.`
+  const sentence = term.charAt(0).toUpperCase() + term.slice(1)
+  return `${sentence}: ${text.trim()}`
 }

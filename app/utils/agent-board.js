@@ -1,11 +1,34 @@
 /** One compact board every mode can hand to an agent or the API. */
 import { canonicalModel } from '../integrations/models/model-registry.js'
-import { createStoryboard, refreshProjectPrompts } from './prompt-engine.js'
+import { agentCameraValue, createStoryboard, refreshProjectPrompts, refreshShotPrompt } from './prompt-engine.js'
 import { BOARD_MODES, isPresetMode } from './preset-modes.js'
 import { asCharacter, lockLineFor, lockLinesForShot, publicSheet } from './character-lock.js'
-import { promptFraming } from './framing.js'
+import { promptFraming, termById } from './framing.js'
+import { resolveUserCamera } from './scenario.js'
 
 export const AGENT_BOARD_SCHEMA = 'shotboard.compact.v1'
+
+function applyAgentCamera(shot, source) {
+  const next = { ...shot }
+  if (source?.framing) next.framing = source.framing
+  if (source?.framingTerm && termById(source.framingTerm)) {
+    next.framingTerm = source.framingTerm
+    next.framing = termById(source.framingTerm).label
+  }
+  if (source?.framingChosen === true) next.framingChosen = true
+  if (source?.camera) {
+    const resolved = resolveUserCamera(source.camera)
+    next.cam = resolved.cam
+    next.camChosen = Boolean(resolved.cam)
+    next.camera = resolved.chosen ? resolved.move : null
+    next.cameraChosen = resolved.chosen
+    if (resolved.framing) next.framing = resolved.framing
+  } else {
+    next.camera = null
+    next.cameraChosen = false
+  }
+  return next
+}
 
 function copyCharacter(item) {
   const person = asCharacter(item)
@@ -55,7 +78,7 @@ export function exportAgentBoard(project) {
         who: shot.who || '',
         where: shot.where || '',
         what: shot.what || shot.action || '',
-        camera: shot.cam || '',
+        camera: agentCameraValue(shot),
         light: shot.light || '',
         mood: shot.mood || '',
         prompt: shot.prompt || '',
@@ -94,13 +117,20 @@ export function importAgentBoard(board, options = {}) {
           who: shot.who,
           where: shot.where,
           what: shot.what,
-          camera: shot.camera,
+          camera: shot.camera || undefined,
           light: shot.light,
           mood: shot.mood,
           duration: shot.duration,
           prompt: !overwrite && shot.promptEdited ? shot.prompt : undefined
         }))
       }
+    })
+    project.shots = project.shots.map((shot, index) => {
+      const source = board.shots?.[index]
+      if (!source) return shot
+      const next = applyAgentCamera(shot, source)
+      if (next === shot) return shot
+      return refreshShotPrompt(next, project, index)
     })
     project.title = board.title || project.title
     return project
@@ -119,7 +149,7 @@ export function importAgentBoard(board, options = {}) {
   if (board.filmSheet) project.filmSheet = copySheet(board.filmSheet)
   project.shots = (board.shots || []).map((shot, index) => {
     const current = project.shots[index] || project.shots[0]
-    const next = { ...current, ...shot, id: shot.id || current.id, shot_id: shot.id || current.shot_id, action: shot.what || current.action, order: index + 1 }
+    const next = applyAgentCamera({ ...current, ...shot, id: shot.id || current.id, shot_id: shot.id || current.shot_id, action: shot.what || current.action, order: index + 1 }, shot)
     if (!overwrite && shot.promptEdited && shot.prompt) {
       next.prompt = shot.prompt
       next.promptEdited = true

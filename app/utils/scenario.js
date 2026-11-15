@@ -9,18 +9,31 @@ export const SEQUENCE_MAX_SECONDS = 60
 export const MAX_SCENARIO_SCENES = 48
 export const SCENARIO_EXAMPLE = 'Scène 3 — Léa — Café — Elle renverse son latte et rit.'
 
+/** Framing ids set the frame only. Movement ids are an explicit camera move. No default lens. */
 export const CAMERAS = Object.freeze({
-  wide: { framing: 'Extreme wide establishing shot', camera: 'Slow lateral move', lens: '24mm wide-angle lens' },
-  medium: { framing: 'Medium shot', camera: 'Gentle tracking at eye level', lens: '35mm lens' },
-  close: { framing: 'Close-up', camera: 'Slow push-in', lens: '85mm lens' },
-  insert: { framing: 'Close-up insert', camera: 'Precise slow push-in', lens: '85mm lens' },
-  tracking: { framing: 'Full-body lateral tracking shot', camera: 'Measured dolly alongside', lens: '32mm lens' },
-  static: { framing: 'Wide locked-off frame', camera: 'Locked-off camera', lens: '35mm lens' },
-  push: { framing: 'Medium close-up', camera: 'Slow push-in', lens: '50mm lens' },
-  crane: { framing: 'Wide shot', camera: 'Slow crane', lens: '24mm lens' },
-  handheld: { framing: 'Medium handheld shot', camera: 'Handheld at eye level', lens: '35mm lens' }
+  wide: { framing: 'Extreme wide establishing shot' },
+  medium: { framing: 'Medium shot' },
+  close: { framing: 'Close-up' },
+  insert: { framing: 'Close-up insert' },
+  tracking: { framing: 'Full-body lateral tracking shot', camera: 'Measured dolly alongside' },
+  static: { framing: 'Wide locked-off frame', camera: 'Locked-off camera' },
+  push: { framing: 'Medium close-up', camera: 'Slow push-in' },
+  crane: { framing: 'Wide shot', camera: 'Slow crane' },
+  handheld: { framing: 'Medium handheld shot', camera: 'Handheld at eye level' }
 })
 export const CAMERA_VALUES = Object.freeze(Object.keys(CAMERAS))
+const FRAMING_CAMERAS = new Set(['wide', 'medium', 'close', 'insert'])
+
+/** A camera value the user sent. Framing ids do not invent a move or a lens. */
+export function resolveUserCamera(value) {
+  const raw = cleanText(value)
+  if (!raw) return { cam: '', framing: '', move: null, chosen: false }
+  const known = CAMERAS[raw.toLowerCase()]
+  if (!known) return { cam: '', framing: '', move: raw, chosen: true }
+  const token = raw.toLowerCase()
+  const move = known.camera || null
+  return { cam: token, framing: known.framing || '', move, chosen: Boolean(move) && !FRAMING_CAMERAS.has(token) }
+}
 
 export const LIGHTS = Object.freeze({
   day: 'bright natural daylight',
