@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { detectProse } from '../app/utils/prose-detect.js'
-import { editCut, isCastLine, isFunctionWord, isNeverPlace, isNumberWord, matchesVerb, namedVenues, splitNarrative, supportedCueLanguages } from '../app/utils/scene-split.js'
+import { editCut, findPlaceCue, isCastLine, isCueStopword, isFunctionWord, isNeverPlace, isNumberWord, matchesVerb, namedVenues, splitNarrative, supportedCueLanguages } from '../app/utils/scene-split.js'
 import { foldName } from '../app/utils/scenario.js'
 import { dispatchAgentRequest } from '../server/agent-api.mjs'
 
@@ -505,4 +505,58 @@ test('place aliases that differ only by an article are the same place', () => {
   assert.equal(canonicalPlace('Cormoran Brasserie', swapped), 'Brasserie')
   const found = namedVenues("Dans la brasserie Le Cormoran, Nora s'assoit.", 'fr')
   assert.ok(found.some(item => item.name === 'Brasserie Le Cormoran'), found.map(item => item.name).join(', '))
+})
+
+test('an article inside a venue name is not a later place cue', () => {
+  for (const word of ['the', 'le', 'la', 'les', 'der', 'die', 'das', 'el', 'o', 'il']) {
+    assert.equal(isCueStopword(word), true, word)
+  }
+  assert.equal(isCueStopword('kestrel'), false)
+  const english = 'Nora reads in the office. After that, in the gallery The Kestrel, Nora hangs one sketch. Then, in the office, Nora opens the drawer. Eight cups stand in the window. At dusk, on the beach, Nora watches the gulls.'
+  const detected = detectProse(english)
+  const wheres = detected.scenes.map(scene => scene.where)
+  assert.ok(wheres.some(place => /kestrel/i.test(place)), wheres.join(' > '))
+  assert.equal(wheres.filter(place => /kestrel/i.test(place)).length, wheres.filter((place, index) => /kestrel/i.test(place) && !/kestrel/i.test(wheres[index - 1] || '')).length, wheres.join(' > '))
+  const sequence = []
+  wheres.forEach(place => { if (sequence[sequence.length - 1] !== place) sequence.push(place) })
+  assert.deepEqual(sequence.map(place => foldName(place)), ['office', 'gallery the kestrel', 'office', 'beach'])
+  const forced = findPlaceCue('At noon, in the office, Nora opens the door.', 'en', [
+    { name: 'Gallery The Kestrel', keys: ['Gallery The Kestrel', 'The', 'Kestrel'] },
+    { name: 'Office', keys: ['office'] }
+  ])
+  assert.equal(forced.name, 'Office')
+  const french = "Nora lit dans le bureau. Ensuite, dans la brasserie Les Tilleuls, Nora commande un thé. Puis, dans le bureau, Nora range les carnets dans les tiroirs."
+  const frenchPlaces = detectProse(french).scenes.map(scene => scene.where)
+  const frenchSequence = []
+  frenchPlaces.forEach(place => { if (frenchSequence[frenchSequence.length - 1] !== place) frenchSequence.push(place) })
+  assert.deepEqual(frenchSequence.map(foldName), ['bureau', 'brasserie les tilleuls', 'bureau'])
+  const german = splitNarrative('Otto liest im Büro. Danach, in der Galerie Der Falke, hängt Otto eine Skizze. Dann, im Büro, öffnet Otto die Schublade. Acht Tassen stehen in der Vitrine.', {
+    language: 'de',
+    places: [
+      { name: 'Büro', keys: ['Büro'] },
+      { name: 'Galerie Der Falke', keys: ['Galerie Der Falke', 'Der', 'Falke'] }
+    ]
+  })
+  const germanSequence = []
+  german.shots.forEach(shot => { if (germanSequence[germanSequence.length - 1] !== shot.where) germanSequence.push(shot.where) })
+  assert.deepEqual(germanSequence, ['Büro', 'Galerie Der Falke', 'Büro'])
+  const spanishArticle = splitNarrative('Nora reads in the office. After that, in the hotel El Nido, Nora hangs a key. Then, in the office, Nora opens the drawer.', {
+    language: 'en',
+    places: [
+      { name: 'Office', keys: ['office'] },
+      { name: 'Hotel El Nido', keys: ['Hotel El Nido', 'El', 'Nido'] }
+    ]
+  })
+  const elSequence = []
+  spanishArticle.shots.forEach(shot => { if (elSequence[elSequence.length - 1] !== shot.where) elSequence.push(shot.where) })
+  assert.deepEqual(elSequence, ['Office', 'Hotel El Nido', 'Office'])
+})
+
+test('a place named only inside quotes is not added to the sheet', () => {
+  const detected = detectProse('Nora reads in the kitchen. She says, "Let us walk on the quay on Sunday." Then Nora pours tea in the kitchen.')
+  assert.equal(detected.places.some(place => foldName(place.name) === 'quay'), false, detected.places.map(place => place.name).join(', '))
+  assert.ok(detected.scenes.every(scene => foldName(scene.where) === 'kitchen'), detected.scenes.map(scene => scene.where).join(' > '))
+  const venue = detectProse('Nora reads in the office. She says, "Meet me at the gallery The Kestrel." Then Nora closes the ledger in the office.')
+  assert.equal(venue.places.some(place => /kestrel/i.test(place.name)), false, venue.places.map(place => place.name).join(', '))
+  assert.ok(venue.scenes.every(scene => foldName(scene.where) === 'office'), venue.scenes.map(scene => scene.where).join(' > '))
 })

@@ -4,7 +4,7 @@ import { foldName, scenarioBudget, scenarioPremise, scenarioToFields } from './s
 import { flaggedNameKeys } from './shot-risk.js'
 import { splitActionText } from './action-split.js'
 import { detectLocalized } from './prose-extra.js'
-import { inNamedVenue, isFunctionWord, isNeverPlace, isNumberWord, isQuotedOrRemembered, isVenueType, namedVenues, placeMentionIsReal, splitNarrative } from './scene-split.js'
+import { inNamedVenue, inSpans, isCueStopword, isFunctionWord, isNeverPlace, isNumberWord, isQuotedOrRemembered, isVenueType, namedVenues, placeMentionIsReal, quoteSpans, splitNarrative } from './scene-split.js'
 
 const STOP = new Set(['the', 'a', 'an', 'he', 'she', 'they', 'it', 'his', 'her', 'their', 'then', 'when', 'after', 'before', 'later', 'next', 'once', 'this', 'that', 'there', 'here', 'un', 'une', 'le', 'la', 'les', 'il', 'elle', 'ils', 'elles', 'lui', 'leur', 'puis', 'quand', 'apres', 'avant', 'dans', 'sur', 'sous', 'avec', 'pour', 'par', 'chez', 'au', 'aux', 'du', 'des', 'en', 'et', 'mais', 'ou', 'ce', 'cette', 'ces', 'son', 'sa', 'ses', 'mon', 'ma', 'mes', 'je', 'tu', 'nous', 'vous', 'on', 'plus', 'tout', 'toute', 'tous', 'morning', 'evening', 'night', 'day', 'matin', 'soir', 'nuit', 'jour', 'aube', 'tard', 'lendemain', 'and', 'with', 'from', 'into', 'over', 'while', 'its', 'our', 'your'])
 
@@ -388,14 +388,17 @@ function detectPlaces(text, language) {
   const namedFlag = value => tokens(value).some(token => flagged.has(foldName(token)))
   const source = String(text || '')
   for (const match of source.matchAll(/\b(village|town|city|hamlet|bourg)\s+of\s+(\p{Lu}[\p{L}'’-]*)/gu)) {
+    if (isQuotedOrRemembered(source, match.index, language)) continue
     if (namedFlag(match[2])) { skippedFlagged = true; continue }
     pushPlace(places, match[2], language === 'fr' ? `un ${match[1]}` : `a ${match[1].toLowerCase()}`, 'high', true)
   }
   for (const match of source.matchAll(/\b((?:\p{Lu}[\p{L}'’-]*)(?:\s+\p{Lu}[\p{L}'’-]*){0,2})\s+(Street|Road|Avenue|Lane|Boulevard|Way|Rue)\b/gu)) {
+    if (isQuotedOrRemembered(source, match.index, language)) continue
     if (namedFlag(match[1])) { skippedFlagged = true; continue }
     pushPlace(places, `${match[1]} ${match[2]}`, language === 'fr' ? 'une rue' : 'a street', 'high', true)
   }
   for (const match of source.matchAll(/\b((?:village|town|market|city)\s+square)\b/giu)) {
+    if (isQuotedOrRemembered(source, match.index, language)) continue
     const name = match[1].replace(/^\p{Ll}/u, char => char.toUpperCase())
     pushPlace(places, name, language === 'fr' ? 'une place' : 'a square', 'high', true)
   }
@@ -409,6 +412,7 @@ function detectPlaces(text, language) {
     pushPlace(places, name, language === 'fr' ? 'un lieu cité dans le texte' : 'a place named in the text', 'medium', true)
   }
   for (const match of source.matchAll(/\b(?:on|in|at|along)\s+(?:a|an|the)\s+((?:[\p{L}'’-]+\s+){0,3}(?:quay|quayside|pier|dock|wharf|alley|rooftop|courtyard))\b/giu)) {
+    if (isQuotedOrRemembered(source, match.index, language)) continue
     const phrase = cleanText(match[1])
     const name = phrase.replace(/^\p{Ll}/u, char => char.toUpperCase())
     const head = foldName(phrase.split(/\s+/).at(-1))
@@ -426,6 +430,7 @@ function detectPlaces(text, language) {
   })
   const unknown = [...source.matchAll(/\b(?:at the|in the|through the|to the|au|dans la|dans le|sur la|sur le)\s+([\p{Ll}'’-]+(?:\s+[\p{Ll}'’-]+){0,2})/gu)]
   unknown.forEach(match => {
+    if (isQuotedOrRemembered(source, match.index, language)) return
     const phrase = cleanText(match[1])
     if (namedFlag(phrase)) { skippedFlagged = true; return }
     const key = foldName(phrase.split(/\s+/).at(-1))
@@ -435,8 +440,10 @@ function detectPlaces(text, language) {
     pushPlace(places, name, language === 'fr' ? 'un lieu cité dans le texte' : 'a place named in the text', 'low')
     warnings.push({ code: 'uncertain_place', message: `Confirm this place: ${name}.`, target: 'places', options: [name], name })
   })
+  const quote = quoteSpans(source)
   const venues = namedVenues(source, language)
   venues.forEach(venue => {
+    if (venue.spans.every(([start]) => inSpans(start, quote))) return
     pushPlace(places, venue.name, venue.description, 'high', true)
   })
   const visible = places.filter(place => {
@@ -549,8 +556,8 @@ function placeRecords(places) {
   return places.map(place => {
     const known = PLACES.find(item => item.fr === place.name || item.en === place.name)
     const keys = new Set([place.name])
-    if (known) known.keys.forEach(key => keys.add(key))
-    tokens(place.name).forEach(token => keys.add(token))
+    if (known) known.keys.forEach(key => { if (!isCueStopword(key)) keys.add(key) })
+    tokens(place.name).forEach(token => { if (!isCueStopword(token)) keys.add(token) })
     return { name: place.name, keys: [...keys] }
   })
 }

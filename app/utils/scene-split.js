@@ -21,6 +21,9 @@ const FUNCTION_SET = Object.freeze(Object.fromEntries(
   LOCALES.map(code => [code, new Set(FUNCTION[code].map(word => foldName(word)))])
 ))
 
+/** Articles, determiners, and prepositions. Never a place cue on their own. */
+const EXTRA_CUE_STOP = new Set(['el', 'los', 'las', 'del', 'della', 'dei', 'delle', 'do', 'da', 'dos', 'das', 'de', 'through', 'inside', 'outside', 'within', 'onto', 'upon', 'across', 'along', 'about', 'around', 'near', 'zum', 'zur', 'einem', 'einer', 'eines', 'num', 'numa', 'pelo', 'pela', 'nel', 'nello', 'sul', 'sullo', 'sulla'].map(word => foldName(word)))
+
 /** Body parts, clothing, and abstract nouns. Never a place. */
 const NOT_A_PLACE = new Set([
   'hand', 'hands', 'eye', 'eyes', 'face', 'hair', 'head', 'arm', 'arms', 'leg', 'legs', 'foot', 'feet', 'finger', 'fingers', 'mouth', 'ear', 'ears', 'nose', 'back', 'shoulder', 'eyebrow', 'brow', 'sourcil', 'yeux', 'oeil', 'main', 'mains', 'visage', 'cheveux', 'tete', 'bras', 'jambe', 'pied', 'dos', 'epaule', 'bouche', 'oreille',
@@ -219,7 +222,12 @@ function collectVenues(source, language, found) {
   if (!types) return
   const push = (name, type, start, end) => {
     const clean = tidyVenueName(name)
-    if (!clean || found.some(item => foldName(item.name) === foldName(clean) || item.spans.some(([from]) => from === start))) return
+    if (!clean) return
+    const existing = found.find(item => foldName(item.name) === foldName(clean))
+    if (existing) {
+      if (!existing.spans.some(([from]) => from === start)) existing.spans.push([start, end])
+      return
+    }
     const tokens = clean.match(/[\p{L}][\p{L}'’-]+/gu) || []
     const nameTokens = tokens.filter(token => !isVenueType(token, language) && !isFunctionWord(token, language) && !isNumberWord(token, language))
     if (!nameTokens.length) return
@@ -281,6 +289,13 @@ export function isFunctionWord(token, language = 'en') {
   if (language !== 'en' && FUNCTION_SET.en.has(key)) return true
   if (language !== 'fr' && FUNCTION_SET.fr.has(key)) return true
   return false
+}
+
+/** A cue key that is only an article, determiner, preposition, or other stopword, in any site language. */
+export function isCueStopword(token) {
+  const parts = foldName(token).split(/\s+/).filter(Boolean)
+  if (!parts.length) return true
+  return parts.every(part => EXTRA_CUE_STOP.has(part) || LOCALES.some(code => FUNCTION_SET[code].has(part) || isNumberWord(part, code)))
 }
 
 export function isNeverPlace(token) {
@@ -384,7 +399,7 @@ function collectPlaceCues(sentence, language, places) {
   for (const place of places || []) {
     if (isNeverPlace(place.name)) continue
     for (const key of placeKeys(place)) {
-      if (isNeverPlace(key) || foldName(key).length < 3) continue
+      if (isNeverPlace(key) || isCueStopword(key)) continue
       for (const index of findKeyHits(sentence, key)) {
         if (inSpans(index, spans)) continue
         const before = windowBefore(sentence, index)
@@ -407,11 +422,20 @@ function collectPlaceCues(sentence, language, places) {
   return hits
 }
 
-/** A firm locative wins over a toward-cue in the same sentence. Lexicon places supply toward-cues only. */
+function preferFirmCue(best, hit) {
+  if (!best) return hit
+  const generic = isCueStopword(hit.key)
+  const bestGeneric = isCueStopword(best.key)
+  if (generic !== bestGeneric) return generic ? best : hit
+  if (hit.index > best.index || (hit.index === best.index && hit.key.length > best.key.length)) return hit
+  return best
+}
+
+/** A firm locative wins over a toward-cue in the same sentence. A real place noun beats a generic token. Lexicon places supply toward-cues only. */
 export function findPlaceCue(sentence, language, places, lexicon = []) {
   const adopted = collectPlaceCues(sentence, language, places)
   const firm = adopted.filter(hit => !hit.uncertain)
-  if (firm.length) return firm.reduce((best, hit) => (!best || hit.index > best.index || (hit.index === best.index && hit.key.length > best.key.length) ? hit : best), null)
+  if (firm.length) return firm.reduce(preferFirmCue, null)
   const weak = [...adopted, ...collectPlaceCues(sentence, language, lexicon)].filter(hit => hit.uncertain)
   return weak.reduce((best, hit) => (!best || hit.index > best.index ? hit : best), null)
 }
