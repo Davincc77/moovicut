@@ -1,5 +1,6 @@
-import { createStoryboard, validateProject, canonicalModel, listPresets, regenerateOneShot } from '../app/utils/prompt-engine.js'
-import { looksLikeScenario, parseScenario } from '../app/utils/scenario.js'
+import { createStoryboard, validateProject, canonicalModel, listPresets, regenerateOneShot, splitShotByAction } from '../app/utils/prompt-engine.js'
+import { describeScenarioErrors, looksLikeScenario, parseScenario } from '../app/utils/scenario.js'
+import { splitActionText } from '../app/utils/action-split.js'
 import { assessProject } from '../app/utils/shot-risk.js'
 import { AGENT_BOARD_SCHEMA, exportAgentBoard, importAgentBoard } from '../app/utils/agent-board.js'
 import { publicProfile } from '../app/utils/model-profiles.js'
@@ -258,8 +259,14 @@ function planProse(input, { origin, compact }) {
     warnings: detected.warnings,
     scenario: detected.scenario
   }
-  if (!parsed.ok) return { ...detection, errors: parsed.errors }
-  const project = createStoryboard({
+  if (!parsed.ok) {
+    const error = new Error(describeScenarioErrors(parsed.errors))
+    error.status = 400
+    error.code = 'invalid_scenario'
+    error.errors = parsed.errors
+    throw error
+  }
+  const project = withActionSplits(createStoryboard({
     scenario: detected.scenario,
     model: input.model,
     aspectRatio: input.aspectRatio,
@@ -268,10 +275,35 @@ function planProse(input, { origin, compact }) {
     duration: input.duration,
     promptStyle: input.prompt_style ?? input.promptStyle,
     overwritePrompt: input.overwritePrompt === true
-  })
+  }), input)
   const link = boardLink(origin, project, { style: input.style })
   const board = compact ? compactStoryboard(project, link) : { ...project, studioUrl: link }
-  return attachWarnings({ ...board, ...detection }, project)
+  const body = { ...board, ...detection }
+  const risks = assessProject(project)
+  const warnings = [...(detection.warnings || []), ...risks]
+  if (warnings.length) body.warnings = warnings
+  else delete body.warnings
+  return body
+}
+
+function splitEnabled(input) {
+  const value = input?.splitActions ?? input?.split_actions
+  return !(value === false || value === 0 || value === 'false' || value === '0')
+}
+
+function withActionSplits(project, input) {
+  if (!splitEnabled(input) || !project?.shots?.length) return project
+  let current = project
+  let guard = 0
+  while (guard < 64) {
+    guard += 1
+    const index = current.shots.findIndex(shot => !shot.promptEdited && splitActionText(shot.what || shot.action || '').length >= 2)
+    if (index < 0) break
+    const next = splitShotByAction(current, current.shots[index].id || current.shots[index].shot_id)
+    if (!next) break
+    current = next
+  }
+  return current
 }
 
 function fullStoryboard(project, link) {
@@ -302,7 +334,7 @@ function planRegenerate(input, { origin, compact }) {
 }
 
 function agentBody(project, link) {
-  return { ...exportAgentBoard(project), studioUrl: link }
+  return attachWarnings({ ...exportAgentBoard(project), studioUrl: link }, project)
 }
 export function planFromInput(input, { origin = SITE, compact = false } = {}) {
   if (input && typeof input === 'object' && !Array.isArray(input) && input.schema === AGENT_BOARD_SCHEMA) {
@@ -316,7 +348,7 @@ export function planFromInput(input, { origin = SITE, compact = false } = {}) {
   }
   const options = storyboardOptions(input)
   if (options.prose) return planProse(options.raw, { origin, compact })
-  const project = createStoryboard(options)
+  const project = withActionSplits(createStoryboard(options), input)
   const link = boardLink(origin, project, options)
   if (input?.format === 'agent') return agentBody(project, link)
   const body = compact ? compactStoryboard(project, link) : fullStoryboard(project, link)
@@ -440,12 +472,13 @@ const STORYBOARD_SCHEMA = {
       description: 'Structured scenario. When present, premise may be omitted, the scene count comes from this value, and it wins over scenes. Text form uses CHARACTERS, PLACES, and SCENES blocks. JSON accepts the short aliases n/l/o, w/at/do, desc/d, cam, and s. Cap 8,000 characters.',
       oneOf: [{ type: 'string', maxLength: 8000 }, SCENARIO_OBJECT]
     },
-    input: { type: 'string', enum: ['prose'], description: 'Set to prose to detect characters, places, and scenes from free text. Ordinary premises are not auto-detected. A scene whose only names are public figures, brands, or trademarks returns the neutral risk note and does not add missing-character or missing-place lines.' },
+    input: { type: 'string', enum: ['prose'], description: 'Set to prose to detect characters, places, and scenes from free text. Ordinary premises are not auto-detected. A paragraph that cannot be planned returns 400 with error, a message that lists each missing piece, and errors. A scene whose only names are public figures, brands, or trademarks returns the neutral risk note and does not add missing-character or missing-place lines.' },
     type: { type: 'string', enum: ['prose'], description: 'Alias of input.' },
     prose: { type: 'string', maxLength: 8000, description: 'Free-text story used when input is prose.' },
     text: { type: 'string', maxLength: 8000, description: 'Alias of prose.' },
     overwritePrompt: { type: 'boolean', default: false, description: 'When false or omitted, a hand-edited prompt (promptEdited) is kept, including when a shotboard.compact.v1 board is posted back. When true, those prompts are regenerated.' },
-    format: { type: 'string', enum: ['agent'], description: 'Return shotboard.compact.v1 for every mode: title, premise, model, aspect, mode, style, genre, film sheet (with each character lockLine and character sheet), and shots. Minified JSON, with no extra whitespace, is the token-efficient way to send that document back. The default compact plan response stays the short payload.' },
+    splitActions: { type: 'boolean', default: true, description: 'When true or omitted, a shot whose action contains more than one verb is split into one shot per action. Set false to keep the line in one shot. The studio Fix button still splits one shot. A shot marked promptEdited is not split.' },
+    format: { type: 'string', enum: ['agent'], description: 'Return shotboard.compact.v1 for every mode: title, premise, model, aspect, mode, style, genre, film sheet (with each character lockLine and character sheet), shots, and warnings when a shot looks risky. Minified JSON, with no extra whitespace, is the token-efficient way to send that document back. The default compact plan response stays the short payload.' },
     schema: { type: 'string', enum: ['shotboard.compact.v1'], description: 'Send a shotboard.compact.v1 document back to resume it. Prompts marked promptEdited stay as written unless overwritePrompt is true, which regenerates them.' },
     regenerateShot: { type: 'string', description: 'Shot id to rebuild. Send project or storyboard with it. Other shots stay unchanged. A hand-edited prompt is kept unless overwritePrompt is true.' },
     shotId: { type: 'string', description: 'Alias of regenerateShot.' },

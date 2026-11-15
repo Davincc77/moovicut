@@ -1,5 +1,6 @@
 /** Deterministic pre-generation checks. Warnings never block a board. */
 import { findByName, foldName, nameParts } from './scenario.js'
+import { cleanText } from './text.js'
 import { allowedDurations, profileFor, snapAspect } from './model-profiles.js'
 import { continuityWarnings } from './continuity-check.js'
 import { splitActionText } from './action-split.js'
@@ -53,7 +54,14 @@ function warning(shot, code, message, fix, extra = {}) {
 }
 
 function sourceOf(shot) {
-  return [shot.what, shot.action].filter(Boolean).join(' ')
+  const what = cleanText(shot.what || '')
+  const action = cleanText(shot.action || '')
+  if (!what || !action || what.toLowerCase() === action.toLowerCase()) return what || action
+  const whatKey = what.toLowerCase()
+  const actionKey = action.toLowerCase()
+  if (actionKey.includes(whatKey)) return action
+  if (whatKey.includes(actionKey)) return what
+  return `${what} ${action}`
 }
 
 /** Hands, a hand-off, or a held object. The camera word "handheld" does not count. */
@@ -86,6 +94,7 @@ export function assessShot(shot, project = {}) {
   const warnings = []
   const source = sourceOf(shot)
   const duration = Number(shot.duration_seconds || shot.duration || project.duration || 3)
+  ACTION_VERBS.lastIndex = 0
   const verbs = source.match(ACTION_VERBS) || []
   if (duration <= 4 && (verbs.length >= 2 || /\b(and then|puis)\b/i.test(source))) {
     const canSplit = splitActionText(source).length >= 2
