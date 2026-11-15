@@ -12,6 +12,10 @@ That matches a short Grok Imagine generation. Pass `shots` and `duration`, or a 
 
 Per-scene duration must stay between 2 and 15 seconds. The HTTP API accepts at most 48 scenes.
 
+## Studio wizard
+
+People opening `/studio` start in a six-step guide: idea, characters, places and style, shots, check, then generate. The idea step runs the same deterministic prose detection and prefills later steps. A character needs a name, age, build or face, hair, outfit, colours, and one distinctive feature. A place needs a description. Each shot needs someone from that cast, a place, one action, and a framing term from the fixed list. A line with more than one action offers a split. The check step runs the continuity checker and the risk check. Blocking issues have to be cleared before **Generate prompts** is enabled. The prompts are the ones the full editor builds from the same sheet. **Advanced mode**, one click away, keeps the full editor, Step-by-step, scenario, ad, series, and explainer. The guide is saved in this browser. The API, MCP, and `shotboard.compact.v1` are unchanged.
+
 ## Which endpoint
 
 Use `POST /mcp` when the client speaks MCP (Cursor, Claude, and other JSON-RPC tool hosts). The call is stateless. Methods: `initialize`, `tools/list`, `tools/call`. Tools:
