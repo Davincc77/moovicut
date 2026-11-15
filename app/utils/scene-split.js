@@ -1,5 +1,6 @@
-/** Zero-AI scene cuts. Closed word lists only. No model call. */
+/** Deterministic scene cuts. Closed word lists only. No model call. */
 import { cleanText } from './text.js'
+import { heldPlaceNoun, placeTag } from './place-lexicon.js'
 import { foldName } from './scenario.js'
 import { splitActionText } from './action-split.js'
 
@@ -411,9 +412,9 @@ function collectPlaceCues(sentence, language, places) {
   const spans = quoteSpans(sentence)
   const hits = []
   for (const place of places || []) {
-    if (isNeverPlace(place.name)) continue
+    if (place.name.split(/\s+/).length < 2 && isNeverPlace(place.name)) continue
     for (const key of placeKeys(place)) {
-      if (isNeverPlace(key) || isCueStopword(key)) continue
+      if ((key.split(/\s+/).length < 2 && isNeverPlace(key)) || isCueStopword(key)) continue
       for (const index of findKeyHits(sentence, key)) {
         if (inSpans(index, spans)) continue
         const before = windowBefore(sentence, index)
@@ -425,7 +426,8 @@ function collectPlaceCues(sentence, language, places) {
         if ((language === 'ja' || language === 'zh-Hans') && /(思い出す|考える|話す|想起|记得|想到|梦见|说起|ちらっと|望向|看向|没有离开)/.test(afterClause)) continue
         if (clauseLooks(before, language, GLANCE)) continue
         if (/\b(?:across|d['’]en face)\s+(?:the\s+|la\s+|le\s+)?$/i.test(before)) continue
-        const locative = clauseLooks(before, language, LOCATIVE) || ((language === 'ja') && /(?:で|に|へ)/.test(after))
+        const locative = clauseLooks(before, language, LOCATIVE) || (language === 'ja' && /^(?:で|に|へ|の中)/.test(after)) || (language === 'zh-Hans' && /^(?:里|上|中|内|下)/.test(after))
+        if (heldPlaceNoun(sentence, index)) continue
         const opener = clauseLooks(before, language, OPEN_PLACE)
         const weak = clauseLooks(before, language, WEAK_PLACE)
         if (!locative && !opener && !weak) continue
@@ -694,13 +696,19 @@ export function splitNarrative(text, options = {}) {
     }
     if (!action && !firmPlace && !times.length && !sequence && (words < 3 || isLookIntro(sentence))) return
     const pendingPlaces = pending.map(item => item.place).filter(item => item && !item.uncertain)
-    const bundledPlace = firmPlace || pendingPlaces[pendingPlaces.length - 1] || (place && place.uncertain ? place : null)
+    let bundledPlace = firmPlace || pendingPlaces[pendingPlaces.length - 1] || (place && place.uncertain ? place : null)
     const bundledTimes = [...pending.flatMap(item => item.times), ...times]
     const bundledSequence = sequence || pending.map(item => item.sequence).filter(Boolean)[0] || ''
     pending = []
     let sceneCut = false
     let uncertain = false
     const reasons = []
+    const personOwns = label => names.some(name => {
+      const folded = foldName(name)
+      const key = foldName(label)
+      return key && (folded === key || folded.split(/\s+/).includes(key))
+    })
+    if (bundledPlace && (personOwns(bundledPlace.name) || personOwns(bundledPlace.key))) bundledPlace = null
     if (bundledPlace && !samePlace(bundledPlace.name, state.place)) {
       if (bundledPlace.uncertain) {
         uncertain = true
@@ -720,7 +728,8 @@ export function splitNarrative(text, options = {}) {
     }
     if (!state.place) {
       const mentioned = mentionedPlace(sentence, places)
-      if (mentioned) state.place = mentioned.name
+      const blocked = mentioned && String(placeTag(language, mentioned.name)).startsWith('a:')
+      if (mentioned && !personOwns(mentioned.name) && !blocked) state.place = mentioned.name
       else if (places[0]?.uncertain) state.place = places[0].name
     }
     if (!state.started) {

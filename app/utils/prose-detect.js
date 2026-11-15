@@ -5,7 +5,7 @@ import { flaggedNameKeys } from './shot-risk.js'
 import { splitActionText } from './action-split.js'
 import { detectLocalized } from './prose-extra.js'
 import { inNamedVenue, inSpans, isCueStopword, isFunctionWord, isNeverPlace, isNumberWord, isQuotedOrRemembered, isVenueType, namedVenues, placeMentionIsReal, quoteSpans, splitNarrative } from './scene-split.js'
-import { placeLexiconHas } from './place-lexicon.js'
+import { libraryHits, placeLexiconHas, placeTag } from './place-lexicon.js'
 
 const STOP = new Set(['the', 'a', 'an', 'he', 'she', 'they', 'it', 'his', 'her', 'their', 'then', 'when', 'after', 'before', 'later', 'next', 'once', 'this', 'that', 'there', 'here', 'un', 'une', 'le', 'la', 'les', 'il', 'elle', 'ils', 'elles', 'lui', 'leur', 'puis', 'quand', 'apres', 'avant', 'dans', 'sur', 'sous', 'avec', 'pour', 'par', 'chez', 'au', 'aux', 'du', 'des', 'en', 'et', 'mais', 'ou', 'ce', 'cette', 'ces', 'son', 'sa', 'ses', 'mon', 'ma', 'mes', 'je', 'tu', 'nous', 'vous', 'on', 'plus', 'tout', 'toute', 'tous', 'morning', 'evening', 'night', 'day', 'matin', 'soir', 'nuit', 'jour', 'aube', 'tard', 'lendemain', 'and', 'with', 'from', 'into', 'over', 'while', 'its', 'our', 'your'])
 
@@ -334,10 +334,12 @@ function properNames(text, language) {
       end = matches[next].index + matches[next][0].length
       next += 1
     }
-    if (!isNameNoise(parts[0], language) && !STREET_WORD.has(foldName(parts[0])) && !/^(?:l|d|j|n|qu)['’]/i.test(parts[0])) {
+    const placeWord = Boolean(placeTag(language, parts[0])) || PLACE_KEYS.has(foldName(parts[0]))
+    const introduced = placeWord && introducedPerson(source, parts[0])
+    if ((introduced || !isNameNoise(parts[0], language)) && !STREET_WORD.has(foldName(parts[0])) && !/^(?:l|d|j|n|qu)['’]/i.test(parts[0])) {
       const usable = []
       for (const part of parts) {
-        if (/^(?:l|d|j|n|qu)['’]/i.test(part) || isNameNoise(part, language)) break
+        if (/^(?:l|d|j|n|qu)['’]/i.test(part) || (!introduced && isNameNoise(part, language))) break
         usable.push(part.replace(/['’]s$/i, ''))
       }
       if (usable.length) names.push({ name: usable.join(' '), index: first.index })
@@ -618,7 +620,11 @@ function pushPlace(places, name, description, confidence, trusted = false) {
   const clean = cleanText(name)
   if (!clean || NOT_A_PLACE.has(foldName(clean))) return
   if (!trusted && isNeverPlace(clean)) return
-  if (places.some(place => foldName(place.name) === foldName(clean))) return
+  const existing = places.find(place => foldName(place.name) === foldName(clean))
+  if (existing) {
+    if (trusted) existing.trusted = true
+    return
+  }
   places.push({ name: clean, description, confidence, trusted })
 }
 
@@ -653,7 +659,9 @@ function locativePhrases(source, language) {
     if (!head || head.length < 3 || STOP.has(head) || TIME_BLOCK.has(head) || isNeverPlace(head) || isNeverPlace(words.join(' ')) || objectHead.has(head)) continue
     if (['morning', 'evening', 'night', 'end', 'left', 'right', 'way', 'dark', 'light', 'distance', 'front', 'back', 'side', 'time', 'moment', 'meantime', 'same', 'other', 'another', 'next', 'meme', 'autre', 'cut', 'pixie', 'hair', 'eyebrow', 'scar', 'sweater', 'pocket', 'sleeve', 'collar', 'line', 'bottom', 'top', 'edge', 'middle', 'corner', 'nail', 'pipe', 'screw', 'bolt', 'rope'].includes(head)) continue
     if (PLACE_KEYS.has(head)) continue
-    if (!placeLexiconHas(head) && !placeLexiconHas(words.join(' '))) continue
+    const tag = placeTag(language, words.join(' ')) || placeTag(language, head)
+    if (tag === 'a:object' || tag === 'a:material') continue
+    if (!tag && !placeLexiconHas(head) && !placeLexiconHas(words.join(' '))) continue
     const phrase = words.join(' ')
     const name = phrase.replace(/^\p{Ll}/u, char => char.toUpperCase())
     found.push({ name, phrase, index: match.index })
@@ -731,7 +739,7 @@ function detectPlaces(text, language, people = new Set()) {
   const covered = new Set(places.flatMap(place => tokens(place.name).map(foldName)))
   PLACES.forEach(place => {
     const hit = place.keys.find(key => new RegExp(`(?:^|[^\\p{L}])${foldName(key)}(?=[^\\p{L}]|$)`, 'u').test(folded))
-    if (!hit) return
+    if (!hit || people.has(foldName(hit))) return
     if (covered.has(foldName(hit)) && places.some(item => foldName(item.name).includes(foldName(hit)) && foldName(item.name) !== foldName(hit))) return
     const preceded = place.keys.some(key => new RegExp(`(?:au|aux|dans|sur|chez|du|de|at|in|on|to|through)\\s+(?:la\\s+|le\\s+|l'|the\\s+)?(?:[\\p{L}'’-]+\\s+){0,2}${foldName(key)}(?=[^\\p{L}]|$)`, 'u').test(folded))
     const label = language === 'fr' ? place.fr : place.en
@@ -756,6 +764,23 @@ function detectPlaces(text, language, people = new Set()) {
   venues.forEach(venue => {
     if (venue.spans.every(([start]) => inSpans(start, quote))) return
     pushPlace(places, venue.name, venue.description, 'high', true)
+  })
+  const hits = libraryHits(source, language).filter(hit => {
+    if (people.has(foldName(hit.lemma)) || hit.lemma.split(/\s+/).some(word => people.has(foldName(word)))) return false
+    if (isQuotedOrRemembered(source, hit.index, language)) return false
+    return true
+  })
+  const locativeSentences = new Set()
+  hits.filter(hit => hit.locative).forEach(hit => {
+    const start = source.lastIndexOf('.', Math.max(0, hit.index - 1))
+    locativeSentences.add(start)
+  })
+  hits.forEach(hit => {
+    if (!hit.locative) {
+      const start = source.lastIndexOf('.', Math.max(0, hit.index - 1))
+      if (locativeSentences.has(start)) return
+    }
+    pushPlace(places, hit.name, hit.name, hit.tag === 's' ? 'high' : 'medium', true)
   })
   let visible = places.filter(place => {
     if (venues.some(venue => foldName(venue.name).includes(foldName(place.name)) && foldName(venue.name) !== foldName(place.name))) return false
