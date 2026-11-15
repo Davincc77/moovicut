@@ -9,6 +9,7 @@ import { shotInvolvesHands } from './shot-risk.js'
 import { charactersInShot, lockLinesForShot, mergeCharacterExtras } from './character-lock.js'
 import { promptFraming, suggestFraming } from './framing.js'
 import { splitActionText } from './action-split.js'
+import { finalizeParts } from './parts.js'
 import { cleanText, sentence } from './text.js'
 import { localizeLight, phrase, promptLanguageOf, readPromptLanguage, stampPromptLanguage, translateBeat, translateDetailedPrompt } from './prompt-lang.js'
 export { canonicalStyleFamily, formatPresetBlock, listPresets, presetFamilies, presetGenres, resolvePreset } from './presets/index.js'
@@ -414,7 +415,7 @@ function applyVariedShot(shot, premise, index) {
 }
 function sceneOverrides(value) {
   if (!Array.isArray(value)) return []
-  return value.slice(0, MAX_SCENE_OVERRIDES).map(raw => {
+  return value.map(raw => {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
     const text = (field, max) => typeof raw[field] === 'string' ? cleanText(raw[field]).slice(0, max) : ''
     const duration = raw.duration == null || raw.duration === '' ? null : canonicalDuration(raw.duration)
@@ -540,7 +541,7 @@ export function createStoryboard(options = {}) {
   fitBoard(project)
   if (options.overwritePrompt) project.shots = project.shots.map(shot => { const next = { ...shot }; delete next.prompt; delete next.promptEdited; return next })
   project.shots = project.shots.map((shot, index) => refreshShotPrompt(shot, project, index, { overwrite: options.overwritePrompt === true }))
-  return project
+  return finalizeParts(project)
 }
 const PLACEHOLDER_OUTFIT = /^(?:the same clothes, hair, and face from the first shot|the same wool jacket, knit cap, and weathered boots|the same flour-dusted apron, rolled sleeves, and worn shoes|the same worn flight suit and scuffed boots)\.?$/i
 function outfitIsPlaceholder(value) {
@@ -688,6 +689,7 @@ function createPresetStoryboard(options, mode) {
     const shot = {
       id: `shot-${String(index + 1).padStart(2, '0')}`,
       shot_id: `shot-${String(index + 1).padStart(2, '0')}`,
+      sceneKey: draft.episode ? `episode-${draft.episode}` : `scene-${index + 1}`,
       order: index + 1,
       stage: draft.stage,
       title: draft.title,
@@ -739,7 +741,7 @@ function createPresetStoryboard(options, mode) {
   stampPromptLanguage(project, readPromptLanguage(options.promptLanguage ?? options.prompt_language))
   fitBoard(project)
   project.shots = project.shots.map((shot, index) => refreshShotPrompt(shot, project, index, { overwrite: options.overwritePrompt === true }))
-  return syncSequences(project)
+  return finalizeParts(syncSequences(project))
 }
 function scenarioFailure(parsed) {
   const message = describeScenarioErrors(parsed.errors)
@@ -774,6 +776,7 @@ function createScenarioStoryboard(options) {
     const shot = {
       id: `shot-${String(index + 1).padStart(2, '0')}`,
       shot_id: `shot-${String(index + 1).padStart(2, '0')}`,
+      sceneKey: `scene-${index + 1}`,
       order: index + 1,
       stage: `Scene ${scene.number || index + 1}`,
       title: sentence(scene.what).slice(0, 80) || `Scene ${index + 1}`,
@@ -840,7 +843,7 @@ function createScenarioStoryboard(options) {
   fitBoard(project)
   project.shots = project.shots.map((shot, index) => refreshShotPrompt(shot, project, index, { overwrite: options.overwritePrompt === true }))
   project.sequences = sequencePacks(project)
-  return project
+  return finalizeParts(project)
 }
 function scenarioShotForPrompt(shot, project) {
   const sheet = project.filmSheet
@@ -877,6 +880,7 @@ function shotFromPremiseAction(text, item, index, total) {
     lighting: index === 0 ? 'soft environmental light with cinematic shadow detail' : 'consistent with the established scene',
     id: `shot-${String(index + 1).padStart(2, '0')}`,
     shot_id: `shot-${String(index + 1).padStart(2, '0')}`,
+    sceneKey: `scene-${index + 1}`,
     order: index + 1,
     story_has_night: weather.night,
     story_has_rain: weather.rain,
@@ -901,7 +905,7 @@ export function breakdownPremise(premise, count = DEFAULT_SHOT_COUNT, usePremise
   const total = canonicalShotCount(count)
   const stages = shotStages(total)
   const weather = premiseWeather(text)
-  return Array.from({length:total},(_,index)=>{const template=TEMPLATES[index%TEMPLATES.length];return { ...template, sound: template.cue, lighting: index === 0 ? 'soft environmental light with cinematic shadow detail' : 'consistent with the established scene', id: `shot-${String(index + 1).padStart(2, '0')}`, shot_id: `shot-${String(index + 1).padStart(2, '0')}`, order: index + 1, story_has_night: weather.night, story_has_rain: weather.rain, story_has_snow: weather.snow, genre, stage: stages[index], action: actionForBeat(text, index, stages[index]) } })
+  return Array.from({length:total},(_,index)=>{const template=TEMPLATES[index%TEMPLATES.length];return { ...template, sound: template.cue, lighting: index === 0 ? 'soft environmental light with cinematic shadow detail' : 'consistent with the established scene', id: `shot-${String(index + 1).padStart(2, '0')}`, shot_id: `shot-${String(index + 1).padStart(2, '0')}`, sceneKey: `scene-${index + 1}`, order: index + 1, story_has_night: weather.night, story_has_rain: weather.rain, story_has_snow: weather.snow, genre, stage: stages[index], action: actionForBeat(text, index, stages[index]) } })
 }
 function styleLockFor(project) {
   if (project.sequenceMode === 'continuous' && project.continuitySheet?.style) return project.continuitySheet.style
@@ -1206,10 +1210,11 @@ export function splitShotByAction(project, shotId) {
   const source = shots[index]
   const parts = splitActionText(source.what || source.action || '')
   if (parts.length < 2) return null
-  if (shots.length + parts.length - 1 > MAX_SCENE_OVERRIDES) return null
+  const sceneKey = source.sceneKey || `scene-${source.id || source.shot_id || index + 1}`
   const made = parts.map((action, partIndex) => {
     const base = {
       ...source,
+      sceneKey,
       action,
       what: source.what ? action : source.what,
       title: partIndex === 0 ? source.title : sentence(action).slice(0, 80),
@@ -1219,7 +1224,7 @@ export function splitShotByAction(project, shotId) {
     delete base.promptEdited
     if (partIndex === 0) return base
     const id = newId('shot')
-    const next = { ...base, id, shot_id: id }
+    const next = { ...base, id, shot_id: id, sceneKey }
     delete next.sceneCut
     delete next.cutCue
     delete next.cutReason
@@ -1232,7 +1237,7 @@ export function splitShotByAction(project, shotId) {
   shots.forEach((shot, itemIndex) => { shot.order = itemIndex + 1 })
   const next = { ...project, shots }
   next.shots = shots.map((shot, itemIndex) => refreshShotPrompt(shot, next, itemIndex, { overwrite: true }))
-  return syncSequences(next)
+  return finalizeParts(syncSequences(next))
 }
 export function syncSequences(project) {
   if (!project) return project
@@ -1325,22 +1330,25 @@ export function regenerateOneShot(project, shotId, { overwrite = false, prompt }
 export function addShot(project, index = project.shots.length) {
   const next = JSON.parse(JSON.stringify(project)); const at = Math.max(0, Math.min(index, next.shots.length))
   const shot = { id: newId('shot'), shot_id: newId('shot'), stage: 'Additional', title: `New shot ${at + 1}`, framing: 'Medium shot', lens: '', camera: null, action: next.premise, directions: 'Introduce a deliberate moment that advances the story. Keep the action motivated and the camera intentional.', continuity: 'Match established character appearance, props, geography, light and time of day.', cue: 'consistent ambience and restrained score', sound: 'natural ambience consistent with the previous shot', lighting: 'consistent with the previous shot', duration: project.duration, duration_seconds: project.duration || DEFAULT_SHOT_DURATION, story_has_night: false, story_has_rain: false, story_has_snow: false, order: at + 1 }
-  shot.id = shot.shot_id; shot.prompt = createPrompt(shot, next, at)
-  next.shots.splice(at, 0, shot); assignShotStages(next.shots); next.shots.forEach((item, index) => { item.order = index + 1; next.shots[index] = refreshShotPrompt(item, next, index) }); return next
+  shot.id = shot.shot_id
+  shot.sceneKey = `scene-${shot.id}`
+  shot.prompt = createPrompt(shot, next, at)
+  next.shots.splice(at, 0, shot); assignShotStages(next.shots); next.shots.forEach((item, index) => { item.order = index + 1; next.shots[index] = refreshShotPrompt(item, next, index) }); return finalizeParts(next)
 }
 export function normalizeProject(project) {
   if (!project || typeof project !== 'object' || Array.isArray(project)) throw new Error('A saved project must be an object.')
   if (project.schema != null && project.schema !== 'shotboard.v1') throw new Error('This project schema is not supported.')
   const shots = Array.isArray(project.shots) ? project.shots.filter(shot => shot && typeof shot === 'object' && !Array.isArray(shot)) : []
   const model = canonicalModel(project.model || project.target_model) || project.model || project.target_model
-  return { ...project, model, target_model: model, shots: shots.map((shot, index) => {
+  const normalized = { ...project, model, target_model: model, shots: shots.map((shot, index) => {
     const id = shot.id || shot.shot_id || `shot-${String(index + 1).padStart(2, '0')}`
     const duration = canonicalDuration(shot.duration_seconds ?? shot.duration)
-    const normalized = { ...shot, id, shot_id: shot.shot_id || id, order: index + 1, duration_seconds: duration, duration, prompt: shot.prompt || createPrompt(shot, project, index) }
-    if (shot.promptEdited === true) normalized.promptEdited = true
-    else delete normalized.promptEdited
-    return normalized
+    const next = { ...shot, id, shot_id: shot.shot_id || id, order: index + 1, duration_seconds: duration, duration, prompt: shot.prompt || createPrompt(shot, project, index) }
+    if (shot.promptEdited === true) next.promptEdited = true
+    else delete next.promptEdited
+    return next
   }) }
+  return finalizeParts(normalized)
 }
 export function validateProject(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('The document must be a JSON object.')
@@ -1364,7 +1372,7 @@ export function validateProject(input) {
     else delete normalized.promptEdited
     return normalized
   })
-  return { version: 'shotboard.v1', project: { ...project, premise: premise.slice(0, 6000), model, target_model: model, shots } }
+  return { version: 'shotboard.v1', project: finalizeParts({ ...project, premise: premise.slice(0, 6000), model, target_model: model, shots }) }
 }
 export function serializeProject(project) {
   const canonical = validateProject(project).project

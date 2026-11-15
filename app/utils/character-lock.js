@@ -29,7 +29,7 @@ const TRAIT_PHRASE = /\b(?:[\p{L}'’-]+\s+){1,4}(?:hair|undercut|pixie cut|bob|
 export function normalizeStates(states) {
   if (!Array.isArray(states)) return []
   return states.map(item => ({
-    fromOrder: Math.max(1, Math.min(48, Math.round(Number(item?.fromOrder ?? item?.from) || 1))),
+    fromOrder: Math.max(1, Math.min(999, Math.round(Number(item?.fromOrder ?? item?.from) || 1))),
     change: cleanText(item?.change || item?.note || item?.state).slice(0, 160)
   })).filter(item => item.change).slice(0, 12)
 }

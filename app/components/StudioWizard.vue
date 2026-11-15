@@ -46,7 +46,7 @@ import { MODEL_OPTIONS, ASPECT_RATIOS } from '~/utils/prompt-engine.js'
 import { FRAMING_TERMS, framingOptionLabel } from '~/utils/framing.js'
 import { LIGHT_VALUES, MOOD_VALUES } from '~/utils/scenario.js'
 import { listPresets } from '~/utils/presets/index.js'
-import { combinedShotPrompts } from '~/utils/open-targets.js'
+import { combinedShotPrompts, partShotPrompts } from '~/utils/open-targets.js'
 import { detectProse, textLanguageHint } from '~/utils/prose-detect.js'
 
 const emit = defineEmits(['advanced'])
@@ -130,6 +130,13 @@ const genres = computed(() => {
   return family?.genres || []
 })
 const project = computed(() => store.project.value)
+const shotGroups = computed(() => {
+  const shots = project.value?.shots || []
+  const parts = project.value?.parts
+  if (!parts || parts.length < 2) return [{ key: 'all', part: null, shots }]
+  return parts.map(part => ({ key: `part-${part.index}`, part, shots: shots.filter(shot => shot.order >= part.from && shot.order <= part.to) }))
+})
+function partPrompt(part) { return partShotPrompts(project.value, part) }
 const showOutputs = computed(() => state.value.hasGenerated && project.value?.id && project.value.id !== 'starter-project')
 const stale = computed(() => showOutputs.value && state.value.generatedSignature && state.value.generatedSignature !== optionsSignature(state.value, locale.value))
 const notes = computed(() => (report.value?.warnings || []).filter(item => !report.value.blocking.some(block => block.code === item.code && block.shotId === item.shotId && block.message === item.message)))
@@ -489,15 +496,26 @@ function copyAgent() {
             <button class="button button-secondary" type="button" @click="copyText(combinedShotPrompts(project), wizardText('generate.copiedAll'))">{{ t('action.copyAll') }}</button>
             <button class="button button-secondary" type="button" @click="copyAgent">{{ t('action.copyAgent') }}</button>
           </div>
-          <article v-for="(item, index) in project.shots" :key="item.id" class="wizard-shot">
-            <h3>{{ t('generate.shotLabel', { number: index + 1 }) }}</h3>
-            <p v-if="item.promptEdited" class="wizard-hint">{{ t('generate.edited') }}</p>
-            <pre>{{ item.prompt }}</pre>
-            <div class="wizard-actions">
-              <button class="button button-secondary" type="button" @click="copyText(item.prompt, wizardText('generate.copiedShot'))">{{ t('action.copyShot') }}</button>
-              <button class="button button-secondary" type="button" @click="store.regenerateOne(item.id)">{{ t('action.regenerate') }}</button>
-            </div>
-          </article>
+          <p v-if="project.parts && project.parts.length > 1" class="board-parts-note">{{ $t('Verified continuity up to 40 shots') }}</p>
+          <section v-for="group in shotGroups" :key="group.key" :class="group.part ? 'board-part' : undefined" :aria-label="group.part ? $t('Part {index}', { index: group.part.index }) : t('generate.heading')">
+            <header v-if="group.part" class="board-part-heading">
+              <h3>{{ $t('Part {index}', { index: group.part.index }) }}</h3>
+              <p>{{ $t('Shots {from}–{to}. Starts at {place}, {time}.', { from: group.part.from, to: group.part.to, place: group.part.place, time: group.part.time }) }}</p>
+              <div class="board-part-actions">
+                <button class="button button-secondary" type="button" @click="copyText(partPrompt(group.part), `Part ${group.part.index} copied`)">{{ $t('Copy part {index}', { index: group.part.index }) }}</button>
+                <OpenInButtons :prompt="partPrompt(group.part)" :seed="group.part.index" />
+              </div>
+            </header>
+            <article v-for="(item, index) in group.shots" :key="item.id" class="wizard-shot">
+              <h3>{{ t('generate.shotLabel', { number: item.order || index + 1 }) }}</h3>
+              <p v-if="item.promptEdited" class="wizard-hint">{{ t('generate.edited') }}</p>
+              <pre>{{ item.prompt }}</pre>
+              <div class="wizard-actions">
+                <button class="button button-secondary" type="button" @click="copyText(item.prompt, wizardText('generate.copiedShot'))">{{ t('action.copyShot') }}</button>
+                <button class="button button-secondary" type="button" @click="store.regenerateOne(item.id)">{{ t('action.regenerate') }}</button>
+              </div>
+            </article>
+          </section>
           <CharacterSheets />
         </div>
         <p v-else>{{ t('generate.waiting') }}</p>

@@ -14,7 +14,7 @@ OpenAPI: https://moovicut.studio/openapi.json
 Discovery: https://moovicut.studio/.well-known/mcp.json
 Guide: https://moovicut.studio/agents.md
 
-Send compact:true for a short payload (title, premise, model, aspectRatio, studioUrl, shots with order, duration, prompt).
+Send compact:true for a short payload (title, premise, model, aspectRatio, studioUrl, shots with order, duration, prompt). A board longer than 40 shots is split into parts of at most 40 shots, cut at a scene boundary. parts lists the part index, the inclusive shot range, and the starting place and time. A board of 40 shots or fewer omits parts.
 Open studioUrl in a browser. It is a /studio#board= link. The board is in the hash and is not saved on the server.
 
 Custom boards: pass shots and duration, or a scenes array. Each scene may set action (or beat), duration, framing, camera, lighting (or mood), and notes. Humans can do the same with Step-by-step mode in /studio.
@@ -45,6 +45,7 @@ useSeoMeta({
   ...socialPreview
 })
 const copy1 = `Out of the box, every plan is <strong>5 scenes × 3 seconds (15s total)</strong>. Pass <code>shots</code> and <code>duration</code>, or a <code>scenes</code> array, when you want a different length. People opening <a href="/studio">/studio</a> start in a six-step guide. Advanced mode keeps the 15s, 30s, and 60s presets and Step-by-step mode. The API is unchanged.`
+const copy13 = `A board longer than 40 shots is split into parts. Each part holds at most 40 shots, and the cut is at a scene boundary. One scene longer than 40 shots is cut at a shot boundary and marked. The same film sheet, including each character lock line, is used in every part. The next part starts from the place and time in effect at the end of the previous part. <code>parts</code> is added only when there is more than one part. A board of 40 shots or fewer stays the same.`
 const copy2 = `<code>POST /mcp</code>`
 const copy3 = `JSON-RPC <code>initialize</code>, <code>tools/list</code>, and <code>tools/call</code>. Tools: <code>plan_storyboard</code>, <code>export_prompts</code>, <code>validate_storyboard</code>.`
 const copy4 = `<code>GET /openapi.json</code>`
@@ -62,7 +63,7 @@ const copy12 = `<code>mode</code> <code>ad</code> takes a product and a benefit,
   <div class="page-intro"><p class="eyebrow">AGENTS</p><h1>{{ $t('Plan a storyboard from an agent') }}</h1><p class="studio-local-badge">{{ $t('Free · No API key · No account') }}</p><p>{{ $t('The home page stays for people. This page is the map for connectors. Moovicut does not render video, and it does not save the premise.') }}</p></div>
   <p>{{ $t('Fixed prompt lines follow the site language. Optional promptLanguage on the API defaults to en, so an existing client still gets English. Free-prose detection reads English, French, Portuguese, German, Italian, Luxembourgish, Japanese, and Simplified Chinese. It does not call a model. Japanese and Chinese names are read from 「」 or from は/が and 是/把. When a reading is uncertain, the studio says so and does not fill names. Your own words stay as typed.') }}</p>
   <p>{{ $t('Free prose is split on place and time cues. A sequence word alone stays in the same scene. splitScenes defaults to true. Each cut has a cue and a reason. A character with no look still returns a board and a warning.') }}</p>
-  <section class="docs-section"><h2>{{ $t('Default board') }}</h2><p v-html="$th(copy1)"></p></section>
+  <section class="docs-section"><h2>{{ $t('Default board') }}</h2><p v-html="$th(copy1)"></p><p v-html="$th(copy13)"></p></section>
   <section class="docs-section"><h2>{{ $t('Endpoints') }}</h2><ul class="agent-capability-grid"><li class="card"><h3>{{ $t('MCP') }}</h3><p v-html="$th(copy2)"></p><p v-html="$th(copy3)"></p></li><li class="card"><h3>{{ $t('OpenAPI') }}</h3><p v-html="$th(copy4)"></p><p>{{ $t('OpenAPI 3.1 for GPT, Gemini, Muse, and other connector agents.') }}</p></li><li class="card"><h3>{{ $t('Storyboard') }}</h3><p v-html="$th(copy5)"></p><p v-html="$th(copy6)"></p></li></ul><p v-html="$th(copy7)"></p></section>
   <section class="docs-section"><h2>{{ $t('Minimal request') }}</h2><div class="code-sample"><div class="code-sample-header"><span>curl</span></div><pre>{{ curlExample }}</pre></div><p v-html="$th(copy8)"></p></section>
   <section class="docs-section"><h2>{{ $t('Custom scenes') }}</h2><p v-html="$th(copy9)"></p><div class="code-sample"><div class="code-sample-header"><span>scenes</span></div><pre>{{ scenesExample }}</pre></div></section>

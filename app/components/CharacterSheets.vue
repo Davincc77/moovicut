@@ -92,7 +92,7 @@ function clearRef(index, slot) {
 function addState(index) {
   const draft = drafts[index] || {}
   const change = String(draft.change || '').trim()
-  const fromOrder = Math.max(1, Math.min(48, Math.round(Number(draft.fromOrder) || 1)))
+  const fromOrder = Math.max(1, Math.min(999, Math.round(Number(draft.fromOrder) || 1)))
   if (!change) {
     notify('Describe the wardrobe change first.', 'info')
     return
@@ -187,7 +187,7 @@ function printPacket() {
         <div class="character-wardrobe-form">
           <div>
             <label :for="`state-from-${index}`">{{ $t('From shot') }}</label>
-            <input :id="`state-from-${index}`" type="number" min="1" max="48" :value="drafts[index]?.fromOrder || 1" @input="drafts[index] = { ...(drafts[index] || {}), fromOrder: $event.target.value }" />
+            <input :id="`state-from-${index}`" type="number" min="1" max="999" :value="drafts[index]?.fromOrder || 1" @input="drafts[index] = { ...(drafts[index] || {}), fromOrder: $event.target.value }" />
           </div>
           <div>
             <label :for="`state-change-${index}`">{{ $t('Change') }}</label>

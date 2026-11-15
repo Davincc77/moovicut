@@ -97,7 +97,8 @@ export function exportAgentBoard(project) {
       if (shot.cutUncertain === true) item.cutUncertain = true
       if (shot.timeLabel) item.time = shot.timeLabel
       return item
-    })
+    }),
+    ...(project.parts?.length > 1 ? { parts: project.parts.map(part => ({ index: part.index, from: part.from, to: part.to, place: part.place, time: part.time })) } : {})
   }
 }
 

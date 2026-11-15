@@ -1,4 +1,4 @@
-import { canonicalAspect, canonicalDuration, canonicalModel, canonicalShotCount, DEFAULT_SHOT_COUNT, DEFAULT_SHOT_DURATION, MAX_SCENE_OVERRIDES } from './prompt-engine.js'
+import { canonicalAspect, canonicalDuration, canonicalModel, canonicalShotCount, DEFAULT_SHOT_COUNT, DEFAULT_SHOT_DURATION } from './prompt-engine.js'
 import { cleanText } from './text.js'
 
 export const STUDIO_LINK_MAX = 12000
@@ -10,7 +10,7 @@ function text(value, max) {
 
 export function sanitizeScenes(value) {
   if (!Array.isArray(value)) return []
-  return value.slice(0, MAX_SCENE_OVERRIDES).map(raw => {
+  return value.map(raw => {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
     const scene = {}
     const action = text(raw.action, 2000) || text(raw.beat, 2000) || text(raw.description, 2000)
@@ -76,7 +76,7 @@ function sanitizeScenario(value) {
     name: text(item?.name, 80),
     description: text(item?.description, 300)
   })).filter(item => item.name && item.description) : []
-  const scenes = Array.isArray(value.scenes) ? value.scenes.slice(0, 48).map(item => {
+  const scenes = Array.isArray(value.scenes) ? value.scenes.map(item => {
     const scene = {
       who: text(item?.who, 200),
       where: text(item?.where, 200),

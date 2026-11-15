@@ -6,7 +6,6 @@ export const SCENARIO_WARN_AT = 6000
 export const SCENARIO_MAX_CHARS = 8000
 export const SEQUENCE_MIN_SECONDS = 15
 export const SEQUENCE_MAX_SECONDS = 60
-export const MAX_SCENARIO_SCENES = 48
 export const SCENARIO_EXAMPLE = 'Scène 3 — Léa — Café — Elle renverse son latte et rit.'
 
 /** Framing ids set the frame only. Movement ids are an explicit camera move. No default lens. */
@@ -166,7 +165,7 @@ function parseSceneLine(text, line) {
   for (const item of [
     tooLong(scene.who, 120, line, 'scenes', 'who', 'character'),
     tooLong(scene.where, 120, line, 'scenes', 'where', 'place'),
-    tooLong(scene.what, 400, line, 'scenes', 'what', 'action')
+    tooLong(scene.what, 4000, line, 'scenes', 'what', 'action')
   ]) if (item) errors.push(item)
   return errors.length ? { errors } : { scene }
 }
@@ -235,7 +234,6 @@ function finish(characters, places, scenes, light, mood, errors, sourceText) {
   if (!characters.length && !mentioned('characters')) errors.push(problem('Add at least one character: Name — look — outfit.', { section: 'characters', field: 'name' }))
   if (!places.length && !mentioned('places')) errors.push(problem('Add at least one place: Name — short description.', { section: 'places', field: 'name' }))
   if (!scenes.length && !mentioned('scenes')) errors.push(problem('Add at least one scene line: Scène 1 — who — where — what happens.', { section: 'scenes', field: 'what' }))
-  if (scenes.length > MAX_SCENARIO_SCENES) errors.push(problem(`A storyboard can include at most ${MAX_SCENARIO_SCENES} scenes.`, { section: 'scenes', field: 'scenes' }))
   const text = formatScenario({ characters, places, scenes, light, mood })
   const counted = String(sourceText || text)
   const duration = scenes.reduce((sum, scene) => sum + (scene.duration || 3), 0)

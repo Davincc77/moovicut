@@ -3,6 +3,7 @@ import { findByName, foldName, nameParts } from './scenario.js'
 import { cleanText } from './text.js'
 import { allowedDurations, profileFor, snapAspect } from './model-profiles.js'
 import { continuityWarnings } from './continuity-check.js'
+import { partJoinWarnings, partitionShots } from './parts.js'
 import { splitActionText } from './action-split.js'
 
 const ACTION_VERBS = /\b(pours|pour|spills|spill|laughs|laugh|runs|run|opens|open|walks|walk|enters|enter|leaves|leave|rides|ride|turns|turn|verse|renverse|rit|court|entre|sort|marche|revient|ouvre)\b/gi
@@ -161,7 +162,10 @@ export function assessShot(shot, project = {}) {
 }
 
 export function assessProject(project) {
-  const warnings = (project?.shots || []).flatMap(shot => assessShot(shot, project))
+  const shots = project?.shots || []
+  const ranges = shots.length ? partitionShots(shots) : []
+  const warnings = ranges.flatMap(range => shots.slice(range.start, range.end).flatMap(shot => assessShot(shot, project)))
+  warnings.push(...partJoinWarnings(project))
   const seen = new Set()
   return warnings.filter(item => {
     if (item.code !== 'sora_long_clip') return true

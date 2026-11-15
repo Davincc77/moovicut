@@ -462,7 +462,7 @@ function applyShots(state, detected) {
   const incoming = detected.scenes || []
   if (!incoming.length) return
   if (state.shots.some(userTouchedShot)) return
-  state.shots = incoming.slice(0, 48).map((scene, index) => shotFromScene(state, scene, `shot-${index + 1}`))
+  state.shots = incoming.map((scene, index) => shotFromScene(state, scene, `shot-${index + 1}`))
   state.shotIndex = 0
 }
 
@@ -680,7 +680,6 @@ export function openShot(state, index) {
 
 export function addWizardShot(state) {
   const next = clone(state)
-  if (next.shots.length >= 48) return state
   next.shots.push(blankShot(nextId('shot', next.shots)))
   next.shotIndex = next.shots.length - 1
   return next
@@ -700,7 +699,7 @@ export function acceptSplit(state, id) {
   if (index < 0) return state
   const shot = next.shots[index]
   const parts = splitOffer(shot.action)
-  if (!parts || next.shots.length + parts.length - 1 > 48) return state
+  if (!parts) return state
   const pool = next.shots.slice()
   const made = parts.map((action, partIndex) => {
     if (partIndex === 0) {
@@ -883,7 +882,7 @@ function restoreCharacter(value, index) {
     character.confidence[field] = confidence === 'high' || confidence === 'medium' || confidence === 'low' ? confidence : ''
   })
   character.states = Array.isArray(source.states) ? source.states.slice(0, 12).map(item => ({
-    fromOrder: Math.max(1, Math.min(48, Math.round(Number(item?.fromOrder) || 1))),
+    fromOrder: Math.max(1, Math.min(999, Math.round(Number(item?.fromOrder) || 1))),
     change: cleanText(item?.change).slice(0, 160)
   })).filter(item => item.change) : []
   return character
@@ -953,7 +952,7 @@ export function normalizeWizard(value) {
   }
   const characters = asArray(value.characters)?.slice(0, 24).map(restoreCharacter) || []
   const places = asArray(value.places)?.slice(0, 24).map(restorePlace) || []
-  const shots = asArray(value.shots)?.slice(0, 48).map(restoreShot) || []
+  const shots = asArray(value.shots)?.map(restoreShot) || []
   if (characters.length) next.characters = characters
   if (places.length) next.places = places
   if (shots.length) next.shots = shots

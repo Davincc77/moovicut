@@ -10,7 +10,7 @@ const emit = defineEmits(['add', 'remove', 'move', 'update', 'count'])
     <header class="studio-step-heading">
       <h2>{{ $t('Step-by-step storyboard') }}</h2>
       <p>{{ $t('Add, remove, or reorder scenes. Each scene keeps the board’s style lock, continuity, aspect ratio, and prompt density.') }}</p>
-      <label>{{ $t('Scene count') }}<input :value="count" type="number" min="1" max="48" :aria-label="$t('Custom scene count')" @change="emit('count', Number($event.target.value))" /></label>
+      <label>{{ $t('Scene count') }}<input :value="count" type="number" min="1" :aria-label="$t('Custom scene count')" @change="emit('count', Number($event.target.value))" /></label>
     </header>
     <ol>
       <li v-for="(scene, index) in scenes" :key="scene.id || index" class="studio-step-card">

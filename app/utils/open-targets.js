@@ -24,6 +24,14 @@ export function combinedShotPrompts(project) {
   return (project?.shots || []).map((shot, index) => `Shot ${index + 1}\n${shot.prompt || ''}`).filter(text => text.trim()).join('\n\n')
 }
 
+export function partShotPrompts(project, part) {
+  const shots = (project?.shots || []).filter((shot, index) => {
+    const order = shot.order || index + 1
+    return order >= part.from && order <= part.to
+  })
+  return shots.map(shot => `Shot ${shot.order}\n${shot.prompt || ''}`).join('\n\n')
+}
+
 export async function runOpenTarget({ id, prompt, copyText, open, pauseMs = 1500 }) {
   const plan = openTargetPlan(id)
   const text = String(prompt || '').trim()
