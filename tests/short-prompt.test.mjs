@@ -33,18 +33,17 @@ test('the default video prompt is short, ordered, and capped', () => {
   assert.equal(detailed.filmSheet.characters[0].name, board.filmSheet.characters[0].name)
   board.shots.forEach(shot => {
     assert.ok(shot.prompt.length <= SHORT_PROMPT_MAX, shot.prompt.length)
-    assert.ok(shot.prompt.length >= 250)
-    assert.doesNotMatch(shot.prompt, /FILM SHEET|CONTINUITY SHEET|STYLE PRESET|Style lock:|Repeat this continuity sheet/)
-    const styleAt = shot.prompt.indexOf('Style:')
-    const nameAt = shot.prompt.indexOf('Lighthouse keeper')
-    const placeAt = shot.prompt.indexOf('Place:')
-    const actionAt = shot.prompt.indexOf('Action:')
-    const cameraAt = shot.prompt.indexOf('Camera:')
-    assert.ok(styleAt >= 0 && styleAt < nameAt && nameAt < placeAt && placeAt < actionAt && actionAt < cameraAt)
+    assert.doesNotMatch(shot.prompt, /FILM SHEET|CONTINUITY SHEET|STYLE PRESET|Style lock:|Repeat this continuity sheet|not yet in frame/)
+    const lines = shot.prompt.split('\n')
+    assert.match(lines[0], /^(?:Wide shot|Medium shot|Close-up|Extreme close-up|High angle|Low angle|Over-the-shoulder|POV|Tracking shot|Static shot|Crane shot): .+/)
+    assert.match(lines[0], /Lighthouse keeper/)
+    const lockAt = lines.findIndex(line => line.startsWith('Lighthouse keeper —'))
+    const placeAt = lines.findIndex((line, index) => index > lockAt && /^Lighthouse\b/.test(line))
+    const cameraAt = lines.findIndex(line => /locked-off camera/.test(line))
+    assert.ok(lockAt > 0 && placeAt > lockAt && cameraAt > placeAt, shot.prompt)
     assert.match(shot.prompt, /wool jacket/)
-    assert.match(shot.prompt, /3 seconds/)
+    assert.doesNotMatch(shot.prompt, /soft window light|\d+\s*mm|\blens\b|push-in|Gentle tracking|Slow lateral/i)
   })
-  assert.ok(board.shots[0].prompt.length >= 400 && board.shots[0].prompt.length <= 600)
   assert.ok(board.shots[0].prompt.length < detailed.shots[0].prompt.length / 2)
   assert.match(detailed.shots[0].prompt, /FILM SHEET/)
   assert.match(detailed.shots[0].prompt, /CONTINUITY SHEET/)
@@ -57,16 +56,14 @@ test('the three studio starters stay in the short range', () => {
   const orbit = createStoryboard({ premise: starMap, style: 'cinema', genre: 'drama', sequenceMode: 'continuous' })
   for (const board of [lastLight, loaf, orbit]) {
     board.shots.forEach(shot => assert.ok(shot.prompt.length <= SHORT_PROMPT_MAX))
-    assert.ok(board.shots[0].prompt.length < 700)
+    assert.match(board.shots[0].prompt, /locked-off camera/)
   }
-  assert.ok(lastLight.shots[0].prompt.length >= 400 && lastLight.shots[0].prompt.length <= 600)
-  assert.ok(loaf.shots[0].prompt.length >= 400 && loaf.shots[0].prompt.length <= 600)
   assert.match(orbit.shots[0].prompt, /worn flight suit/)
   assert.doesNotMatch(orbit.shots[0].prompt, /scuffed boots, scuffed boots/)
   assert.match(lastLight.shots[0].prompt, /realistic photographic cinema/)
 })
 
-test('a short prompt names only the people in that shot, plus a not-yet line', () => {
+test('a short prompt names only the people in that shot', () => {
   const board = createStoryboard({
     style: 'cinema',
     genre: 'drama',
@@ -85,9 +82,10 @@ test('a short prompt names only the people in that shot, plus a not-yet line', (
       ]
     }
   })
+  assert.match(board.shots[0].prompt, /^Medium shot: Léa pours a latte\./)
   assert.match(board.shots[0].prompt, /Léa — curly hair, round glasses, green apron/)
   assert.doesNotMatch(board.shots[0].prompt, /grey cap|short dark hair/)
-  assert.match(board.shots[0].prompt, /Marc is not yet in frame/)
+  assert.doesNotMatch(board.shots[0].prompt, /not yet in frame/)
   assert.match(board.shots[0].prompt, /Café, a small morning cafe/)
   assert.match(board.shots[1].prompt, /grey cap/)
   assert.match(board.shots[1].prompt, /green apron/)
@@ -139,8 +137,98 @@ test('hands and a hand-off add one stability line and a risk note', () => {
     scenes: [{ action: 'The keeper shoulders the lantern.', duration: 4, framing: 'Close-up', camera: 'Handheld' }]
   })
   assert.match(lantern.shots[0].prompt, /Simple hands, the held object stays the same shape/)
+  assert.match(lantern.shots[0].prompt, /Handheld/)
+  assert.doesNotMatch(lantern.shots[0].prompt, /locked-off camera|\d+\s*mm/)
   assert.ok(assessProject(lantern).some(item => item.code === 'hands_or_held_object'))
   assert.ok(lantern.shots[0].prompt.length <= SHORT_PROMPT_MAX)
+})
+
+test('short prompts name the subject, keep props, use one light, and add a move only when set', () => {
+  const place = 'wooden bench, coils of rope, a bronze propeller, morning light through open doors, and a mixing bowl of brass screws'
+  const board = createStoryboard({
+    style: 'cinema',
+    genre: 'drama',
+    scenario: {
+      characters: [{ name: 'Tomas', look: 'early 40s, short brown hair, weathered hands', outfit: 'canvas work jacket' }],
+      places: [{ name: 'Harbor workshop', description: place }],
+      scenes: [
+        { who: 'Tomas', where: 'Harbor workshop', what: 'He inspects a bronze propeller', camera: 'close', light: 'warm', duration: 3 },
+        { who: 'Tomas', where: 'Harbor workshop', what: 'He sets the bronze propeller down', camera: 'medium', duration: 3 }
+      ]
+    }
+  })
+  const first = board.shots[0].prompt
+  const lines = first.split('\n')
+  assert.equal(lines[0], 'Close-up: Tomas inspects a bronze propeller.')
+  assert.match(first, /bronze propeller/)
+  assert.match(first, /coils of rope/)
+  assert.match(first, /wooden bench/)
+  assert.match(first, /mixing bowl of brass screws/)
+  assert.doesNotMatch(first, /with a mixing\./)
+  const placeLine = lines.find(line => line.startsWith('Harbor workshop'))
+  assert.equal(placeLine, `Harbor workshop, ${place}.`)
+  assert.equal(first.split('Warm practical light').length - 1, 1)
+  assert.doesNotMatch(first, /soft window light/)
+  assert.match(first, /locked-off camera/)
+  assert.doesNotMatch(first, /\d+\s*mm|\blens\b|push-in|Gentle tracking|Slow lateral|dolly|crane/i)
+  assert.equal(board.shots[0].camera, null)
+  const agent = exportAgentBoard(board)
+  assert.equal(agent.shots[0].camera, null)
+  assert.equal(agent.shots[1].camera, null)
+  const lock = lines.find(line => line.startsWith('Tomas —'))
+  assert.equal(board.shots[1].prompt.split('\n').find(line => line.startsWith('Tomas —')), lock)
+  assert.equal(board.shots[1].prompt.split(/soft window light/i).length - 1, 1)
+  const moved = createStoryboard({
+    style: 'cinema',
+    genre: 'drama',
+    scenario: {
+      characters: [{ name: 'Tomas', look: 'early 40s, short brown hair', outfit: 'canvas work jacket' }],
+      places: [{ name: 'Harbor workshop', description: 'wooden bench, coils of rope' }],
+      scenes: [{ who: 'Tomas', where: 'Harbor workshop', what: 'He inspects a bronze propeller', camera: 'push', duration: 3 }]
+    }
+  })
+  assert.match(moved.shots[0].prompt, /Slow push-in/)
+  assert.doesNotMatch(moved.shots[0].prompt, /locked-off camera/)
+  assert.equal(exportAgentBoard(moved).shots[0].camera, 'push')
+  const packed = `Tomas — ${'fixed identity mark, '.repeat(28)}`.trim()
+  const longPlace = Array.from({ length: 12 }, (_, index) => `coil ${index} of rope`).join(', ')
+  const tight = createStoryboard({
+    style: 'cinema',
+    genre: 'drama',
+    scenario: {
+      characters: [{ name: 'Tomas', look: 'early 40s', outfit: 'canvas jacket', lockLine: packed, lockEdited: true }],
+      places: [{ name: 'Harbor workshop', description: longPlace }],
+      scenes: [{ who: 'Tomas', where: 'Harbor workshop', what: 'He inspects a bronze propeller beside the mixing bowl', camera: 'close', light: 'day', duration: 3 }]
+    }
+  })
+  const prompt = tight.shots[0].prompt
+  assert.equal(prompt.split('\n')[0], 'Close-up: Tomas inspects a bronze propeller beside the mixing bowl.')
+  assert.ok(prompt.includes(packed))
+  const cut = prompt.split('\n').find(line => line.startsWith('Harbor workshop')) || ''
+  if (cut) {
+    const body = cut.replace(/\.$/, '')
+    const source = `Harbor workshop, ${longPlace}`
+    assert.ok(source.startsWith(body), cut)
+    assert.match(source.slice(body.length), /^(?:,|$)/)
+  }
+  assert.ok(prompt.length <= SHORT_PROMPT_MAX)
+  assert.doesNotMatch(prompt, /soft window light/)
+  assert.ok((prompt.match(/Bright natural daylight/g) || []).length <= 1)
+  const huge = createStoryboard({
+    style: 'cinema',
+    genre: 'drama',
+    scenario: {
+      characters: [{ name: 'Tomas', look: 'early 40s', outfit: 'canvas jacket', lockLine: 'Tomas — FIXED LOCK.', lockEdited: true }],
+      places: [{ name: 'Harbor workshop', description: 'wooden bench, coils of rope' }],
+      scenes: [{ who: 'Tomas', where: 'Harbor workshop', what: 'He inspects a bronze propeller', camera: 'close', duration: 3 }]
+    }
+  })
+  huge.shots[0].what = 'He inspects a bronze propeller. '.repeat(40)
+  huge.shots[0].action = huge.shots[0].what
+  const hugePrompt = refreshProjectPrompts(huge).shots[0].prompt
+  assert.ok(hugePrompt.includes('Tomas — FIXED LOCK.'))
+  assert.equal((hugePrompt.match(/bronze propeller/g) || []).length, 40)
+  assert.ok(hugePrompt.length > SHORT_PROMPT_MAX)
 })
 
 test('detailed mode keeps today\'s long prompt and a hand edit survives both modes', () => {
@@ -189,7 +277,9 @@ test('prompt_style is accepted on the API and an unknown value is 400', () => {
   })
   assert.equal(short.status, 200)
   const shortBody = JSON.parse(short.body)
-  assert.match(shortBody.shots[0].prompt, /^Style: /)
+  assert.match(shortBody.shots[0].prompt, /^(?:Wide shot|Medium shot|Close-up): /)
+  assert.match(shortBody.shots[0].prompt, /locked-off camera/)
+  assert.doesNotMatch(shortBody.shots[0].prompt, /^Style: /m)
   assert.doesNotMatch(shortBody.shots[0].prompt, /FILM SHEET/)
   assert.ok(shortBody.shots[0].prompt.length <= SHORT_PROMPT_MAX)
   const detailed = dispatchAgentRequest({

@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { DYNAMIC_KEYS } from './dynamic-keys.js'
+import { WIZARD_STRINGS } from '../utils/wizard-strings.js'
 
 function walk(dir, files = []) {
   for (const entry of readdirSync(dir)) {
@@ -17,7 +18,7 @@ function unescape(value) {
 
 /** Every catalog key the interface asks for. English text is the key. */
 export function collectKeys(root = 'app') {
-  const keys = new Set(DYNAMIC_KEYS)
+  const keys = new Set([...DYNAMIC_KEYS, ...Object.values(WIZARD_STRINGS)])
   const call = /(?:\$th|\$t|\bt)\(\s*(['"])((?:\\.|(?!\1)[\s\S])*)\1/g
   for (const file of walk(root)) {
     if (file.endsWith('collect-keys.js') || file.endsWith('dynamic-keys.js') || file.endsWith('logic.js')) continue
@@ -52,7 +53,7 @@ export function collectKeys(root = 'app') {
   }
   const agents = readFileSync('app/pages/agents.vue', 'utf8')
   for (const match of agents.matchAll(/const copy\d+ = `([\s\S]*?)`/g)) keys.add(match[1])
-  const skip = new Set(['/', '[]', '{}', 'en', 'null', 'jpg', 'webp'])
+  const skip = new Set(['/', '[]', '{}', 'en', 'null', 'jpg', 'webp', ...Object.keys(WIZARD_STRINGS)])
   return [...keys].filter(key => {
     if (!key || skip.has(key) || key.includes('{{') || key.includes('</label>')) return false
     if (/=>|\bfunction\b|\bconst\b|\breturn\b|\bmutate\(/.test(key)) return false

@@ -3,6 +3,13 @@ import { MODEL_PROFILES, canonicalProfileId } from '../../utils/model-profiles.j
 
 function endSentence(value) { return String(value || '').trim().replace(/[.]+$/, '') }
 
+/** No invented move and no default lens. An empty camera is a locked-off frame. */
+function cameraSentence(shot) {
+  const move = endSentence(shot.camera || '') || 'locked-off camera'
+  const lens = endSentence(shot.lens || '')
+  return lens ? `${move}, ${lens}` : move
+}
+
 /**
  * Model boundaries are data plus a formatter, not remote generation services.
  * Hosts may supply a registry with additional or replacement adapters.
@@ -23,7 +30,7 @@ const grok = {
     return [
       `Create a ${duration}-second ${aspect} shot.`,
       `${shot.framing || 'Medium shot'} of ${endSentence(shot.action || sentence(premise))}.`,
-      `CAMERA: ${shot.camera || 'Slow cinematic camera move'}, ${shot.lens || '35mm lens'}. STYLE: ${look}.`,
+      `CAMERA: ${cameraSentence(shot)}. STYLE: ${look}.`,
       `${endSentence(shot.lighting || 'cinematic dimensional light')}. ${shot.directions || 'Natural action, deliberate movement and a consistent cinematic tone.'}`,
       `Continuity: ${endSentence(shot.continuity || 'Preserve established appearance, geography and lighting')}. ${endSentence(shot.sound || shot.cue || 'natural environmental ambience')}. ${duration}s, ${aspect}. No captions, titles, logos or watermarks.`
     ].join('\n')
@@ -35,7 +42,7 @@ const google = {
     const look = lockedStyle || `${genre.look}. ${style.suffix}`
     return [
       `SCENE: ${sentence(shot.title || `Shot ${index + 1}`)}. ${endSentence(shot.action || premise)}.`,
-      `CAMERA: ${shot.framing || 'Medium shot'}, ${shot.camera || 'Slow push-in'}, ${shot.lens || '35mm lens'}.`,
+      `CAMERA: ${shot.framing || 'Medium shot'}, ${cameraSentence(shot)}.`,
       `LIGHTING: ${shot.lighting || 'motivated cinematic light with dimensional shadows'}.`,
       `STYLE: ${look}. ${aspect}.`,
       `ACTION: ${shot.directions || 'The action unfolds with natural movement and a restrained cinematic performance.'}`,
@@ -50,7 +57,8 @@ function proseCompose({ shot, index, premise, aspect, duration, genre, style, lo
   const action = endSentence(shot.action || sentence(premise))
   return [
     `${shot.framing || 'Medium shot'} of ${action}.`,
-    `Camera: ${shot.camera || 'Slow cinematic camera move'}. Lens: ${shot.lens || '35mm lens'}.`,
+    `Camera: ${endSentence(shot.camera || '') || 'locked-off camera'}.`,
+    endSentence(shot.lens || '') ? `Lens: ${endSentence(shot.lens)}.` : '',
     `Light: ${endSentence(shot.lighting || 'cinematic dimensional light')}. Look: ${look}.`,
     shot.directions ? `${endSentence(shot.directions)}.` : '',
     `Continuity: ${endSentence(shot.continuity || 'Preserve established appearance, geography and lighting')}.`,

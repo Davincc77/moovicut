@@ -463,7 +463,7 @@ const STORYBOARD_SCHEMA = {
     sequenceMode: { type: 'string', enum: ['continuous', 'varied', 'scenario', 'ad', 'series', 'explainer'] },
     continuity: { type: 'string', enum: ['standard', 'strict'], default: 'standard' },
     density: { type: 'string', enum: ['standard', 'concise'], default: 'standard', description: 'Used by the detailed prompt. Concise keeps one short continuity line. Standard includes the shared sheet once. Strict still repeats the sheet verbatim.' },
-    prompt_style: { type: 'string', enum: ['short', 'detailed'], default: 'short', description: 'short is the default video prompt: one style line, the people in this shot, the place, the action, and the camera. It stays under about 700 characters. detailed keeps the full film sheet and continuity text in every shot. A hand-edited prompt is kept either way unless overwritePrompt is true.' },
+    prompt_style: { type: 'string', enum: ['short', 'detailed'], default: 'short', description: 'short is the default video prompt: framing, the named action, the lock lines, the full place, one light, and the style with locked-off camera unless a movement was set. It stays under about 700 characters and never shortens the action or the lock line. detailed keeps the full film sheet and continuity text in every shot. A hand-edited prompt is kept either way unless overwritePrompt is true.' },
     promptStyle: { type: 'string', enum: ['short', 'detailed'], description: 'Alias of prompt_style.' },
     aspectRatio: { type: 'string', enum: ['9:16', '1:1', '4:5', '16:9'], default: '16:9' },
     genre: { type: 'string', description: `Story genre, or a style-preset genre. Preset families: ${listPresets().map(family => `${family.id} (${family.genres.map(genre => genre.id).join(', ')})`).join('; ')}. Default preset when a scenario omits both is cinema / drama.` },
@@ -518,7 +518,7 @@ export function openApiDocument() {
       title: 'Moovicut',
       version: '1.0.0',
       summary: 'Free deterministic storyboard planning. No API key, no account, no stored premises.',
-      description: 'Moovicut plans editable storyboards. It does not render video and it does not save the premise. The default board is 5 scenes × 3 seconds (15 seconds total). The default video prompt is short (prompt_style short): one style line, the people in that shot, the place, the action, and the camera, capped near 700 characters. prompt_style detailed keeps the full film sheet in every shot. Pass shots and duration, or a scenes array, for a custom scene-by-scene board. Humans can do the same in /studio Step-by-step mode. mode ad, series, and explainer are light presets on the same film sheet. A shot marked promptEdited is kept unless overwritePrompt is true. Duration snaps to the selected model profile. studioUrl is a /studio#board= link the browser can open without a server lookup.'
+      description: 'Moovicut plans editable storyboards. It does not render video and it does not save the premise. The default board is 5 scenes × 3 seconds (15 seconds total). The default video prompt is short (prompt_style short): framing, the named action, the lock lines, the full place, one light, and locked-off camera unless a movement was set, capped near 700 characters. prompt_style detailed keeps the full film sheet in every shot. Pass shots and duration, or a scenes array, for a custom scene-by-scene board. Humans can do the same in /studio Step-by-step mode. mode ad, series, and explainer are light presets on the same film sheet. A shot marked promptEdited is kept unless overwritePrompt is true. Duration snaps to the selected model profile. studioUrl is a /studio#board= link the browser can open without a server lookup.'
     },
     servers: [{ url: SITE }],
     paths: {
@@ -615,7 +615,7 @@ export function openApiDocument() {
 const TOOLS = [
   {
     name: 'plan_storyboard',
-    description: 'Plan a deterministic storyboard. Default is 5 scenes × 3s (15s total) and a short per-shot video prompt. Each character lock line is copied unchanged into every shot they appear in. Pass prompt_style "detailed" for the full sheet in every shot. Pass shots/duration, a scenes array, a scenario, mode ad, series, or explainer, input "prose", format "agent", or a model: grok, google, sora, kling, runway, luma, wan, or generic. A prompt marked promptEdited is kept. Returns a compact payload and a /studio# link. Nothing is stored.',
+    description: 'Plan a deterministic storyboard. Default is 5 scenes × 3s (15s total) and a short per-shot video prompt: framing, the named action, the lock line, the place, one light, and locked-off camera unless a movement was set. Each character lock line is copied unchanged into every shot they appear in. Pass prompt_style "detailed" for the full sheet in every shot. Pass shots/duration, a scenes array, a scenario, mode ad, series, or explainer, input "prose", format "agent", or a model: grok, google, sora, kling, runway, luma, wan, or generic. A prompt marked promptEdited is kept. Returns a compact payload and a /studio# link. Nothing is stored.',
     inputSchema: STORYBOARD_SCHEMA
   },
   {
