@@ -752,7 +752,7 @@ function scenarioFailure(parsed) {
 function createScenarioStoryboard(options) {
   const promptStyle = readPromptStyle(options.promptStyle ?? options.prompt_style)
   const source = options.scenario != null ? options.scenario : options.premise
-  const parsed = parseScenario(source)
+  const parsed = parseScenario(source, { allowIncompleteCast: options.allowIncompleteCast === true })
   if (!parsed.ok) throw scenarioFailure(parsed)
   const model = canonicalModel(options.model || 'grok')
   if (!model) throw new Error('Choose a target model: grok, google, sora, kling, runway, luma, wan, or generic.')
@@ -795,8 +795,21 @@ function createScenarioStoryboard(options) {
       lighting: lightId ? (LIGHTS[lightId] || preset.lighting) : preset.lighting,
       duration,
       duration_seconds: duration,
-      palette: ['#b69263', '#7c99a1', '#a88a64', '#696b80', '#af8061', '#657b6f'][index % 6]
+      palette: ['#b69263', '#7c99a1', '#a88a64', '#696b80', '#af8061', '#657b6f'][index % 6],
+      sceneCut: scene.sceneCut === true,
+      cutCue: scene.cutCue || '',
+      cutReason: scene.cutReason || '',
+      cutUncertain: scene.cutUncertain === true,
+      cutKind: scene.cutKind || '',
+      timeLabel: scene.timeLabel || '',
+      sceneId: scene.sceneId || index + 1
     }
+    if (!shot.cutCue) delete shot.cutCue
+    if (!shot.cutReason) delete shot.cutReason
+    if (!shot.cutKind) delete shot.cutKind
+    if (!shot.timeLabel) delete shot.timeLabel
+    if (!shot.sceneCut) delete shot.sceneCut
+    if (!shot.cutUncertain) delete shot.cutUncertain
     if (scene.prompt && !options.overwritePrompt) { shot.prompt = scene.prompt; shot.promptEdited = true }
     return shot
   })
@@ -1206,7 +1219,13 @@ export function splitShotByAction(project, shotId) {
     delete base.promptEdited
     if (partIndex === 0) return base
     const id = newId('shot')
-    return { ...base, id, shot_id: id }
+    const next = { ...base, id, shot_id: id }
+    delete next.sceneCut
+    delete next.cutCue
+    delete next.cutReason
+    delete next.cutUncertain
+    delete next.cutKind
+    return next
   })
   shots.splice(index, 1, ...made)
   assignShotStages(shots)

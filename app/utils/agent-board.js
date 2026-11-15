@@ -71,6 +71,7 @@ export function exportAgentBoard(project) {
     promptStyle: project.promptStyle === 'detailed' ? 'detailed' : 'short',
     ...(project.promptLanguage && project.promptLanguage !== 'en' ? { promptLanguage: project.promptLanguage } : {}),
     filmSheet: copySheet(project.filmSheet),
+    ...(Array.isArray(project.cuts) && project.cuts.length ? { cuts: project.cuts } : {}),
     shots: (project.shots || []).map((shot, index) => {
       const item = {
         id: shot.id || shot.shot_id,
@@ -90,6 +91,11 @@ export function exportAgentBoard(project) {
       const lines = lockLinesForShot(shot, project, index)
       if (lines.length) item.lockLines = lines
       if (shot.promptEdited === true) item.promptEdited = true
+      if (shot.sceneCut === true) item.sceneCut = true
+      if (shot.cutCue) item.cutCue = shot.cutCue
+      if (shot.cutReason) item.cutReason = shot.cutReason
+      if (shot.cutUncertain === true) item.cutUncertain = true
+      if (shot.timeLabel) item.time = shot.timeLabel
       return item
     })
   }

@@ -406,7 +406,7 @@ function pick(object, keys) {
   return ''
 }
 
-function parseScenarioObject(input) {
+function parseScenarioObject(input, options = {}) {
   const errors = []
   const source = input && typeof input === 'object' && !Array.isArray(input) ? input : null
   if (!source) {
@@ -425,9 +425,9 @@ function parseScenarioObject(input) {
     const look = cleanText(pick(entry, ['look', 'l']))
     const outfit = cleanText(pick(entry, ['outfit', 'o']))
     if (!name) errors.push(problem(`${path} is missing a name.`, { path: `${path}.name`, section: 'characters', field: 'name', index }))
-    if (!look) errors.push(problem(`${path} is missing a look.`, { path: `${path}.look`, section: 'characters', field: 'look', index }))
-    if (!outfit) errors.push(problem(`${path} is missing an outfit.`, { path: `${path}.outfit`, section: 'characters', field: 'outfit', index }))
-    if (name && look && outfit) characters.push({ name, look, outfit })
+    if (!look && !options.allowIncompleteCast) errors.push(problem(`${path} is missing a look.`, { path: `${path}.look`, section: 'characters', field: 'look', index }))
+    if (!outfit && !options.allowIncompleteCast) errors.push(problem(`${path} is missing an outfit.`, { path: `${path}.outfit`, section: 'characters', field: 'outfit', index }))
+    if (name && (options.allowIncompleteCast || (look && outfit))) characters.push({ name, look, outfit })
   })
   const places = []
   const placeList = Array.isArray(source.places) ? source.places : null
@@ -466,16 +466,30 @@ function parseScenarioObject(input) {
     const sceneMood = readEnum(entry.mood, MOOD_VALUES, 'mood', { path: `${path}.mood`, section: 'scenes', index }, errors)
     const duration = readDuration(entry.duration ?? entry.s, { path: `${path}.duration`, section: 'scenes', index }, errors)
     const prompt = typeof entry.prompt === 'string' ? entry.prompt.trim().slice(0, 16000) : ''
-    if (who && where && what) scenes.push({ number: index + 1, who, where, what, line: index + 1, camera, light: sceneLight, mood: sceneMood, duration, prompt })
+    if (who && where && what) {
+      const scene = { number: index + 1, who, where, what, line: index + 1, camera, light: sceneLight, mood: sceneMood, duration, prompt }
+      if (entry.sceneCut === true) scene.sceneCut = true
+      if (entry.cutUncertain === true) scene.cutUncertain = true
+      const cue = cleanText(entry.cutCue)
+      const reason = cleanText(entry.cutReason)
+      const timeLabel = cleanText(entry.timeLabel)
+      const kind = cleanText(entry.cutKind)
+      if (cue) scene.cutCue = cue.slice(0, 160)
+      if (reason) scene.cutReason = reason.slice(0, 280)
+      if (timeLabel) scene.timeLabel = timeLabel.slice(0, 80)
+      if (kind === 'scene' || kind === 'shot') scene.cutKind = kind
+      if (Number.isInteger(entry.sceneId)) scene.sceneId = entry.sceneId
+      scenes.push(scene)
+    }
   })
   const canonical = formatScenario({ characters, places, scenes, light, mood })
   return finish(characters, places, scenes, light, mood, errors, canonical)
 }
 
-export function parseScenario(input) {
+export function parseScenario(input, options = {}) {
   if (typeof input === 'string') return parseScenarioText(input)
   if (input && typeof input === 'object' && !Array.isArray(input) && typeof input.text === 'string' && !input.characters) return parseScenarioText(input.text)
-  return parseScenarioObject(input)
+  return parseScenarioObject(input, options)
 }
 
 export function agentScenarioPrompt(idea = '') {

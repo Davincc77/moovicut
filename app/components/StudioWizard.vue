@@ -47,7 +47,7 @@ import { FRAMING_TERMS, framingOptionLabel } from '~/utils/framing.js'
 import { LIGHT_VALUES, MOOD_VALUES } from '~/utils/scenario.js'
 import { listPresets } from '~/utils/presets/index.js'
 import { combinedShotPrompts } from '~/utils/open-targets.js'
-import { textLanguageHint } from '~/utils/prose-detect.js'
+import { detectProse, textLanguageHint } from '~/utils/prose-detect.js'
 
 const emit = defineEmits(['advanced'])
 const store = useProjectStore()
@@ -100,6 +100,25 @@ const stepNumber = computed(() => WIZARD_STEPS.findIndex(step => step.id === sta
 const headingText = computed(() => t(stepMeta.value.label))
 const gaps = computed(() => gapsFor(state.value, state.value.step))
 const report = computed(() => state.value.step === 'check' || state.value.step === 'generate' ? review(state.value) : null)
+const proseCuts = computed(() => {
+  if (state.value.step !== 'check') return []
+  const idea = String(state.value.idea || '').trim()
+  if (idea.length < 8) return []
+  return detectProse(idea).cuts || []
+})
+function onMergeCut(cut) {
+  const start = cut?.shotIndex
+  if (!Number.isInteger(start) || start < 1) return
+  const nextBoundary = proseCuts.value.find(item => item.kind === 'scene' && item.shotIndex > start)
+  const end = nextBoundary ? nextBoundary.shotIndex : state.value.shots.length
+  const placeId = state.value.shots[start - 1]?.placeId
+  if (!placeId) return
+  let next = state.value
+  for (let index = start; index < end && index < next.shots.length; index += 1) {
+    next = setShotField(next, next.shots[index].id, 'placeId', placeId)
+  }
+  state.value = next
+}
 const generateEnabled = computed(() => canGenerate(state.value))
 const character = computed(() => state.value.characters[state.value.characterIndex] || state.value.characters[0])
 const place = computed(() => state.value.places[state.value.placeIndex] || state.value.places[0])
@@ -456,6 +475,7 @@ function copyAgent() {
             </ul>
           </template>
         </template>
+        <SceneCuts :cuts="proseCuts" @merge="onMergeCut" />
       </section>
 
       <section v-else class="wizard-panel" :aria-label="t('generate.heading')">

@@ -1,6 +1,7 @@
 /** Rule-based prose detection beyond English and French. No model call. */
 import { cleanText } from './text.js'
 import { foldName, scenarioBudget, scenarioPremise, scenarioToFields } from './scenario.js'
+import { findPlaceCue, inNamedVenue, isFunctionWord, isNumberWord, isQuotedOrRemembered, isVenueType, namedVenues } from './scene-split.js'
 
 const LEX = {
   pt: {
@@ -139,13 +140,17 @@ function nameOf(token, language) {
   return token
 }
 
-function findPlaces(text, lex) {
+function findPlaces(text, lex, language) {
   const folded = foldName(text)
   const places = []
   lex.places.forEach(([key, name, description]) => {
     if (!new RegExp(`(?:^|[^\\p{L}])${foldName(key)}(?=[^\\p{L}]|$)`, 'u').test(folded)) return
     if (places.some(place => foldName(place.name) === foldName(name))) return
     places.push({ name, description, confidence: 'high' })
+  })
+  namedVenues(text, language).forEach(venue => {
+    if (places.some(place => foldName(place.name) === foldName(venue.name))) return
+    places.push({ name: venue.name, description: venue.description, confidence: 'high' })
   })
   return places
 }
@@ -168,19 +173,20 @@ function findCharacters(text, lex, places, language) {
       counts.set(key, entry)
     }
   }
-  tokens(text).forEach(token => {
-    if (language === 'lb') return
-    token = nameOf(token, language)
-    if (!/^\p{Lu}/u.test(token)) return
+  for (const match of String(text).matchAll(/[\p{L}][\p{L}'’-]+/gu)) {
+    if (language === 'lb') break
+    let token = nameOf(match[0], language)
+    if (!/^\p{Lu}/u.test(token)) continue
+    if (isQuotedOrRemembered(text, match.index, language) || isFunctionWord(token, language) || isNumberWord(token, language) || isVenueType(token, language) || inNamedVenue(text, match.index, language)) continue
     const key = foldName(token)
-    if (key.length < 2 || stop.has(key) || reserved.has(key)) return
-    if (harvest(token, lex.outfit).length || harvest(token, lex.look).length) return
+    if (key.length < 2 || stop.has(key) || reserved.has(key)) continue
+    if (harvest(token, lex.outfit).length || harvest(token, lex.look).length) continue
     const entry = counts.get(key) || { forms: new Map(), count: 0, mid: 0 }
     entry.count += 1
     if (!starts.has(key)) entry.mid += 1
     entry.forms.set(token, (entry.forms.get(token) || 0) + 1)
     counts.set(key, entry)
-  })
+  }
   const characters = []
   const warnings = []
   for (const [key, entry] of counts) {
@@ -238,7 +244,7 @@ function whoFromPronoun(sentence, characters, lex) {
   return ''
 }
 
-function findScenes(text, lex, characters, places) {
+function findScenes(text, lex, characters, places, language) {
   const warnings = []
   const scenes = []
   let lastWho = characters[0]?.name || ''
@@ -250,11 +256,14 @@ function findScenes(text, lex, characters, places) {
     const foundNames = characters.filter(character => nameInText(action, character.name))
     const who = foundNames.length ? foundNames.slice(0, 2).map(item => item.name).join(' and ') : (whoFromPronoun(action, characters, lex) || lastWho)
     if (who) lastWho = who.split(/\s+and\s+/)[0]
-    const folded = foldName(action)
-    const foundPlace = places.find(place => new RegExp(`(?:^|[^\\p{L}])${foldName(place.name)}(?=[^\\p{L}]|$)`, 'u').test(folded) || lex.places.some(([key, name]) => name === place.name && new RegExp(`(?:^|[^\\p{L}])${foldName(key)}(?=[^\\p{L}]|$)`, 'u').test(folded)))
-    const where = foundPlace?.name || lastWhere
+    const records = places.map(place => ({
+      name: place.name,
+      keys: lex.places.filter(([, name]) => name === place.name).map(([key]) => key).concat(place.name)
+    }))
+    const cue = findPlaceCue(action, language, records)
+    const where = cue?.name || lastWhere
     if (where) lastWhere = where
-    let confidence = foundNames.length && foundPlace ? 'high' : 'medium'
+    let confidence = foundNames.length && cue ? 'high' : 'medium'
     if (!where) {
       confidence = 'low'
       warnings.push({ code: 'missing_place', message: `No place found for scene ${scenes.length + 1}.`, target: 'scenes', index: scenes.length, options: places.map(place => place.name) })
@@ -323,10 +332,10 @@ function detectSpaced(text, language) {
       ambience: { light: '', mood: '', confidence: 'low' }
     })
   }
-  const places = findPlaces(text, lex)
+  const places = findPlaces(text, lex, language)
   const characters = findCharacters(text, lex, places, language)
   const ambience = findAmbience(text, lex)
-  const scenes = findScenes(text, lex, characters.characters, places)
+  const scenes = findScenes(text, lex, characters.characters, places, language)
   return pack(text, language, { characters, places, scenes, ambience })
 }
 
@@ -359,7 +368,7 @@ function detectCjk(text, language) {
     const window = match[2] || ''
     const look = unique(harvest(window, lex.look))
     const outfit = unique(harvest(window, lex.outfit))
-    if (characters.some(item => item.name === name)) return
+    if (isNumberWord(name, language) || characters.some(item => item.name === name)) return
     const confidence = look.length && outfit.length ? 'high' : 'low'
     if (!look.length) warnings.push({ code: 'missing_look', message: `No look found for ${name}.`, target: 'characters', name })
     if (!outfit.length) warnings.push({ code: 'missing_outfit', message: `No outfit found for ${name}.`, target: 'characters', name })
@@ -371,7 +380,7 @@ function detectCjk(text, language) {
       : [...String(text).matchAll(/([\p{Script=Han}]{1,3})(?:把|是)/gu)]
     particle.forEach(match => {
       const name = match[1]
-      if (['雨', '小', '在', '信'].includes(name)) return
+      if (['雨', '小', '在', '信'].includes(name) || isNumberWord(name, language)) return
       if (characters.some(item => item.name === name)) return
       characters.push({ name, look: '', outfit: '', confidence: 'low' })
       warnings.push({ code: 'missing_look', message: `No look found for ${name}.`, target: 'characters', name })
@@ -383,6 +392,9 @@ function detectCjk(text, language) {
   lex.places.forEach(([key, name, description]) => {
     if (text.includes(key) && !places.some(place => place.name === name)) places.push({ name, description, confidence: 'high' })
   })
+  namedVenues(text, language).forEach(venue => {
+    if (!places.some(place => place.name === venue.name)) places.push({ name: venue.name, description: venue.description, confidence: 'high' })
+  })
   const scenes = []
   const sceneWarnings = []
   let lastWho = characters[0]?.name || ''
@@ -392,10 +404,14 @@ function detectCjk(text, language) {
     const foundNames = characters.filter(character => sentence.includes(character.name))
     const who = foundNames.length ? foundNames.slice(0, 2).map(item => item.name).join(' and ') : lastWho
     if (who) lastWho = who.split(/\s+and\s+/)[0]
-    const foundPlace = places.find(place => sentence.includes(place.name) || lex.places.some(([key, name]) => name === place.name && sentence.includes(key)))
-    const where = foundPlace?.name || lastWhere
+    const records = places.map(place => ({
+      name: place.name,
+      keys: lex.places.filter(([, name]) => name === place.name).map(([key]) => key).concat(place.name)
+    }))
+    const cue = findPlaceCue(sentence, language, records)
+    const where = cue?.name || lastWhere
     if (where) lastWhere = where
-    let confidence = foundNames.length && foundPlace ? 'high' : 'medium'
+    let confidence = foundNames.length && cue ? 'high' : 'medium'
     if (!where) {
       confidence = 'low'
       sceneWarnings.push({ code: 'missing_place', message: `No place found for scene ${scenes.length + 1}.`, target: 'scenes', index: scenes.length })

@@ -930,5 +930,19 @@
   "{path} must be an object with who, where, and what.": "{path} muss en Objet mat who, where a what sinn.",
   "{title} storyboard study": "Storyboard-Etüd {title}",
   "{title} — Moovicut": "{title} — Moovicut",
-  "“{trait}” is repeated in the same line.": "„{trait}“ steet zweemol an der selwechter Zeil."
+  "“{trait}” is repeated in the same line.": "„{trait}“ steet zweemol an der selwechter Zeil.",
+  "Scene cuts": "Szenenwiessel",
+  "Before generating, these are the cuts found in the story. Nothing is sent to a model.": "Virum Generéieren sinn dat d’Schnëtter aus der Geschicht. Näischt geet un e Modell.",
+  "Cut here: {cue}": "Hei schneiden: {cue}",
+  "New shot in this scene: {cue}": "Neie Plang an dëser Szeen: {cue}",
+  "Uncertain cut": "Onséchere Schnëtt",
+  "Reason: {reason}": "Grond: {reason}",
+  "Merge with the previous scene": "Mat der viregter Szeen zesummeleeën",
+  "Split into a new scene": "An eng nei Szeen deelen",
+  "No scene cut in this text.": "Kee Szeneschnëtt an dësem Text.",
+  "A place changes here without a place or time cue.": "Eng Plaz wiesselt hei ouni Plaz- oder Zäitzeechen.",
+  "Add a place or time cue, or merge this shot into the previous scene.": "Setz e Plaz- oder Zäitzeechen, oder lee dës Astellung an déi viregt Szeen.",
+  "The time of day changes here without a cue.": "D’Dageszäit wiesselt hei ouni Zeechen.",
+  "Mark the time cue, or keep the previous time of day.": "Markéier d’Zäitzeechen, oder hal d’viregt Dageszäit.",
+  "Free prose is split on place and time cues. A sequence word alone stays in the same scene. splitScenes defaults to true. Each cut has a cue and a reason. A character with no look still returns a board and a warning.": "Fräien Text gëtt op Plaz- an Zäitzeechen geschnidden. E Folgewuert eleng bleift an der selwechter Szeen. splitScenes ass par défaut wouer. All Schnëtt huet en Zeechen an e Grond. Eng Figur ouni Ausgesi gëtt trotzdem e Board, mat enger Warnung."
 }

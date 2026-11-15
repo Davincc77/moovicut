@@ -930,5 +930,19 @@
   "{path} must be an object with who, where, and what.": "{path} doit être un objet avec who, where et what.",
   "{title} storyboard study": "Étude de storyboard {title}",
   "{title} — Moovicut": "{title} — Moovicut",
-  "“{trait}” is repeated in the same line.": "« {trait} » est répété sur la même ligne."
+  "“{trait}” is repeated in the same line.": "« {trait} » est répété sur la même ligne.",
+  "Scene cuts": "Coupes de scène",
+  "Before generating, these are the cuts found in the story. Nothing is sent to a model.": "Avant la génération, voici les coupes trouvées dans le récit. Rien n’est envoyé à un modèle.",
+  "Cut here: {cue}": "Couper ici : {cue}",
+  "New shot in this scene: {cue}": "Nouveau plan dans cette scène : {cue}",
+  "Uncertain cut": "Coupe incertaine",
+  "Reason: {reason}": "Raison : {reason}",
+  "Merge with the previous scene": "Fusionner avec la scène précédente",
+  "Split into a new scene": "Séparer en une nouvelle scène",
+  "No scene cut in this text.": "Aucune coupe de scène dans ce texte.",
+  "A place changes here without a place or time cue.": "Un lieu change ici sans indice de lieu ou de temps.",
+  "Add a place or time cue, or merge this shot into the previous scene.": "Ajoutez un indice de lieu ou de temps, ou fusionnez ce plan avec la scène précédente.",
+  "The time of day changes here without a cue.": "Le moment de la journée change ici sans indice.",
+  "Mark the time cue, or keep the previous time of day.": "Marquez l’indice de temps, ou gardez le moment précédent.",
+  "Free prose is split on place and time cues. A sequence word alone stays in the same scene. splitScenes defaults to true. Each cut has a cue and a reason. A character with no look still returns a board and a warning.": "La prose libre est coupée sur les indices de lieu et de temps. Un mot de suite seul reste dans la même scène. splitScenes est vrai par défaut. Chaque coupe a un indice et une raison. Un personnage sans apparence renvoie quand même un tableau, avec un avertissement."
 }

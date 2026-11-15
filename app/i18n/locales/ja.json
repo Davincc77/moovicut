@@ -930,5 +930,19 @@
   "{path} must be an object with who, where, and what.": "{path} は who、where、what を持つオブジェクトにしてください。",
   "{title} storyboard study": "{title} のストーリーボード研究",
   "{title} — Moovicut": "{title} — Moovicut",
-  "“{trait}” is repeated in the same line.": "「{trait}」が同じ行で繰り返されています。"
+  "“{trait}” is repeated in the same line.": "「{trait}」が同じ行で繰り返されています。",
+  "Scene cuts": "場面の区切り",
+  "Before generating, these are the cuts found in the story. Nothing is sent to a model.": "生成する前に、物語から見つかった区切りです。モデルには何も送りません。",
+  "Cut here: {cue}": "ここで切る：{cue}",
+  "New shot in this scene: {cue}": "この場面の新しいショット：{cue}",
+  "Uncertain cut": "不確かな区切り",
+  "Reason: {reason}": "理由：{reason}",
+  "Merge with the previous scene": "前の場面とつなぐ",
+  "Split into a new scene": "新しい場面に分ける",
+  "No scene cut in this text.": "この文章に場面の区切りはありません。",
+  "A place changes here without a place or time cue.": "場所や時間の手がかりなしに、場所がここで変わります。",
+  "Add a place or time cue, or merge this shot into the previous scene.": "場所か時間の手がかりを足すか、このショットを前の場面に戻してください。",
+  "The time of day changes here without a cue.": "手がかりなしに、時間帯がここで変わります。",
+  "Mark the time cue, or keep the previous time of day.": "時間の手がかりを示すか、前の時間帯のままにしてください。",
+  "Free prose is split on place and time cues. A sequence word alone stays in the same scene. splitScenes defaults to true. Each cut has a cue and a reason. A character with no look still returns a board and a warning.": "自由な散文は場所と時間の手がかりで区切ります。順序の語だけなら同じ場面のままです。splitScenes の初期値は true です。各区切りには手がかりと理由があります。見た目のない人物でもボードは返り、警告が付きます。"
 }

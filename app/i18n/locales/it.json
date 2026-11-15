@@ -930,5 +930,19 @@
   "{path} must be an object with who, where, and what.": "{path} deve essere un oggetto con who, where e what.",
   "{title} storyboard study": "Studio di storyboard {title}",
   "{title} — Moovicut": "{title} — Moovicut",
-  "“{trait}” is repeated in the same line.": "«{trait}» è ripetuto nella stessa riga."
+  "“{trait}” is repeated in the same line.": "«{trait}» è ripetuto nella stessa riga.",
+  "Scene cuts": "Stacchi di scena",
+  "Before generating, these are the cuts found in the story. Nothing is sent to a model.": "Prima di generare, questi sono i tagli trovati nel racconto. Niente viene inviato a un modello.",
+  "Cut here: {cue}": "Taglia qui: {cue}",
+  "New shot in this scene: {cue}": "Nuova inquadratura in questa scena: {cue}",
+  "Uncertain cut": "Taglio incerto",
+  "Reason: {reason}": "Motivo: {reason}",
+  "Merge with the previous scene": "Unisci alla scena precedente",
+  "Split into a new scene": "Dividi in una scena nuova",
+  "No scene cut in this text.": "Nessun taglio di scena in questo testo.",
+  "A place changes here without a place or time cue.": "Un luogo cambia qui senza un indizio di luogo o di tempo.",
+  "Add a place or time cue, or merge this shot into the previous scene.": "Aggiungi un indizio di luogo o di tempo, oppure unisci questa inquadratura alla scena precedente.",
+  "The time of day changes here without a cue.": "Il momento del giorno cambia qui senza un indizio.",
+  "Mark the time cue, or keep the previous time of day.": "Segna l’indizio di tempo, oppure tieni il momento precedente.",
+  "Free prose is split on place and time cues. A sequence word alone stays in the same scene. splitScenes defaults to true. Each cut has a cue and a reason. A character with no look still returns a board and a warning.": "La prosa libera è tagliata sugli indizi di luogo e di tempo. Una parola di sequenza da sola resta nella stessa scena. splitScenes è vero per difetto. Ogni taglio ha un indizio e un motivo. Un personaggio senza aspetto restituisce comunque una tavola, con un avviso."
 }

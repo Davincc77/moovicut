@@ -1,0 +1,1005 @@
+{
+  "ruleset": "zero-ai-scene-split-holdout-v1-2026-11-15",
+  "written_before_run": true,
+  "written_at": "2026-11-15 17:12:20 CET",
+  "notes": [
+    "These four stories are new holdout texts. They do not reuse Maya, Luca, Nadia, or the baseline letter/envelope/boat plot.",
+    "The lighthouse token is already in the PR lexicon, so the out-of-lexicon places are named shops: la librairie Atlas, Harbottle's bookshop.",
+    "Place precision for the pass bar excludes those two out-of-lexicon shops; they are reported separately.",
+    "A bare 'vers'/'toward' plus a lexicon place is expected as an uncertain scene cut, not as a required gold scene. Firm (non-uncertain) false place changes count as false cuts.",
+    "Scoring follows the baseline method: character and place precision/recall on names (case-insensitive, alias containment), strict scene-boundary recall on consecutive gold place changes, false cuts = API place changes that are not an expected boundary, excluding cuts marked uncertain when they match an expected toward-cue."
+  ],
+  "rules_summary": [
+    "At most one scene cut per sentence. Several cues in the same sentence set the new scene once.",
+    "A place change or a real time jump opens a new scene. A sequence word alone opens only a new shot in the current scene.",
+    "No cut if the place or time does not actually change.",
+    "Ignore false friends: a place only in dialogue or a memory does not cut; 'dans'/'in' without a place does not cut; a glance toward a street without leaving does not cut.",
+    "A cue-only sentence with no action is not a scene and attaches to the next sentence.",
+    "A bare vers/toward plus a real lexicon place is an uncertain scene cut, shown dashed, not a required gold scene.",
+    "Places outside the closed lexicon, and not supplied as user places, may be missed. That known limit is measured on the two named shops."
+  ],
+  "scoring": {
+    "scene_boundary": "An expected scene boundary is a change of place or a real time jump between two consecutive expected scenes. Correct = expected place-to-place boundaries that also appear in the compressed API place sequence. Missed cut = expected boundary with no matching API change. False cut = a firm (not marked uncertain) API place change that does not match an expected boundary. Uncertain toward-cues are tallied separately.",
+    "characters": "Precision and recall against gold_characters names (case-insensitive). Spurious names are false positives. The waiter/serveur is not a gold character. Atlas and Harbottle are not gold characters.",
+    "places": "Precision and recall against gold_places aliases. Official pass-bar precision excludes out_of_lexicon places. A hit on a non_places name is a false positive. An uncertain toward-target (station/gare) that is not a gold scene is reported separately and, if present only as an uncertain cut, is not a precision false positive for the official bar; if it is promoted to a firm detected place, it is a false positive.",
+    "pass_bar": {
+      "all_http_200": true,
+      "character_precision_micro": 0.9,
+      "character_recall_micro": 0.9,
+      "place_precision_micro_excluding_ool": 0.85,
+      "strict_boundary_recall_micro": 0.8,
+      "false_cuts_total_max": 2,
+      "no_crash": true
+    }
+  },
+  "stories": {
+    "fr_medium": {
+      "language": "fr",
+      "length": "medium",
+      "word_count": 227,
+      "char_count": 1266,
+      "gold_characters": [
+        {
+          "name": "Hélène",
+          "look": "la quarantaine, chignon roux, lunettes fines",
+          "outfit": "écharpe verte, manteau rouille"
+        },
+        {
+          "name": "Omar",
+          "look": "la trentaine, crâne rasé, barbe noire courte",
+          "outfit": "parka marine, sac en cuir"
+        }
+      ],
+      "gold_places": [
+        {
+          "name": "bureau",
+          "aliases": [
+            "bureau",
+            "office",
+            "son bureau"
+          ]
+        },
+        {
+          "name": "jardin",
+          "aliases": [
+            "jardin",
+            "garden"
+          ]
+        },
+        {
+          "name": "boulangerie",
+          "aliases": [
+            "boulangerie",
+            "bakery"
+          ]
+        },
+        {
+          "name": "pont",
+          "aliases": [
+            "pont",
+            "bridge",
+            "sur le pont"
+          ]
+        }
+      ],
+      "out_of_lexicon": [
+        {
+          "name": "librairie Atlas",
+          "aliases": [
+            "librairie Atlas",
+            "librairie",
+            "Atlas",
+            "bookshop"
+          ],
+          "why": "named shop, not in the closed place lexicon",
+          "gold_scene": true
+        }
+      ],
+      "non_places": [
+        {
+          "name": "mer",
+          "aliases": [
+            "mer",
+            "sea"
+          ],
+          "why": "memory and dialogue only"
+        },
+        {
+          "name": "silence",
+          "aliases": [
+            "silence"
+          ],
+          "why": "dans un silence is not a place"
+        },
+        {
+          "name": "rue",
+          "aliases": [
+            "rue",
+            "street"
+          ],
+          "why": "glance only, without leaving"
+        }
+      ],
+      "uncertain_targets": [
+        {
+          "name": "gare",
+          "aliases": [
+            "gare",
+            "station"
+          ],
+          "cue": "Elle marche vers la gare.",
+          "why": "bare vers plus a lexicon place; expected uncertain, not a gold scene"
+        }
+      ],
+      "expected_scene_count": 5,
+      "expected_action_shot_count": 22,
+      "scenes": [
+        {
+          "id": 1,
+          "place": "bureau",
+          "place_aliases": [
+            "bureau",
+            "son bureau"
+          ],
+          "time": "début de soirée",
+          "time_aliases": [
+            "début de soirée",
+            "soirée",
+            "early evening",
+            "evening"
+          ],
+          "open_reason": "opening place and time"
+        },
+        {
+          "id": 2,
+          "place": "jardin",
+          "place_aliases": [
+            "jardin"
+          ],
+          "time": "9h le lendemain",
+          "time_aliases": [
+            "9h",
+            "le lendemain",
+            "9 a.m."
+          ],
+          "open_reason": "combined cues: ensuite + dans le jardin + à 9h after cue-only Le lendemain."
+        },
+        {
+          "id": 3,
+          "place": "boulangerie",
+          "place_aliases": [
+            "boulangerie"
+          ],
+          "time": "plus tard",
+          "time_aliases": [
+            "plus tard",
+            "later"
+          ],
+          "open_reason": "later + bakery"
+        },
+        {
+          "id": 4,
+          "place": "pont",
+          "place_aliases": [
+            "pont"
+          ],
+          "time": "nuit tombée",
+          "time_aliases": [
+            "nuit tombée",
+            "nightfall"
+          ],
+          "open_reason": "nightfall + bridge"
+        },
+        {
+          "id": 5,
+          "place": "librairie Atlas",
+          "place_aliases": [
+            "librairie Atlas",
+            "librairie",
+            "Atlas"
+          ],
+          "time": "nuit tombée",
+          "time_aliases": [
+            "nuit tombée",
+            "nightfall"
+          ],
+          "open_reason": "place change to out-of-lexicon named shop; ensuite alone would only be a shot if the shop is not recognised",
+          "out_of_lexicon": true
+        }
+      ],
+      "traps": [
+        {
+          "id": "combined_cues",
+          "text": "Ensuite, dans le jardin, à 9h, Hélène arrose les jardinières.",
+          "expected": "one new garden scene, not three"
+        },
+        {
+          "id": "cue_only",
+          "text": "Le lendemain.",
+          "expected": "not a scene; attaches to the garden sentence"
+        },
+        {
+          "id": "sequence_same_scene",
+          "text": "Puis elle feuillette les pages près de la lampe.",
+          "expected": "new shot, same office"
+        },
+        {
+          "id": "repeated_place",
+          "text": "Dans le jardin, elle pose l'arrosoir près du banc.",
+          "expected": "no new scene"
+        },
+        {
+          "id": "silence",
+          "text": "Elle attend dans un silence.",
+          "expected": "not a place"
+        },
+        {
+          "id": "memory",
+          "text": "Elle pense à la mer.",
+          "expected": "do not open the sea"
+        },
+        {
+          "id": "dialogue",
+          "text": "« On devrait aller à la mer. »",
+          "expected": "do not open the sea"
+        },
+        {
+          "id": "glance",
+          "text": "Elle jette un regard vers la rue, sans quitter la pièce",
+          "expected": "no street scene"
+        },
+        {
+          "id": "toward",
+          "text": "Elle marche vers la gare.",
+          "expected": "uncertain dashed cut toward the station, not a required gold scene"
+        },
+        {
+          "id": "ool",
+          "text": "Ensuite, dans la librairie Atlas, ils s'assoient près de la vitrine.",
+          "expected": "gold scene if recognised; known miss if the named shop is outside the lexicon"
+        }
+      ]
+    },
+    "en_medium": {
+      "language": "en",
+      "length": "medium",
+      "word_count": 235,
+      "char_count": 1268,
+      "gold_characters": [
+        {
+          "name": "Bridget",
+          "look": "late twenties, long dark braids, gold hoop earrings",
+          "outfit": "cream knit jumper, olive field jacket"
+        },
+        {
+          "name": "Kenji",
+          "look": "early forties, greying temples, round steel glasses",
+          "outfit": "rust-red cardigan, canvas satchel"
+        }
+      ],
+      "gold_places": [
+        {
+          "name": "office",
+          "aliases": [
+            "office",
+            "bureau"
+          ]
+        },
+        {
+          "name": "garden",
+          "aliases": [
+            "garden",
+            "jardin"
+          ]
+        },
+        {
+          "name": "bakery",
+          "aliases": [
+            "bakery",
+            "boulangerie"
+          ]
+        },
+        {
+          "name": "bridge",
+          "aliases": [
+            "bridge",
+            "pont",
+            "on the bridge"
+          ]
+        }
+      ],
+      "out_of_lexicon": [
+        {
+          "name": "Harbottle's bookshop",
+          "aliases": [
+            "Harbottle's bookshop",
+            "Harbottle",
+            "bookshop",
+            "bookstore"
+          ],
+          "why": "named shop, not in the closed place lexicon",
+          "gold_scene": true
+        }
+      ],
+      "non_places": [
+        {
+          "name": "sea",
+          "aliases": [
+            "sea",
+            "mer"
+          ],
+          "why": "memory and dialogue only"
+        },
+        {
+          "name": "silence",
+          "aliases": [
+            "silence"
+          ],
+          "why": "in a silence is not a place"
+        },
+        {
+          "name": "street",
+          "aliases": [
+            "street",
+            "rue"
+          ],
+          "why": "glance only, without leaving"
+        }
+      ],
+      "uncertain_targets": [
+        {
+          "name": "station",
+          "aliases": [
+            "station",
+            "gare"
+          ],
+          "cue": "She walks toward the station.",
+          "why": "bare toward plus a lexicon place; expected uncertain, not a gold scene"
+        }
+      ],
+      "expected_scene_count": 5,
+      "expected_action_shot_count": 22,
+      "scenes": [
+        {
+          "id": 1,
+          "place": "office",
+          "place_aliases": [
+            "office"
+          ],
+          "time": "early evening",
+          "time_aliases": [
+            "early evening",
+            "evening"
+          ],
+          "open_reason": "opening place and time"
+        },
+        {
+          "id": 2,
+          "place": "garden",
+          "place_aliases": [
+            "garden"
+          ],
+          "time": "9 a.m. the next day",
+          "time_aliases": [
+            "9 a.m.",
+            "the next day"
+          ],
+          "open_reason": "combined cues after cue-only The next day."
+        },
+        {
+          "id": 3,
+          "place": "bakery",
+          "place_aliases": [
+            "bakery"
+          ],
+          "time": "later",
+          "time_aliases": [
+            "later"
+          ],
+          "open_reason": "later + bakery"
+        },
+        {
+          "id": 4,
+          "place": "bridge",
+          "place_aliases": [
+            "bridge"
+          ],
+          "time": "nightfall",
+          "time_aliases": [
+            "nightfall"
+          ],
+          "open_reason": "nightfall + bridge"
+        },
+        {
+          "id": 5,
+          "place": "Harbottle's bookshop",
+          "place_aliases": [
+            "Harbottle's bookshop",
+            "Harbottle",
+            "bookshop"
+          ],
+          "time": "nightfall",
+          "time_aliases": [
+            "nightfall"
+          ],
+          "open_reason": "place change to out-of-lexicon named shop",
+          "out_of_lexicon": true
+        }
+      ],
+      "traps": [
+        {
+          "id": "combined_cues",
+          "text": "After that, in the garden, at 9 a.m., Bridget waters the planters.",
+          "expected": "one new garden scene, not three"
+        },
+        {
+          "id": "cue_only",
+          "text": "The next day.",
+          "expected": "not a scene; attaches to the garden sentence"
+        },
+        {
+          "id": "sequence_same_scene",
+          "text": "Then she checks the labels by the desk lamp.",
+          "expected": "new shot, same office"
+        },
+        {
+          "id": "repeated_place",
+          "text": "In the garden, she sets the can by the bench.",
+          "expected": "no new scene"
+        },
+        {
+          "id": "silence",
+          "text": "She waits in a silence.",
+          "expected": "not a place"
+        },
+        {
+          "id": "memory",
+          "text": "She thinks of the sea.",
+          "expected": "do not open the sea"
+        },
+        {
+          "id": "dialogue",
+          "text": "\"We should go to the sea.\"",
+          "expected": "do not open the sea"
+        },
+        {
+          "id": "glance",
+          "text": "She glances toward the street, without leaving the room",
+          "expected": "no street scene"
+        },
+        {
+          "id": "toward",
+          "text": "She walks toward the station.",
+          "expected": "uncertain dashed cut toward the station, not a required gold scene"
+        },
+        {
+          "id": "ool",
+          "text": "After that, in Harbottle's bookshop, they sit down by the window.",
+          "expected": "gold scene if recognised; known miss if the named shop is outside the lexicon"
+        }
+      ]
+    },
+    "fr_long": {
+      "language": "fr",
+      "length": "long",
+      "word_count": 762,
+      "char_count": 4178,
+      "gold_characters": [
+        {
+          "name": "Hélène",
+          "look": "la quarantaine, chignon roux, lunettes fines",
+          "outfit": "écharpe verte, manteau rouille"
+        },
+        {
+          "name": "Omar",
+          "look": "la trentaine, crâne rasé, barbe noire courte",
+          "outfit": "parka marine, sac en cuir"
+        },
+        {
+          "name": "Saskia",
+          "look": "la cinquantaine, cheveux gris coupés court",
+          "outfit": "veste de laine beige, bottines brunes, broche en cuivre"
+        }
+      ],
+      "gold_places": [
+        {
+          "name": "maison",
+          "aliases": [
+            "maison",
+            "house",
+            "sa maison"
+          ]
+        },
+        {
+          "name": "cuisine",
+          "aliases": [
+            "cuisine",
+            "kitchen"
+          ]
+        },
+        {
+          "name": "école",
+          "aliases": [
+            "école",
+            "ecole",
+            "school",
+            "à l'école"
+          ]
+        },
+        {
+          "name": "forêt",
+          "aliases": [
+            "forêt",
+            "foret",
+            "forest"
+          ]
+        },
+        {
+          "name": "restaurant",
+          "aliases": [
+            "restaurant"
+          ]
+        },
+        {
+          "name": "parc",
+          "aliases": [
+            "parc",
+            "park"
+          ]
+        },
+        {
+          "name": "quai",
+          "aliases": [
+            "quai",
+            "quay",
+            "harbour",
+            "harbor"
+          ]
+        }
+      ],
+      "out_of_lexicon": [],
+      "non_places": [
+        {
+          "name": "mer",
+          "aliases": [
+            "mer",
+            "sea"
+          ],
+          "why": "memory and dialogue only"
+        },
+        {
+          "name": "montagne",
+          "aliases": [
+            "montagne",
+            "mountain"
+          ],
+          "why": "dialogue and memory only"
+        },
+        {
+          "name": "silence",
+          "aliases": [
+            "silence"
+          ],
+          "why": "dans un silence is not a place"
+        },
+        {
+          "name": "rue",
+          "aliases": [
+            "rue",
+            "street"
+          ],
+          "why": "glance only, without leaving"
+        }
+      ],
+      "uncertain_targets": [
+        {
+          "name": "quai",
+          "aliases": [
+            "quai",
+            "quay"
+          ],
+          "cue": "Hélène marche vers le quai.",
+          "why": "bare vers toward the next gold place; expected uncertain early cut, then a time jump keeps the quay as the last gold scene"
+        }
+      ],
+      "expected_scene_count": 7,
+      "expected_action_shot_count": 70,
+      "scenes": [
+        {
+          "id": 1,
+          "place": "maison",
+          "place_aliases": [
+            "maison",
+            "sa maison"
+          ],
+          "time": "début de soirée",
+          "time_aliases": [
+            "début de soirée",
+            "soirée",
+            "early evening"
+          ]
+        },
+        {
+          "id": 2,
+          "place": "cuisine",
+          "place_aliases": [
+            "cuisine"
+          ],
+          "time": "9h le lendemain",
+          "time_aliases": [
+            "9h",
+            "le lendemain"
+          ]
+        },
+        {
+          "id": 3,
+          "place": "école",
+          "place_aliases": [
+            "école",
+            "ecole",
+            "à l'école"
+          ],
+          "time": "plus tard",
+          "time_aliases": [
+            "plus tard"
+          ]
+        },
+        {
+          "id": 4,
+          "place": "forêt",
+          "place_aliases": [
+            "forêt",
+            "foret"
+          ],
+          "time": "aube le lendemain",
+          "time_aliases": [
+            "aube",
+            "le lendemain",
+            "dawn"
+          ]
+        },
+        {
+          "id": 5,
+          "place": "restaurant",
+          "place_aliases": [
+            "restaurant"
+          ],
+          "time": "nuit tombée",
+          "time_aliases": [
+            "nuit tombée",
+            "nightfall"
+          ]
+        },
+        {
+          "id": 6,
+          "place": "parc",
+          "place_aliases": [
+            "parc"
+          ],
+          "time": "midi le lendemain",
+          "time_aliases": [
+            "midi",
+            "le lendemain",
+            "noon"
+          ]
+        },
+        {
+          "id": 7,
+          "place": "quai",
+          "place_aliases": [
+            "quai"
+          ],
+          "time": "crépuscule trois jours plus tard",
+          "time_aliases": [
+            "crépuscule",
+            "dusk",
+            "trois jours plus tard"
+          ]
+        }
+      ],
+      "traps": [
+        {
+          "id": "combined_cues",
+          "text": "Ensuite, dans la cuisine, à 9h, Hélène ouvre le placard.",
+          "expected": "one new kitchen scene"
+        },
+        {
+          "id": "cue_only",
+          "text": "Le lendemain. / Trois jours plus tard.",
+          "expected": "not scenes on their own"
+        },
+        {
+          "id": "sequence_same_scene",
+          "text": "Puis elle accroche le manteau près de la porte.",
+          "expected": "new shot, same house"
+        },
+        {
+          "id": "repeated_place",
+          "text": "Dans la cuisine, elle pose une tasse sur la table.",
+          "expected": "no new scene"
+        },
+        {
+          "id": "silence",
+          "text": "Elle attend dans un silence.",
+          "expected": "not a place"
+        },
+        {
+          "id": "memory",
+          "text": "Elle pense à la mer. / Elle pense à la montagne, rien de plus",
+          "expected": "do not open the sea or the mountain"
+        },
+        {
+          "id": "dialogue",
+          "text": "« On devrait aller à la mer. » / « J'ai parlé de la montagne… »",
+          "expected": "do not open those places"
+        },
+        {
+          "id": "glance",
+          "text": "Elle jette un regard vers la rue, sans quitter la pièce",
+          "expected": "no street scene"
+        },
+        {
+          "id": "toward",
+          "text": "Hélène marche vers le quai.",
+          "expected": "uncertain cut toward the next gold place, not an extra place"
+        }
+      ]
+    },
+    "en_long": {
+      "language": "en",
+      "length": "long",
+      "word_count": 779,
+      "char_count": 4166,
+      "gold_characters": [
+        {
+          "name": "Bridget",
+          "look": "late twenties, long dark braids, gold hoop earrings",
+          "outfit": "cream knit jumper, olive field jacket"
+        },
+        {
+          "name": "Kenji",
+          "look": "early forties, greying temples, round steel glasses",
+          "outfit": "rust-red cardigan, canvas satchel"
+        },
+        {
+          "name": "Elise",
+          "look": "mid thirties, freckled, cropped blond hair",
+          "outfit": "waxed yellow jacket, brown boots, red scarf"
+        }
+      ],
+      "gold_places": [
+        {
+          "name": "house",
+          "aliases": [
+            "house",
+            "maison"
+          ]
+        },
+        {
+          "name": "kitchen",
+          "aliases": [
+            "kitchen",
+            "cuisine"
+          ]
+        },
+        {
+          "name": "school",
+          "aliases": [
+            "school",
+            "école",
+            "ecole"
+          ]
+        },
+        {
+          "name": "forest",
+          "aliases": [
+            "forest",
+            "forêt",
+            "foret"
+          ]
+        },
+        {
+          "name": "restaurant",
+          "aliases": [
+            "restaurant"
+          ]
+        },
+        {
+          "name": "park",
+          "aliases": [
+            "park",
+            "parc"
+          ]
+        },
+        {
+          "name": "quay",
+          "aliases": [
+            "quay",
+            "quai",
+            "harbour",
+            "harbor"
+          ]
+        }
+      ],
+      "out_of_lexicon": [],
+      "non_places": [
+        {
+          "name": "sea",
+          "aliases": [
+            "sea",
+            "mer"
+          ],
+          "why": "memory and dialogue only"
+        },
+        {
+          "name": "mountain",
+          "aliases": [
+            "mountain",
+            "montagne"
+          ],
+          "why": "dialogue and memory only"
+        },
+        {
+          "name": "silence",
+          "aliases": [
+            "silence"
+          ],
+          "why": "in a silence is not a place"
+        },
+        {
+          "name": "street",
+          "aliases": [
+            "street",
+            "rue"
+          ],
+          "why": "glance only, without leaving"
+        }
+      ],
+      "uncertain_targets": [
+        {
+          "name": "quay",
+          "aliases": [
+            "quay",
+            "quai"
+          ],
+          "cue": "Bridget walks toward the quay.",
+          "why": "bare toward the next gold place; expected uncertain early cut, then a time jump keeps the quay as the last gold scene"
+        }
+      ],
+      "expected_scene_count": 7,
+      "expected_action_shot_count": 70,
+      "scenes": [
+        {
+          "id": 1,
+          "place": "house",
+          "place_aliases": [
+            "house"
+          ],
+          "time": "early evening",
+          "time_aliases": [
+            "early evening",
+            "evening"
+          ]
+        },
+        {
+          "id": 2,
+          "place": "kitchen",
+          "place_aliases": [
+            "kitchen"
+          ],
+          "time": "9 a.m. the next day",
+          "time_aliases": [
+            "9 a.m.",
+            "the next day"
+          ]
+        },
+        {
+          "id": 3,
+          "place": "school",
+          "place_aliases": [
+            "school"
+          ],
+          "time": "later",
+          "time_aliases": [
+            "later"
+          ]
+        },
+        {
+          "id": 4,
+          "place": "forest",
+          "place_aliases": [
+            "forest"
+          ],
+          "time": "dawn the next day",
+          "time_aliases": [
+            "dawn",
+            "the next day"
+          ]
+        },
+        {
+          "id": 5,
+          "place": "restaurant",
+          "place_aliases": [
+            "restaurant"
+          ],
+          "time": "nightfall",
+          "time_aliases": [
+            "nightfall"
+          ]
+        },
+        {
+          "id": 6,
+          "place": "park",
+          "place_aliases": [
+            "park"
+          ],
+          "time": "noon the next day",
+          "time_aliases": [
+            "noon",
+            "around noon",
+            "the next day"
+          ]
+        },
+        {
+          "id": 7,
+          "place": "quay",
+          "place_aliases": [
+            "quay"
+          ],
+          "time": "dusk three days later",
+          "time_aliases": [
+            "dusk",
+            "three days later"
+          ]
+        }
+      ],
+      "traps": [
+        {
+          "id": "combined_cues",
+          "text": "After that, in the kitchen, at 9 a.m., Bridget opens the cupboard.",
+          "expected": "one new kitchen scene"
+        },
+        {
+          "id": "cue_only",
+          "text": "The next day. / Three days later.",
+          "expected": "not scenes on their own"
+        },
+        {
+          "id": "sequence_same_scene",
+          "text": "Then she hangs the jacket by the door.",
+          "expected": "new shot, same house"
+        },
+        {
+          "id": "repeated_place",
+          "text": "In the kitchen, she sets a cup on the table.",
+          "expected": "no new scene"
+        },
+        {
+          "id": "silence",
+          "text": "She waits in a silence.",
+          "expected": "not a place"
+        },
+        {
+          "id": "memory",
+          "text": "She thinks of the sea. / She thinks of the mountain, nothing more",
+          "expected": "do not open the sea or the mountain"
+        },
+        {
+          "id": "dialogue",
+          "text": "\"We should go to the sea.\" / \"I talked about the mountain…\"",
+          "expected": "do not open those places"
+        },
+        {
+          "id": "glance",
+          "text": "She glances toward the street, without leaving the room",
+          "expected": "no street scene"
+        },
+        {
+          "id": "toward",
+          "text": "Bridget walks toward the quay.",
+          "expected": "uncertain cut toward the next gold place, not an extra place"
+        }
+      ]
+    }
+  }
+}

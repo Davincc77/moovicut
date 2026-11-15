@@ -102,6 +102,29 @@ export function continuityWarnings(shot, project = {}) {
     ))
   }
   const action = shot.what || shot.action || ''
+  if (project.sceneSplit === true) {
+    const shots = project.shots || []
+    const index = shots.findIndex(item => (item.id || item.shot_id) === (shot.id || shot.shot_id))
+    const previous = index > 0 ? shots[index - 1] : null
+    if (previous && shot.where && previous.where && foldName(shot.where) !== foldName(previous.where) && shot.sceneCut !== true) {
+      warnings.push(warning(
+        shot,
+        'unannounced_place',
+        'A place changes here without a place or time cue.',
+        'Add a place or time cue, or merge this shot into the previous scene.',
+        { place: shot.where }
+      ))
+    }
+    if (previous && shot.timeLabel && previous.timeLabel && foldName(shot.timeLabel) !== foldName(previous.timeLabel) && shot.sceneCut !== true && shot.cutKind !== 'scene') {
+      warnings.push(warning(
+        shot,
+        'unannounced_time',
+        'The time of day changes here without a cue.',
+        'Mark the time cue, or keep the previous time of day.',
+        { time: shot.timeLabel }
+      ))
+    }
+  }
   if (splitActionText(action).length >= 2) {
     const already = false
     if (!already) {

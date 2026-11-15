@@ -1,0 +1,3160 @@
+{
+  "ruleset": "zero-ai-scene-split-proposal-v2-2026-11-15",
+  "rules_summary": [
+    "At most one scene cut per sentence. Several cues in the same sentence (sequence + place + time) set the new scene once; they do not make several scenes.",
+    "A place change or a real time jump opens a new scene. A sequence word alone (puis, ensuite, alors, soudain / then, after that, so, suddenly) opens only a new shot in the current scene.",
+    "No cut if the place or time does not actually change (already in that room; 10:05 after 10:00).",
+    "Ignore false friends: a place only in dialogue or a memory does not cut; 'dans'/'in' without a place ('dans un silence', 'in his eyes') does not cut; glancing at a street without leaving does not cut.",
+    "A cue-only sentence with no action ('Le lendemain.', 'The next day.', 'Trois jours plus tard.') is not a scene and attaches to the next sentence.",
+    "A sentence with no action (atmosphere only) stays in the current scene and is not a required shot.",
+    "If one sentence still has two actions, the existing one-action-per-shot split applies inside the same scene.",
+    "Characters, look, outfit, place and time of day carry forward until a cue changes them. The character lock line should be copied into every shot where that character appears."
+  ],
+  "scoring": {
+    "scene_boundary": "An expected scene boundary is a change of place or a real time jump between two consecutive expected scenes. A found boundary is a change of place (or clearly marked time) between consecutive API scenes or shots. Correct = expected boundaries that also appear in the API output, matched by place aliases and time aliases. Missed cut = expected boundary with no matching API change. False cut = API place/scene change that does not match an expected boundary, including cuts on traps.",
+    "characters": "Precision and recall against gold_characters names (case-insensitive). Spurious names (for example a parsed action fragment) are false positives. The waiter/serveur is not a gold character.",
+    "places": "Precision and recall against gold_places aliases. A hit on a non_places name is a false positive."
+  },
+  "stories": {
+    "fr_medium": {
+      "language": "fr",
+      "length": "medium",
+      "word_count": 198,
+      "gold_characters": [
+        {
+          "name": "Maya",
+          "look": "la trentaine, cheveux noirs coupés en pixie, fine cicatrice au sourcil gauche",
+          "outfit": "pull gris chiné, manteau bleu nuit"
+        },
+        {
+          "name": "Luca",
+          "look": "la quarantaine, barbe rousse courte",
+          "outfit": "pull vert bouteille, sac en toile beige, tache de peinture blanche sur la manche"
+        }
+      ],
+      "gold_places": [
+        {
+          "name": "salon",
+          "aliases": [
+            "salon",
+            "appartement",
+            "petit appartement",
+            "living room"
+          ]
+        },
+        {
+          "name": "cuisine",
+          "aliases": [
+            "cuisine",
+            "kitchen"
+          ]
+        },
+        {
+          "name": "gare",
+          "aliases": [
+            "gare",
+            "station",
+            "tableau des départs"
+          ]
+        },
+        {
+          "name": "café",
+          "aliases": [
+            "café",
+            "cafe",
+            "café d'en face"
+          ]
+        }
+      ],
+      "non_places": [
+        {
+          "name": "plage",
+          "aliases": [
+            "plage",
+            "beach"
+          ],
+          "why": "memory and dialogue only"
+        },
+        {
+          "name": "silence",
+          "aliases": [
+            "silence"
+          ],
+          "why": "dans un silence is not a place"
+        }
+      ],
+      "expected_scene_count": 4,
+      "expected_action_shot_count": 19,
+      "scenes": [
+        {
+          "id": 1,
+          "place": "salon de l'appartement de Maya",
+          "place_aliases": [
+            "salon",
+            "appartement",
+            "petit appartement"
+          ],
+          "time": "début de soirée",
+          "time_aliases": [
+            "début de soirée",
+            "soirée",
+            "evening",
+            "early evening"
+          ],
+          "sentence_ids": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "sentences": [
+            "Maya, la trentaine, les cheveux noirs coupés en pixie, une fine cicatrice au sourcil gauche, porte un pull gris chiné et un manteau bleu nuit.",
+            "En début de soirée, elle lit une lettre dans le salon de son petit appartement.",
+            "Puis elle pose la lettre sur la table.",
+            "Alors elle se lève, toujours dans le salon, et range les papiers près de la fenêtre."
+          ],
+          "action_shots": [
+            {
+              "id": "s1.a",
+              "who": [
+                "Maya"
+              ],
+              "action": "lit une lettre",
+              "source_sentence_id": 2
+            },
+            {
+              "id": "s1.b",
+              "who": [
+                "Maya"
+              ],
+              "action": "pose la lettre sur la table",
+              "source_sentence_id": 3
+            },
+            {
+              "id": "s1.c",
+              "who": [
+                "Maya"
+              ],
+              "action": "se lève",
+              "source_sentence_id": 4,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s1.d",
+              "who": [
+                "Maya"
+              ],
+              "action": "range les papiers près de la fenêtre",
+              "source_sentence_id": 4,
+              "split_from_multi_action": true
+            }
+          ],
+          "notes": "Sentence 1 is a look/outfit introduction, not a required shot. Sequence words in 3 and 4 stay in this scene. 'toujours dans le salon' is not a new place."
+        },
+        {
+          "id": 2,
+          "place": "cuisine",
+          "place_aliases": [
+            "cuisine",
+            "kitchen"
+          ],
+          "time": "le lendemain, 10h",
+          "time_aliases": [
+            "le lendemain",
+            "10h",
+            "10 h",
+            "10 a.m.",
+            "matin"
+          ],
+          "sentence_ids": [
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ],
+          "sentences": [
+            "Le lendemain.",
+            "Ensuite, dans la cuisine, à 10h, Maya ouvre le frigo.",
+            "Dans la cuisine, elle pose une tasse sur le comptoir.",
+            "Puis elle verse de l'eau chaude.",
+            "Elle attend dans un silence.",
+            "Elle pense à la plage.",
+            "Soudain, Luca entre, la quarantaine, une barbe rousse courte, un pull vert bouteille, un sac en toile beige, une tache de peinture blanche sur la manche.",
+            "Il dit : « On devrait aller à la plage. »",
+            "Maya lui sourit et referme le frigo."
+          ],
+          "action_shots": [
+            {
+              "id": "s2.a",
+              "who": [
+                "Maya"
+              ],
+              "action": "ouvre le frigo",
+              "source_sentence_id": 6
+            },
+            {
+              "id": "s2.b",
+              "who": [
+                "Maya"
+              ],
+              "action": "pose une tasse sur le comptoir",
+              "source_sentence_id": 7
+            },
+            {
+              "id": "s2.c",
+              "who": [
+                "Maya"
+              ],
+              "action": "verse de l'eau chaude",
+              "source_sentence_id": 8
+            },
+            {
+              "id": "s2.d",
+              "who": [
+                "Maya"
+              ],
+              "action": "attend dans un silence",
+              "source_sentence_id": 9
+            },
+            {
+              "id": "s2.e",
+              "who": [
+                "Maya"
+              ],
+              "action": "pense à la plage (in the kitchen, not at the beach)",
+              "source_sentence_id": 10
+            },
+            {
+              "id": "s2.f",
+              "who": [
+                "Luca"
+              ],
+              "action": "entre dans la cuisine",
+              "source_sentence_id": 11
+            },
+            {
+              "id": "s2.g",
+              "who": [
+                "Luca"
+              ],
+              "action": "dit qu'ils devraient aller à la plage",
+              "source_sentence_id": 12
+            },
+            {
+              "id": "s2.h",
+              "who": [
+                "Maya"
+              ],
+              "action": "sourit à Luca",
+              "source_sentence_id": 13,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s2.i",
+              "who": [
+                "Maya"
+              ],
+              "action": "referme le frigo",
+              "source_sentence_id": 13,
+              "split_from_multi_action": true
+            }
+          ],
+          "notes": "Cue-only 'Le lendemain.' attaches to sentence 6. Combined cues in sentence 6 open this single scene (kitchen, next day, 10h), not three scenes. Remaining sentences stay here."
+        },
+        {
+          "id": 3,
+          "place": "gare",
+          "place_aliases": [
+            "gare",
+            "station"
+          ],
+          "time": "plus tard le même jour",
+          "time_aliases": [
+            "plus tard",
+            "later"
+          ],
+          "sentence_ids": [
+            14,
+            15,
+            16
+          ],
+          "sentences": [
+            "Plus tard, à la gare, Maya retrouve Luca près du tableau des départs.",
+            "Ils comparent leurs billets.",
+            "Luca lui tend une enveloppe."
+          ],
+          "action_shots": [
+            {
+              "id": "s3.a",
+              "who": [
+                "Maya",
+                "Luca"
+              ],
+              "action": "Maya retrouve Luca près du tableau des départs",
+              "source_sentence_id": 14
+            },
+            {
+              "id": "s3.b",
+              "who": [
+                "Maya",
+                "Luca"
+              ],
+              "action": "comparent leurs billets",
+              "source_sentence_id": 15
+            },
+            {
+              "id": "s3.c",
+              "who": [
+                "Luca"
+              ],
+              "action": "tend une enveloppe à Maya",
+              "source_sentence_id": 16
+            }
+          ],
+          "notes": "Place and time change in one sentence: one new scene."
+        },
+        {
+          "id": 4,
+          "place": "café d'en face",
+          "place_aliases": [
+            "café",
+            "cafe",
+            "café d'en face"
+          ],
+          "time": "à la nuit tombée",
+          "time_aliases": [
+            "nuit tombée",
+            "nuit",
+            "nightfall"
+          ],
+          "sentence_ids": [
+            17,
+            18,
+            19
+          ],
+          "sentences": [
+            "À la nuit tombée, dans le café d'en face, ils s'assoient près de la fenêtre.",
+            "Maya ouvre l'enveloppe.",
+            "Puis elle la range dans la poche de son manteau bleu nuit."
+          ],
+          "action_shots": [
+            {
+              "id": "s4.a",
+              "who": [
+                "Maya",
+                "Luca"
+              ],
+              "action": "s'assoient près de la fenêtre",
+              "source_sentence_id": 17
+            },
+            {
+              "id": "s4.b",
+              "who": [
+                "Maya"
+              ],
+              "action": "ouvre l'enveloppe",
+              "source_sentence_id": 18
+            },
+            {
+              "id": "s4.c",
+              "who": [
+                "Maya"
+              ],
+              "action": "range l'enveloppe dans la poche de son manteau bleu nuit",
+              "source_sentence_id": 19
+            }
+          ],
+          "notes": "Nightfall plus a new place: one new scene. Sentence 19 is a sequence shot in the same café."
+        }
+      ],
+      "traps": [
+        {
+          "id": "combined_cues",
+          "kind": "several cues in one sentence",
+          "sentence_ids": [
+            6
+          ],
+          "expected": "One new scene only: cuisine, le lendemain, 10h, action = ouvrir le frigo.",
+          "wrong_behaviour": "Three scenes, or a cut on ensuite, another on cuisine, and another on 10h."
+        },
+        {
+          "id": "sequence_no_change",
+          "kind": "sequence word with no place/time change",
+          "sentence_ids": [
+            3,
+            8,
+            19
+          ],
+          "expected": "New shot in the current scene, no scene cut.",
+          "wrong_behaviour": "A new scene for puis/alors/ensuite alone."
+        },
+        {
+          "id": "repeated_place",
+          "kind": "already-current place restated",
+          "sentence_ids": [
+            4,
+            7
+          ],
+          "expected": "Stay in the current scene.",
+          "wrong_behaviour": "A second salon scene or a second kitchen scene."
+        },
+        {
+          "id": "memory_or_dialogue_place",
+          "kind": "place only in a memory or in dialogue",
+          "sentence_ids": [
+            10,
+            12
+          ],
+          "expected": "Stay in the kitchen. Do not add the beach as a place or a scene.",
+          "wrong_behaviour": "A beach place or a beach scene."
+        },
+        {
+          "id": "dans_without_place",
+          "kind": "'dans' without a place",
+          "sentence_ids": [
+            9
+          ],
+          "expected": "Stay in the kitchen. 'silence' is not a place.",
+          "wrong_behaviour": "A place or scene named silence."
+        },
+        {
+          "id": "cue_only",
+          "kind": "cue-only sentence with no action",
+          "sentence_ids": [
+            5
+          ],
+          "expected": "Not a scene of its own. Attaches to sentence 6.",
+          "wrong_behaviour": "An empty scene, or a cut with no action, for 'Le lendemain.' alone."
+        }
+      ]
+    },
+    "en_medium": {
+      "language": "en",
+      "length": "medium",
+      "word_count": 198,
+      "gold_characters": [
+        {
+          "name": "Maya",
+          "look": "early thirties, short black hair in a pixie cut, thin scar on her left eyebrow",
+          "outfit": "heather-grey sweater, midnight-blue coat"
+        },
+        {
+          "name": "Luca",
+          "look": "early forties, short red beard",
+          "outfit": "bottle-green sweater, beige canvas bag, white paint stain on the sleeve"
+        }
+      ],
+      "gold_places": [
+        {
+          "name": "living room",
+          "aliases": [
+            "living room",
+            "apartment",
+            "small apartment",
+            "salon"
+          ]
+        },
+        {
+          "name": "kitchen",
+          "aliases": [
+            "kitchen",
+            "cuisine"
+          ]
+        },
+        {
+          "name": "station",
+          "aliases": [
+            "station",
+            "gare",
+            "departures board"
+          ]
+        },
+        {
+          "name": "café",
+          "aliases": [
+            "café",
+            "cafe",
+            "café across the street"
+          ]
+        }
+      ],
+      "non_places": [
+        {
+          "name": "beach",
+          "aliases": [
+            "beach",
+            "plage"
+          ],
+          "why": "memory and dialogue only"
+        },
+        {
+          "name": "silence",
+          "aliases": [
+            "silence"
+          ],
+          "why": "in a silence is not a place"
+        }
+      ],
+      "expected_scene_count": 4,
+      "expected_action_shot_count": 19,
+      "scenes": [
+        {
+          "id": 1,
+          "place": "living room of Maya's apartment",
+          "place_aliases": [
+            "living room",
+            "apartment",
+            "small apartment"
+          ],
+          "time": "early evening",
+          "time_aliases": [
+            "early evening",
+            "evening"
+          ],
+          "sentence_ids": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "sentences": [
+            "Maya, in her early thirties, short black hair in a pixie cut, a thin scar on her left eyebrow, wears a heather-grey sweater and a midnight-blue coat.",
+            "In the early evening she reads a letter in the living room of her small apartment.",
+            "Then she sets the letter on the table.",
+            "So she stands up, still in the living room, and tidies the papers by the window."
+          ],
+          "action_shots": [
+            {
+              "id": "s1.a",
+              "who": [
+                "Maya"
+              ],
+              "action": "reads a letter",
+              "source_sentence_id": 2
+            },
+            {
+              "id": "s1.b",
+              "who": [
+                "Maya"
+              ],
+              "action": "sets the letter on the table",
+              "source_sentence_id": 3
+            },
+            {
+              "id": "s1.c",
+              "who": [
+                "Maya"
+              ],
+              "action": "stands up",
+              "source_sentence_id": 4,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s1.d",
+              "who": [
+                "Maya"
+              ],
+              "action": "tidies the papers by the window",
+              "source_sentence_id": 4,
+              "split_from_multi_action": true
+            }
+          ],
+          "notes": "Sentence 1 is a look/outfit introduction, not a required shot. Sequence words in 3 and 4 stay in this scene. 'still in the living room' is not a new place."
+        },
+        {
+          "id": 2,
+          "place": "kitchen",
+          "place_aliases": [
+            "kitchen"
+          ],
+          "time": "the next day, 10 a.m.",
+          "time_aliases": [
+            "the next day",
+            "next day",
+            "10 a.m.",
+            "10am",
+            "morning"
+          ],
+          "sentence_ids": [
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ],
+          "sentences": [
+            "The next day.",
+            "After that, in the kitchen, at 10 a.m., Maya opens the fridge.",
+            "In the kitchen, she sets a cup on the counter.",
+            "Then she pours hot water.",
+            "She waits in a silence.",
+            "She thinks of the beach.",
+            "Suddenly Luca comes in, in his early forties, a short red beard, a bottle-green sweater, a beige canvas bag, a white paint stain on the sleeve.",
+            "He says, \"We should go to the beach.\"",
+            "Maya smiles at him and closes the fridge."
+          ],
+          "action_shots": [
+            {
+              "id": "s2.a",
+              "who": [
+                "Maya"
+              ],
+              "action": "opens the fridge",
+              "source_sentence_id": 6
+            },
+            {
+              "id": "s2.b",
+              "who": [
+                "Maya"
+              ],
+              "action": "sets a cup on the counter",
+              "source_sentence_id": 7
+            },
+            {
+              "id": "s2.c",
+              "who": [
+                "Maya"
+              ],
+              "action": "pours hot water",
+              "source_sentence_id": 8
+            },
+            {
+              "id": "s2.d",
+              "who": [
+                "Maya"
+              ],
+              "action": "waits in a silence",
+              "source_sentence_id": 9
+            },
+            {
+              "id": "s2.e",
+              "who": [
+                "Maya"
+              ],
+              "action": "thinks of the beach (in the kitchen, not at the beach)",
+              "source_sentence_id": 10
+            },
+            {
+              "id": "s2.f",
+              "who": [
+                "Luca"
+              ],
+              "action": "comes into the kitchen",
+              "source_sentence_id": 11
+            },
+            {
+              "id": "s2.g",
+              "who": [
+                "Luca"
+              ],
+              "action": "says they should go to the beach",
+              "source_sentence_id": 12
+            },
+            {
+              "id": "s2.h",
+              "who": [
+                "Maya"
+              ],
+              "action": "smiles at Luca",
+              "source_sentence_id": 13,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s2.i",
+              "who": [
+                "Maya"
+              ],
+              "action": "closes the fridge",
+              "source_sentence_id": 13,
+              "split_from_multi_action": true
+            }
+          ],
+          "notes": "Cue-only 'The next day.' attaches to sentence 6. Combined cues in sentence 6 open this single scene (kitchen, next day, 10 a.m.), not three scenes."
+        },
+        {
+          "id": 3,
+          "place": "station",
+          "place_aliases": [
+            "station"
+          ],
+          "time": "later the same day",
+          "time_aliases": [
+            "later"
+          ],
+          "sentence_ids": [
+            14,
+            15,
+            16
+          ],
+          "sentences": [
+            "Later, at the station, Maya finds Luca by the departures board.",
+            "They compare their tickets.",
+            "Luca hands her an envelope."
+          ],
+          "action_shots": [
+            {
+              "id": "s3.a",
+              "who": [
+                "Maya",
+                "Luca"
+              ],
+              "action": "Maya finds Luca by the departures board",
+              "source_sentence_id": 14
+            },
+            {
+              "id": "s3.b",
+              "who": [
+                "Maya",
+                "Luca"
+              ],
+              "action": "compare their tickets",
+              "source_sentence_id": 15
+            },
+            {
+              "id": "s3.c",
+              "who": [
+                "Luca"
+              ],
+              "action": "hands Maya an envelope",
+              "source_sentence_id": 16
+            }
+          ],
+          "notes": "Place and time change in one sentence: one new scene."
+        },
+        {
+          "id": 4,
+          "place": "café across the street",
+          "place_aliases": [
+            "café",
+            "cafe",
+            "café across the street"
+          ],
+          "time": "nightfall",
+          "time_aliases": [
+            "nightfall",
+            "night"
+          ],
+          "sentence_ids": [
+            17,
+            18,
+            19
+          ],
+          "sentences": [
+            "At nightfall, in the café across the street, they sit down by the window.",
+            "Maya opens the envelope.",
+            "Then she slips it into the pocket of her midnight-blue coat."
+          ],
+          "action_shots": [
+            {
+              "id": "s4.a",
+              "who": [
+                "Maya",
+                "Luca"
+              ],
+              "action": "sit down by the window",
+              "source_sentence_id": 17
+            },
+            {
+              "id": "s4.b",
+              "who": [
+                "Maya"
+              ],
+              "action": "opens the envelope",
+              "source_sentence_id": 18
+            },
+            {
+              "id": "s4.c",
+              "who": [
+                "Maya"
+              ],
+              "action": "slips the envelope into the pocket of her midnight-blue coat",
+              "source_sentence_id": 19
+            }
+          ],
+          "notes": "Nightfall plus a new place: one new scene. Sentence 19 is a sequence shot in the same café."
+        }
+      ],
+      "traps": [
+        {
+          "id": "combined_cues",
+          "kind": "several cues in one sentence",
+          "sentence_ids": [
+            6
+          ],
+          "expected": "One new scene only: kitchen, the next day, 10 a.m., action = opens the fridge.",
+          "wrong_behaviour": "Three scenes, or a cut on After that, another on the kitchen, and another on 10 a.m."
+        },
+        {
+          "id": "sequence_no_change",
+          "kind": "sequence word with no place/time change",
+          "sentence_ids": [
+            3,
+            8,
+            19
+          ],
+          "expected": "New shot in the current scene, no scene cut.",
+          "wrong_behaviour": "A new scene for then/so/after that alone."
+        },
+        {
+          "id": "repeated_place",
+          "kind": "already-current place restated",
+          "sentence_ids": [
+            4,
+            7
+          ],
+          "expected": "Stay in the current scene.",
+          "wrong_behaviour": "A second living-room scene or a second kitchen scene."
+        },
+        {
+          "id": "memory_or_dialogue_place",
+          "kind": "place only in a memory or in dialogue",
+          "sentence_ids": [
+            10,
+            12
+          ],
+          "expected": "Stay in the kitchen. Do not add the beach as a place or a scene.",
+          "wrong_behaviour": "A beach place or a beach scene."
+        },
+        {
+          "id": "dans_without_place",
+          "kind": "'in' without a place",
+          "sentence_ids": [
+            9
+          ],
+          "expected": "Stay in the kitchen. 'silence' is not a place.",
+          "wrong_behaviour": "A place or scene named silence."
+        },
+        {
+          "id": "cue_only",
+          "kind": "cue-only sentence with no action",
+          "sentence_ids": [
+            5
+          ],
+          "expected": "Not a scene of its own. Attaches to sentence 6.",
+          "wrong_behaviour": "An empty scene, or a cut with no action, for 'The next day.' alone."
+        }
+      ]
+    },
+    "fr_long": {
+      "language": "fr",
+      "length": "long",
+      "word_count": 778,
+      "gold_characters": [
+        {
+          "name": "Maya",
+          "look": "la trentaine / early thirties, cheveux noirs coupés en pixie, fine cicatrice au sourcil gauche",
+          "outfit": "pull gris chiné / heather-grey sweater, manteau bleu nuit / midnight-blue coat"
+        },
+        {
+          "name": "Luca",
+          "look": "la quarantaine / early forties, barbe rousse courte / short red beard",
+          "outfit": "pull vert bouteille / bottle-green sweater, sac en toile beige, tache de peinture blanche sur la manche"
+        },
+        {
+          "name": "Nadia",
+          "look": "fin de la trentaine / late thirties, cheveux bruns bouclés, lunettes rondes",
+          "outfit": "ciré jaune / yellow raincoat, bottes noires, bague en argent à la main gauche"
+        }
+      ],
+      "gold_places": [
+        {
+          "name": "salon",
+          "aliases": [
+            "salon",
+            "appartement",
+            "petit appartement"
+          ]
+        },
+        {
+          "name": "cuisine",
+          "aliases": [
+            "cuisine"
+          ]
+        },
+        {
+          "name": "gare",
+          "aliases": [
+            "gare",
+            "hall",
+            "tableau des départs"
+          ]
+        },
+        {
+          "name": "café",
+          "aliases": [
+            "café",
+            "cafe",
+            "café d'en face"
+          ]
+        },
+        {
+          "name": "atelier de Nadia",
+          "aliases": [
+            "atelier",
+            "atelier de Nadia",
+            "workshop"
+          ]
+        },
+        {
+          "name": "parc",
+          "aliases": [
+            "parc",
+            "park",
+            "allée",
+            "kiosque"
+          ]
+        },
+        {
+          "name": "quai du port",
+          "aliases": [
+            "quai",
+            "quai du port",
+            "port",
+            "harbour",
+            "harbor"
+          ]
+        }
+      ],
+      "non_places": [
+        {
+          "name": "plage / beach",
+          "aliases": [
+            "plage",
+            "beach"
+          ],
+          "why": "memory, thought, or dialogue only, in every mention before the last scene and never visited"
+        },
+        {
+          "name": "Paris",
+          "aliases": [
+            "Paris"
+          ],
+          "why": "spoken about or remembered, never visited"
+        },
+        {
+          "name": "montagne / mountains",
+          "aliases": [
+            "montagne",
+            "mountain",
+            "mountains"
+          ],
+          "why": "dialogue or thought only"
+        },
+        {
+          "name": "silence",
+          "aliases": [
+            "silence"
+          ],
+          "why": "dans un silence / in a silence is not a place"
+        },
+        {
+          "name": "yeux / eyes",
+          "aliases": [
+            "yeux",
+            "eyes"
+          ],
+          "why": "dans ses yeux / in his eyes is not a place"
+        },
+        {
+          "name": "rue / street",
+          "aliases": [
+            "rue",
+            "street"
+          ],
+          "why": "a glance toward the street without leaving the living room; the café is 'across the street' but the street itself is not a scene"
+        },
+        {
+          "name": "port (spoken too early)",
+          "aliases": [],
+          "why": "Nadia's line about not thinking of a harbour must not open the harbour scene before 'Trois jours plus tard' / 'Three days later'"
+        }
+      ],
+      "expected_scene_count": 7,
+      "expected_action_shot_count": 72,
+      "scenes": [
+        {
+          "id": 1,
+          "place": "salon de l'appartement de Maya",
+          "place_aliases": [
+            "salon",
+            "appartement",
+            "petit appartement"
+          ],
+          "time": "début de soirée",
+          "time_aliases": [
+            "début de soirée",
+            "soirée",
+            "evening"
+          ],
+          "sentence_ids": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "sentences": [
+            "Maya, la trentaine, les cheveux noirs coupés en pixie, une fine cicatrice au sourcil gauche, porte un pull gris chiné et un manteau bleu nuit.",
+            "En début de soirée, elle s'installe dans le salon de son petit appartement et lit une lettre posée près de la lampe.",
+            "La pièce est calme, les rideaux à peine tirés, et la lumière jaune éclaire la table basse.",
+            "Puis elle pose la lettre sur la table.",
+            "Alors elle se lève, toujours dans le salon, et range les papiers près de la fenêtre.",
+            "Elle jette un regard vers la rue, sans quitter la pièce, et croise les bras un moment.",
+            "Dans le salon, elle éteint la grande lampe et n'emporte que la petite enveloppe déjà ouverte."
+          ],
+          "action_shots": [
+            {
+              "id": "s1.a",
+              "who": [
+                "Maya"
+              ],
+              "action": "s'installe dans le salon",
+              "source_sentence_id": 2,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s1.b",
+              "who": [
+                "Maya"
+              ],
+              "action": "lit une lettre posée près de la lampe",
+              "source_sentence_id": 2,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s1.c",
+              "who": [
+                "Maya"
+              ],
+              "action": "pose la lettre sur la table",
+              "source_sentence_id": 4
+            },
+            {
+              "id": "s1.d",
+              "who": [
+                "Maya"
+              ],
+              "action": "se lève",
+              "source_sentence_id": 5,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s1.e",
+              "who": [
+                "Maya"
+              ],
+              "action": "range les papiers près de la fenêtre",
+              "source_sentence_id": 5,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s1.f",
+              "who": [
+                "Maya"
+              ],
+              "action": "jette un regard vers la rue, sans quitter la pièce",
+              "source_sentence_id": 6,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s1.g",
+              "who": [
+                "Maya"
+              ],
+              "action": "croise les bras",
+              "source_sentence_id": 6,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s1.h",
+              "who": [
+                "Maya"
+              ],
+              "action": "éteint la grande lampe",
+              "source_sentence_id": 7,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s1.i",
+              "who": [
+                "Maya"
+              ],
+              "action": "n'emporte que la petite enveloppe déjà ouverte",
+              "source_sentence_id": 7,
+              "split_from_multi_action": true
+            }
+          ],
+          "notes": "Sentence 1 is a look introduction. Sentence 3 is atmosphere only, not a required shot, and must not cut. Looking toward the street is not a street scene."
+        },
+        {
+          "id": 2,
+          "place": "cuisine",
+          "place_aliases": [
+            "cuisine"
+          ],
+          "time": "le lendemain, 10h",
+          "time_aliases": [
+            "le lendemain",
+            "10h",
+            "10 h",
+            "matin"
+          ],
+          "sentence_ids": [
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20
+          ],
+          "sentences": [
+            "Le lendemain.",
+            "Ensuite, dans la cuisine, à 10h, Maya ouvre le frigo.",
+            "Dans la cuisine, elle pose une tasse sur le comptoir.",
+            "Puis elle verse de l'eau chaude.",
+            "Elle attend dans un silence.",
+            "Elle pense à la plage.",
+            "Soudain, Luca entre, la quarantaine, une barbe rousse courte, un pull vert bouteille, un sac en toile beige, une tache de peinture blanche sur la manche.",
+            "Il laisse le sac près de la porte et cherche une seconde tasse.",
+            "Il dit : « On devrait aller à la plage. »",
+            "Maya lui sourit, toujours dans la cuisine, et referme le frigo.",
+            "Puis elle lui tend la tasse.",
+            "Luca boit une gorgée et repose la tasse.",
+            "Maya range la lettre dans un tiroir, sans changer de pièce, et enfile son manteau bleu nuit."
+          ],
+          "action_shots": [
+            {
+              "id": "s2.a",
+              "who": [
+                "Maya"
+              ],
+              "action": "ouvre le frigo",
+              "source_sentence_id": 9
+            },
+            {
+              "id": "s2.b",
+              "who": [
+                "Maya"
+              ],
+              "action": "pose une tasse sur le comptoir",
+              "source_sentence_id": 10
+            },
+            {
+              "id": "s2.c",
+              "who": [
+                "Maya"
+              ],
+              "action": "verse de l'eau chaude",
+              "source_sentence_id": 11
+            },
+            {
+              "id": "s2.d",
+              "who": [
+                "Maya"
+              ],
+              "action": "attend dans un silence",
+              "source_sentence_id": 12
+            },
+            {
+              "id": "s2.e",
+              "who": [
+                "Maya"
+              ],
+              "action": "pense à la plage (in the kitchen)",
+              "source_sentence_id": 13
+            },
+            {
+              "id": "s2.f",
+              "who": [
+                "Luca"
+              ],
+              "action": "entre dans la cuisine",
+              "source_sentence_id": 14
+            },
+            {
+              "id": "s2.g",
+              "who": [
+                "Luca"
+              ],
+              "action": "laisse le sac près de la porte",
+              "source_sentence_id": 15,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s2.h",
+              "who": [
+                "Luca"
+              ],
+              "action": "cherche une seconde tasse",
+              "source_sentence_id": 15,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s2.i",
+              "who": [
+                "Luca"
+              ],
+              "action": "dit qu'ils devraient aller à la plage",
+              "source_sentence_id": 16
+            },
+            {
+              "id": "s2.j",
+              "who": [
+                "Maya"
+              ],
+              "action": "sourit à Luca",
+              "source_sentence_id": 17,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s2.k",
+              "who": [
+                "Maya"
+              ],
+              "action": "referme le frigo",
+              "source_sentence_id": 17,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s2.l",
+              "who": [
+                "Maya"
+              ],
+              "action": "tend la tasse à Luca",
+              "source_sentence_id": 18
+            },
+            {
+              "id": "s2.m",
+              "who": [
+                "Luca"
+              ],
+              "action": "boit une gorgée",
+              "source_sentence_id": 19,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s2.n",
+              "who": [
+                "Luca"
+              ],
+              "action": "repose la tasse",
+              "source_sentence_id": 19,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s2.o",
+              "who": [
+                "Maya"
+              ],
+              "action": "range la lettre dans un tiroir",
+              "source_sentence_id": 20,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s2.p",
+              "who": [
+                "Maya"
+              ],
+              "action": "enfile son manteau bleu nuit",
+              "source_sentence_id": 20,
+              "split_from_multi_action": true
+            }
+          ],
+          "notes": "Cue-only sentence 8 attaches to the combined-cue sentence 9: one kitchen scene at 10h the next day."
+        },
+        {
+          "id": 3,
+          "place": "gare",
+          "place_aliases": [
+            "gare",
+            "hall"
+          ],
+          "time": "plus tard le même jour",
+          "time_aliases": [
+            "plus tard"
+          ],
+          "sentence_ids": [
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28
+          ],
+          "sentences": [
+            "Plus tard, à la gare, Maya retrouve Luca près du tableau des départs.",
+            "Le hall est bruyant, les annonces se succèdent, et un vent froid passe sous les grandes portes.",
+            "Ils comparent leurs billets.",
+            "Luca lui tend une deuxième enveloppe, plus épaisse que la première.",
+            "Alors Maya lit le nom écrit au dos et le glisse dans sa poche.",
+            "Ils restent un moment sous l'horloge, toujours à la gare, sans parler.",
+            "Dans un silence, Luca ajuste son sac.",
+            "Il dit : « Nadia m'a parlé de Paris, mais ce n'est pas pour aujourd'hui. »"
+          ],
+          "action_shots": [
+            {
+              "id": "s3.a",
+              "who": [
+                "Maya",
+                "Luca"
+              ],
+              "action": "Maya retrouve Luca près du tableau des départs",
+              "source_sentence_id": 21
+            },
+            {
+              "id": "s3.b",
+              "who": [
+                "Maya",
+                "Luca"
+              ],
+              "action": "comparent leurs billets",
+              "source_sentence_id": 23
+            },
+            {
+              "id": "s3.c",
+              "who": [
+                "Luca"
+              ],
+              "action": "tend une deuxième enveloppe à Maya",
+              "source_sentence_id": 24
+            },
+            {
+              "id": "s3.d",
+              "who": [
+                "Maya"
+              ],
+              "action": "lit le nom écrit au dos",
+              "source_sentence_id": 25,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s3.e",
+              "who": [
+                "Maya"
+              ],
+              "action": "glisse l'enveloppe dans sa poche",
+              "source_sentence_id": 25,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s3.f",
+              "who": [
+                "Maya",
+                "Luca"
+              ],
+              "action": "restent un moment sous l'horloge, sans parler",
+              "source_sentence_id": 26
+            },
+            {
+              "id": "s3.g",
+              "who": [
+                "Luca"
+              ],
+              "action": "ajuste son sac",
+              "source_sentence_id": 27
+            },
+            {
+              "id": "s3.h",
+              "who": [
+                "Luca"
+              ],
+              "action": "dit que Nadia lui a parlé de Paris",
+              "source_sentence_id": 28
+            }
+          ],
+          "notes": "Sentence 22 is atmosphere in the station hall, not a required shot and not a new place. Paris in dialogue is not a scene. 'Dans un silence' is not a place."
+        },
+        {
+          "id": 4,
+          "place": "café d'en face",
+          "place_aliases": [
+            "café",
+            "cafe",
+            "café d'en face"
+          ],
+          "time": "à la nuit tombée",
+          "time_aliases": [
+            "nuit tombée",
+            "nuit"
+          ],
+          "sentence_ids": [
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36
+          ],
+          "sentences": [
+            "À la nuit tombée, dans le café d'en face, ils s'assoient près de la fenêtre.",
+            "La salle est étroite, les tables de bois foncé, une radio joue tout bas.",
+            "Maya ouvre l'enveloppe.",
+            "Puis elle en sort une vieille photographie et la pose à plat.",
+            "Elle regarde Luca dans ses yeux et ne dit rien de la plage.",
+            "Dans le café, le serveur apporte deux verres d'eau.",
+            "Soudain Maya range la photo, toujours assise à la même table, et referme l'enveloppe.",
+            "Luca sourit et pose sa main près du verre, sans se lever."
+          ],
+          "action_shots": [
+            {
+              "id": "s4.a",
+              "who": [
+                "Maya",
+                "Luca"
+              ],
+              "action": "s'assoient près de la fenêtre",
+              "source_sentence_id": 29
+            },
+            {
+              "id": "s4.b",
+              "who": [
+                "Maya"
+              ],
+              "action": "ouvre l'enveloppe",
+              "source_sentence_id": 31
+            },
+            {
+              "id": "s4.c",
+              "who": [
+                "Maya"
+              ],
+              "action": "sort une vieille photographie",
+              "source_sentence_id": 32,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s4.d",
+              "who": [
+                "Maya"
+              ],
+              "action": "la pose à plat",
+              "source_sentence_id": 32,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s4.e",
+              "who": [
+                "Maya",
+                "Luca"
+              ],
+              "action": "Maya regarde Luca dans ses yeux",
+              "source_sentence_id": 33
+            },
+            {
+              "id": "s4.f",
+              "who": [
+                "serveur"
+              ],
+              "action": "apporte deux verres d'eau",
+              "source_sentence_id": 34
+            },
+            {
+              "id": "s4.g",
+              "who": [
+                "Maya"
+              ],
+              "action": "range la photo",
+              "source_sentence_id": 35,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s4.h",
+              "who": [
+                "Maya"
+              ],
+              "action": "referme l'enveloppe",
+              "source_sentence_id": 35,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s4.i",
+              "who": [
+                "Luca"
+              ],
+              "action": "sourit et pose sa main près du verre",
+              "source_sentence_id": 36
+            }
+          ],
+          "notes": "Sentence 30 is atmosphere only. 'dans ses yeux' is not a place. The waiter is a passing figure, not a gold recurring character. Mention of the beach must not cut."
+        },
+        {
+          "id": 5,
+          "place": "atelier de Nadia",
+          "place_aliases": [
+            "atelier",
+            "atelier de Nadia"
+          ],
+          "time": "le lendemain, à l'aube",
+          "time_aliases": [
+            "le lendemain",
+            "à l'aube",
+            "aube",
+            "dawn"
+          ],
+          "sentence_ids": [
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47
+          ],
+          "sentences": [
+            "Le lendemain.",
+            "À l'aube, dans l'atelier de Nadia, Maya pousse la porte.",
+            "Nadia, la fin de la trentaine, les cheveux bruns bouclés, des lunettes rondes, un ciré jaune, des bottes noires, une bague en argent à la main gauche, relève une toile contre le mur.",
+            "Dans l'atelier, elle allume la lampe au-dessus de l'établi.",
+            "Puis elle tend à Maya un croquis roulé.",
+            "Luca arrive à son tour et ferme la porte.",
+            "Nadia dit : « Je pensais à la montagne, pas à un port. »",
+            "Maya écoute dans un silence et déroule le papier.",
+            "Elle se souvient de Paris, une seconde seulement, puis revient au dessin.",
+            "Alors Nadia montre une marque à l'encre, toujours dans l'atelier, et range les pinceaux.",
+            "Ils parlent encore un peu, sans quitter la pièce, et enfilent leurs manteaux."
+          ],
+          "action_shots": [
+            {
+              "id": "s5.a",
+              "who": [
+                "Maya"
+              ],
+              "action": "pousse la porte de l'atelier",
+              "source_sentence_id": 38
+            },
+            {
+              "id": "s5.b",
+              "who": [
+                "Nadia"
+              ],
+              "action": "relève une toile contre le mur",
+              "source_sentence_id": 39
+            },
+            {
+              "id": "s5.c",
+              "who": [
+                "Nadia"
+              ],
+              "action": "allume la lampe au-dessus de l'établi",
+              "source_sentence_id": 40
+            },
+            {
+              "id": "s5.d",
+              "who": [
+                "Nadia"
+              ],
+              "action": "tend un croquis roulé à Maya",
+              "source_sentence_id": 41
+            },
+            {
+              "id": "s5.e",
+              "who": [
+                "Luca"
+              ],
+              "action": "arrive et ferme la porte",
+              "source_sentence_id": 42
+            },
+            {
+              "id": "s5.f",
+              "who": [
+                "Nadia"
+              ],
+              "action": "dit qu'elle pensait à la montagne, pas à un port",
+              "source_sentence_id": 43
+            },
+            {
+              "id": "s5.g",
+              "who": [
+                "Maya"
+              ],
+              "action": "écoute dans un silence",
+              "source_sentence_id": 44,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s5.h",
+              "who": [
+                "Maya"
+              ],
+              "action": "déroule le papier",
+              "source_sentence_id": 44,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s5.i",
+              "who": [
+                "Maya"
+              ],
+              "action": "se souvient de Paris une seconde, puis revient au dessin",
+              "source_sentence_id": 45
+            },
+            {
+              "id": "s5.j",
+              "who": [
+                "Nadia"
+              ],
+              "action": "montre une marque à l'encre",
+              "source_sentence_id": 46,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s5.k",
+              "who": [
+                "Nadia"
+              ],
+              "action": "range les pinceaux",
+              "source_sentence_id": 46,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s5.l",
+              "who": [
+                "Maya",
+                "Luca",
+                "Nadia"
+              ],
+              "action": "parlent encore un peu",
+              "source_sentence_id": 47,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s5.m",
+              "who": [
+                "Maya",
+                "Luca",
+                "Nadia"
+              ],
+              "action": "enfilent leurs manteaux",
+              "source_sentence_id": 47,
+              "split_from_multi_action": true
+            }
+          ],
+          "notes": "Cue-only sentence 37 attaches to combined-cue sentence 38: one workshop scene at dawn. Mountains, a harbour, and Paris must not open here."
+        },
+        {
+          "id": 6,
+          "place": "parc",
+          "place_aliases": [
+            "parc",
+            "allée",
+            "kiosque"
+          ],
+          "time": "vers midi",
+          "time_aliases": [
+            "vers midi",
+            "midi",
+            "noon"
+          ],
+          "sentence_ids": [
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57
+          ],
+          "sentences": [
+            "Ensuite, dans le parc, vers midi, ils marchent le long de l'allée.",
+            "Les platanes sont presque nus, le gravier craque, un chien passe au loin.",
+            "Maya s'arrête près du kiosque.",
+            "Puis elle relit le croquis à la lumière.",
+            "Luca s'assoit sur un banc, toujours dans le parc, et pose le sac à ses pieds.",
+            "Nadia reste debout et regarde l'heure.",
+            "Elle dit : « Hier encore, je rêvais de la plage. »",
+            "Maya ne répond pas à cela et range le papier.",
+            "Dans le parc, un coup de vent soulève les feuilles mortes.",
+            "Soudain ils reprennent l'allée et marchent jusqu'à la grille."
+          ],
+          "action_shots": [
+            {
+              "id": "s6.a",
+              "who": [
+                "Maya",
+                "Luca",
+                "Nadia"
+              ],
+              "action": "marchent le long de l'allée",
+              "source_sentence_id": 48
+            },
+            {
+              "id": "s6.b",
+              "who": [
+                "Maya"
+              ],
+              "action": "s'arrête près du kiosque",
+              "source_sentence_id": 50
+            },
+            {
+              "id": "s6.c",
+              "who": [
+                "Maya"
+              ],
+              "action": "relit le croquis à la lumière",
+              "source_sentence_id": 51
+            },
+            {
+              "id": "s6.d",
+              "who": [
+                "Luca"
+              ],
+              "action": "s'assoit sur un banc",
+              "source_sentence_id": 52,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s6.e",
+              "who": [
+                "Luca"
+              ],
+              "action": "pose le sac à ses pieds",
+              "source_sentence_id": 52,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s6.f",
+              "who": [
+                "Nadia"
+              ],
+              "action": "reste debout et regarde l'heure",
+              "source_sentence_id": 53
+            },
+            {
+              "id": "s6.g",
+              "who": [
+                "Nadia"
+              ],
+              "action": "dit qu'elle rêvait de la plage",
+              "source_sentence_id": 54
+            },
+            {
+              "id": "s6.h",
+              "who": [
+                "Maya"
+              ],
+              "action": "ne répond pas et range le papier",
+              "source_sentence_id": 55
+            },
+            {
+              "id": "s6.i",
+              "who": [
+                "Maya",
+                "Luca",
+                "Nadia"
+              ],
+              "action": "reprennent l'allée et marchent jusqu'à la grille",
+              "source_sentence_id": 57
+            }
+          ],
+          "notes": "Sentence 49 is atmosphere. Sentence 56 is weather in the same park, not a required shot and not a new place. Combined cues in 48 open this single noon-park scene. The beach in dialogue does not cut."
+        },
+        {
+          "id": 7,
+          "place": "quai du port",
+          "place_aliases": [
+            "quai",
+            "quai du port",
+            "port"
+          ],
+          "time": "trois jours plus tard, au crépuscule",
+          "time_aliases": [
+            "trois jours plus tard",
+            "crépuscule",
+            "dusk"
+          ],
+          "sentence_ids": [
+            58,
+            59,
+            60,
+            61,
+            62,
+            63,
+            64,
+            65,
+            66
+          ],
+          "sentences": [
+            "Trois jours plus tard.",
+            "Sur le quai du port, au crépuscule, Maya, Luca et Nadia regardent le bateau s'éloigner.",
+            "L'eau est sombre, une cloche sonne quelque part, l'air sent le sel et le gasoil.",
+            "Puis Maya sort la photographie de la poche de son manteau bleu nuit.",
+            "Alors Luca s'approche, toujours sur le quai, et lit le nom au dos.",
+            "Nadia serre sa veste jaune contre elle.",
+            "Elle pense à la montagne, rien de plus, et reste près d'eux.",
+            "Dans un silence, Maya range la photo.",
+            "Ils restent là jusqu'à ce que le bateau ne soit plus qu'une lumière, sur le même quai, au même crépuscule."
+          ],
+          "action_shots": [
+            {
+              "id": "s7.a",
+              "who": [
+                "Maya",
+                "Luca",
+                "Nadia"
+              ],
+              "action": "regardent le bateau s'éloigner",
+              "source_sentence_id": 59
+            },
+            {
+              "id": "s7.b",
+              "who": [
+                "Maya"
+              ],
+              "action": "sort la photographie de la poche de son manteau bleu nuit",
+              "source_sentence_id": 61
+            },
+            {
+              "id": "s7.c",
+              "who": [
+                "Luca"
+              ],
+              "action": "s'approche",
+              "source_sentence_id": 62,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s7.d",
+              "who": [
+                "Luca"
+              ],
+              "action": "lit le nom au dos",
+              "source_sentence_id": 62,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s7.e",
+              "who": [
+                "Nadia"
+              ],
+              "action": "serre sa veste jaune contre elle",
+              "source_sentence_id": 63
+            },
+            {
+              "id": "s7.f",
+              "who": [
+                "Nadia"
+              ],
+              "action": "pense à la montagne et reste près d'eux",
+              "source_sentence_id": 64
+            },
+            {
+              "id": "s7.g",
+              "who": [
+                "Maya"
+              ],
+              "action": "range la photo",
+              "source_sentence_id": 65
+            },
+            {
+              "id": "s7.h",
+              "who": [
+                "Maya",
+                "Luca",
+                "Nadia"
+              ],
+              "action": "restent là jusqu'à ce que le bateau ne soit plus qu'une lumière",
+              "source_sentence_id": 66
+            }
+          ],
+          "notes": "Cue-only sentence 58 attaches to 59. Sentence 60 is atmosphere. Thinking of the mountains is not a mountains scene. 'sur le même quai, au même crépuscule' must not cut again."
+        }
+      ],
+      "traps": [
+        {
+          "id": "combined_cues_kitchen",
+          "kind": "several cues in one sentence",
+          "sentence_ids": [
+            9
+          ],
+          "expected": "One new scene only: kitchen, the next day, 10 a.m. / cuisine, le lendemain, 10h.",
+          "wrong_behaviour": "Separate cuts on ensuite/after that, on the kitchen, and on 10h."
+        },
+        {
+          "id": "combined_cues_workshop",
+          "kind": "several cues in one sentence",
+          "sentence_ids": [
+            38
+          ],
+          "expected": "One new scene only: Nadia's workshop at dawn, with the previous cue-only 'Le lendemain.' / 'The next day.' attached.",
+          "wrong_behaviour": "Separate scenes for dawn and for the workshop, or a scene for the cue-only line alone."
+        },
+        {
+          "id": "combined_cues_park",
+          "kind": "several cues in one sentence",
+          "sentence_ids": [
+            48
+          ],
+          "expected": "One new scene only: the park, around noon.",
+          "wrong_behaviour": "Separate cuts on ensuite/after that, on the park, and on noon."
+        },
+        {
+          "id": "sequence_no_change",
+          "kind": "sequence word with no place/time change",
+          "sentence_ids": [
+            4,
+            11,
+            18,
+            32,
+            41,
+            51,
+            61
+          ],
+          "expected": "New shot in the current scene, no scene cut.",
+          "wrong_behaviour": "A new scene for puis/ensuite/alors/soudain or then/after that/so/suddenly alone."
+        },
+        {
+          "id": "repeated_place",
+          "kind": "already-current place restated",
+          "sentence_ids": [
+            5,
+            7,
+            10,
+            17,
+            26,
+            34,
+            40,
+            46,
+            52,
+            56,
+            62,
+            66
+          ],
+          "expected": "Stay in the current scene.",
+          "wrong_behaviour": "A duplicate scene each time the current place is named again."
+        },
+        {
+          "id": "memory_or_dialogue_place",
+          "kind": "place only in a memory or in dialogue",
+          "sentence_ids": [
+            13,
+            16,
+            28,
+            33,
+            43,
+            45,
+            54,
+            64
+          ],
+          "expected": "Do not open a beach, Paris, or mountains scene. The harbour must not start on Nadia's earlier line about a port; it starts at sentence 59, after 'Trois jours plus tard.' / 'Three days later.'",
+          "wrong_behaviour": "A beach, Paris, mountains, or early harbour scene."
+        },
+        {
+          "id": "dans_without_place",
+          "kind": "'dans'/'in' without a place",
+          "sentence_ids": [
+            12,
+            27,
+            33,
+            44,
+            65
+          ],
+          "expected": "Stay in the current scene. silence and eyes are not places.",
+          "wrong_behaviour": "A place named silence or eyes."
+        },
+        {
+          "id": "cue_only",
+          "kind": "cue-only sentence with no action",
+          "sentence_ids": [
+            8,
+            37,
+            58
+          ],
+          "expected": "Not a scene of its own. 8 attaches to 9; 37 attaches to 38; 58 attaches to 59.",
+          "wrong_behaviour": "An empty scene for 'Le lendemain.', 'The next day.', or 'Trois jours plus tard.' / 'Three days later.' alone."
+        },
+        {
+          "id": "glance_without_leaving",
+          "kind": "place glanced at without leaving",
+          "sentence_ids": [
+            6
+          ],
+          "expected": "Stay in the living room. Looking toward the street is not a street scene.",
+          "wrong_behaviour": "A street scene."
+        }
+      ]
+    },
+    "en_long": {
+      "language": "en",
+      "length": "long",
+      "word_count": 784,
+      "gold_characters": [
+        {
+          "name": "Maya",
+          "look": "la trentaine / early thirties, cheveux noirs coupés en pixie, fine cicatrice au sourcil gauche",
+          "outfit": "pull gris chiné / heather-grey sweater, manteau bleu nuit / midnight-blue coat"
+        },
+        {
+          "name": "Luca",
+          "look": "la quarantaine / early forties, barbe rousse courte / short red beard",
+          "outfit": "pull vert bouteille / bottle-green sweater, sac en toile beige, tache de peinture blanche sur la manche"
+        },
+        {
+          "name": "Nadia",
+          "look": "fin de la trentaine / late thirties, cheveux bruns bouclés, lunettes rondes",
+          "outfit": "ciré jaune / yellow raincoat, bottes noires, bague en argent à la main gauche"
+        }
+      ],
+      "gold_places": [
+        {
+          "name": "living room",
+          "aliases": [
+            "living room",
+            "apartment",
+            "small apartment"
+          ]
+        },
+        {
+          "name": "kitchen",
+          "aliases": [
+            "kitchen"
+          ]
+        },
+        {
+          "name": "station",
+          "aliases": [
+            "station",
+            "hall",
+            "departures board"
+          ]
+        },
+        {
+          "name": "café",
+          "aliases": [
+            "café",
+            "cafe",
+            "café across the street"
+          ]
+        },
+        {
+          "name": "Nadia's workshop",
+          "aliases": [
+            "workshop",
+            "Nadia's workshop",
+            "atelier"
+          ]
+        },
+        {
+          "name": "park",
+          "aliases": [
+            "park",
+            "path",
+            "kiosk"
+          ]
+        },
+        {
+          "name": "harbour quay",
+          "aliases": [
+            "harbour quay",
+            "quay",
+            "harbour",
+            "harbor",
+            "port"
+          ]
+        }
+      ],
+      "non_places": [
+        {
+          "name": "plage / beach",
+          "aliases": [
+            "plage",
+            "beach"
+          ],
+          "why": "memory, thought, or dialogue only, in every mention before the last scene and never visited"
+        },
+        {
+          "name": "Paris",
+          "aliases": [
+            "Paris"
+          ],
+          "why": "spoken about or remembered, never visited"
+        },
+        {
+          "name": "montagne / mountains",
+          "aliases": [
+            "montagne",
+            "mountain",
+            "mountains"
+          ],
+          "why": "dialogue or thought only"
+        },
+        {
+          "name": "silence",
+          "aliases": [
+            "silence"
+          ],
+          "why": "dans un silence / in a silence is not a place"
+        },
+        {
+          "name": "yeux / eyes",
+          "aliases": [
+            "yeux",
+            "eyes"
+          ],
+          "why": "dans ses yeux / in his eyes is not a place"
+        },
+        {
+          "name": "rue / street",
+          "aliases": [
+            "rue",
+            "street"
+          ],
+          "why": "a glance toward the street without leaving the living room; the café is 'across the street' but the street itself is not a scene"
+        },
+        {
+          "name": "port (spoken too early)",
+          "aliases": [],
+          "why": "Nadia's line about not thinking of a harbour must not open the harbour scene before 'Trois jours plus tard' / 'Three days later'"
+        }
+      ],
+      "expected_scene_count": 7,
+      "expected_action_shot_count": 72,
+      "scenes": [
+        {
+          "id": 1,
+          "place": "living room of Maya's apartment",
+          "place_aliases": [
+            "living room",
+            "apartment",
+            "small apartment"
+          ],
+          "time": "early evening",
+          "time_aliases": [
+            "early evening",
+            "evening"
+          ],
+          "sentence_ids": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "sentences": [
+            "Maya, in her early thirties, short black hair in a pixie cut, a thin scar on her left eyebrow, wears a heather-grey sweater and a midnight-blue coat.",
+            "In the early evening she sits down in the living room of her small apartment and reads a letter left near the lamp.",
+            "The room is quiet, the curtains only half drawn, and the yellow light falls on the low table.",
+            "Then she sets the letter on the table.",
+            "So she stands up, still in the living room, and tidies the papers by the window.",
+            "She glances toward the street, without leaving the room, and folds her arms for a moment.",
+            "In the living room, she switches off the tall lamp and takes only the small envelope already opened."
+          ],
+          "action_shots": [
+            {
+              "id": "s1.a",
+              "who": [
+                "Maya"
+              ],
+              "action": "sits down in the living room",
+              "source_sentence_id": 2,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s1.b",
+              "who": [
+                "Maya"
+              ],
+              "action": "reads a letter left near the lamp",
+              "source_sentence_id": 2,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s1.c",
+              "who": [
+                "Maya"
+              ],
+              "action": "sets the letter on the table",
+              "source_sentence_id": 4
+            },
+            {
+              "id": "s1.d",
+              "who": [
+                "Maya"
+              ],
+              "action": "stands up",
+              "source_sentence_id": 5,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s1.e",
+              "who": [
+                "Maya"
+              ],
+              "action": "tidies the papers by the window",
+              "source_sentence_id": 5,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s1.f",
+              "who": [
+                "Maya"
+              ],
+              "action": "glances toward the street, without leaving the room",
+              "source_sentence_id": 6,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s1.g",
+              "who": [
+                "Maya"
+              ],
+              "action": "folds her arms",
+              "source_sentence_id": 6,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s1.h",
+              "who": [
+                "Maya"
+              ],
+              "action": "switches off the tall lamp",
+              "source_sentence_id": 7,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s1.i",
+              "who": [
+                "Maya"
+              ],
+              "action": "takes only the small envelope already opened",
+              "source_sentence_id": 7,
+              "split_from_multi_action": true
+            }
+          ],
+          "notes": "Sentence 1 is a look introduction. Sentence 3 is atmosphere only. Looking toward the street is not a street scene."
+        },
+        {
+          "id": 2,
+          "place": "kitchen",
+          "place_aliases": [
+            "kitchen"
+          ],
+          "time": "the next day, 10 a.m.",
+          "time_aliases": [
+            "the next day",
+            "next day",
+            "10 a.m.",
+            "morning"
+          ],
+          "sentence_ids": [
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20
+          ],
+          "sentences": [
+            "The next day.",
+            "After that, in the kitchen, at 10 a.m., Maya opens the fridge.",
+            "In the kitchen, she sets a cup on the counter.",
+            "Then she pours hot water.",
+            "She waits in a silence.",
+            "She thinks of the beach.",
+            "Suddenly Luca comes in, in his early forties, a short red beard, a bottle-green sweater, a beige canvas bag, a white paint stain on the sleeve.",
+            "He leaves the bag by the door and looks for a second cup.",
+            "He says, \"We should go to the beach.\"",
+            "Maya smiles at him, still in the kitchen, and closes the fridge.",
+            "Then she hands him the cup.",
+            "Luca takes a sip and sets the cup down.",
+            "Maya puts the letter in a drawer, without leaving the room, and puts on her midnight-blue coat."
+          ],
+          "action_shots": [
+            {
+              "id": "s2.a",
+              "who": [
+                "Maya"
+              ],
+              "action": "opens the fridge",
+              "source_sentence_id": 9
+            },
+            {
+              "id": "s2.b",
+              "who": [
+                "Maya"
+              ],
+              "action": "sets a cup on the counter",
+              "source_sentence_id": 10
+            },
+            {
+              "id": "s2.c",
+              "who": [
+                "Maya"
+              ],
+              "action": "pours hot water",
+              "source_sentence_id": 11
+            },
+            {
+              "id": "s2.d",
+              "who": [
+                "Maya"
+              ],
+              "action": "waits in a silence",
+              "source_sentence_id": 12
+            },
+            {
+              "id": "s2.e",
+              "who": [
+                "Maya"
+              ],
+              "action": "thinks of the beach (in the kitchen)",
+              "source_sentence_id": 13
+            },
+            {
+              "id": "s2.f",
+              "who": [
+                "Luca"
+              ],
+              "action": "comes into the kitchen",
+              "source_sentence_id": 14
+            },
+            {
+              "id": "s2.g",
+              "who": [
+                "Luca"
+              ],
+              "action": "leaves the bag by the door",
+              "source_sentence_id": 15,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s2.h",
+              "who": [
+                "Luca"
+              ],
+              "action": "looks for a second cup",
+              "source_sentence_id": 15,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s2.i",
+              "who": [
+                "Luca"
+              ],
+              "action": "says they should go to the beach",
+              "source_sentence_id": 16
+            },
+            {
+              "id": "s2.j",
+              "who": [
+                "Maya"
+              ],
+              "action": "smiles at Luca",
+              "source_sentence_id": 17,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s2.k",
+              "who": [
+                "Maya"
+              ],
+              "action": "closes the fridge",
+              "source_sentence_id": 17,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s2.l",
+              "who": [
+                "Maya"
+              ],
+              "action": "hands Luca the cup",
+              "source_sentence_id": 18
+            },
+            {
+              "id": "s2.m",
+              "who": [
+                "Luca"
+              ],
+              "action": "takes a sip",
+              "source_sentence_id": 19,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s2.n",
+              "who": [
+                "Luca"
+              ],
+              "action": "sets the cup down",
+              "source_sentence_id": 19,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s2.o",
+              "who": [
+                "Maya"
+              ],
+              "action": "puts the letter in a drawer",
+              "source_sentence_id": 20,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s2.p",
+              "who": [
+                "Maya"
+              ],
+              "action": "puts on her midnight-blue coat",
+              "source_sentence_id": 20,
+              "split_from_multi_action": true
+            }
+          ],
+          "notes": "Cue-only sentence 8 attaches to the combined-cue sentence 9: one kitchen scene at 10 a.m. the next day."
+        },
+        {
+          "id": 3,
+          "place": "station",
+          "place_aliases": [
+            "station",
+            "hall"
+          ],
+          "time": "later the same day",
+          "time_aliases": [
+            "later"
+          ],
+          "sentence_ids": [
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28
+          ],
+          "sentences": [
+            "Later, at the station, Maya finds Luca by the departures board.",
+            "The hall is noisy, the announcements follow one another, and a cold draught slides under the tall doors.",
+            "They compare their tickets.",
+            "Luca hands her a second envelope, thicker than the first.",
+            "So Maya reads the name written on the back and slips it into her pocket.",
+            "They stand for a moment under the clock, still at the station, without speaking.",
+            "In a silence, Luca adjusts his bag.",
+            "He says, \"Nadia talked to me about Paris, but that is not for today.\""
+          ],
+          "action_shots": [
+            {
+              "id": "s3.a",
+              "who": [
+                "Maya",
+                "Luca"
+              ],
+              "action": "Maya finds Luca by the departures board",
+              "source_sentence_id": 21
+            },
+            {
+              "id": "s3.b",
+              "who": [
+                "Maya",
+                "Luca"
+              ],
+              "action": "compare their tickets",
+              "source_sentence_id": 23
+            },
+            {
+              "id": "s3.c",
+              "who": [
+                "Luca"
+              ],
+              "action": "hands Maya a second envelope",
+              "source_sentence_id": 24
+            },
+            {
+              "id": "s3.d",
+              "who": [
+                "Maya"
+              ],
+              "action": "reads the name written on the back",
+              "source_sentence_id": 25,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s3.e",
+              "who": [
+                "Maya"
+              ],
+              "action": "slips the envelope into her pocket",
+              "source_sentence_id": 25,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s3.f",
+              "who": [
+                "Maya",
+                "Luca"
+              ],
+              "action": "stand for a moment under the clock, without speaking",
+              "source_sentence_id": 26
+            },
+            {
+              "id": "s3.g",
+              "who": [
+                "Luca"
+              ],
+              "action": "adjusts his bag",
+              "source_sentence_id": 27
+            },
+            {
+              "id": "s3.h",
+              "who": [
+                "Luca"
+              ],
+              "action": "says Nadia talked to him about Paris",
+              "source_sentence_id": 28
+            }
+          ],
+          "notes": "Sentence 22 is atmosphere in the station hall, not a new place. Paris in dialogue is not a scene."
+        },
+        {
+          "id": 4,
+          "place": "café across the street",
+          "place_aliases": [
+            "café",
+            "cafe",
+            "café across the street"
+          ],
+          "time": "nightfall",
+          "time_aliases": [
+            "nightfall",
+            "night"
+          ],
+          "sentence_ids": [
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36
+          ],
+          "sentences": [
+            "At nightfall, in the café across the street, they sit down by the window.",
+            "The room is narrow, the tables are dark wood, a radio plays very low.",
+            "Maya opens the envelope.",
+            "Then she takes out an old photograph and lays it flat.",
+            "She looks Luca in his eyes and says nothing about the beach.",
+            "In the café, the waiter brings two glasses of water.",
+            "Suddenly Maya puts the photo away, still seated at the same table, and closes the envelope.",
+            "Luca smiles and rests his hand near the glass, without standing up."
+          ],
+          "action_shots": [
+            {
+              "id": "s4.a",
+              "who": [
+                "Maya",
+                "Luca"
+              ],
+              "action": "sit down by the window",
+              "source_sentence_id": 29
+            },
+            {
+              "id": "s4.b",
+              "who": [
+                "Maya"
+              ],
+              "action": "opens the envelope",
+              "source_sentence_id": 31
+            },
+            {
+              "id": "s4.c",
+              "who": [
+                "Maya"
+              ],
+              "action": "takes out an old photograph",
+              "source_sentence_id": 32,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s4.d",
+              "who": [
+                "Maya"
+              ],
+              "action": "lays it flat",
+              "source_sentence_id": 32,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s4.e",
+              "who": [
+                "Maya",
+                "Luca"
+              ],
+              "action": "Maya looks Luca in his eyes",
+              "source_sentence_id": 33
+            },
+            {
+              "id": "s4.f",
+              "who": [
+                "waiter"
+              ],
+              "action": "brings two glasses of water",
+              "source_sentence_id": 34
+            },
+            {
+              "id": "s4.g",
+              "who": [
+                "Maya"
+              ],
+              "action": "puts the photo away",
+              "source_sentence_id": 35,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s4.h",
+              "who": [
+                "Maya"
+              ],
+              "action": "closes the envelope",
+              "source_sentence_id": 35,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s4.i",
+              "who": [
+                "Luca"
+              ],
+              "action": "smiles and rests his hand near the glass",
+              "source_sentence_id": 36
+            }
+          ],
+          "notes": "Sentence 30 is atmosphere. 'in his eyes' is not a place. The waiter is not a gold recurring character."
+        },
+        {
+          "id": 5,
+          "place": "Nadia's workshop",
+          "place_aliases": [
+            "workshop",
+            "Nadia's workshop"
+          ],
+          "time": "the next day, at dawn",
+          "time_aliases": [
+            "the next day",
+            "at dawn",
+            "dawn"
+          ],
+          "sentence_ids": [
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47
+          ],
+          "sentences": [
+            "The next day.",
+            "At dawn, in Nadia's workshop, Maya pushes the door open.",
+            "Nadia, in her late thirties, curly brown hair, round glasses, a yellow raincoat, black boots, a silver ring on her left hand, lifts a canvas against the wall.",
+            "In the workshop, she switches on the lamp above the workbench.",
+            "Then she holds out a rolled sketch to Maya.",
+            "Luca arrives in turn and shuts the door.",
+            "Nadia says, \"I was thinking of the mountains, not of a harbour.\"",
+            "Maya listens in a silence and unrolls the paper.",
+            "She remembers Paris for a second only, then comes back to the drawing.",
+            "So Nadia points to an ink mark, still in the workshop, and puts the brushes away.",
+            "They talk a little longer, without leaving the room, and put on their coats."
+          ],
+          "action_shots": [
+            {
+              "id": "s5.a",
+              "who": [
+                "Maya"
+              ],
+              "action": "pushes the workshop door open",
+              "source_sentence_id": 38
+            },
+            {
+              "id": "s5.b",
+              "who": [
+                "Nadia"
+              ],
+              "action": "lifts a canvas against the wall",
+              "source_sentence_id": 39
+            },
+            {
+              "id": "s5.c",
+              "who": [
+                "Nadia"
+              ],
+              "action": "switches on the lamp above the workbench",
+              "source_sentence_id": 40
+            },
+            {
+              "id": "s5.d",
+              "who": [
+                "Nadia"
+              ],
+              "action": "holds out a rolled sketch to Maya",
+              "source_sentence_id": 41
+            },
+            {
+              "id": "s5.e",
+              "who": [
+                "Luca"
+              ],
+              "action": "arrives and shuts the door",
+              "source_sentence_id": 42
+            },
+            {
+              "id": "s5.f",
+              "who": [
+                "Nadia"
+              ],
+              "action": "says she was thinking of the mountains, not of a harbour",
+              "source_sentence_id": 43
+            },
+            {
+              "id": "s5.g",
+              "who": [
+                "Maya"
+              ],
+              "action": "listens in a silence",
+              "source_sentence_id": 44,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s5.h",
+              "who": [
+                "Maya"
+              ],
+              "action": "unrolls the paper",
+              "source_sentence_id": 44,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s5.i",
+              "who": [
+                "Maya"
+              ],
+              "action": "remembers Paris for a second, then comes back to the drawing",
+              "source_sentence_id": 45
+            },
+            {
+              "id": "s5.j",
+              "who": [
+                "Nadia"
+              ],
+              "action": "points to an ink mark",
+              "source_sentence_id": 46,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s5.k",
+              "who": [
+                "Nadia"
+              ],
+              "action": "puts the brushes away",
+              "source_sentence_id": 46,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s5.l",
+              "who": [
+                "Maya",
+                "Luca",
+                "Nadia"
+              ],
+              "action": "talk a little longer",
+              "source_sentence_id": 47,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s5.m",
+              "who": [
+                "Maya",
+                "Luca",
+                "Nadia"
+              ],
+              "action": "put on their coats",
+              "source_sentence_id": 47,
+              "split_from_multi_action": true
+            }
+          ],
+          "notes": "Cue-only sentence 37 attaches to combined-cue sentence 38: one workshop scene at dawn. Mountains, a harbour, and Paris must not open here."
+        },
+        {
+          "id": 6,
+          "place": "park",
+          "place_aliases": [
+            "park",
+            "path",
+            "kiosk"
+          ],
+          "time": "around noon",
+          "time_aliases": [
+            "around noon",
+            "noon"
+          ],
+          "sentence_ids": [
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57
+          ],
+          "sentences": [
+            "After that, in the park, around noon, they walk along the path.",
+            "The plane trees are almost bare, the gravel crunches, a dog passes in the distance.",
+            "Maya stops near the kiosk.",
+            "Then she rereads the sketch in the light.",
+            "Luca sits on a bench, still in the park, and sets the bag at his feet.",
+            "Nadia stays standing and checks the time.",
+            "She says, \"Only yesterday I was dreaming of the beach.\"",
+            "Maya does not answer that and puts the paper away.",
+            "In the park, a gust lifts the dead leaves.",
+            "Suddenly they take the path again and walk as far as the gate."
+          ],
+          "action_shots": [
+            {
+              "id": "s6.a",
+              "who": [
+                "Maya",
+                "Luca",
+                "Nadia"
+              ],
+              "action": "walk along the path",
+              "source_sentence_id": 48
+            },
+            {
+              "id": "s6.b",
+              "who": [
+                "Maya"
+              ],
+              "action": "stops near the kiosk",
+              "source_sentence_id": 50
+            },
+            {
+              "id": "s6.c",
+              "who": [
+                "Maya"
+              ],
+              "action": "rereads the sketch in the light",
+              "source_sentence_id": 51
+            },
+            {
+              "id": "s6.d",
+              "who": [
+                "Luca"
+              ],
+              "action": "sits on a bench",
+              "source_sentence_id": 52,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s6.e",
+              "who": [
+                "Luca"
+              ],
+              "action": "sets the bag at his feet",
+              "source_sentence_id": 52,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s6.f",
+              "who": [
+                "Nadia"
+              ],
+              "action": "stays standing and checks the time",
+              "source_sentence_id": 53
+            },
+            {
+              "id": "s6.g",
+              "who": [
+                "Nadia"
+              ],
+              "action": "says she was dreaming of the beach",
+              "source_sentence_id": 54
+            },
+            {
+              "id": "s6.h",
+              "who": [
+                "Maya"
+              ],
+              "action": "does not answer and puts the paper away",
+              "source_sentence_id": 55
+            },
+            {
+              "id": "s6.i",
+              "who": [
+                "Maya",
+                "Luca",
+                "Nadia"
+              ],
+              "action": "take the path again and walk as far as the gate",
+              "source_sentence_id": 57
+            }
+          ],
+          "notes": "Sentence 49 is atmosphere. Sentence 56 is weather in the same park. Combined cues in 48 open this single noon-park scene."
+        },
+        {
+          "id": 7,
+          "place": "harbour quay",
+          "place_aliases": [
+            "harbour quay",
+            "quay",
+            "harbour",
+            "harbor"
+          ],
+          "time": "three days later, at dusk",
+          "time_aliases": [
+            "three days later",
+            "dusk"
+          ],
+          "sentence_ids": [
+            58,
+            59,
+            60,
+            61,
+            62,
+            63,
+            64,
+            65,
+            66
+          ],
+          "sentences": [
+            "Three days later.",
+            "On the harbour quay, at dusk, Maya, Luca and Nadia watch the boat move away.",
+            "The water is dark, a bell rings somewhere, the air smells of salt and diesel.",
+            "Then Maya takes the photograph from the pocket of her midnight-blue coat.",
+            "So Luca steps closer, still on the quay, and reads the name on the back.",
+            "Nadia pulls her yellow coat tighter.",
+            "She thinks of the mountains, nothing more, and stays beside them.",
+            "In a silence, Maya puts the photo away.",
+            "They remain there until the boat is only a light, on the same quay, in the same dusk."
+          ],
+          "action_shots": [
+            {
+              "id": "s7.a",
+              "who": [
+                "Maya",
+                "Luca",
+                "Nadia"
+              ],
+              "action": "watch the boat move away",
+              "source_sentence_id": 59
+            },
+            {
+              "id": "s7.b",
+              "who": [
+                "Maya"
+              ],
+              "action": "takes the photograph from the pocket of her midnight-blue coat",
+              "source_sentence_id": 61
+            },
+            {
+              "id": "s7.c",
+              "who": [
+                "Luca"
+              ],
+              "action": "steps closer",
+              "source_sentence_id": 62,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s7.d",
+              "who": [
+                "Luca"
+              ],
+              "action": "reads the name on the back",
+              "source_sentence_id": 62,
+              "split_from_multi_action": true
+            },
+            {
+              "id": "s7.e",
+              "who": [
+                "Nadia"
+              ],
+              "action": "pulls her yellow coat tighter",
+              "source_sentence_id": 63
+            },
+            {
+              "id": "s7.f",
+              "who": [
+                "Nadia"
+              ],
+              "action": "thinks of the mountains and stays beside them",
+              "source_sentence_id": 64
+            },
+            {
+              "id": "s7.g",
+              "who": [
+                "Maya"
+              ],
+              "action": "puts the photo away",
+              "source_sentence_id": 65
+            },
+            {
+              "id": "s7.h",
+              "who": [
+                "Maya",
+                "Luca",
+                "Nadia"
+              ],
+              "action": "remain there until the boat is only a light",
+              "source_sentence_id": 66
+            }
+          ],
+          "notes": "Cue-only sentence 58 attaches to 59. Sentence 60 is atmosphere. Thinking of the mountains is not a mountains scene. 'on the same quay, in the same dusk' must not cut again."
+        }
+      ],
+      "traps": [
+        {
+          "id": "combined_cues_kitchen",
+          "kind": "several cues in one sentence",
+          "sentence_ids": [
+            9
+          ],
+          "expected": "One new scene only: kitchen, the next day, 10 a.m. / cuisine, le lendemain, 10h.",
+          "wrong_behaviour": "Separate cuts on ensuite/after that, on the kitchen, and on 10h."
+        },
+        {
+          "id": "combined_cues_workshop",
+          "kind": "several cues in one sentence",
+          "sentence_ids": [
+            38
+          ],
+          "expected": "One new scene only: Nadia's workshop at dawn, with the previous cue-only 'Le lendemain.' / 'The next day.' attached.",
+          "wrong_behaviour": "Separate scenes for dawn and for the workshop, or a scene for the cue-only line alone."
+        },
+        {
+          "id": "combined_cues_park",
+          "kind": "several cues in one sentence",
+          "sentence_ids": [
+            48
+          ],
+          "expected": "One new scene only: the park, around noon.",
+          "wrong_behaviour": "Separate cuts on ensuite/after that, on the park, and on noon."
+        },
+        {
+          "id": "sequence_no_change",
+          "kind": "sequence word with no place/time change",
+          "sentence_ids": [
+            4,
+            11,
+            18,
+            32,
+            41,
+            51,
+            61
+          ],
+          "expected": "New shot in the current scene, no scene cut.",
+          "wrong_behaviour": "A new scene for puis/ensuite/alors/soudain or then/after that/so/suddenly alone."
+        },
+        {
+          "id": "repeated_place",
+          "kind": "already-current place restated",
+          "sentence_ids": [
+            5,
+            7,
+            10,
+            17,
+            26,
+            34,
+            40,
+            46,
+            52,
+            56,
+            62,
+            66
+          ],
+          "expected": "Stay in the current scene.",
+          "wrong_behaviour": "A duplicate scene each time the current place is named again."
+        },
+        {
+          "id": "memory_or_dialogue_place",
+          "kind": "place only in a memory or in dialogue",
+          "sentence_ids": [
+            13,
+            16,
+            28,
+            33,
+            43,
+            45,
+            54,
+            64
+          ],
+          "expected": "Do not open a beach, Paris, or mountains scene. The harbour must not start on Nadia's earlier line about a port; it starts at sentence 59, after 'Trois jours plus tard.' / 'Three days later.'",
+          "wrong_behaviour": "A beach, Paris, mountains, or early harbour scene."
+        },
+        {
+          "id": "dans_without_place",
+          "kind": "'dans'/'in' without a place",
+          "sentence_ids": [
+            12,
+            27,
+            33,
+            44,
+            65
+          ],
+          "expected": "Stay in the current scene. silence and eyes are not places.",
+          "wrong_behaviour": "A place named silence or eyes."
+        },
+        {
+          "id": "cue_only",
+          "kind": "cue-only sentence with no action",
+          "sentence_ids": [
+            8,
+            37,
+            58
+          ],
+          "expected": "Not a scene of its own. 8 attaches to 9; 37 attaches to 38; 58 attaches to 59.",
+          "wrong_behaviour": "An empty scene for 'Le lendemain.', 'The next day.', or 'Trois jours plus tard.' / 'Three days later.' alone."
+        },
+        {
+          "id": "glance_without_leaving",
+          "kind": "place glanced at without leaving",
+          "sentence_ids": [
+            6
+          ],
+          "expected": "Stay in the living room. Looking toward the street is not a street scene.",
+          "wrong_behaviour": "A street scene."
+        }
+      ]
+    }
+  }
+}
