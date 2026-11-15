@@ -1,8 +1,8 @@
 /** A deterministic local story planner. No remote AI or video generation. */
 import { canonicalModel, modelRegistry } from '../integrations/models/model-registry.js'
 import { profileFor, snapAspect, snapDuration } from './model-profiles.js'
-import { CAMERAS, LIGHTS, MOODS, describeCast, describePlace, describeScenarioErrors, findByName, foldName, looksLikeScenario, nameParts, parseScenario, scenarioFromProject, scenarioPremise, sequencePacks } from './scenario.js'
-import { cameraFor, episodePacks, isPresetMode, parseAd, parseExplainer, parseSeries } from './preset-modes.js'
+import { LIGHTS, MOODS, describeCast, describePlace, describeScenarioErrors, findByName, foldName, looksLikeScenario, nameParts, parseScenario, resolveUserCamera, scenarioFromProject, scenarioPremise, sequencePacks } from './scenario.js'
+import { episodePacks, isPresetMode, parseAd, parseExplainer, parseSeries } from './preset-modes.js'
 import { detectProse, isNamedTraitPremise, premiseShotPlan } from './prose-detect.js'
 import { canonicalStyleFamily, formatPresetBlock, listPresets, presetFamilies, presetGenres, resolvePreset } from './presets/index.js'
 import { shotInvolvesHands } from './shot-risk.js'
@@ -433,7 +433,14 @@ function applySceneOverrides(shot, override) {
   const next = { ...shot }
   if (override.action) next.action = override.action
   if (override.framing) next.framing = override.framing
-  if (override.camera) next.camera = override.camera
+  if (override.camera) {
+    const choice = resolveUserCamera(override.camera)
+    next.camera = choice.chosen ? choice.move : null
+    next.cameraChosen = choice.chosen
+    next.cam = choice.cam
+    next.camChosen = Boolean(choice.cam)
+    if (choice.framing && !override.framing) next.framing = choice.framing
+  }
   if (override.lighting) next.lighting = override.lighting
   if (override.notes) { next.notes = override.notes; next.directions = override.notes }
   if (override.duration) { next.duration = override.duration; next.duration_seconds = override.duration }
@@ -505,6 +512,7 @@ export function createStoryboard(options = {}) {
   if (shotStyle) project.shots = project.shots.map(shot => applyShotStyle(shot, shotStyle, sequenceMode === 'varied'))
   if (sequenceMode === 'continuous' && project.continuitySheet) project.shots = project.shots.map((shot, index) => applyContinuousShot(shot, project.continuitySheet, index, shotStyle))
   if (scenes.length) project.shots = project.shots.map((shot, index) => applySceneOverrides(shot, scenes[index]))
+  project.shots = project.shots.map(shot => shot.cameraChosen ? shot : { ...shot, camera: null })
   const baseSheet = project.continuitySheet || buildContinuitySheet(premise)
   const seededPeople = (baseSheet.characters || []).filter(item => item?.name)
   project.filmSheet = options.filmSheet || {
@@ -628,7 +636,6 @@ export function resolveScenarioPreset(options = {}) {
 }
 export function applyStylePreset(project, family, genre) {
   const preset = resolvePreset(family, genre)
-  const choice = CAMERAS[preset.defaultCam] || CAMERAS.medium
   const next = {
     ...project,
     preset,
@@ -639,13 +646,8 @@ export function applyStylePreset(project, family, genre) {
   }
   next.shots = (project.shots || []).map(shot => {
     if (shot.promptEdited) return { ...shot }
-    const patched = { ...shot, lens: preset.lens }
-    if (!shot.light) patched.lighting = preset.lighting
-    if (!shot.camChosen) {
-      patched.framing = choice.framing
-      patched.camera = choice.camera
-      patched.cam = preset.defaultCam
-    }
+    const patched = { ...shot }
+    if (!shot.light && !cleanText(shot.lighting)) patched.lighting = preset.lighting
     if (preset.voiceOver) patched.sound = preset.voiceOver
     return patched
   })
@@ -679,7 +681,7 @@ function createPresetStoryboard(options, mode) {
   const aspectRatio = options.aspectRatio ? canonicalAspect(options.aspectRatio) : parsed.aspectRatio
   const filmSheet = { ...parsed.filmSheet, style: preset.visual, preset }
   const shots = parsed.shots.map((draft, index) => {
-    const choice = cameraFor(draft.cam)
+    const choice = resolveUserCamera(draft.cam)
     const duration = draft.duration || defaultDuration
     const shot = {
       id: `shot-${String(index + 1).padStart(2, '0')}`,
@@ -688,10 +690,10 @@ function createPresetStoryboard(options, mode) {
       stage: draft.stage,
       title: draft.title,
       framing: choice.framing,
-      lens: preset.lens,
-      camera: choice.camera,
-      cam: draft.cam || preset.defaultCam,
-      camChosen: Boolean(draft.cam),
+      camera: null,
+      cameraChosen: false,
+      cam: '',
+      camChosen: false,
       action: draft.action,
       what: draft.what || draft.action,
       who: draft.who || '',
@@ -760,10 +762,9 @@ function createScenarioStoryboard(options) {
   const lockedStyle = preset.visual
   const density = options.promptDensity === 'concise' || options.density === 'concise' ? 'concise' : 'standard'
   const defaultDuration = canonicalDuration(options.duration)
-  const defaultCam = CAMERAS[preset.defaultCam] || CAMERAS.medium
   const filmSheet = { characters: mergeCharacterExtras(parsed.characters, options.scenario), places: parsed.places, light: parsed.light || '', mood: parsed.mood || '', style: preset.visual, preset }
   const shots = parsed.scenes.map((scene, index) => {
-    const choice = scene.camera ? (CAMERAS[scene.camera] || defaultCam) : defaultCam
+    const choice = resolveUserCamera(scene.camera)
     const lightId = scene.light || parsed.light || ''
     const moodId = scene.mood || parsed.mood || ''
     const duration = scene.duration || defaultDuration
@@ -774,10 +775,10 @@ function createScenarioStoryboard(options) {
       stage: `Scene ${scene.number || index + 1}`,
       title: sentence(scene.what).slice(0, 80) || `Scene ${index + 1}`,
       framing: choice.framing,
-      lens: preset.lens,
-      camera: choice.camera,
-      cam: scene.camera || preset.defaultCam,
-      camChosen: Boolean(scene.camera),
+      camera: choice.chosen ? choice.move : null,
+      cameraChosen: choice.chosen,
+      cam: choice.cam,
+      camChosen: Boolean(choice.cam),
       action: scene.what,
       what: scene.what,
       who: scene.who,
@@ -925,8 +926,42 @@ function endPeriod(text) {
   return clean ? `${clean}.` : ''
 }
 
-function fewWords(text, max = 6) {
-  return cleanText(text).split(/\s+/).filter(Boolean).slice(0, max).join(' ')
+function mentionsName(text, name) {
+  const needle = foldName(name)
+  if (!needle) return false
+  const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, 'iu').test(foldName(text))
+}
+
+function joinNames(names) {
+  if (names.length <= 1) return names[0] || ''
+  if (names.length === 2) return `${names[0]} and ${names[1]}`
+  return `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`
+}
+
+const LEAD_PRONOUN = /^(she|he|they|elle|il|ils|elles)\b/i
+
+/** The action, unchanged except a missing subject is named. Prop nouns stay verbatim. */
+function namedAction(shot, project) {
+  const text = cleanText(shot.what || shot.action || '').replace(/\s+at daylight consistent with the idea/gi, '')
+  const names = charactersInShot(shot, project).map(person => person.name).filter(Boolean)
+  if (!text || !names.length) return text
+  if (names.every(name => mentionsName(text, name))) return text
+  const pronoun = text.match(LEAD_PRONOUN)
+  if (pronoun) {
+    const word = pronoun[1].toLowerCase()
+    const plural = word === 'they' || word === 'ils' || word === 'elles'
+    const subject = plural ? joinNames(names) : names[0]
+    return text.replace(LEAD_PRONOUN, subject)
+  }
+  if (/^[\p{Ll}]/u.test(text)) return `${joinNames(names)} ${text}`
+  return `${joinNames(names)}. ${text}`
+}
+
+function framingLabel(shot) {
+  const label = promptFraming(shot)
+  if (!label || label === 'POV') return label || 'Medium shot'
+  return label.charAt(0).toUpperCase() + label.slice(1)
 }
 
 function stylePhrase(project) {
@@ -935,9 +970,8 @@ function stylePhrase(project) {
     const visual = cleanText(preset.visual)
     const palette = cleanText(preset.palette || '')
     const lighting = cleanText(preset.lighting || '')
-    const bits = [visual, palette.length <= 60 ? palette : '', lighting.length <= 48 ? lighting : ''].filter(Boolean)
-    const line = bits.join(', ')
-    return line.length > 180 ? visual : line
+    const paletteOk = palette && palette.length <= 60 && (!lighting || !palette.toLowerCase().includes(lighting.toLowerCase()))
+    return [visual, paletteOk ? palette : ''].filter(Boolean).join(', ')
   }
   const locked = cleanText(styleLockFor(project))
   const first = locked.split(/(?<=\.)\s+/)[0].replace(/\.$/, '')
@@ -950,103 +984,136 @@ function placePhrase(shot, project) {
     return nameParts(shot.where).map(part => {
       const match = findByName(places, part)
       if (!match) return part
-      const extra = fewWords(match.description, 6)
+      const extra = cleanText(match.description)
       if (!extra || foldName(extra) === foldName(match.name)) return match.name
       return `${match.name}, ${extra}`
     }).filter(Boolean).join('; ')
   }
   const named = project.continuitySheet?.place || places[0]?.name || ''
-  const extra = places[0]?.description && foldName(places[0].description) !== foldName(named) ? fewWords(places[0].description, 6) : ''
-  const time = project.continuitySheet?.time
-  const timeBit = time && !/consistent with the idea/i.test(time) ? time : ''
-  return [named, extra, timeBit].filter(Boolean).join(', ')
+  const description = places[0]?.description || project.continuitySheet?.placeDescription || ''
+  const extra = description && foldName(description) !== foldName(named) ? cleanText(description) : ''
+  return [named, extra].filter(Boolean).join(', ')
 }
 
-function notYetLine(shot, project, index) {
-  const characters = project.filmSheet?.characters || []
-  if (characters.length < 2) return ''
-  const shots = project.shots || []
-  const pending = []
-  for (const character of characters) {
-    const key = foldName(character.name)
-    if (!key) continue
-    if (charactersInShot(shot, project).some(person => foldName(person.name) === key)) continue
-    let first = -1
-    shots.forEach((item, itemIndex) => {
-      if (first >= 0) return
-      if (charactersInShot(item, project).some(person => foldName(person.name) === key)) first = itemIndex
-    })
-    if (first < 0 && charactersInShot(shot, project).some(person => foldName(person.name) === key)) first = index
-    if (first > index) pending.push(character.name)
-    if (pending.length > 2) return ''
+/** Shot light wins. Preset lighting is the one light only when the shot does not define one. */
+function oneLight(shot, project) {
+  const id = cleanText(shot?.light || '')
+  if (id && LIGHTS[id]) return LIGHTS[id]
+  if (id && !/consistent with/i.test(id)) return id
+  const lighting = cleanText(shot?.lighting || '')
+  const presetLight = cleanText(project?.preset?.lighting || '')
+  if (lighting && !/consistent with/i.test(lighting)) {
+    if (presetLight && foldName(lighting) !== foldName(presetLight) && lighting.toLowerCase().includes(presetLight.toLowerCase())) {
+      const own = lighting.replace(new RegExp(presetLight.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'), '').replace(/^[\s.,]+|[\s.,]+$/g, '')
+      if (own) return own
+    }
+    return lighting
   }
-  if (pending.length === 1) return `${pending[0]} is not yet in frame.`
-  if (pending.length === 2) return `${pending[0]} and ${pending[1]} are not yet in frame.`
+  const sheet = cleanText(project?.filmSheet?.light || '')
+  if (sheet && LIGHTS[sheet]) return LIGHTS[sheet]
+  if (presetLight) return presetLight
   return ''
 }
 
-function fitShortPrompt(lines, protectedLines = []) {
-  const filled = lines.filter(Boolean)
-  const locked = new Set(protectedLines.filter(Boolean))
-  const join = () => filled.join('\n')
-  const shrink = prefix => {
-    const index = filled.findIndex(line => line.startsWith(prefix) && !locked.has(line))
-    if (index < 0) return
-    const others = filled.reduce((total, line, lineIndex) => total + (lineIndex === index ? 0 : line.length + 1), 0)
-    const room = SHORT_PROMPT_MAX - others
-    if (room <= 24) {
-      filled.splice(index, 1)
-      return
-    }
-    const body = filled[index].slice(prefix.length)
-    const shortened = body.slice(0, Math.max(12, room - prefix.length - 1)).replace(/\s+\S*$/, '').replace(/[.,;:\s]+$/, '')
-    filled[index] = endPeriod(`${prefix}${shortened}`)
+/** A movement the user set. Automatic template and preset moves stay out. */
+export function explicitCameraMove(shot = {}) {
+  if (shot?.cameraChosen === true) {
+    const move = cleanText(shot.camera)
+    return move || null
   }
-  if (join().length <= SHORT_PROMPT_MAX) return join()
-  shrink('Action: ')
-  if (join().length <= SHORT_PROMPT_MAX) return join()
-  const placeIndex = filled.findIndex(line => line.startsWith('Place: ') && !locked.has(line) && line.includes(','))
-  if (placeIndex >= 0) filled[placeIndex] = endPeriod(`Place: ${filled[placeIndex].slice('Place: '.length).split(',')[0]}`)
-  if (join().length <= SHORT_PROMPT_MAX) return join()
-  for (let index = filled.length - 1; index >= 0 && join().length > SHORT_PROMPT_MAX; index -= 1) {
-    const line = filled[index]
-    if (locked.has(line) || line.startsWith('Style:') || line.startsWith('Camera:') || line.startsWith('Action:') || line.startsWith('Place:')) continue
-    filled.splice(index, 1)
+  if (shot?.camChosen && shot.cam) {
+    const resolved = resolveUserCamera(shot.cam)
+    return resolved.chosen ? resolved.move : null
   }
-  if (join().length <= SHORT_PROMPT_MAX) return join()
-  shrink('Action: ')
-  if (join().length <= SHORT_PROMPT_MAX) return join()
-  const cameraIndex = filled.findIndex(line => line.startsWith('Camera:') && !locked.has(line))
-  if (cameraIndex >= 0) {
-    const body = filled[cameraIndex].slice('Camera: '.length)
-    const framing = body.split(',')[0]
-    const seconds = body.match(/\d+\s+seconds\.?$/)
-    filled[cameraIndex] = endPeriod(`Camera: ${[framing, seconds?.[0]].filter(Boolean).join('. ')}`)
-  }
-  return join()
+  return null
 }
 
-/** The video-model prompt: one shot, the people in it, each with the full lock line. */
+/** Agent JSON camera: null unless the user set a movement. Framing ids are not a move. */
+export function agentCameraValue(shot = {}) {
+  const move = explicitCameraMove(shot)
+  if (!move) return null
+  if (shot.cam && resolveUserCamera(shot.cam).chosen) return shot.cam
+  return move
+}
+
+function cameraPhrase(shot) {
+  const move = explicitCameraMove(shot)
+  const lens = shot?.lensChosen ? cleanText(shot.lens) : ''
+  const moveText = !move || /locked-off/i.test(move) ? 'locked-off camera' : move
+  return [lens, moveText].filter(Boolean).join(', ')
+}
+
+/** Shorten only on a comma or clause. Never cut a word in half. */
+function cutAtClause(text, limit) {
+  const clean = cleanText(text).replace(/\.+$/, '')
+  if (!clean || clean.length <= limit) return clean
+  if (limit < 12) return ''
+  const window = clean.slice(0, limit)
+  let at = -1
+  for (const mark of [',', ';', '.', '—', '–']) at = Math.max(at, window.lastIndexOf(mark))
+  at = Math.max(at, window.lastIndexOf(' and '))
+  if (at < 12) return ''
+  return clean.slice(0, at).replace(/[\s,;.—–-]+$/g, '')
+}
+
+function fitShortPrompt(parts) {
+  const opening = parts.opening
+  const locks = parts.locks.filter(Boolean)
+  let place = parts.place
+  let light = parts.light
+  let style = cleanText(parts.style).replace(/\.+$/, '')
+  const camera = cleanText(parts.camera).replace(/\.+$/, '')
+  let stability = parts.stability
+  const closing = () => endPeriod([style, camera].filter(Boolean).join(', '))
+  const assemble = () => [opening, ...locks, place, light, closing(), stability].filter(Boolean).join('\n')
+  const over = () => assemble().length > SHORT_PROMPT_MAX
+  const shrinkLine = (value, setter) => {
+    if (!over() || !value) return
+    const room = SHORT_PROMPT_MAX - (assemble().length - value.length)
+    const next = room > 12 ? cutAtClause(value, room) : ''
+    setter(next ? endPeriod(next) : '')
+  }
+  if (!over()) return assemble()
+  if (style) {
+    const closingText = closing()
+    const room = SHORT_PROMPT_MAX - (assemble().length - closingText.length)
+    const cameraTail = camera ? `, ${camera}` : ''
+    const styleRoom = room - cameraTail.length - 1
+    style = styleRoom > 12 ? cutAtClause(style, styleRoom) : ''
+  }
+  if (!over()) return assemble()
+  shrinkLine(light, next => { light = next })
+  if (!over()) return assemble()
+  shrinkLine(place, next => { place = next })
+  if (!over()) return assemble()
+  style = ''
+  if (!over()) return assemble()
+  light = ''
+  if (!over()) return assemble()
+  place = ''
+  if (!over()) return assemble()
+  stability = ''
+  return assemble()
+}
+
+/** The video-model prompt: framing and the named action, then locks, place, one light, style, camera. */
 export function createShortPrompt(shot, project, index = 0) {
-  const style = stylePhrase(project)
+  const action = namedAction(shot, project)
+  const opening = endPeriod(`${framingLabel(shot)}: ${action}`.replace(/:\s*\./, '.'))
   const locks = lockLinesForShot(shot, project, index)
   const place = placePhrase(shot, project)
-  const action = cleanText(shot.what || shot.action || '').replace(/\s+at daylight consistent with the idea/gi, '')
-  const duration = shot.duration_seconds || shot.duration || project.duration || DEFAULT_SHOT_DURATION
-  const light = cleanText(shot.lighting || '')
-  const lightBit = light && light.length <= 80 && !/consistent with/i.test(light) ? light : ''
-  const cameraBits = [promptFraming(shot), shot.lens, shot.camera, lightBit].map(item => cleanText(item)).filter(Boolean)
+  const light = oneLight(shot, project)
+  const style = stylePhrase(project)
   const stability = shotInvolvesHands(shot) ? STABILITY_CUE : ''
-  const absent = notYetLine(shot, project, index)
-  return fitShortPrompt([
-    style ? `Style: ${style}.`.replace(/\.\.$/, '.') : '',
-    ...locks,
-    place ? endPeriod(`Place: ${place}`) : '',
-    action ? endPeriod(`Action: ${action}`) : '',
-    endPeriod(`Camera: ${cameraBits.join(', ')}. ${duration} seconds`),
-    stability,
-    absent
-  ], locks)
+  return fitShortPrompt({
+    opening,
+    locks,
+    place: place ? endPeriod(place) : '',
+    light: light ? endPeriod(sentence(light)) : '',
+    style,
+    camera: cameraPhrase(shot),
+    stability
+  })
 }
 
 function promptHeader(project) {
@@ -1063,7 +1130,12 @@ export function createPrompt(shot, project, index = 0) {
   const lockedStyle = styleLockFor(project)
   const guided = project.sequenceMode === 'scenario' || isPresetMode(project.sequenceMode)
   const spokenBase = guided ? scenarioShotForPrompt(shot, project) : spokenShot(shot, project)
-  const spoken = { ...spokenBase, framing: promptFraming(shot) }
+  const spoken = {
+    ...spokenBase,
+    framing: promptFraming(shot),
+    camera: explicitCameraMove(shot) || 'locked-off camera',
+    lens: shot.lensChosen ? cleanText(shot.lens) : ''
+  }
   const body = modelRegistry.get(project.model || project.target_model).compose({ shot: spoken, project, index, premise, aspect, duration, genre, style, lockedStyle })
   const total = Math.max(project.shots?.length || 0, index + 1)
   const header = promptHeader(project)
@@ -1214,7 +1286,7 @@ export function regenerateOneShot(project, shotId, { overwrite = false, prompt }
 }
 export function addShot(project, index = project.shots.length) {
   const next = JSON.parse(JSON.stringify(project)); const at = Math.max(0, Math.min(index, next.shots.length))
-  const shot = { id: newId('shot'), shot_id: newId('shot'), stage: 'Additional', title: `New shot ${at + 1}`, framing: 'Medium shot', lens: '35mm standard lens', camera: 'Slow push-in at eye level', action: next.premise, directions: 'Introduce a deliberate moment that advances the story. Keep the action motivated and the camera intentional.', continuity: 'Match established character appearance, props, geography, light and time of day.', cue: 'consistent ambience and restrained score', sound: 'natural ambience consistent with the previous shot', lighting: 'consistent with the previous shot', duration: project.duration, duration_seconds: project.duration || DEFAULT_SHOT_DURATION, story_has_night: false, story_has_rain: false, story_has_snow: false, order: at + 1 }
+  const shot = { id: newId('shot'), shot_id: newId('shot'), stage: 'Additional', title: `New shot ${at + 1}`, framing: 'Medium shot', lens: '', camera: null, action: next.premise, directions: 'Introduce a deliberate moment that advances the story. Keep the action motivated and the camera intentional.', continuity: 'Match established character appearance, props, geography, light and time of day.', cue: 'consistent ambience and restrained score', sound: 'natural ambience consistent with the previous shot', lighting: 'consistent with the previous shot', duration: project.duration, duration_seconds: project.duration || DEFAULT_SHOT_DURATION, story_has_night: false, story_has_rain: false, story_has_snow: false, order: at + 1 }
   shot.id = shot.shot_id; shot.prompt = createPrompt(shot, next, at)
   next.shots.splice(at, 0, shot); assignShotStages(next.shots); next.shots.forEach((item, index) => { item.order = index + 1; next.shots[index] = refreshShotPrompt(item, next, index) }); return next
 }
@@ -1247,7 +1319,9 @@ export function validateProject(input) {
     const id = String(shot.shot_id || shot.id || `shot-${String(index + 1).padStart(2, '0')}`).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64)
     if (!id || ids.has(id)) throw new Error('Shot IDs must be unique and contain only letters, digits, hyphens or underscores.'); ids.add(id)
     const duration = canonicalDuration(shot.duration_seconds ?? shot.duration)
-    const normalized = { ...shot, id, shot_id: id, order: index + 1, title: cleanText(shot.title || `Shot ${index + 1}`).slice(0, 120), action: cleanText(shot.action || premise).slice(0, 6000), camera: cleanText(shot.camera?.movement || shot.camera || 'Slow push-in').slice(0, 1000), framing: cleanText(shot.camera?.framing || shot.framing || 'Medium shot').slice(0, 150), lens: cleanText(shot.camera?.lens || shot.lens || '35mm lens').slice(0, 150), lighting: cleanText(shot.lighting || 'consistent with adjacent shots').slice(0, 1500), sound: cleanText(shot.sound || 'natural environmental ambience').slice(0, 2000), continuity: cleanText(shot.continuity || 'match adjacent shot appearance').slice(0, 2000), prompt: shot.prompt || createPrompt(shot, project, index), duration_seconds: duration, duration }
+    const rawCamera = shot.camera?.movement || shot.camera
+    const camera = rawCamera == null || String(rawCamera).trim() === '' ? null : cleanText(rawCamera).slice(0, 1000)
+    const normalized = { ...shot, id, shot_id: id, order: index + 1, title: cleanText(shot.title || `Shot ${index + 1}`).slice(0, 120), action: cleanText(shot.action || premise).slice(0, 6000), camera, framing: cleanText(shot.camera?.framing || shot.framing || 'Medium shot').slice(0, 150), lens: cleanText(shot.camera?.lens || shot.lens || '').slice(0, 150), lighting: cleanText(shot.lighting || 'consistent with adjacent shots').slice(0, 1500), sound: cleanText(shot.sound || 'natural environmental ambience').slice(0, 2000), continuity: cleanText(shot.continuity || 'match adjacent shot appearance').slice(0, 2000), prompt: shot.prompt || createPrompt(shot, project, index), duration_seconds: duration, duration }
     if (shot.promptEdited === true) normalized.promptEdited = true
     else delete normalized.promptEdited
     return normalized

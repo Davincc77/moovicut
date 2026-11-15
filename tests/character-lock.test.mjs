@@ -90,7 +90,8 @@ test('an edited lock line is pasted byte for byte and is not shortened', () => {
   const next = refreshProjectPrompts(board)
   next.shots.forEach(shot => assert.ok(shot.prompt.includes('Rui — FIXED LOCK LINE.')))
   assert.equal(next.shots[0].prompt.split('Rui — FIXED LOCK LINE.').length - 1, 1)
-  assert.ok(next.shots[0].prompt.length <= SHORT_PROMPT_MAX)
+  assert.equal((next.shots[0].prompt.match(/crosses the square/g) || []).length, 80)
+  assert.ok(next.shots[1].prompt.length <= SHORT_PROMPT_MAX)
   const detailed = refreshProjectPrompts({ ...next, promptStyle: 'detailed' })
   assert.ok(detailed.shots[1].prompt.includes('Rui — FIXED LOCK LINE.'))
 })
@@ -155,9 +156,9 @@ test('several actions split into one shot each, and framing terms are English', 
       { action: 'The keeper looks down from the gallery.', framing: 'plongée', duration: 3 }
     ]
   })
-  assert.match(framed.shots[0].prompt, /close-up/)
+  assert.match(framed.shots[0].prompt, /close-up/i)
   assert.doesNotMatch(framed.shots[0].prompt, /gros plan/)
-  assert.match(framed.shots[1].prompt, /high angle/)
+  assert.match(framed.shots[1].prompt, /high angle/i)
   assert.doesNotMatch(framed.shots[1].prompt, /plongée/)
   framed.shots.forEach(shot => {
     assert.ok(FRAMING_TERMS.some(term => shot.prompt.toLowerCase().includes(term.label.toLowerCase())))

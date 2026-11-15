@@ -302,9 +302,12 @@ export function insertLockLines(prompt, lines) {
   const missing = (lines || []).filter(line => line && !String(prompt || '').includes(line))
   if (!missing.length) return prompt || ''
   const block = missing.join('\n')
-  const style = String(prompt || '').match(/^Style:.*$/m)
-  if (style) return String(prompt).replace(style[0], `${style[0]}\n${block}`)
-  return `${block}\n${prompt || ''}`.trim()
+  const text = String(prompt || '')
+  const style = text.match(/^Style:.*$/m)
+  if (style) return text.replace(style[0], `${style[0]}\n${block}`)
+  const breakAt = text.indexOf('\n')
+  if (breakAt >= 0) return `${text.slice(0, breakAt)}\n${block}\n${text.slice(breakAt + 1)}`
+  return `${text.trim()}\n${block}`.trim()
 }
 
 const WARDROBE_CHANGE = /\b(?:takes off|take off|removes|removed|without (?:his|her|their))\s+(?:the\s+|a\s+|an\s+|his\s+|her\s+|their\s+)?(coat|jacket|scarf|hat|cap|apron|peacoat|sweater|boots|hakama)\b/i
