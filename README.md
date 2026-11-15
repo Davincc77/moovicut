@@ -35,10 +35,15 @@ npm run dev -- --port 3001
 
 ### Quick start
 
-1. Open **Studio**.
-2. Enter a premise, choose a prompt target, and create the shot list. The targets are Grok Imagine, Veo, Sora, Kling, Runway, Luma, Wan, and a generic profile.
-3. Edit the shots, camera, framing, lighting, sound, and prompts.
-4. Copy a prompt into the model you already use, or export JSON.
+1. Open **Studio**. The guide is the default.
+2. **Idea.** Write one sentence or a short paragraph. Detection fills the later steps when it can, and marks what it guessed.
+3. **Characters.** Each person needs a name, age, build or face, hair, outfit, colours, and one distinctive feature. The lock line updates as you type. Add or remove people.
+4. **Places and style.** Each place needs a description. Choose light and mood from the lists, and a style preset (anime / manga, cinema, or documentary, plus a genre). The preset locks the film sheet.
+5. **Shots.** One shot at a time: who, place, one action, and a framing term (wide shot, medium shot, close-up, high angle, over-the-shoulder, and the rest of that list). If the action line contains more than one action, split it.
+6. **Check.** Continuity and the risk check run here. Blocking issues have a one-click fix and must be cleared.
+7. **Generate prompts.** The button stays off until every required field is filled and the check has no blocking issue. Then copy a shot prompt, copy the compact agent JSON, export the character sheet, or regenerate one shot.
+
+**Advanced mode** opens the full editor (Step-by-step, scenario, ad, series, explainer, and the rest). **Back to the guide** returns to the wizard. Refreshing the page keeps the guide in this browser.
 
 Projects stay in this browser. They are not synced to another browser or computer. Export JSON if you want a backup.
 

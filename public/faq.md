@@ -4,7 +4,7 @@
 Moovicut is a free, local-first storyboard and shot list. You edit the shots in the browser and copy prompts for Grok Imagine, Google, or any other AI image or video model.
 
 ## How does Moovicut work?
-A premise becomes an ordered shot list on this device, with camera, action, lighting, sound, and continuity you can edit. Paste a prompt into the model you already use. Moovicut does not call that model.
+`/studio` opens a six-step guide: idea, characters, places and style, shots, check, then generate. Advanced mode keeps the full editor. A premise becomes an ordered shot list on this device, with camera, action, lighting, sound, and continuity you can edit. Paste a prompt into the model you already use. Moovicut does not call that model.
 
 ## Does Moovicut render video?
 No. It writes prompts. Nothing is rendered inside Moovicut.

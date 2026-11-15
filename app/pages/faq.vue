@@ -4,7 +4,7 @@ const runtimeConfig = useRuntimeConfig()
 const socialPreview = socialPreviewSeo(runtimeConfig.public.productionOrigin || runtimeConfig.public.appUrl, runtimeConfig.app.baseURL)
 const items = [
   ['What is Moovicut?', 'Moovicut is a free, local-first storyboard and shot list. You edit the shots in the browser and copy prompts for Grok Imagine, Google, or any other AI image or video model.'],
-  ['How does Moovicut work?', 'A premise becomes an ordered shot list on this device, with camera, action, lighting, sound, and continuity you can edit. Paste a prompt into the model you already use. Moovicut does not call that model.'],
+  ['How does Moovicut work?', '/studio opens a six-step guide: idea, characters, places and style, shots, check, then generate. Advanced mode keeps the full editor. A premise becomes an ordered shot list on this device, with camera, action, lighting, sound, and continuity you can edit. Paste a prompt into the model you already use. Moovicut does not call that model.'],
   ['Does Moovicut render video?', 'No. It writes prompts. Nothing is rendered inside Moovicut.'],
   ['Which models does it support?', 'The home page and the studio list eight prompt targets: Grok Imagine, Google (Veo / Gemini), Sora, Kling, Runway, Luma, Wan, and a generic profile. These names are prompt targets, not included accounts or rendering.'],
   ['Is an account required?', 'No. The storyboard stays in this browser. There is no sign-in.'],
