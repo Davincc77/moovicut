@@ -78,6 +78,11 @@ export const modelRegistry = createModelRegistry([
   proseAdapter('runway', 'R', 'model-mark'),
   proseAdapter('luma', 'L', 'model-mark'),
   proseAdapter('wan', 'W', 'model-mark'),
+  proseAdapter('chatgpt', 'C', 'model-mark'),
+  proseAdapter('midjourney', 'M', 'model-mark'),
+  proseAdapter('hailuo', 'H', 'model-mark'),
+  proseAdapter('seedance', 'D', 'model-mark'),
+  proseAdapter('pika', 'P', 'model-mark'),
   proseAdapter('generic', '•', 'model-mark')
 ])
 export const MODEL_IDS = modelRegistry.ids

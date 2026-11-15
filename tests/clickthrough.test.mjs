@@ -213,7 +213,7 @@ test('the studio copy matches the fixes', () => {
   assert.match(css, /--display:"Space Grotesk"/)
   assert.match(css, /\.studio-shell \.workspace-nav-button \{ display:none/)
   assert.match(header, /aria-controls="mobile-workspace-menu"/)
-  assert.match(faq, /eight prompt targets/)
+  assert.match(faq, /thirteen prompt targets/)
   assert.doesNotMatch(faq, /button-primary" href="https:\/\/buymeacoffee\.com/)
   assert.match(faq, /persistent volume/)
   assert.match(home, /v-for="item in MODEL_OPTIONS"/)

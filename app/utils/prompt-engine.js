@@ -93,10 +93,10 @@ export function canonicalShotCount(value) {
 }
 export const FAQS = [
   { q: 'What is Moovicut?', a: 'Moovicut is a free, local-first storyboard and shot list. You edit the shots in the browser and copy prompts for Grok Imagine, Google, or any other AI image or video model.' },
-  { q: 'Can an AI agent build a storyboard?', a: 'Yes. The default board is 5 scenes of 3 seconds (15s total). Humans can use Step-by-step mode in /studio, and agents can pass shots, a scenes array, a scenario, input prose, or format agent to POST /api/v1/storyboard, /mcp, or a /studio# share link. A premise shaped as Name, trait, trait keeps those people and the real actions. Prose that cannot be planned returns 400 and lists what is missing. splitActions false keeps a multi-action line in one shot. format agent includes warnings when a shot looks risky. Open /agents for the endpoints. No API key and no account. Every mode shares one film sheet. model can be grok, google, sora, kling, runway, luma, wan, or generic. The video prompt is short by default (prompt_style short or detailed). Each character has one lock line, copied unchanged into every shot they are in. A prompt edited by hand is kept unless overwrite is explicit.' },
+  { q: 'Can an AI agent build a storyboard?', a: 'Yes. The default board is 5 scenes of 3 seconds (15s total). Humans can use Step-by-step mode in /studio, and agents can pass shots, a scenes array, a scenario, input prose, or format agent to POST /api/v1/storyboard, /mcp, or a /studio# share link. A premise shaped as Name, trait, trait keeps those people and the real actions. Prose that cannot be planned returns 400 and lists what is missing. splitActions false keeps a multi-action line in one shot. format agent includes warnings when a shot looks risky. Open /agents for the endpoints. No API key and no account. Every mode shares one film sheet. model can be grok, google, sora, chatgpt, midjourney, hailuo, seedance, pika, kling, runway, luma, wan, or generic. The video prompt is short by default (prompt_style short or detailed). Each character has one lock line, copied unchanged into every shot they are in. A prompt edited by hand is kept unless overwrite is explicit.' },
   { q: 'How does Moovicut work?', a: 'A premise becomes an ordered shot list on this device, with camera, action, lighting, sound, and continuity you can edit. Paste a prompt into the model you already use. Moovicut does not call that model.' },
   { q: 'Does Moovicut render video?', a: 'No. It writes prompts. Nothing is rendered inside Moovicut.' },
-  { q: 'Which models does it support?', a: 'The home page and the studio list eight prompt targets: Grok Imagine, Google (Veo / Gemini), Sora, Kling, Runway, Luma, Wan, and a generic profile. These names are prompt targets, not included accounts or rendering.' },
+  { q: 'Which models does it support?', a: 'The home page and the studio list thirteen prompt targets: Grok Imagine, Google (Veo / Gemini), Sora, ChatGPT video, Midjourney video, MiniMax Hailuo, ByteDance Seedance, Pika, Kling, Runway, Luma, Wan, and a generic profile. These names are prompt targets, not included accounts or rendering.' },
   { q: 'Is an account required?', a: 'No. The storyboard stays in this browser. There is no sign-in.' },
   { q: 'Can I import or export work?', a: 'Yes. Projects use the shotboard.v1 JSON format. The studio can export a project or a local library backup, and it can import a compatible file. Files stay on your device.' },
   { q: 'Is Moovicut free?', a: 'Yes. Planning, editing, and JSON export are free. There is no subscription. Optional tips open Buy Me a Coffee in a new tab. Moovicut does not take payment itself.' },
@@ -491,7 +491,7 @@ export function createStoryboard(options = {}) {
   const premise = cleanText(options.premise)
   if (premise.length < 8) throw new Error('Add a little more detail to your story premise (at least 8 characters).')
   if (premise.length > 6000) throw new Error('Keep your premise under 6,000 characters.')
-  const model = canonicalModel(options.model || 'grok'); if (!model) throw new Error('Choose a target model: grok, google, sora, kling, runway, luma, wan, or generic.')
+  const model = canonicalModel(options.model || 'grok'); if (!model) throw new Error('Choose a target model: grok, google, sora, chatgpt, midjourney, hailuo, seedance, pika, kling, runway, luma, wan, or generic.')
   const sequenceMode = options.sequenceMode === 'varied' || options.sequenceMode === 'continuous' ? options.sequenceMode : undefined
   const shotStyle = SHOT_STYLE_PROFILES[options.style] ? options.style : ''
   const genre = detectGenre(premise, options.genre)
@@ -672,7 +672,7 @@ function createPresetStoryboard(options, mode) {
   const parsed = mode === 'ad' ? parseAd(options) : mode === 'series' ? parseSeries(options) : parseExplainer(options)
   if (!parsed.ok) throw presetFailure(parsed, `invalid_${mode}`)
   const model = canonicalModel(options.model || 'grok')
-  if (!model) throw new Error('Choose a target model: grok, google, sora, kling, runway, luma, wan, or generic.')
+  if (!model) throw new Error('Choose a target model: grok, google, sora, chatgpt, midjourney, hailuo, seedance, pika, kling, runway, luma, wan, or generic.')
   const explicit = cleanText(options.premise)
   const premise = explicit.length >= 8 && explicit.length <= 6000 && !looksLikeScenario(explicit) ? explicit : parsed.premise
   if (premise.length < 8) throw new Error('Add a little more detail to your story premise (at least 8 characters).')
@@ -761,7 +761,7 @@ function createScenarioStoryboard(options) {
   })
   if (!parsed.ok) throw scenarioFailure(parsed)
   const model = canonicalModel(options.model || 'grok')
-  if (!model) throw new Error('Choose a target model: grok, google, sora, kling, runway, luma, wan, or generic.')
+  if (!model) throw new Error('Choose a target model: grok, google, sora, chatgpt, midjourney, hailuo, seedance, pika, kling, runway, luma, wan, or generic.')
   const explicit = cleanText(options.premise)
   const premise = explicit.length >= 8 && explicit.length <= 6000 && !looksLikeScenario(explicit) ? explicit : parsed.premise
   if (premise.length < 8) throw new Error('Add a little more detail to your story premise (at least 8 characters).')
@@ -1296,7 +1296,7 @@ function fitBoard(project) {
 }
 export function applyModelProfile(project, modelId) {
   const model = canonicalModel(modelId)
-  if (!model) throw new Error('Choose a target model: grok, google, sora, kling, runway, luma, wan, or generic.')
+  if (!model) throw new Error('Choose a target model: grok, google, sora, chatgpt, midjourney, hailuo, seedance, pika, kling, runway, luma, wan, or generic.')
   const next = { ...project, model, target_model: model, shots: (project.shots || []).map(shot => ({ ...shot })) }
   fitBoard(next)
   return refreshProjectPrompts(next)
@@ -1360,7 +1360,7 @@ export function validateProject(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('The document must be a JSON object.')
   const project = input.project && typeof input.project === 'object' && !Array.isArray(input.project) ? input.project : input
   const premise = cleanText(project.premise); if (premise.length < 8) throw new Error('The story premise must be at least 8 characters.'); if (premise.length > 6000) throw new Error('The story premise exceeds the 6,000-character limit.')
-  const model = canonicalModel(project.model || project.target_model); if (!model) throw new Error('Choose a target model: grok, google, sora, kling, runway, luma, wan, or generic.')
+  const model = canonicalModel(project.model || project.target_model); if (!model) throw new Error('Choose a target model: grok, google, sora, chatgpt, midjourney, hailuo, seedance, pika, kling, runway, luma, wan, or generic.')
   const schema = input.schema || input.schema_version || input.version || project.schema_version; if (schema != null && schema !== 'shotboard.v1') throw new Error('This project schema is not supported. Expected shotboard.v1.')
   if (!Array.isArray(project.shots) || project.shots.length < 1) throw new Error('The storyboard must contain at least one shot.')
   const ids = new Set()

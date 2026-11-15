@@ -190,7 +190,7 @@ export const DYNAMIC_KEYS = [
   'Complete prompt',
   'Add a little more detail to your story premise (at least 8 characters).',
   'Keep your premise under 6,000 characters.',
-  'Choose a target model: grok, google, sora, kling, runway, luma, wan, or generic.',
+  'Choose a target model: grok, google, sora, chatgpt, midjourney, hailuo, seedance, pika, kling, runway, luma, wan, or generic.',
   'A saved project must be an object.',
   'This project schema is not supported.',
   'The document must be a JSON object.',

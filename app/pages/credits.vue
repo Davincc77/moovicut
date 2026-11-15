@@ -17,7 +17,8 @@ const sources = [
   ['MultiWordNet', 'Italian lemmas come from MultiWordNet. Licence: Creative Commons Attribution 3.0.'],
   ['NICT Japanese Wordnet', 'Japanese lemmas come from the Japanese Wordnet of the National Institute of Information and Communications Technology. The licence is WordNet-style and requires attribution.'],
   ['Chinese Open Wordnet', 'Chinese lemmas come from the Chinese Open Wordnet. The licence is WordNet-style.'],
-  ['OdeNet', 'German lemmas come from OdeNet 1.3 by Melanie Siegel and Francis Bond. Licence: Creative Commons Attribution-ShareAlike 4.0.']
+  ['OdeNet', 'German lemmas come from OdeNet 1.3 by Melanie Siegel and Francis Bond. Licence: Creative Commons Attribution-ShareAlike 4.0.'],
+  ['Video prompt profiles', 'Shot length, aspect, and prompt form for ChatGPT video, Midjourney video, MiniMax Hailuo, ByteDance Seedance, and Pika are cited in docs/model-profiles.md. A limit the provider page does not state uses the generic profile. Sora stays a separate profile.']
 ]
 </script>
 <template>

@@ -12,7 +12,7 @@
   },
   "defaults": { "shots": 5, "duration": 3, "totalSeconds": 15 },
   "tools": [
-    { "name": "plan_storyboard", "description": "Plan a storyboard. Default 5 scenes × 3s. Optional scenes, scenario, input prose, splitScenes, regenerateShot, or format agent. Free prose returns cuts with a cue and a reason. A character with no look is a warning, not a rejection. A board longer than 40 shots is split into parts at a scene boundary. parts is omitted for 40 shots or fewer. model can be grok, google, sora, kling, runway, luma, wan, or generic. Returns a compact payload and a /studio# link. Warnings are included only when a shot looks risky." },
+    { "name": "plan_storyboard", "description": "Plan a storyboard. Default 5 scenes × 3s. Optional scenes, scenario, input prose, splitScenes, regenerateShot, or format agent. Free prose returns cuts with a cue and a reason. A character with no look is a warning, not a rejection. A board longer than 40 shots is split into parts at a scene boundary. parts is omitted for 40 shots or fewer. model can be grok, google, sora, chatgpt, midjourney, hailuo, seedance, pika, kling, runway, luma, wan, or generic. Returns a compact payload and a /studio# link. Warnings are included only when a shot looks risky." },
     { "name": "export_prompts", "description": "Return shot prompts for a premise or an existing board." },
     { "name": "validate_storyboard", "description": "Validate a shotboard.v1 document." }
   ],

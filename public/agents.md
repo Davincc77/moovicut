@@ -144,9 +144,9 @@ Send `format: "agent"` to get `shotboard.compact.v1` for any mode: title, premis
 
 ## Target models
 
-`model` accepts `grok`, `google` (Veo), `sora`, `kling`, `runway`, `luma`, `wan`, or `generic`. The same id works on `POST /api/v1/storyboard` and `plan_storyboard`. Choosing a model keeps the film sheet and any prompt you edited, and it fits shot length, aspect, prompt form, and the risk check to that model.
+`model` accepts `grok`, `google` (Veo), `sora`, `chatgpt`, `midjourney`, `hailuo`, `seedance`, `pika`, `kling`, `runway`, `luma`, `wan`, or `generic`. The same id works on `POST /api/v1/storyboard` and `plan_storyboard`. Choosing a model keeps the film sheet and any prompt you edited, and it fits shot length, aspect, prompt form, and the risk check to that model.
 
-The limits live in `app/utils/model-profiles.js`. Each profile cites the provider’s official page and the date it was checked. A value the page does not state is marked unverified. Veo accepts 4, 6, or 8 seconds, in 16:9 or 9:16. Grok Imagine and Google keep their existing labeled prompts. The other profiles export prose. A full storyboard response includes `modelProfile`. The default compact payload does not.
+Sources for ChatGPT video, Midjourney video, MiniMax Hailuo, ByteDance Seedance, and Pika, including limits the provider page does not state, are in `docs/model-profiles.md`. The limits live in `app/utils/model-profiles.js`. Each profile cites the provider’s official page and the date it was checked. A value the page does not state is marked unverified. Veo accepts 4, 6, or 8 seconds, in 16:9 or 9:16. Grok Imagine and Google keep their existing labeled prompts. The other profiles export prose. A full storyboard response includes `modelProfile`. The default compact payload does not.
 
 ## Interface languages
 

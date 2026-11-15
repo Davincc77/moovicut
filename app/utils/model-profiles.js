@@ -6,8 +6,8 @@
 const CHECKED = '2026-11-14'
 const STUDIO_ASPECTS = ['9:16', '1:1', '4:5', '16:9']
 
-function source(url, note) {
-  return { url, checked: CHECKED, ...(note ? { note } : {}) }
+function source(url, note, checked = CHECKED) {
+  return { url, checked, ...(note ? { note } : {}) }
 }
 
 export const MODEL_PROFILES = Object.freeze({
@@ -168,6 +168,121 @@ export const MODEL_PROFILES = Object.freeze({
     dialogueQuotes: false,
     sources: [source('https://www.alibabacloud.com/help/en/model-studio/wan3-video-generation-api-reference')]
   },
+  chatgpt: {
+    id: 'chatgpt',
+    label: 'ChatGPT video',
+    providerModel: '',
+    available: false,
+    availabilityNote: 'OpenAI Help Center documents ChatGPT Images, looping GIFs, and Voice camera sharing. It does not document a ChatGPT video-clip generator. The Sora Videos API was shut down on September 24, 2026 and stays a separate profile. Undocumented limits use the generic profile.',
+    promptForm: 'prose',
+    promptFormNote: 'No ChatGPT video prompt form is documented. The generic prose prompt is used.',
+    durations: { unverified: true, note: 'No ChatGPT video page states a clip length. Scene length stays inside Moovicut’s 2–15 second limit, the generic default.' },
+    aspects: { unverified: true, note: 'No ChatGPT video page states an aspect ratio. The studio aspect stays as chosen: 9:16, 1:1, 4:5, or 16:9.' },
+    idealPromptLength: { unverified: true, note: 'No ChatGPT video page states a prompt length.' },
+    features: {
+      seed: { supported: null, unverified: true, note: 'No ChatGPT video page mentions a seed.' },
+      negativePrompt: { supported: null, unverified: true, note: 'No ChatGPT video page mentions a negative prompt.' }
+    },
+    weakSpots: [],
+    weakSpotsNote: { unverified: true, note: 'No ChatGPT video page lists weak spots.' },
+    dialogueQuotes: false,
+    sources: [
+      source('https://help.openai.com/en/articles/11084440-images-in-chatgpt', 'Images and looping GIFs. No timed video clip.', '2026-11-16'),
+      source('https://help.openai.com/en/articles/9260256-chatgpt-capabilities-overview', 'The capabilities overview does not list video generation.', '2026-11-16'),
+      source('https://developers.openai.com/api/reference/resources/videos/methods/create', 'Sora shutdown. Not a ChatGPT video product.', '2026-11-16')
+    ]
+  },
+  midjourney: {
+    id: 'midjourney',
+    label: 'Midjourney video',
+    providerModel: 'v1',
+    promptForm: 'prose',
+    promptFormNote: 'The video page says a text prompt is optional and the image is the first frame. Moovicut writes the prose prompt and does not upload an image.',
+    durations: { kind: 'enum', values: [5], default: 5 },
+    durationNote: 'A video generation starts at 5 seconds. Extend adds 4 seconds, up to four times, for a maximum of 21 seconds. Extensions are separate actions, so a scene offers 5 seconds only.',
+    aspects: ['1:1', '4:3', '2:3', '16:9', '1:2'],
+    aspectNote: 'The video page says the shape follows the starting image and lists 1:1, 4:3, 2:3, 16:9, and 1:2. It may adjust a ratio (16:9 is shown as 91:51). 9:16 is on the image aspect page and is not in the video dimension table, so it is not a verified video ratio.',
+    defaultAspect: '1:1',
+    idealPromptLength: { unverified: true, note: 'The video page does not give a prompt length. The text prompt is optional.' },
+    features: {
+      seed: { supported: false, note: 'The video page lists --motion, --raw, --loop, --end, and --bs. Seed is not among them.' },
+      negativePrompt: { supported: false, note: 'A negative prompt is not in the video parameter list.' }
+    },
+    weakSpots: [
+      { code: 'midjourney_high_motion', when: 'high-motion', message: 'Midjourney high motion can produce unrealistic or glitchy movement.', fix: 'Use low motion for a still or slow scene. Moovicut does not send the --motion flag.' }
+    ],
+    dialogueQuotes: false,
+    sources: [
+      source('https://docs.midjourney.com/hc/en-us/articles/37460773864589-Video', '5 second start, 4 second extensions, 21 second maximum, motion, and the dimension table.', '2026-11-16'),
+      source('https://docs.midjourney.com/hc/en-us/articles/31894244298125-Aspect-Ratio', 'Image aspect ratios, including 9:16. Not the video dimension table.', '2026-11-16')
+    ]
+  },
+  hailuo: {
+    id: 'hailuo',
+    label: 'MiniMax Hailuo',
+    providerModel: 'MiniMax-Hailuo-2.3',
+    promptForm: 'prose',
+    promptFormNote: 'The text-to-video page asks for a text description. Camera movement can also be written as [command] tokens. Moovicut keeps the prose prompt and does not insert those tokens.',
+    durations: { kind: 'enum', values: [6, 10], default: 6 },
+    durationNote: 'MiniMax-Hailuo-2.3 and MiniMax-Hailuo-02 accept 6 or 10 seconds at 768P, and 6 seconds at 1080P. The default is 6. Other listed models accept 6 seconds at 720P and do not support 10.',
+    aspects: { unverified: true, note: 'The text-to-video page documents resolution (720P, 768P, 1080P) and does not document an aspect ratio. The studio aspect stays as chosen: 9:16, 1:1, 4:5, or 16:9.' },
+    idealPromptLength: { unverified: true, note: 'The page sets a maximum of 2,000 characters and does not give a shorter ideal.' },
+    maxPromptLength: 2000,
+    features: {
+      seed: { supported: null, unverified: true, note: 'Seed is not a field on the text-to-video request.' },
+      negativePrompt: { supported: null, unverified: true, note: 'A negative prompt is not a field on the text-to-video request.' }
+    },
+    weakSpots: [
+      { code: 'hailuo_prompt_optimizer', message: 'Hailuo prompt_optimizer defaults to true and rewrites the prompt.', fix: 'Set prompt_optimizer to false on the provider request if the wording must stay exact. Moovicut does not send that request.' }
+    ],
+    dialogueQuotes: false,
+    sources: [source('https://platform.minimax.io/docs/api-reference/video-generation-t2v', 'MiniMax-Hailuo-2.3 duration, the 2,000 character prompt, and prompt_optimizer.', '2026-11-16')]
+  },
+  seedance: {
+    id: 'seedance',
+    label: 'ByteDance Seedance',
+    providerModel: 'dreamina-seedance-2-0-260128',
+    promptForm: 'prose',
+    durations: { kind: 'range', min: 4, max: 15, default: 4 },
+    durationNote: 'Dreamina Seedance 2.0 text-to-video accepts 4–15 seconds. Dreamina Seedance 2.5 accepts 4–30. Lengths 16–30 are documented and not offered, because a Moovicut scene stays at or below 15 seconds. The create-task page does not name a default. The default here is the documented 2.0 minimum, 4. A getting-started example uses 5 and does not call 5 the default. duration -1 lets the model pick a length and is not offered.',
+    aspects: ['21:9', '16:9', '4:3', '1:1', '3:4', '9:16'],
+    aspectNote: 'Documented ratios are 21:9, 16:9, 4:3, 1:1, 3:4, 9:16, and adaptive. Seedance 2.0 and 2.5 default to adaptive. The studio has no adaptive control, so a board uses one of the listed ratios. 16:9 is a documented choice, not the documented default.',
+    defaultAspect: '16:9',
+    idealPromptLength: { note: 'The create-task page recommends no more than 500 Chinese characters or 1,000 English words. It does not state a hard maximum.' },
+    features: {
+      seed: { supported: true, note: 'Seed is a documented request parameter. The page does not say whether the same seed repeats the same video.' },
+      negativePrompt: { supported: null, unverified: true, note: 'A negative prompt is not listed on the create-task page.' }
+    },
+    weakSpots: [],
+    weakSpotsNote: { note: 'The create-task page says a long prompt may be ignored except for its key points. It does not give a character count that should raise a warning, so no per-shot warning is added.' },
+    dialogueQuotes: false,
+    sources: [
+      source('https://docs.byteplus.com/docs/en/modelark/create-video-generation-task-api.md', 'Ratios, seed, and the prompt-length recommendation.', '2026-11-16'),
+      source('https://docs.byteplus.com/docs/en/modelark/seedance-2-0.md', 'Seedance 2.0 output duration 4–15 seconds.', '2026-11-16'),
+      source('https://docs.byteplus.com/docs/en/modelark/seedance-2-5.md', 'Seedance 2.5 output duration 4–30 seconds. Model ids are listed in the capabilities table.', '2026-11-16')
+    ]
+  },
+  pika: {
+    id: 'pika',
+    label: 'Pika',
+    providerModel: 'pika-2.5',
+    promptForm: 'prose',
+    promptFormNote: 'The text-to-video page requires a text prompt. The published example is prose. No separate prompt schema is given.',
+    durations: { kind: 'enum', values: [5, 10], default: 5 },
+    durationNote: 'duration_s accepts 5 or 10 and defaults to 5.',
+    aspects: ['5:2', '16:9', '4:3', '1:1', '4:5', '9:16'],
+    aspectNote: 'aspect_ratio accepts 5:2, 16:9, 4:3, 1:1, 4:5, and 9:16. The page does not name a default ratio. Omitting the field lets the model choose. When a board must pick one, Moovicut uses 16:9, a documented option and not a documented default.',
+    defaultAspect: '16:9',
+    idealPromptLength: { unverified: true, note: 'The text-to-video page does not give a prompt length.' },
+    features: {
+      seed: { supported: true, note: 'Seed is an integer for reproducible generation. The page does not state the allowed range.' },
+      negativePrompt: { supported: true, note: 'negative_prompt is an optional string describing what to avoid.' }
+    },
+    weakSpots: [],
+    weakSpotsNote: { unverified: true, note: 'The text-to-video page does not list known weak spots.' },
+    dialogueQuotes: false,
+    sources: [source('https://dev.pika.art/llms/pika/pika-2.5/text-to-video', 'duration_s 5 or 10, aspect ratios, seed, and negative_prompt.', '2026-11-16')]
+  },
   generic: {
     id: 'generic',
     label: 'Generic',
@@ -219,6 +334,14 @@ const ALIASES = Object.freeze({
   dreammachine: 'luma',
   wan: 'wan',
   wan30: 'wan',
+  chatgpt: 'chatgpt',
+  midjourney: 'midjourney',
+  mj: 'midjourney',
+  hailuo: 'hailuo',
+  minimax: 'hailuo',
+  seedance: 'seedance',
+  bytedance: 'seedance',
+  pika: 'pika',
   generic: 'generic'
 })
 

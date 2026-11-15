@@ -157,7 +157,7 @@ function storyboardOptions(input) {
   const fountainText = typeof input.fountain === 'string' ? input.fountain : (input.input === 'fountain' || input.type === 'fountain' ? String(input.text || input.premise || '') : (isFountain(input.premise) ? input.premise : ''))
   if (fountainText) {
     const model = canonicalModel(input.model || 'grok')
-    if (!model) fail('The model must be grok, google, sora, kling, runway, luma, wan, or generic.', 'invalid_model')
+    if (!model) fail('The model must be grok, google, sora, chatgpt, midjourney, hailuo, seedance, pika, kling, runway, luma, wan, or generic.', 'invalid_model')
     const sheet = parseFountain(fountainText)
     if (!sheet.scenes.length) fail('Add a scene heading such as INT. KITCHEN - DAY and one action under it.', 'invalid_fountain')
     const characters = sheet.characters.length ? sheet.characters : [{ name: 'Figure', look: 'unspecified', outfit: 'plain clothes' }]
@@ -175,7 +175,7 @@ function storyboardOptions(input) {
     }
   }
   const model = canonicalModel(input.model || 'grok')
-  if (!model) fail('The model must be grok, google, sora, kling, runway, luma, wan, or generic.', 'invalid_model')
+  if (!model) fail('The model must be grok, google, sora, chatgpt, midjourney, hailuo, seedance, pika, kling, runway, luma, wan, or generic.', 'invalid_model')
   const explicit = String(input.mode || input.sequenceMode || '')
   if (explicit === 'ad' || input.ad || (!explicit && input.product && input.benefit)) return presetOptions(input, model, 'ad')
   if (explicit === 'series' || input.series) return presetOptions(input, model, 'series')
@@ -559,7 +559,7 @@ const STORYBOARD_SCHEMA = {
   ],
   properties: {
     premise: { type: 'string', minLength: 8, maxLength: 6000, description: 'Story idea, 8 to 6,000 characters. Optional when scenario is sent. If it is omitted, the idea line is the character and place names only, not the first scene’s action.' },
-    model: { type: 'string', enum: ['grok', 'google', 'sora', 'kling', 'runway', 'luma', 'wan', 'generic'], default: 'grok', description: 'Target video model. Shot length, aspect, prompt form, and risk warnings follow that model’s documented profile. grok and google keep their existing labeled prompts. veo is accepted as google.' },
+    model: { type: 'string', enum: ['grok', 'google', 'sora', 'chatgpt', 'midjourney', 'hailuo', 'seedance', 'pika', 'kling', 'runway', 'luma', 'wan', 'generic'], default: 'grok', description: 'Target video model. Shot length, aspect, prompt form, and risk warnings follow that model’s documented profile. grok and google keep their existing labeled prompts. veo is accepted as google.' },
     shots: { type: 'integer', minimum: 1, maximum: 40, default: 5, description: 'Scene count. Ignored when scenes is a non-empty array. Default 5. At most 40 shots. A longer board is refused.' },
     mode: { type: 'string', enum: ['continuous', 'varied', 'scenario', 'ad', 'series', 'explainer'], description: 'Alias of sequenceMode. scenario reads the scenario field or a structured premise. ad, series, and explainer are light presets on the same film sheet. A prompt marked promptEdited is kept.' },
     sequenceMode: { type: 'string', enum: ['continuous', 'varied', 'scenario', 'ad', 'series', 'explainer'] },
@@ -719,7 +719,7 @@ export function openApiDocument() {
 const TOOLS = [
   {
     name: 'plan_storyboard',
-    description: 'Plan a deterministic storyboard. Default is 5 scenes × 3s (15s total) and a short per-shot video prompt: framing, the named action, the lock line, the place, one light, and locked-off camera unless a movement was set. Each character lock line is copied unchanged into every shot they appear in. Pass prompt_style "detailed" for the full sheet in every shot. Pass shots/duration, a scenes array, a scenario, mode ad, series, or explainer, input "prose", format "agent", or a model: grok, google, sora, kling, runway, luma, wan, or generic. Free prose splits on place and time cues unless splitScenes is false. The cuts array gives each cue and reason. A character with no look is a warning, not a 400. A request of more than 40 shots is refused with too_many_shots. Split the story into chapters and send them one by one. A prompt marked promptEdited is kept. Returns a compact payload and a /studio# link. Nothing is stored.',
+    description: 'Plan a deterministic storyboard. Default is 5 scenes × 3s (15s total) and a short per-shot video prompt: framing, the named action, the lock line, the place, one light, and locked-off camera unless a movement was set. Each character lock line is copied unchanged into every shot they appear in. Pass prompt_style "detailed" for the full sheet in every shot. Pass shots/duration, a scenes array, a scenario, mode ad, series, or explainer, input "prose", format "agent", or a model: grok, google, sora, chatgpt, midjourney, hailuo, seedance, pika, kling, runway, luma, wan, or generic. Free prose splits on place and time cues unless splitScenes is false. The cuts array gives each cue and reason. A character with no look is a warning, not a 400. A request of more than 40 shots is refused with too_many_shots. Split the story into chapters and send them one by one. A prompt marked promptEdited is kept. Returns a compact payload and a /studio# link. Nothing is stored.',
     inputSchema: STORYBOARD_SCHEMA
   },
   {
@@ -730,7 +730,7 @@ const TOOLS = [
       additionalProperties: false,
       properties: {
         premise: { type: 'string' },
-        model: { type: 'string', enum: ['grok', 'google', 'sora', 'kling', 'runway', 'luma', 'wan', 'generic'], default: 'grok' },
+        model: { type: 'string', enum: ['grok', 'google', 'sora', 'chatgpt', 'midjourney', 'hailuo', 'seedance', 'pika', 'kling', 'runway', 'luma', 'wan', 'generic'], default: 'grok' },
         shots: { type: 'integer', minimum: 1, default: 5 },
         duration: { type: 'integer', minimum: 2, maximum: 15, default: 3 },
         mode: { type: 'string', enum: ['continuous', 'varied', 'scenario', 'ad', 'series', 'explainer'] },
