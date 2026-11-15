@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { detectProse } from '../app/utils/prose-detect.js'
-import { editCut, isFunctionWord, isNeverPlace, splitNarrative, supportedCueLanguages } from '../app/utils/scene-split.js'
+import { editCut, isFunctionWord, isNeverPlace, isNumberWord, namedVenues, splitNarrative, supportedCueLanguages } from '../app/utils/scene-split.js'
 import { foldName } from '../app/utils/scenario.js'
 import { dispatchAgentRequest } from '../server/agent-api.mjs'
 
@@ -350,4 +350,80 @@ test('the four baseline stories return 200 and beat the live detector', () => {
   rows.forEach(row => {
     assert.equal(row.places.some(place => /plage|beach|sourcil|manche|street|rue|light|distance/i.test(place)), false, row.places.join(', '))
   })
+})
+
+const NUMBER_CASES = [
+  ['en', 'Three days later. Kenji, round steel glasses, rust-red cardigan, waits in the kitchen.', 'Three'],
+  ['fr', 'Trois jours plus tard. Hélène, lunettes fines, attend dans la cuisine.', 'Trois'],
+  ['pt', 'Três dias depois. Inês espera na cozinha. Inês sorri.', 'Três'],
+  ['de', 'Drei Tage später. Otto wartet in der Küche. Otto liest.', 'Drei'],
+  ['it', 'Tre giorni dopo. Giulia aspetta in cucina. Giulia sorride.', 'Tre'],
+  ['lb', 'Dräi Deeg drop. Lena waart an der Kichen. Lena laacht.', 'Dräi'],
+  ['ja', '三日後。麻耶は厨房で待つ。', '三'],
+  ['zh-Hans', '三天后。玛雅在厨房等。', '三']
+]
+
+test('number words are never characters in any site language', () => {
+  for (const [language, text, word] of NUMBER_CASES) {
+    assert.equal(isNumberWord(word, language), true, word)
+    assert.equal(isNumberWord('12', language), true)
+    const detected = detectProse(text)
+    assert.equal(detected.characters.some(item => foldName(item.name) === foldName(word)), false, `${language} ${word}`)
+  }
+})
+
+const VENUE_CASES = [
+  ['fr', "Ensuite, dans la librairie Atlas, ils s'assoient près de la vitrine.", 'Librairie Atlas', 'Atlas'],
+  ['fr', 'Dans le café Lumière, Léa ouvre la porte.', 'Café Lumière', 'Lumière'],
+  ['en', "After that, in Harbottle's bookshop, they sit down by the window.", "Harbottle's bookshop", 'Harbottle'],
+  ['en', 'Atlas bookshop opens at dawn. Maya opens the door.', 'Atlas bookshop', 'Atlas'],
+  ['en', 'In the Blue Moon bar, Bridget waits.', 'Blue Moon bar', 'Moon'],
+  ['de', 'In der Bäckerei Krause öffnet Otto die Tür.', 'Bäckerei Krause', 'Krause'],
+  ['pt', 'Na livraria Atlas, Inês abre a porta.', 'Livraria Atlas', 'Atlas'],
+  ['it', 'Nella libreria Atlas, Giulia apre la porta.', 'Libreria Atlas', 'Atlas'],
+  ['lb', 'An der Bäckerei Krause mécht d\'Lena d\'Dier op.', 'Bäckerei Krause', 'Krause'],
+  ['ja', '麻耶は光書店でドアを開ける。', '光書店', '光'],
+  ['zh-Hans', '玛雅在光明书店打开门。', '光明书店', '光明']
+]
+
+test('a venue type plus a proper name is a place, not a character', () => {
+  for (const [language, text, place, person] of VENUE_CASES) {
+    const found = namedVenues(text, language)
+    assert.ok(found.some(item => foldName(item.name) === foldName(place)), `${language} ${found.map(item => item.name).join(', ')}`)
+    const narrative = splitNarrative(text, {
+      language,
+      places: found.map(item => ({ name: item.name, keys: item.keys })),
+      verbs: ['ouvre', 'opens', 'open', 'sit', 'sits', 'assoient', 'abre', 'apre', 'öffnet', 'wartet', 'mécht', '開ける', '打开', 'pours', 'entre', 'enters']
+    })
+    assert.ok(narrative.shots.some(scene => foldName(scene.where) === foldName(place)), `${language} ${narrative.shots.map(scene => scene.where).join(' > ')}`)
+    const detected = detectProse(text)
+    if (detected.language === language || language === 'en' || language === 'fr') {
+      assert.equal(detected.characters.some(item => foldName(item.name) === foldName(person)), false, `${language} character ${person} in ${detected.characters.map(item => item.name).join(',')}`)
+      assert.ok(detected.places.some(item => foldName(item.name) === foldName(place)), `${language} places ${detected.places.map(item => item.name).join(', ')}`)
+    }
+  }
+})
+
+test('an uncertain toward-cue does not leave a firm cut from that place', () => {
+  const french = "Hélène lit dans le jardin. Elle marche vers la gare. Plus tard, dans la boulangerie, Hélène entre."
+  const english = 'Bridget reads in the garden. She walks toward the station. Later, in the bakery, Bridget opens the door.'
+  for (const [text, from, toward, next] of [[french, 'jardin', 'gare', 'boulangerie'], [english, 'garden', 'station', 'bakery']]) {
+    const detected = detectProse(text)
+    const wheres = detected.scenes.map(scene => foldName(scene.where))
+    assert.equal(wheres.includes(toward), false, wheres.join(' > '))
+    assert.ok(wheres.includes(from) && wheres.includes(next), wheres.join(' > '))
+    const uncertain = (detected.cuts || []).filter(cut => cut.uncertain)
+    assert.ok(uncertain.length >= 1)
+    assert.match(uncertain.map(cut => cut.cue).join(' '), new RegExp(toward, 'i'))
+    const firm = []
+    let previous = ''
+    detected.scenes.forEach(scene => {
+      const place = foldName(scene.where)
+      if (!place || place === previous) return
+      if (!scene.cutUncertain) firm.push(place)
+      previous = place
+    })
+    assert.equal(firm.includes(toward), false, firm.join(' > '))
+    assert.ok(firm.includes(next))
+  }
 })

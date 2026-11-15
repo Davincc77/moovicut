@@ -4,7 +4,7 @@ import { foldName, scenarioBudget, scenarioPremise, scenarioToFields } from './s
 import { flaggedNameKeys } from './shot-risk.js'
 import { splitActionText } from './action-split.js'
 import { detectLocalized } from './prose-extra.js'
-import { isFunctionWord, isNeverPlace, isQuotedOrRemembered, placeMentionIsReal, splitNarrative } from './scene-split.js'
+import { inNamedVenue, isFunctionWord, isNeverPlace, isNumberWord, isQuotedOrRemembered, isVenueType, namedVenues, placeMentionIsReal, splitNarrative } from './scene-split.js'
 
 const STOP = new Set(['the', 'a', 'an', 'he', 'she', 'they', 'it', 'his', 'her', 'their', 'then', 'when', 'after', 'before', 'later', 'next', 'once', 'this', 'that', 'there', 'here', 'un', 'une', 'le', 'la', 'les', 'il', 'elle', 'ils', 'elles', 'lui', 'leur', 'puis', 'quand', 'apres', 'avant', 'dans', 'sur', 'sous', 'avec', 'pour', 'par', 'chez', 'au', 'aux', 'du', 'des', 'en', 'et', 'mais', 'ou', 'ce', 'cette', 'ces', 'son', 'sa', 'ses', 'mon', 'ma', 'mes', 'je', 'tu', 'nous', 'vous', 'on', 'plus', 'tout', 'toute', 'tous', 'morning', 'evening', 'night', 'day', 'matin', 'soir', 'nuit', 'jour', 'aube', 'tard', 'lendemain', 'and', 'with', 'from', 'into', 'over', 'while', 'its', 'our', 'your'])
 
@@ -296,6 +296,7 @@ function detectCharacters(text, places = [], language = 'en') {
     if (isQuotedOrRemembered(text, match.index, language)) continue
     const key = foldName(token)
     if (flagged.has(key)) { skippedFlagged = true; continue }
+    if (isNumberWord(token, language) || isVenueType(token, language) || inNamedVenue(text, match.index, language)) continue
     if (key.length < 2 || STOP.has(key) || isFunctionWord(token, language) || PLACE_KEYS.has(key) || TIME_BLOCK.has(key) || reserved.has(key) || NOT_A_PLACE.has(key) || isNeverPlace(token)) continue
     const entry = counts.get(key) || { forms: new Map(), count: 0, mid: 0 }
     entry.count += 1
@@ -373,7 +374,8 @@ function unique(values) {
 
 function pushPlace(places, name, description, confidence, trusted = false) {
   const clean = cleanText(name)
-  if (!clean || NOT_A_PLACE.has(foldName(clean)) || isNeverPlace(clean)) return
+  if (!clean || NOT_A_PLACE.has(foldName(clean))) return
+  if (!trusted && isNeverPlace(clean)) return
   if (places.some(place => foldName(place.name) === foldName(clean))) return
   places.push({ name: clean, description, confidence, trusted })
 }
@@ -433,7 +435,12 @@ function detectPlaces(text, language) {
     pushPlace(places, name, language === 'fr' ? 'un lieu cité dans le texte' : 'a place named in the text', 'low')
     warnings.push({ code: 'uncertain_place', message: `Confirm this place: ${name}.`, target: 'places', options: [name], name })
   })
+  const venues = namedVenues(source, language)
+  venues.forEach(venue => {
+    pushPlace(places, venue.name, venue.description, 'high', true)
+  })
   const visible = places.filter(place => {
+    if (venues.some(venue => foldName(venue.name).includes(foldName(place.name)) && foldName(venue.name) !== foldName(place.name))) return false
     if (place.trusted) return true
     const known = PLACES.find(item => item.fr === place.name || item.en === place.name)
     const keys = known ? known.keys : [place.name]
@@ -556,6 +563,7 @@ function detectScenes(text, characters, places, language, flagged, options = {})
     places: placeRecords(places),
     characters,
     verbs: [...VERBS],
+    lexicon: PLACES.map(item => ({ name: language === 'fr' ? item.fr : item.en, keys: item.keys })),
     splitScenes: options.splitScenes !== false,
     skip: sentence => isMeetIntro(sentence)
   })

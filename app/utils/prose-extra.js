@@ -1,7 +1,7 @@
 /** Rule-based prose detection beyond English and French. No model call. */
 import { cleanText } from './text.js'
 import { foldName, scenarioBudget, scenarioPremise, scenarioToFields } from './scenario.js'
-import { findPlaceCue, isFunctionWord, isQuotedOrRemembered, splitNarrative } from './scene-split.js'
+import { findPlaceCue, inNamedVenue, isFunctionWord, isNumberWord, isQuotedOrRemembered, isVenueType, namedVenues } from './scene-split.js'
 
 const LEX = {
   pt: {
@@ -140,13 +140,17 @@ function nameOf(token, language) {
   return token
 }
 
-function findPlaces(text, lex) {
+function findPlaces(text, lex, language) {
   const folded = foldName(text)
   const places = []
   lex.places.forEach(([key, name, description]) => {
     if (!new RegExp(`(?:^|[^\\p{L}])${foldName(key)}(?=[^\\p{L}]|$)`, 'u').test(folded)) return
     if (places.some(place => foldName(place.name) === foldName(name))) return
     places.push({ name, description, confidence: 'high' })
+  })
+  namedVenues(text, language).forEach(venue => {
+    if (places.some(place => foldName(place.name) === foldName(venue.name))) return
+    places.push({ name: venue.name, description: venue.description, confidence: 'high' })
   })
   return places
 }
@@ -173,7 +177,7 @@ function findCharacters(text, lex, places, language) {
     if (language === 'lb') break
     let token = nameOf(match[0], language)
     if (!/^\p{Lu}/u.test(token)) continue
-    if (isQuotedOrRemembered(text, match.index, language) || isFunctionWord(token, language)) continue
+    if (isQuotedOrRemembered(text, match.index, language) || isFunctionWord(token, language) || isNumberWord(token, language) || isVenueType(token, language) || inNamedVenue(text, match.index, language)) continue
     const key = foldName(token)
     if (key.length < 2 || stop.has(key) || reserved.has(key)) continue
     if (harvest(token, lex.outfit).length || harvest(token, lex.look).length) continue
@@ -328,7 +332,7 @@ function detectSpaced(text, language) {
       ambience: { light: '', mood: '', confidence: 'low' }
     })
   }
-  const places = findPlaces(text, lex)
+  const places = findPlaces(text, lex, language)
   const characters = findCharacters(text, lex, places, language)
   const ambience = findAmbience(text, lex)
   const scenes = findScenes(text, lex, characters.characters, places, language)
@@ -364,7 +368,7 @@ function detectCjk(text, language) {
     const window = match[2] || ''
     const look = unique(harvest(window, lex.look))
     const outfit = unique(harvest(window, lex.outfit))
-    if (characters.some(item => item.name === name)) return
+    if (isNumberWord(name, language) || characters.some(item => item.name === name)) return
     const confidence = look.length && outfit.length ? 'high' : 'low'
     if (!look.length) warnings.push({ code: 'missing_look', message: `No look found for ${name}.`, target: 'characters', name })
     if (!outfit.length) warnings.push({ code: 'missing_outfit', message: `No outfit found for ${name}.`, target: 'characters', name })
@@ -376,7 +380,7 @@ function detectCjk(text, language) {
       : [...String(text).matchAll(/([\p{Script=Han}]{1,3})(?:把|是)/gu)]
     particle.forEach(match => {
       const name = match[1]
-      if (['雨', '小', '在', '信'].includes(name)) return
+      if (['雨', '小', '在', '信'].includes(name) || isNumberWord(name, language)) return
       if (characters.some(item => item.name === name)) return
       characters.push({ name, look: '', outfit: '', confidence: 'low' })
       warnings.push({ code: 'missing_look', message: `No look found for ${name}.`, target: 'characters', name })
@@ -387,6 +391,9 @@ function detectCjk(text, language) {
   const places = []
   lex.places.forEach(([key, name, description]) => {
     if (text.includes(key) && !places.some(place => place.name === name)) places.push({ name, description, confidence: 'high' })
+  })
+  namedVenues(text, language).forEach(venue => {
+    if (!places.some(place => place.name === venue.name)) places.push({ name: venue.name, description: venue.description, confidence: 'high' })
   })
   const scenes = []
   const sceneWarnings = []

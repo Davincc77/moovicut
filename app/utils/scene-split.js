@@ -138,7 +138,7 @@ const CAST_VERB = /\b(porte|portent|wears?|trägt|tragt|veste|indossa|dréit|dre
 
 const BUILTIN_VERBS = Object.freeze({
   en: ['reads', 'read', 'sets', 'set', 'stands', 'stand', 'tidies', 'tidy', 'folds', 'fold', 'switches', 'switch', 'takes', 'take', 'opens', 'open', 'pours', 'pour', 'waits', 'wait', 'comes', 'come', 'leaves', 'leave', 'looks', 'look', 'says', 'say', 'smiles', 'smile', 'closes', 'close', 'hands', 'hand', 'finds', 'find', 'compare', 'compares', 'sits', 'sit', 'puts', 'put', 'walks', 'walk', 'stops', 'stop', 'checks', 'check', 'answers', 'answer', 'watch', 'watches', 'steps', 'step', 'pulls', 'pull', 'stays', 'stay', 'remains', 'remain', 'pushes', 'push', 'lifts', 'lift', 'holds', 'hold', 'arrives', 'arrive', 'shuts', 'shut', 'listens', 'listen', 'unrolls', 'unroll', 'points', 'point', 'talks', 'talk', 'enters', 'enter', 'returns', 'return', 'knocks', 'knock', 'laughs', 'laugh', 'boards', 'board', 'meets', 'meet', 'gives', 'give', 'rides', 'turns', 'follows', 'crosses', 'drinks', 'writes', 'calls', 'runs', 'sits'],
-  fr: ['lit', 'pose', 'leve', 'range', 'eteint', 'ouvre', 'verse', 'attend', 'entre', 'laisse', 'cherche', 'dit', 'sourit', 'referme', 'tend', 'boit', 'repose', 'retrouve', 'comparent', 'comparent', 'glisse', 'restent', 'ajuste', 'assoient', 'sort', 'regarde', 'apporte', 'pousse', 'releve', 'allume', 'arrive', 'ferme', 'ecoute', 'deroule', 'montre', 'parlent', 'enfilent', 'marchent', 'arrete', 'relit', 'assoit', 'reste', 'repondent', 'reprennent', 'regardent', 'approche', 'serre', 'pense', 'sont'],
+  fr: ['lit', 'pose', 'leve', 'range', 'eteint', 'ouvre', 'verse', 'attend', 'entre', 'laisse', 'cherche', 'dit', 'sourit', 'referme', 'tend', 'boit', 'repose', 'retrouve', 'comparent', 'glisse', 'restent', 'ajuste', 'assoient', "s'assoient", 'assied', 'assoit', 'sort', 'regarde', 'apporte', 'pousse', 'releve', 'allume', 'arrive', 'ferme', 'ecoute', 'deroule', 'montre', 'parlent', 'enfilent', 'marche', 'marchent', 'arrete', 'relit', 'reste', 'repondent', 'reprennent', 'regardent', 'approche', 'serre', 'pense', 'sont', 'arrose', 'achete'],
   pt: ['entrega', 'lê', 'le', 'afasta', 'observa', 'abre', 'entra', 'poe', 'diz', 'sorri', 'fecha', 'anda', 'espera', 'pega'],
   de: ['gibt', 'liest', 'geht', 'sieht', 'öffnet', 'lacht', 'reicht', 'legt', 'nimmt', 'wartet', 'sagt', 'kommt', 'setzt', 'bleibt'],
   it: ['porge', 'legge', 'allontana', 'guarda', 'entra', 'esce', 'apre', 'dice', 'sorride', 'chiude', 'cammina', 'aspetta'],
@@ -147,9 +147,128 @@ const BUILTIN_VERBS = Object.freeze({
   'zh-Hans': ['交给', '读了', '读', '走开', '看着', '看', '笑', '走进', '打开', '递给', '说', '坐下', '放下']
 })
 
+const NUMBERS = Object.freeze({
+  en: ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety', 'hundred', 'first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth'],
+  fr: ['zero', 'un', 'une', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf', 'dix', 'onze', 'douze', 'treize', 'quatorze', 'quinze', 'seize', 'vingt', 'trente', 'quarante', 'cinquante', 'soixante', 'cent', 'premier', 'premiere', 'deuxieme', 'troisieme', 'second', 'seconde'],
+  pt: ['zero', 'um', 'uma', 'dois', 'duas', 'tres', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove', 'dez', 'onze', 'doze', 'vinte', 'trinta', 'quarenta', 'cinquenta', 'cem', 'primeiro', 'primeira', 'segundo', 'segunda', 'terceiro', 'terceira'],
+  de: ['null', 'eins', 'zwei', 'drei', 'vier', 'fuenf', 'sechs', 'sieben', 'acht', 'neun', 'zehn', 'elf', 'zwoelf', 'zwanzig', 'dreissig', 'vierzig', 'fuenfzig', 'hundert', 'erste', 'erster', 'zweite', 'zweiter', 'dritte', 'dritter'],
+  it: ['zero', 'uno', 'una', 'due', 'tre', 'quattro', 'cinque', 'sei', 'sette', 'otto', 'nove', 'dieci', 'undici', 'dodici', 'venti', 'trenta', 'quaranta', 'cinquanta', 'cento', 'primo', 'prima', 'secondo', 'seconda', 'terzo', 'terza'],
+  lb: ['null', 'een', 'eent', 'zwee', 'drai', 'veier', 'fennef', 'sechs', 'siwen', 'aacht', 'neng', 'zeng', 'zwanzeg', 'dreissegg', 'eischt', 'zweet', 'dratt'],
+  ja: ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '百', '千', '一つ', '二つ', '三つ', '第一', '第二', '第三'],
+  'zh-Hans': ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '百', '千', '零', '第一', '第二', '第三', '两']
+})
+const NUMBER_SET = Object.freeze(Object.fromEntries(LOCALES.map(code => [code, new Set(NUMBERS[code].map(word => foldName(word)))])))
+
+/** Cardinal and ordinal number words, and digit tokens. Never a character. */
+export function isNumberWord(token, language = 'en') {
+  const raw = String(token || '').trim()
+  if (!raw) return false
+  if (/^\d+$/u.test(raw)) return true
+  const key = foldName(raw)
+  if (!key) return false
+  if (NUMBER_SET[language]?.has(key)) return true
+  if (language !== 'en' && NUMBER_SET.en.has(key)) return true
+  if (language !== 'fr' && NUMBER_SET.fr.has(key)) return true
+  return [...LOCALES].some(code => NUMBER_SET[code].has(key) && key.length > 2)
+}
+
+const VENUES = Object.freeze({
+  en: ['bookshop', 'bookstore', 'book shop', 'shop', 'store', 'cafe', 'café', 'coffee shop', 'bar', 'restaurant', 'bakery', 'pharmacy', 'chemist', 'hotel', 'cinema', 'movie theater', 'museum', 'gallery', 'studio', 'garage', 'market', 'library', 'theatre', 'theater', 'pub', 'inn', 'bistro', 'diner'],
+  fr: ['librairie', 'boutique', 'magasin', 'café', 'cafe', 'bar', 'restaurant', 'boulangerie', 'pharmacie', 'hôtel', 'hotel', 'cinéma', 'cinema', 'musée', 'musee', 'galerie', 'studio', 'garage', 'marché', 'bibliothèque', 'bibliotheque', 'bistrot', 'auberge', 'brasserie'],
+  pt: ['livraria', 'loja', 'café', 'cafe', 'bar', 'restaurante', 'padaria', 'farmácia', 'farmacia', 'hotel', 'cinema', 'museu', 'galeria', 'estúdio', 'estudio', 'garagem', 'mercado', 'biblioteca', 'mercearia'],
+  de: ['buchhandlung', 'buchladen', 'bäckerei', 'backerei', 'laden', 'geschäft', 'geschaft', 'café', 'cafe', 'bar', 'restaurant', 'apotheke', 'hotel', 'kino', 'museum', 'galerie', 'atelier', 'studio', 'garage', 'werkstatt', 'markt', 'bibliothek', 'kneipe', 'gasthaus'],
+  it: ['libreria', 'negozio', 'caffè', 'caffe', 'bar', 'ristorante', 'panetteria', 'farmacia', 'hotel', 'albergo', 'cinema', 'museo', 'galleria', 'studio', 'garage', 'officina', 'mercato', 'biblioteca', 'osteria'],
+  lb: ['librairie', 'buttek', 'café', 'cafe', 'bar', 'restaurant', 'bäckerei', 'backerei', 'apdikt', 'hotel', 'kino', 'musée', 'musee', 'galerie', 'studio', 'garage', 'maart', 'bibliothéik', 'bibliotheik'],
+  ja: ['本屋', '書店', 'カフェ', 'バー', 'レストラン', 'パン屋', '薬局', 'ホテル', '映画館', '博物館', '美術館', 'ギャラリー', '工作室', 'ガレージ', '市場'],
+  'zh-Hans': ['书店', '商店', '咖啡馆', '咖啡店', '酒吧', '餐厅', '饭馆', '面包店', '药店', '药房', '酒店', '旅馆', '电影院', '博物馆', '美术馆', '画廊', '工作室', '车库', '市场']
+})
+
+export function isVenueType(token, language = 'en') {
+  const key = foldName(token)
+  if (!key) return false
+  const list = VENUES[language] || []
+  if (list.some(item => foldName(item) === key)) return true
+  return list.some(item => foldName(item) === key)
+}
+
+function venuePattern(language) {
+  const types = (VENUES[language] || []).flatMap(item => {
+    const upper = item.replace(/^\p{L}/u, char => char.toUpperCase())
+    return upper === item ? [item] : [item, upper]
+  }).sort((a, b) => b.length - a.length)
+  return types.map(item => item.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')
+}
+
+function tidyVenueName(value) {
+  return cleanText(String(value || '').replace(/^(?:the|le|la|les|der|die|das|el|il|o|a|in|im|am)\s+/i, ''))
+    .split(/\s+/)
+    .filter(token => token && !isFunctionWord(token) && !isNumberWord(token))
+    .join(' ')
+}
+
+function collectVenues(source, language, found) {
+  const types = venuePattern(language)
+  if (!types) return
+  const push = (name, type, start, end) => {
+    const clean = tidyVenueName(name)
+    if (!clean || found.some(item => foldName(item.name) === foldName(clean) || item.spans.some(([from]) => from === start))) return
+    const tokens = clean.match(/[\p{L}][\p{L}'’-]+/gu) || []
+    const nameTokens = tokens.filter(token => !isVenueType(token, language) && !isFunctionWord(token, language) && !isNumberWord(token, language))
+    if (!nameTokens.length) return
+    found.push({
+      name: clean.replace(/^\p{Ll}/u, char => char.toUpperCase()),
+      type,
+      description: language === 'fr' ? `un ${type}` : language === 'de' ? `ein ${type}` : `a ${type}`,
+      keys: [clean],
+      spans: [[start, end]],
+      nameTokens
+    })
+  }
+  if (language === 'ja' || language === 'zh-Hans') {
+    const re = new RegExp(types, 'gu')
+    const stop = /[在的了是把与和ではがを]/u
+    for (const match of source.matchAll(re)) {
+      const type = match[0]
+      const before = source.slice(Math.max(0, match.index - 4), match.index)
+      const after = source.slice(match.index + type.length, match.index + type.length + 4)
+      let properBefore = (before.match(/[\p{Script=Han}\p{Script=Katakana}]{1,4}$/u) || [''])[0]
+      const cut = properBefore.search(stop)
+      if (cut >= 0) properBefore = properBefore.slice(cut + 1)
+      let properAfter = (after.match(/^[\p{Script=Han}\p{Script=Katakana}]{1,4}/u) || [''])[0]
+      const end = properAfter.search(stop)
+      if (end >= 0) properAfter = properAfter.slice(0, end)
+      const proper = properBefore || properAfter
+      if (!proper || isNumberWord(proper, language) || /^[小大新旧雨的了是把]$/u.test(proper)) continue
+      const phrase = properBefore ? `${properBefore}${type}` : `${type}${properAfter}`
+      const start = properBefore ? match.index - properBefore.length : match.index
+      push(phrase, type, start, start + phrase.length)
+    }
+    return
+  }
+  const name = "[\\p{Lu}][\\p{L}'’-]{1,40}(?:['’]s)?"
+  const phrase = `(?:the\\s+|le\\s+|la\\s+|der\\s+|die\\s+|das\\s+)?(?:${name})(?:\\s+${name}){0,2}`
+  const typeThenName = new RegExp(`(?<![\\p{L}])(${types})\\s+(${phrase})`, 'gu')
+  const nameThenType = new RegExp(`(${phrase})\\s+(${types})(?![\\p{L}])`, 'gu')
+  for (const match of source.matchAll(typeThenName)) push(`${match[1]} ${tidyVenueName(match[2])}`, match[1], match.index, match.index + match[0].length)
+  for (const match of source.matchAll(nameThenType)) push(`${tidyVenueName(match[1])} ${match[2]}`, match[2], match.index, match.index + match[0].length)
+}
+
+/** A shop or venue type plus a proper name, in either order. The whole phrase is a place. */
+export function namedVenues(text, language = 'en') {
+  const source = String(text || '')
+  const found = []
+  collectVenues(source, languageOf(language), found)
+  return found
+}
+
+export function inNamedVenue(text, index, language = 'en') {
+  return namedVenues(text, language).some(place => place.spans.some(([start, end]) => index >= start && index < end))
+}
+
 export function isFunctionWord(token, language = 'en') {
   const key = foldName(token)
   if (!key) return false
+  if (isNumberWord(token, language)) return true
   if (FUNCTION_SET[language]?.has(key)) return true
   if (language !== 'en' && FUNCTION_SET.en.has(key)) return true
   if (language !== 'fr' && FUNCTION_SET.fr.has(key)) return true
@@ -251,9 +370,9 @@ function findKeyHits(sentence, key) {
   return hits
 }
 
-export function findPlaceCue(sentence, language, places) {
+function collectPlaceCues(sentence, language, places) {
   const spans = quoteSpans(sentence)
-  let best = null
+  const hits = []
   for (const place of places || []) {
     if (isNeverPlace(place.name)) continue
     for (const key of placeKeys(place)) {
@@ -267,24 +386,31 @@ export function findPlaceCue(sentence, language, places) {
         if ((language === 'ja' || language === 'zh-Hans') && /(思い出す|考える|話す|想起|记得|想到|梦见|说起|ちらっと|望向|看向|没有离开)/.test(afterClause)) continue
         if (clauseLooks(before, language, GLANCE)) continue
         if (/\b(?:across|d['’]en face)\s+(?:the\s+|la\s+|le\s+)?$/i.test(before)) continue
-        const locative = clauseLooks(before, language, LOCATIVE) || (language === 'ja' && /(?:で|に|へ)/.test(after))
+        const locative = clauseLooks(before, language, LOCATIVE) || ((language === 'ja') && /(?:で|に|へ)/.test(after))
         const opener = clauseLooks(before, language, OPEN_PLACE)
         const weak = clauseLooks(before, language, WEAK_PLACE)
         if (!locative && !opener && !weak) continue
         const cueStart = Math.max(0, index - 28)
         const cue = cleanText(sentence.slice(cueStart, index + key.length))
-        const found = { name: place.name, key, cue, uncertain: Boolean(weak && !locative && !opener), index }
-        if (!best || found.index > best.index) best = found
+        hits.push({ name: place.name, key, cue, uncertain: Boolean(weak && !locative && !opener), index })
       }
     }
   }
-  return best
+  return hits
+}
+
+/** A firm locative wins over a toward-cue in the same sentence. Lexicon places supply toward-cues only. */
+export function findPlaceCue(sentence, language, places, lexicon = []) {
+  const adopted = collectPlaceCues(sentence, language, places)
+  const firm = adopted.filter(hit => !hit.uncertain)
+  if (firm.length) return firm.reduce((best, hit) => (!best || hit.index > best.index || (hit.index === best.index && hit.key.length > best.key.length) ? hit : best), null)
+  const weak = [...adopted, ...collectPlaceCues(sentence, language, lexicon)].filter(hit => hit.uncertain)
+  return weak.reduce((best, hit) => (!best || hit.index > best.index ? hit : best), null)
 }
 
 export function placeMentionIsReal(text, key, language = 'en') {
   if (isNeverPlace(key)) return false
-  const sentence = String(text || '')
-  return Boolean(findPlaceCue(sentence, language, [{ name: key, keys: [key] }]))
+  return collectPlaceCues(String(text || ''), language, [{ name: key, keys: [key] }]).some(hit => !hit.uncertain)
 }
 
 function clockOf(sentence, language) {
@@ -381,6 +507,7 @@ function actionText(sentence) {
 export function splitNarrative(text, options = {}) {
   const language = languageOf(options.language || 'en')
   const places = options.places || []
+  const lexicon = options.lexicon || []
   const characters = options.characters || []
   const extraVerbs = options.verbs || []
   const enabled = options.splitScenes !== false
@@ -399,8 +526,8 @@ export function splitNarrative(text, options = {}) {
 
   sentencesOf(text).forEach(sentence => {
     if (typeof options.skip === 'function' && options.skip(sentence)) {
-      const place = findPlaceCue(sentence, language, places)
-      if (place) state.place = place.name
+      const place = findPlaceCue(sentence, language, places, lexicon)
+      if (place && !place.uncertain) state.place = place.name
       const times = timeCues(sentence, language)
       if (times.length) {
         state.timeId = times[0].id
@@ -411,14 +538,14 @@ export function splitNarrative(text, options = {}) {
       }
       return
     }
-    const place = findPlaceCue(sentence, language, places)
+    const place = findPlaceCue(sentence, language, places, lexicon)
     const times = timeCues(sentence, language)
     const sequence = sequenceCue(sentence, language)
     const cast = isCastLine(sentence)
     const action = hasAction(sentence, language, extraVerbs) && !cast
     if (!action) {
       if (cast) {
-        if (place) state.place = place.name
+        if (place && !place.uncertain) state.place = place.name
         if (times.length) applyTime(times, state)
         return
       }
@@ -433,10 +560,14 @@ export function splitNarrative(text, options = {}) {
     let uncertain = false
     const reasons = []
     if (bundledPlace && !samePlace(bundledPlace.name, state.place)) {
-      sceneCut = true
-      uncertain = bundledPlace.uncertain
-      state.place = bundledPlace.name
-      reasons.push(uncertain ? `Uncertain place cue: ${bundledPlace.cue}` : `Place cue: ${bundledPlace.cue}`)
+      if (bundledPlace.uncertain) {
+        uncertain = true
+        reasons.push(`Uncertain place cue: ${bundledPlace.cue}`)
+      } else {
+        sceneCut = true
+        state.place = bundledPlace.name
+        reasons.push(`Place cue: ${bundledPlace.cue}`)
+      }
     }
     if (bundledTimes.length) {
       const next = applyTime(bundledTimes, state)
@@ -452,20 +583,21 @@ export function splitNarrative(text, options = {}) {
       sceneCut = false
     } else if (sceneCut && enabled) state.sceneId += 1
     else if (!enabled) sceneCut = false
-    const shotCut = Boolean(enabled && !sceneCut && bundledSequence)
-    const cue = sceneCut
-      ? (reasons[0]?.replace(/^[^:]+:\s*/, '') || bundledSequence)
+    const uncertainOnly = uncertain && !sceneCut
+    const shotCut = Boolean(enabled && !sceneCut && !uncertainOnly && bundledSequence)
+    const cue = sceneCut || uncertainOnly
+      ? (bundledPlace?.uncertain ? bundledPlace.cue : (reasons[0]?.replace(/^[^:]+:\s*/, '') || bundledSequence))
       : bundledSequence
-    const reason = sceneCut
+    const reason = sceneCut || uncertainOnly
       ? reasons.join('; ')
       : (shotCut ? `Sequence cue: ${bundledSequence}` : '')
-    if (sceneCut && enabled) {
+    if ((sceneCut || uncertainOnly) && enabled) {
       cuts.push({
         shotIndex: shots.length,
         order: shots.length + 1,
         cue,
-        reason: uncertain ? `Uncertain. ${reason}` : reason,
-        uncertain,
+        reason: uncertainOnly ? `Uncertain. ${reason}` : reason,
+        uncertain: uncertainOnly,
         kind: 'scene',
         place: state.place,
         time: state.timeLabel || ''
@@ -493,11 +625,11 @@ export function splitNarrative(text, options = {}) {
         timeLabel: state.timeLabel || '',
         light: state.light || '',
         sceneId: state.sceneId || 1,
-        sceneCut: Boolean(opening && sceneCut && enabled),
+        sceneCut: Boolean(opening && sceneCut && enabled && !uncertainOnly),
         cutCue: opening ? cue : '',
-        cutReason: opening ? (sceneCut ? (uncertain ? `Uncertain. ${reasons.join('; ')}` : reasons.join('; ')) : (shotCut ? `Sequence cue: ${bundledSequence}` : '')) : '',
-        cutUncertain: Boolean(opening && uncertain),
-        cutKind: opening ? (sceneCut ? 'scene' : (shotCut ? 'shot' : '')) : ''
+        cutReason: opening ? (sceneCut || uncertainOnly ? (uncertainOnly ? `Uncertain. ${reasons.join('; ')}` : reasons.join('; ')) : (shotCut ? `Sequence cue: ${bundledSequence}` : '')) : '',
+        cutUncertain: Boolean(opening && uncertainOnly),
+        cutKind: opening ? (sceneCut || uncertainOnly ? 'scene' : (shotCut ? 'shot' : '')) : ''
       })
     })
   })
