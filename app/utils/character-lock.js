@@ -1,6 +1,7 @@
 /** One fixed identity line per character. No model call. The line is copied, not rewritten. */
 import { cleanText } from './text.js'
 import { findByName, foldName, nameParts } from './scenario.js'
+import { phrase } from './prompt-lang.js'
 
 export const SHEET_KEYS = Object.freeze(['front', 'side', 'back', 'expressions', 'palette', 'outfit', 'props'])
 const REF_SLOTS = Object.freeze(['front', 'side', 'back'])
@@ -123,7 +124,13 @@ function identityParts(person) {
 }
 
 /** Byte-stable line for this character at this shot, including a carried wardrobe change. */
-export function lockLineFor(character, order = 1) {
+export function lockLineFor(character, order = 1, lang = 'en') {
+  const line = lockLineEnglish(character, order)
+  if (!lang || lang === 'en') return line
+  return localizeLockLine(line, character, lang)
+}
+
+function lockLineEnglish(character, order = 1) {
   const person = asCharacter(character)
   if (!person.name) return ''
   const state = activeState(person, order)
@@ -138,6 +145,16 @@ export function lockLineFor(character, order = 1) {
   const parts = dedupeParts([...identityParts(person), state.change])
   if (!parts.length) return `${person.name} — ${state.change}.`
   return `${person.name} — ${parts.join(', ')}.`
+}
+
+function localizeLockLine(line, character, lang) {
+  const person = asCharacter(character)
+  if (!line || !person.name) return line
+  if (person.lockEdited) return line.replace(/\. State: /g, `. ${phrase(lang, 'State:')} `)
+  const tail = line.slice(person.name.length).replace(/^ — /, '').replace(/\.$/, '')
+  const translated = phrase(lang, tail)
+  if (translated === tail) return line
+  return `${person.name} — ${translated}.`
 }
 
 function nameMentioned(text, name) {
@@ -171,7 +188,8 @@ export function charactersInShot(shot, project = {}) {
 
 export function lockLinesForShot(shot, project, index = 0) {
   const order = shot?.order || index + 1
-  return charactersInShot(shot, project).map(character => lockLineFor(character, order)).filter(Boolean)
+  const lang = project?.promptLanguage || 'en'
+  return charactersInShot(shot, project).map(character => lockLineFor(character, order, lang)).filter(Boolean)
 }
 
 function pickedExtras(entry) {

@@ -8,6 +8,7 @@ import { detectProse } from '../app/utils/prose-detect.js'
 import { CAMERA_VALUES, LIGHT_VALUES, MOOD_VALUES, SCENARIO_MAX_CHARS } from '../app/utils/scenario.js'
 import { studioUrl } from '../app/utils/studio-link.js'
 import { cleanText } from '../app/utils/text.js'
+import { readPromptLanguage } from '../app/utils/prompt-lang.js'
 
 export const RATE_LIMIT = Object.freeze({ limit: 30, windowMs: 60_000 })
 export const STORYBOARD_BODY_LIMIT = 32 * 1024
@@ -87,6 +88,15 @@ function fail(message, code) {
   throw error
 }
 
+function optionalPromptLanguage(input) {
+  try {
+    const lang = readPromptLanguage(input?.promptLanguage ?? input?.prompt_language)
+    return lang === 'en' ? undefined : lang
+  } catch (error) {
+    fail(error.message, error.code || 'invalid_prompt_language')
+  }
+}
+
 function optionalDensity(input) {
   const density = input.density || input.promptDensity
   if (density != null && density !== 'standard' && density !== 'concise') fail('Density must be "standard" or "concise".', 'invalid_density')
@@ -112,6 +122,7 @@ function presetOptions(input, model, mode) {
     genre: typeof input.genre === 'string' ? input.genre : undefined,
     style: typeof input.style === 'string' ? input.style : undefined,
     promptStyle: input.prompt_style ?? input.promptStyle,
+    promptLanguage: optionalPromptLanguage(input),
     overwritePrompt: input.overwritePrompt === true,
     ad: input.ad,
     series: input.series,
@@ -158,6 +169,7 @@ function storyboardOptions(input) {
       genre: typeof input.genre === 'string' ? input.genre : undefined,
       style: typeof input.style === 'string' ? input.style : undefined,
       promptStyle: input.prompt_style ?? input.promptStyle,
+      promptLanguage: optionalPromptLanguage(input),
       overwritePrompt: input.overwritePrompt === true
     }
   }
@@ -187,6 +199,7 @@ function storyboardOptions(input) {
     style: typeof input.style === 'string' ? input.style : undefined,
     scenes: scenes || undefined,
     promptStyle: input.prompt_style ?? input.promptStyle,
+    promptLanguage: optionalPromptLanguage(input),
     overwritePrompt: input.overwritePrompt === true
   }
 }
@@ -274,6 +287,7 @@ function planProse(input, { origin, compact }) {
     genre: input.genre,
     duration: input.duration,
     promptStyle: input.prompt_style ?? input.promptStyle,
+    promptLanguage: optionalPromptLanguage(input),
     overwritePrompt: input.overwritePrompt === true
   }), input)
   const link = boardLink(origin, project, { style: input.style })
@@ -465,6 +479,8 @@ const STORYBOARD_SCHEMA = {
     density: { type: 'string', enum: ['standard', 'concise'], default: 'standard', description: 'Used by the detailed prompt. Concise keeps one short continuity line. Standard includes the shared sheet once. Strict still repeats the sheet verbatim.' },
     prompt_style: { type: 'string', enum: ['short', 'detailed'], default: 'short', description: 'short is the default video prompt: framing, the named action, the lock lines, the full place, one light, and the style with locked-off camera unless a movement was set. It stays under about 700 characters and never shortens the action or the lock line. detailed keeps the full film sheet and continuity text in every shot. A hand-edited prompt is kept either way unless overwritePrompt is true.' },
     promptStyle: { type: 'string', enum: ['short', 'detailed'], description: 'Alias of prompt_style.' },
+    promptLanguage: { type: 'string', enum: ['en', 'zh-Hans', 'pt', 'ja', 'fr', 'de', 'lb', 'it'], default: 'en', description: 'Language of the fixed lines the planner writes: framing, light, mood, style preset, camera line, lock-line labels, and shot structure. Default en, so a client that omits the field gets the English prompt. prompt_language is an alias. The user\'s own idea, names, places, and actions stay as written. Field names in the JSON stay English.' },
+    prompt_language: { type: 'string', enum: ['en', 'zh-Hans', 'pt', 'ja', 'fr', 'de', 'lb', 'it'], description: 'Alias of promptLanguage.' },
     aspectRatio: { type: 'string', enum: ['9:16', '1:1', '4:5', '16:9'], default: '16:9' },
     genre: { type: 'string', description: `Story genre, or a style-preset genre. Preset families: ${listPresets().map(family => `${family.id} (${family.genres.map(genre => genre.id).join(', ')})`).join('; ')}. Default preset when a scenario omits both is cinema / drama.` },
     style: { type: 'string', description: 'Fun, Normal, Spicy, a visual style id such as cinematic or illustrative, or a preset family: anime, cinema, documentary. manga is an alias of anime. An unknown family is 400. A named family locks that preset into every mode, including a plain premise.' },
@@ -634,6 +650,8 @@ const TOOLS = [
         continuity: { type: 'string', enum: ['standard', 'strict'] },
         density: { type: 'string', enum: ['standard', 'concise'] },
         prompt_style: { type: 'string', enum: ['short', 'detailed'], default: 'short' },
+        promptLanguage: { type: 'string', enum: ['en', 'zh-Hans', 'pt', 'ja', 'fr', 'de', 'lb', 'it'], default: 'en', description: 'Alias of the storyboard field. Omitted means English.' },
+        prompt_language: { type: 'string', description: 'Alias of promptLanguage.' },
         aspectRatio: { type: 'string' },
         genre: { type: 'string' },
         style: { type: 'string' },
