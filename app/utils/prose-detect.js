@@ -5,6 +5,7 @@ import { flaggedNameKeys } from './shot-risk.js'
 import { splitActionText } from './action-split.js'
 import { detectLocalized } from './prose-extra.js'
 import { inNamedVenue, inSpans, isCueStopword, isFunctionWord, isNeverPlace, isNumberWord, isQuotedOrRemembered, isVenueType, namedVenues, placeMentionIsReal, quoteSpans, splitNarrative } from './scene-split.js'
+import { placeLexiconHas } from './place-lexicon.js'
 
 const STOP = new Set(['the', 'a', 'an', 'he', 'she', 'they', 'it', 'his', 'her', 'their', 'then', 'when', 'after', 'before', 'later', 'next', 'once', 'this', 'that', 'there', 'here', 'un', 'une', 'le', 'la', 'les', 'il', 'elle', 'ils', 'elles', 'lui', 'leur', 'puis', 'quand', 'apres', 'avant', 'dans', 'sur', 'sous', 'avec', 'pour', 'par', 'chez', 'au', 'aux', 'du', 'des', 'en', 'et', 'mais', 'ou', 'ce', 'cette', 'ces', 'son', 'sa', 'ses', 'mon', 'ma', 'mes', 'je', 'tu', 'nous', 'vous', 'on', 'plus', 'tout', 'toute', 'tous', 'morning', 'evening', 'night', 'day', 'matin', 'soir', 'nuit', 'jour', 'aube', 'tard', 'lendemain', 'and', 'with', 'from', 'into', 'over', 'while', 'its', 'our', 'your'])
 
@@ -439,9 +440,15 @@ function humanSubject(text, name) {
   return new RegExp(`(?<![\\p{L}])${label}(?![\\p{L}])\\s+(?:is|was|are|has|had|walks?|runs?|enters?|leaves?|opens?|pours?|sits?|stands?|reads?|turns?|waits?|checks?|lifts?|holds?|follows?|gives?|hands?|meets?|smiles?|laughs?|says?|watches?|carries?|wears?|works?|paints?|writes?|calls?|asks?|nods?|waves?|knocks?|returns?|boards?)\\b`, 'iu').test(text)
 }
 
-function keepPerson(text, name, count) {
-  if ([...name.split(/\s+/)].some(part => CALENDAR_WORD.has(foldName(part)) || NOT_A_PERSON.has(foldName(part)))) return false
-  if (introducedPerson(text, name) || humanSubject(text, name)) return true
+function keepPerson(text, name, count, mid = 0) {
+  const parts = name.split(/\s+/)
+  // Weekdays and the closed noise list (Early, Water, Sawdust) are not names.
+  // Ordinary dictionary words such as Hope or Will are not in that list: a verb or an appositive keeps them.
+  if (parts.some(part => CALENDAR_WORD.has(foldName(part)) || NOT_A_PERSON.has(foldName(part)))) return false
+  if (parts.length === 1 && new RegExp(`\\b(?:in|at|on|into|to|dans|sur|im|em|nel|nella)\\s+${escapeName(name)}\\b`, 'iu').test(text) && !introducedPerson(text, name) && !humanSubject(text, name)) return false
+  const positive = introducedPerson(text, name) || humanSubject(text, name) || mid >= 1
+  if (positive) return true
+  if (parts.length === 1 && placeLexiconHas(parts[0])) return false
   return count >= 2
 }
 
@@ -494,7 +501,7 @@ function detectCharacters(text, places = [], language = 'en') {
     const forms = [...entry.forms.entries()].sort((a, b) => b[1] - a[1] || Number(/[^\u0000-\u007f]/.test(b[0])) - Number(/[^\u0000-\u007f]/.test(a[0])))
     return { key, entry, forms, name: forms[0][0] }
   })
-  const kept = new Set(rows.filter(row => keepPerson(text, row.name, row.entry.count)).map(row => row.key))
+  const kept = new Set(rows.filter(row => keepPerson(text, row.name, row.entry.count, row.entry.mid)).map(row => row.key))
   rows.forEach(row => {
     if (kept.has(row.key) || row.name.includes(' ')) return
     const owners = rows.filter(other => other.name.split(/\s+/).length >= 2 && kept.has(other.key) && other.name.split(/\s+/).some(part => foldName(part) === foldName(row.name)))
@@ -629,6 +636,7 @@ function locativePhrases(source, language) {
     if (!head || head.length < 3 || STOP.has(head) || TIME_BLOCK.has(head) || isNeverPlace(head) || isNeverPlace(words.join(' ')) || objectHead.has(head)) continue
     if (['morning', 'evening', 'night', 'end', 'left', 'right', 'way', 'dark', 'light', 'distance', 'front', 'back', 'side', 'time', 'moment', 'meantime', 'same', 'other', 'another', 'next', 'meme', 'autre', 'cut', 'pixie', 'hair', 'eyebrow', 'scar', 'sweater', 'pocket', 'sleeve', 'collar', 'line'].includes(head)) continue
     if (PLACE_KEYS.has(head)) continue
+    if (!placeLexiconHas(head) && !placeLexiconHas(words.join(' '))) continue
     const phrase = words.join(' ')
     const name = phrase.replace(/^\p{Ll}/u, char => char.toUpperCase())
     found.push({ name, phrase, index: match.index })

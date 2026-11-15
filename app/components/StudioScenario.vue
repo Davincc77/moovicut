@@ -141,7 +141,7 @@ defineExpose({ draft, fill: fillFromText })
       <textarea v-model="prose" :aria-label="$t('Paste a story or a formatted scenario')" rows="4" :placeholder="$t('Paste free text, or a CHARACTERS / PLACES / SCENES block.')" @input="scheduleDetect" @change="fillFromText(prose)"></textarea>
     </label>
     <CjkNameTip :locale="locale" />
-    <p class="studio-soft-hint">{{ $t('Free-prose detection reads all eight site languages. It does not call a model. When the reading is uncertain, names and places are left for you to fill. Your own words stay as typed.') }}</p>
+    <p class="studio-soft-hint">{{ $t('Free-prose detection reads all seven site languages. It does not call a model. When the reading is uncertain, names and places are left for you to fill. Your own words stay as typed.') }}</p>
     <p v-if="detected" class="studio-scenario-confidence">{{ $t('Detection confidence: {confidence}. Lines you already edited stay as you left them.', { confidence: detected.confidence }) }}</p>
     <p v-if="riskNote" class="studio-soft-hint">{{ $t(riskNote.message) }}</p>
     <SceneCuts v-if="detected?.cuts?.length" :cuts="detected.cuts" @merge="mergeDetectedCut" />

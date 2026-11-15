@@ -1,7 +1,7 @@
 /** Prompt language for planner-written lines. English is returned unchanged. */
 import { PHRASES } from './prompt-phrases.js'
 
-export const PROMPT_LANGUAGES = Object.freeze(['en', 'zh-Hans', 'pt', 'ja', 'fr', 'de', 'lb', 'it'])
+export const PROMPT_LANGUAGES = Object.freeze(['en', 'zh-Hans', 'pt', 'ja', 'fr', 'de', 'it'])
 const CODES = new Set(PROMPT_LANGUAGES)
 
 export function readPromptLanguage(value) {
@@ -84,7 +84,6 @@ const BEATS = [
         ja: `${at}の${where}のワイド。${who}がフレームに入る`,
         fr: `Un plan large de ${where}, ${at}, avec ${who} qui entre dans le cadre`,
         de: `Eine Totale von ${where}, ${at}, ${who} betritt das Bild`,
-        lb: `E wäite Plang vu ${where}, ${at}, ${who} kënnt an d'Bild`,
         it: `Un campo lungo di ${where}, ${at}, con ${who} che entra nell'inquadratura`
       }
       return table[lang]
@@ -99,7 +98,6 @@ const BEATS = [
         ja: `${who}は近めのフレームで読み取れる。姿勢と表情は明確`,
         fr: `${who} est lisible dans un cadre plus proche, posture et expression claires`,
         de: `${who} ist in einer näheren Einstellung lesbar, Haltung und Ausdruck klar`,
-        lb: `${who} ass an enger méi noer Astellung liesbar, Haltung an Ausdrock kloer`,
         it: `${who} è leggibile in un quadro più vicino, postura ed espressione chiare`
       }
       return table[lang]
@@ -114,7 +112,6 @@ const BEATS = [
         ja: `${where}に新しい細部が現れ、次の仕草が変わる`,
         fr: `Un détail nouveau apparaît dans ${where} et change le geste suivant`,
         de: `Ein neues Detail erscheint in ${where} und ändert die nächste Geste`,
-        lb: `En neit Detail kënnt an ${where} an ännert déi nächst Gest`,
         it: `Un dettaglio nuovo appare in ${where} e cambia il gesto successivo`
       }
       return table[lang]
@@ -129,7 +126,6 @@ const BEATS = [
         ja: `状況が転じ、${who}は立ち止まる`,
         fr: `${who} s’arrête quand la situation tourne`,
         de: `${who} hält an, als die Lage kippt`,
-        lb: `${who} hält un, wéi d'Situatioun dréint`,
         it: `${who} si ferma quando la situazione gira`
       }
       return table[lang]
@@ -144,7 +140,6 @@ const BEATS = [
         ja: `${who}は「${line}」と言う`,
         fr: `${who} dit « ${line} »`,
         de: `${who} sagt „${line}“`,
-        lb: `${who} seet „${line}“`,
         it: `${who} dice “${line}”`
       }
       return table[lang]
@@ -159,7 +154,6 @@ const BEATS = [
         ja: `${who}は方向を決め、${where}を進む`,
         fr: `${who} choisit une direction et traverse ${where}`,
         de: `${who} wählt eine Richtung und bewegt sich durch ${where}`,
-        lb: `${who} wielt eng Richtung a geet duerch ${where}`,
         it: `${who} sceglie una direzione e attraversa ${where}`
       }
       return table[lang]
@@ -174,7 +168,6 @@ const BEATS = [
         ja: `その選択の結果が${who}の周りに見える`,
         fr: `Le résultat de ce choix est visible autour de ${who}`,
         de: `Das Ergebnis dieser Wahl ist um ${who} sichtbar`,
-        lb: `D'Resultat vun dëser Wiel ass ronderëm ${who} ze gesinn`,
         it: `Il risultato di quella scelta è visibile intorno a ${who}`
       }
       return table[lang]
@@ -190,7 +183,6 @@ const BEATS = [
         ja: `${where}、${at}を静かに保つ`,
         fr: `Un maintien calme sur ${where}, ${at}`,
         de: `Ein stilles Halten auf ${where}, ${at}`,
-        lb: `E rouegt Halen op ${where}, ${at}`,
         it: `Una tenuta quieta su ${where}, ${at}`
       }
       return table[lang]
@@ -205,7 +197,6 @@ const BEATS = [
         ja: `最後の絵は${where}の${who}に留まる`,
         fr: `La dernière image reste sur ${who} dans ${where}`,
         de: `Das letzte Bild bleibt auf ${who} in ${where}`,
-        lb: `Dat lescht Bild bleift op ${who} an ${where}`,
         it: `L’ultima immagine resta su ${who} in ${where}`
       }
       return table[lang]
@@ -223,7 +214,6 @@ const BEATS = [
         ja: `${who}は${at}の${where}で${beat}の拍を演じる、${rhythm}`,
         fr: `${who} joue le temps ${beat} dans ${where} à ${at}, ${rhythm}`,
         de: `${who} spielt den ${beat}-Schlag in ${where} bei ${at}, ${rhythm}`,
-        lb: `${who} spillt de ${beat}-Schlag an ${where} bei ${at}, ${rhythm}`,
         it: `${who} esegue il tempo ${beat} in ${where} a ${at}, ${rhythm}`
       }
       return table[lang]
@@ -240,7 +230,6 @@ const BEATS = [
         ja: `独立した${tone}のフレーム。${who}、${place}、ショット ${number}`,
         fr: `Un cadre autonome ${tone} de ${who} dans ${place}, plan ${number}`,
         de: `Ein eigenständiges ${tone}-Bild von ${who} in ${place}, Einstellung ${number}`,
-        lb: `E selbststännege ${tone}-Kader vun ${who} an ${place}, Astellung ${number}`,
         it: `Un quadro autonomo ${tone} di ${who} in ${place}, inquadratura ${number}`
       }
       return table[lang]
@@ -255,7 +244,6 @@ const LOCATIONS = [
     ja: place => `${place}の遠い端`,
     fr: place => `un bord lointain de ${place}`,
     de: place => `ein ferner Rand von ${place}`,
-    lb: place => `e wäite Bord vun ${place}`,
     it: place => `un bordo lontano di ${place}`
   }],
   [/^a close corner of (.+)$/, {
@@ -264,7 +252,6 @@ const LOCATIONS = [
     ja: place => `${place}の近い隅`,
     fr: place => `un coin proche de ${place}`,
     de: place => `eine nahe Ecke von ${place}`,
-    lb: place => `eng no Eck vun ${place}`,
     it: place => `un angolo vicino di ${place}`
   }],
   [/^ground level at (.+)$/, {
@@ -273,7 +260,6 @@ const LOCATIONS = [
     ja: place => `${place}の地面の高さ`,
     fr: place => `au niveau du sol à ${place}`,
     de: place => `auf Bodenhöhe bei ${place}`,
-    lb: place => `um Buedem bei ${place}`,
     it: place => `a livello del suolo a ${place}`
   }],
   [/^an overhead view of (.+)$/, {
@@ -282,7 +268,6 @@ const LOCATIONS = [
     ja: place => `${place}の俯瞰`,
     fr: place => `une vue plongeante de ${place}`,
     de: place => `eine Aufsicht auf ${place}`,
-    lb: place => `e Bléck vu uewen op ${place}`,
     it: place => `una vista dall'alto di ${place}`
   }],
   [/^the shadowed side of (.+)$/, {
@@ -291,7 +276,6 @@ const LOCATIONS = [
     ja: place => `${place}の影の側`,
     fr: place => `le côté à l’ombre de ${place}`,
     de: place => `die schattige Seite von ${place}`,
-    lb: place => `déi schatteg Säit vun ${place}`,
     it: place => `il lato in ombra di ${place}`
   }],
   [/^a foreground detail within (.+)$/, {
@@ -300,7 +284,6 @@ const LOCATIONS = [
     ja: place => `${place}の前景の細部`,
     fr: place => `un détail au premier plan dans ${place}`,
     de: place => `ein Vordergrunddetail in ${place}`,
-    lb: place => `en Detail am Virdergrond an ${place}`,
     it: place => `un dettaglio in primo piano dentro ${place}`
   }],
   [/^eye level inside (.+)$/, {
@@ -309,7 +292,6 @@ const LOCATIONS = [
     ja: place => `${place}の中の目の高さ`,
     fr: place => `à hauteur des yeux dans ${place}`,
     de: place => `auf Augenhöhe in ${place}`,
-    lb: place => `op Aenhéicht an ${place}`,
     it: place => `all’altezza degli occhi dentro ${place}`
   }],
   [/^the opposite side of (.+)$/, {
@@ -318,7 +300,6 @@ const LOCATIONS = [
     ja: place => `${place}の反対側`,
     fr: place => `le côté opposé de ${place}`,
     de: place => `die gegenüberliegende Seite von ${place}`,
-    lb: place => `déi aner Säit vun ${place}`,
     it: place => `il lato opposto di ${place}`
   }]
 ]
@@ -459,7 +440,6 @@ function createShotLine(lang, duration, aspect) {
     ja: `${duration}秒、${aspect} のショットを作る。`,
     fr: `Crée un plan de ${duration} secondes en ${aspect}.`,
     de: `Erzeuge eine ${duration}-Sekunden-Einstellung in ${aspect}.`,
-    lb: `Maach eng Astellung vu(n) ${duration} Sekonnen an ${aspect}.`,
     it: `Crea un’inquadratura di ${duration} secondi in ${aspect}.`
   }
   return table[lang] || `Create a ${duration}-second ${aspect} shot.`
@@ -472,7 +452,6 @@ function shotCountLine(lang, index, total) {
     ja: `ショット ${index} / ${total}。`,
     fr: `Plan ${index} sur ${total}.`,
     de: `Einstellung ${index} von ${total}.`,
-    lb: `Astellung ${index} vun ${total}.`,
     it: `Inquadratura ${index} di ${total}.`
   }
   return table[lang] || `Shot ${index} of ${total}.`
@@ -485,7 +464,6 @@ function independentShotLine(lang, index, total) {
     ja: `独立ショット ${index} / ${total}。別のアングルで、続きではない。`,
     fr: `Plan indépendant ${index} sur ${total}. Un angle à part, pas une suite.`,
     de: `Eigenständige Einstellung ${index} von ${total}. Ein eigener Winkel, keine Fortsetzung.`,
-    lb: `Selbststänneg Astellung ${index} vun ${total}. En anere Wénkel, keng Fortsetzung.`,
     it: `Inquadratura indipendente ${index} di ${total}. Un angolo a sé, non una continuazione.`
   }
   return table[lang] || `Independent shot ${index} of ${total}. A separate angle, not a continuation.`
@@ -498,7 +476,6 @@ function aspectLine(lang, aspect) {
     ja: `アスペクト比 ${aspect}`,
     fr: `format ${aspect}`,
     de: `Seitenverhältnis ${aspect}`,
-    lb: `Format ${aspect}`,
     it: `formato ${aspect}`
   }
   return table[lang] || `aspect ratio ${aspect}`
@@ -511,7 +488,6 @@ function timingShort(lang, duration, aspect) {
     ja: `${duration}秒、${aspect}。字幕、タイトル、ロゴ、透かしは入れない。`,
     fr: `${duration} s, ${aspect}. Pas de sous-titres, titres, logos ni filigranes.`,
     de: `${duration}s, ${aspect}. Keine Untertitel, Titel, Logos oder Wasserzeichen.`,
-    lb: `${duration}s, ${aspect}. Keng Ënnertitelen, Titelen, Logoen oder Waasserzeechen.`,
     it: `${duration} s, ${aspect}. Niente sottotitoli, titoli, loghi o filigrane.`
   }
   return table[lang] || `${duration}s, ${aspect}. No captions, titles, logos or watermarks.`
@@ -524,7 +500,6 @@ function timingLong(lang, duration, aspect, index) {
     ja: `${duration}秒、${aspect}。ショット ${index}。字幕、タイトル、ロゴ、透かしは入れない。`,
     fr: `${duration} secondes, ${aspect}. Plan ${index}. Pas de sous-titres, titres, logos ni filigranes.`,
     de: `${duration} Sekunden, ${aspect}. Einstellung ${index}. Keine Untertitel, Titel, Logos oder Wasserzeichen.`,
-    lb: `${duration} Sekonnen, ${aspect}. Astellung ${index}. Keng Ënnertitelen, Titelen, Logoen oder Waasserzeechen.`,
     it: `${duration} secondi, ${aspect}. Inquadratura ${index}. Niente sottotitoli, titoli, loghi o filigrane.`
   }
   return table[lang] || `${duration} seconds, ${aspect}. Shot ${index}. No captions, titles, logos or watermarks.`
@@ -537,7 +512,6 @@ function timingLabel(lang, duration) {
     ja: `タイミング：${duration}秒。字幕、タイトル、ロゴ、透かしは入れない。`,
     fr: `DURÉE : ${duration} secondes. Pas de sous-titres, titres, logos ni filigranes.`,
     de: `ZEIT: ${duration} Sekunden. Keine Untertitel, Titel, Logos oder Wasserzeichen.`,
-    lb: `ZÄIT: ${duration} Sekonnen. Keng Ënnertitelen, Titelen, Logoen oder Waasserzeechen.`,
     it: `TEMPO: ${duration} secondi. Niente sottotitoli, titoli, loghi o filigrane.`
   }
   return table[lang] || `TIMING: ${duration} seconds. No captions, titles, logos or watermarks.`

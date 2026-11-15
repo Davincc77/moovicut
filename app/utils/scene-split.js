@@ -3,7 +3,7 @@ import { cleanText } from './text.js'
 import { foldName } from './scenario.js'
 import { splitActionText } from './action-split.js'
 
-const LOCALES = ['en', 'fr', 'pt', 'de', 'it', 'lb', 'ja', 'zh-Hans']
+const LOCALES = ['en', 'fr', 'pt', 'de', 'it', 'ja', 'zh-Hans']
 
 /** Connectors, pronouns, and time or sequence words. Never a character name. */
 const FUNCTION = Object.freeze({

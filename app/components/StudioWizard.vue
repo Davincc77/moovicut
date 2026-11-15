@@ -456,6 +456,7 @@ function copyAgent() {
 
       <section v-else-if="state.step === 'check'" class="wizard-panel" :aria-label="t('check.heading')">
         <h3>{{ t('check.heading') }}</h3>
+        <p role="status">{{ t('check.sheet', { characters: state.characters.map(item => item.name).filter(Boolean).join(', '), places: state.places.map(item => item.name).filter(Boolean).join(', '), light: state.light }) }}</p>
         <p v-if="report && report.gaps.length" role="status">{{ t('check.needSteps') }}</p>
         <template v-else-if="report">
           <p v-if="!report.blocking.length" role="status">{{ t('check.clear') }}</p>

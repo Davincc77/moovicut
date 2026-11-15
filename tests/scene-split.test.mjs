@@ -364,7 +364,6 @@ const NUMBER_CASES = [
   ['pt', 'Três dias depois. Inês espera na cozinha. Inês sorri.', 'Três'],
   ['de', 'Drei Tage später. Otto wartet in der Küche. Otto liest.', 'Drei'],
   ['it', 'Tre giorni dopo. Giulia aspetta in cucina. Giulia sorride.', 'Tre'],
-  ['lb', 'Dräi Deeg drop. Lena waart an der Kichen. Lena laacht.', 'Dräi'],
   ['ja', '三日後。麻耶は厨房で待つ。', '三'],
   ['zh-Hans', '三天后。玛雅在厨房等。', '三']
 ]
@@ -387,7 +386,6 @@ const VENUE_CASES = [
   ['de', 'In der Bäckerei Krause öffnet Otto die Tür.', 'Bäckerei Krause', 'Krause'],
   ['pt', 'Na livraria Atlas, Inês abre a porta.', 'Livraria Atlas', 'Atlas'],
   ['it', 'Nella libreria Atlas, Giulia apre la porta.', 'Libreria Atlas', 'Atlas'],
-  ['lb', 'An der Bäckerei Krause mécht d\'Lena d\'Dier op.', 'Bäckerei Krause', 'Krause'],
   ['ja', '麻耶は光書店でドアを開ける。', '光書店', '光'],
   ['zh-Hans', '玛雅在光明书店打开门。', '光明书店', '光明']
 ]

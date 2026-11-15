@@ -337,7 +337,7 @@
   "Fix the highlighted fields, then try again.": "Fix the highlighted fields, then try again.",
   "Fix the highlighted scenario lines, then create the board.": "Fix the highlighted scenario lines, then create the board.",
   "Fix the scenario, then try again.": "Fix the scenario, then try again.",
-  "Fixed prompt lines follow the site language. Optional promptLanguage on the API defaults to en, so an existing client still gets English. Free-prose detection reads English, French, Portuguese, German, Italian, Luxembourgish, Japanese, and Simplified Chinese. It does not call a model. Japanese and Chinese names are read from 「」 or from は/が and 是/把. When a reading is uncertain, the studio says so and does not fill names. Your own words stay as typed.": "Fixed prompt lines follow the site language. Optional promptLanguage on the API defaults to en, so an existing client still gets English. Free-prose detection reads English, French, Portuguese, German, Italian, Luxembourgish, Japanese, and Simplified Chinese. It does not call a model. Japanese and Chinese names are read from 「」 or from は/が and 是/把. When a reading is uncertain, the studio says so and does not fill names. Your own words stay as typed.",
+  "Fixed prompt lines follow the site language. Optional promptLanguage on the API defaults to en, so an existing client still gets English. Free-prose detection reads English, French, Portuguese, German, Italian, Japanese, and Simplified Chinese. It does not call a model. Japanese and Chinese names are read from 「」 or from は/が and 是/把. When a reading is uncertain, the studio says so and does not fill names. Your own words stay as typed.": "Fixed prompt lines follow the site language. Optional promptLanguage on the API defaults to en, so an existing client still gets English. Free-prose detection reads English, French, Portuguese, German, Italian, Japanese, and Simplified Chinese. It does not call a model. Japanese and Chinese names are read from 「」 or from は/が and 是/把. When a reading is uncertain, the studio says so and does not fill names. Your own words stay as typed.",
   "Follow on X (it's free!)": "Follow on X (it's free!)",
   "Footer": "Footer",
   "Framing": "Framing",
@@ -349,7 +349,7 @@
   "Free storyboard API and MCP for AI agents. No API key and no account. The default board is 5 scenes of 3 seconds.": "Free storyboard API and MCP for AI agents. No API key and no account. The default board is 5 scenes of 3 seconds.",
   "Free · Local · No account": "Free · Local · No account",
   "Free · No API key · No account": "Free · No API key · No account",
-  "Free-prose detection reads all eight site languages. It does not call a model. When the reading is uncertain, names and places are left for you to fill. Your own words stay as typed.": "Free-prose detection reads all eight site languages. It does not call a model. When the reading is uncertain, names and places are left for you to fill. Your own words stay as typed.",
+  "Free-prose detection reads all seven site languages. It does not call a model. When the reading is uncertain, names and places are left for you to fill. Your own words stay as typed.": "Free-prose detection reads all seven site languages. It does not call a model. When the reading is uncertain, names and places are left for you to fill. Your own words stay as typed.",
   "French": "French",
   "Frequently asked questions": "Frequently asked questions",
   "From shot": "From shot",
@@ -464,7 +464,6 @@
   "Lock line": "Lock line",
   "Lock line copied into every shot": "Lock line copied into every shot",
   "Look": "Look",
-  "Luxembourgish": "Luxembourgish",
   "MCP": "MCP",
   "MOOVICUT · THE CLEAR VERSION": "MOOVICUT · THE CLEAR VERSION",
   "Machine Room": "Machine Room",
@@ -954,5 +953,6 @@
   "Add a place or time cue, or merge this shot into the previous scene.": "Add a place or time cue, or merge this shot into the previous scene.",
   "The time of day changes here without a cue.": "The time of day changes here without a cue.",
   "Mark the time cue, or keep the previous time of day.": "Mark the time cue, or keep the previous time of day.",
-  "Free prose is split on place and time cues. A sequence word alone stays in the same scene. splitScenes defaults to true. Each cut has a cue and a reason. A character with no look still returns a board and a warning. A sentence that only describes a person fills the character sheet and is not a shot. Age and a carried item stay in the lock line. A story with no named place still plans, and that place is marked uncertain. Time of day changes when the text changes it.": "Free prose is split on place and time cues. A sequence word alone stays in the same scene. splitScenes defaults to true. Each cut has a cue and a reason. A character with no look still returns a board and a warning. A sentence that only describes a person fills the character sheet and is not a shot. Age and a carried item stay in the lock line. A story with no named place still plans, and that place is marked uncertain. Time of day changes when the text changes it."
+  "Free prose is split on place and time cues. A sequence word alone stays in the same scene. splitScenes defaults to true. Each cut has a cue and a reason. A character with no look still returns a board and a warning. A sentence that only describes a person fills the character sheet and is not a shot. Age and a carried item stay in the lock line. A story with no named place still plans, and that place is marked uncertain. Time of day changes when the text changes it.": "Free prose is split on place and time cues. A sequence word alone stays in the same scene. splitScenes defaults to true. Each cut has a cue and a reason. A character with no look still returns a board and a warning. A sentence that only describes a person fills the character sheet and is not a shot. Age and a carried item stay in the lock line. A story with no named place still plans, and that place is marked uncertain. Time of day changes when the text changes it.",
+  "Detected {characters}. Places: {places}. Light: {light}. Change a step if any of this is wrong.": "Detected {characters}. Places: {places}. Light: {light}. Change a step if any of this is wrong."
 }

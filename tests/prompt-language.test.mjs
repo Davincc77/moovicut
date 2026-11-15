@@ -165,7 +165,6 @@ const SAMPLES = {
   pt: 'Maya tem cerca de 30 anos, cabelo preto curto e um casaco de lã cinza. Rui tem 50 anos, barba por fazer e um casaco azul-marinho. No cais chuvoso, Maya entrega uma carta a Rui. Rui lê a carta. Rui afasta-se pelo cais. No café pequeno, Maya observa Rui da porta.',
   de: 'Maya, Anfang 30, kurzes schwarzes Haar, anthrazitfarbener Wollmantel, trifft Rui, 50, graue Stoppeln, marineblauer Mantel. Am regennassen Kai gibt Maya Rui einen Brief. Rui liest den Brief. Rui geht weg. Im kleinen Café sieht Maya Rui von der Tür.',
   it: 'Maya ha poco più di trent’anni, un caschetto nero e un cappotto di lana antracite. Rui ha 50 anni, la barba incolta e un cappotto blu. Sul molo sotto la pioggia, Maya porge una lettera a Rui. Rui legge la lettera. Rui si allontana. Nel piccolo caffè, Maya guarda Rui dalla porta.',
-  lb: "D'Maya huet kuerzt schwaarzt Hoer an e kuelgroe Wollemantel. De Rui huet groe Stoppeln an e marinebloe Mantel. Um reenegen Quai gëtt d'Maya dem Rui e Bréif. De Rui liest de Bréif. De Rui geet fort. An der klenger Café kuckt d'Maya de Rui vun der Dier.",
   ja: '「麻耶」は三十代前半で、短い黒髪、チャコールグレーのウールコート。「ルイ」は五十代で、白い無精ひげ、ネイビーのピーコート。雨の埠頭で麻耶はルイに手紙を渡す。ルイは手紙を読む。ルイは歩き去る。小さなカフェで麻耶は扉からルイを見る。',
   'zh-Hans': '「玛雅」三十出头，黑色短发，炭灰色羊毛大衣。「睿」五十多岁，灰白胡茬，海军蓝大衣。在雨中的码头，玛雅把信交给睿。睿读了信。睿走开了。在小咖啡馆，玛雅在门口看着睿。'
 }

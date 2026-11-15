@@ -337,7 +337,7 @@
   "Fix the highlighted fields, then try again.": "強調された欄を直してからもう一度。",
   "Fix the highlighted scenario lines, then create the board.": "強調された行を直してからボードを作ってください。",
   "Fix the scenario, then try again.": "シナリオを直してからもう一度。",
-  "Fixed prompt lines follow the site language. Optional promptLanguage on the API defaults to en, so an existing client still gets English. Free-prose detection reads English, French, Portuguese, German, Italian, Luxembourgish, Japanese, and Simplified Chinese. It does not call a model. Japanese and Chinese names are read from 「」 or from は/が and 是/把. When a reading is uncertain, the studio says so and does not fill names. Your own words stay as typed.": "プロンプトの固定行はサイトの言語に従います。API の promptLanguage は任意で、省略すると en です。既存のクライアントはこれまでどおり英語を受け取ります。自由散文の検出は英語、フランス語、ポルトガル語、ドイツ語、イタリア語、ルクセンブルク語、日本語、簡体字中国語を読みます。モデルは呼びません。日本語と中国語の名前は「」か、は/が、是/把 の前から読みます。読みが不確かなときはスタジオがその旨を示し、名前は入れません。自分の言葉はそのまま残ります。",
+  "Fixed prompt lines follow the site language. Optional promptLanguage on the API defaults to en, so an existing client still gets English. Free-prose detection reads English, French, Portuguese, German, Italian, Japanese, and Simplified Chinese. It does not call a model. Japanese and Chinese names are read from 「」 or from は/が and 是/把. When a reading is uncertain, the studio says so and does not fill names. Your own words stay as typed.": "プロンプトの固定行はサイトの言語に従います。API の promptLanguage は任意で、省略すると en です。既存のクライアントはこれまでどおり英語を受け取ります。自由散文の検出は英語、フランス語、ポルトガル語、ドイツ語、イタリア語、日本語、簡体字中国語を読みます。モデルは呼びません。日本語と中国語の名前は「」か、は/が、是/把 の前から読みます。読みが不確かなときはスタジオがその旨を示し、名前は入れません。自分の言葉はそのまま残ります。",
   "Follow on X (it's free!)": "X でフォロー（無料！）",
   "Footer": "フッター",
   "Framing": "フレーミング",
@@ -349,7 +349,7 @@
   "Free storyboard API and MCP for AI agents. No API key and no account. The default board is 5 scenes of 3 seconds.": "AI エージェント向けの無料ストーリーボード API と MCP。API キーもアカウントも不要。既定は 3 秒のシーンが 5 つです。",
   "Free · Local · No account": "無料 · ローカル · アカウント不要",
   "Free · No API key · No account": "無料 · API キー不要 · アカウント不要",
-  "Free-prose detection reads all eight site languages. It does not call a model. When the reading is uncertain, names and places are left for you to fill. Your own words stay as typed.": "自由散文の検出はサイトの 8 言語を読みます。モデルは呼びません。読みが不確かなとき、名前と場所は空のままです。自分の言葉はそのまま残ります。",
+  "Free-prose detection reads all seven site languages. It does not call a model. When the reading is uncertain, names and places are left for you to fill. Your own words stay as typed.": "自由散文の検出はサイトの 7 言語を読みます。モデルは呼びません。読みが不確かなとき、名前と場所は空のままです。自分の言葉はそのまま残ります。",
   "French": "フランス語",
   "Frequently asked questions": "よくある質問",
   "From shot": "ショットから",
@@ -464,7 +464,6 @@
   "Lock line": "固定の一行",
   "Lock line copied into every shot": "各ショットにコピーされる固定行",
   "Look": "見た目",
-  "Luxembourgish": "ルクセンブルク語",
   "MCP": "MCP",
   "MOOVICUT · THE CLEAR VERSION": "MOOVICUT · 明快な版",
   "Machine Room": "機械室",
@@ -954,5 +953,6 @@
   "Add a place or time cue, or merge this shot into the previous scene.": "場所か時間の手がかりを足すか、このショットを前の場面に戻してください。",
   "The time of day changes here without a cue.": "手がかりなしに、時間帯がここで変わります。",
   "Mark the time cue, or keep the previous time of day.": "時間の手がかりを示すか、前の時間帯のままにしてください。",
-  "Free prose is split on place and time cues. A sequence word alone stays in the same scene. splitScenes defaults to true. Each cut has a cue and a reason. A character with no look still returns a board and a warning. A sentence that only describes a person fills the character sheet and is not a shot. Age and a carried item stay in the lock line. A story with no named place still plans, and that place is marked uncertain. Time of day changes when the text changes it.": "自由な散文は場所と時間の手がかりで区切ります。順序の語だけなら同じ場面のままです。splitScenes の初期値は true です。各区切りには手がかりと理由があります。見た目のない人物でもボードは返り、警告が付きます。 人物を説明するだけの文は人物シートに入り、ショットにはなりません。年齢と携帯する品はロック行に残ります。場所が書かれていない物語も計画され、その場所は不確かと印が付きます。時刻は本文が変えたときに変わります。"
+  "Free prose is split on place and time cues. A sequence word alone stays in the same scene. splitScenes defaults to true. Each cut has a cue and a reason. A character with no look still returns a board and a warning. A sentence that only describes a person fills the character sheet and is not a shot. Age and a carried item stay in the lock line. A story with no named place still plans, and that place is marked uncertain. Time of day changes when the text changes it.": "自由な散文は場所と時間の手がかりで区切ります。順序の語だけなら同じ場面のままです。splitScenes の初期値は true です。各区切りには手がかりと理由があります。見た目のない人物でもボードは返り、警告が付きます。 人物を説明するだけの文は人物シートに入り、ショットにはなりません。年齢と携帯する品はロック行に残ります。場所が書かれていない物語も計画され、その場所は不確かと印が付きます。時刻は本文が変えたときに変わります。",
+  "Detected {characters}. Places: {places}. Light: {light}. Change a step if any of this is wrong.": "検出: {characters}。場所: {places}。光: {light}。違うところは手順を戻して直してください。"
 }
