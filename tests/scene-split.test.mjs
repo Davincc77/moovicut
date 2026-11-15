@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { detectProse } from '../app/utils/prose-detect.js'
-import { editCut, isFunctionWord, isNeverPlace, isNumberWord, namedVenues, splitNarrative, supportedCueLanguages } from '../app/utils/scene-split.js'
+import { editCut, isCastLine, isFunctionWord, isNeverPlace, isNumberWord, matchesVerb, namedVenues, splitNarrative, supportedCueLanguages } from '../app/utils/scene-split.js'
 import { foldName } from '../app/utils/scenario.js'
 import { dispatchAgentRequest } from '../server/agent-api.mjs'
 
@@ -230,12 +230,18 @@ test('sentence-initial connectors are not characters, and a missing look does no
   assert.match(JSON.parse(strict.body).message, /missing a look/)
 })
 
+const PLACE_ARTICLES = new Set(['the', 'le', 'la', 'les', 'l', 'der', 'die', 'das', 'el', 'il', 'lo', 'os', 'as', 'um', 'uma', 'ein', 'eine'])
+
+function placeKey(value) {
+  return foldName(value).split(/\s+/).filter(token => token && !PLACE_ARTICLES.has(token)).join(' ')
+}
+
 function canonicalPlace(name, story) {
-  const key = foldName(name)
+  const key = placeKey(name)
   if (!key) return ''
   for (const place of story.gold_places) {
     if (place.aliases.some(alias => {
-      const folded = foldName(alias)
+      const folded = placeKey(alias)
       return key === folded || (folded.length >= 4 && (key.includes(folded) || folded.includes(key)))
     })) return place.name
   }
@@ -426,4 +432,77 @@ test('an uncertain toward-cue does not leave a firm cut from that place', () => 
     assert.equal(firm.includes(toward), false, firm.join(' > '))
     assert.ok(firm.includes(next))
   }
+})
+
+test('a newer firm place wins over a place that was only remembered', () => {
+  const french = "Nora lit dans la cuisine. Nora repense au phare. Ensuite, toujours dans la cuisine, Nora range les tasses."
+  const english = 'Owen reads in the office. Owen recalls the harbour. Two hours later, still in the office, Owen eats a pear. At dusk, on the bridge, Owen waves.'
+  const frenchPlaces = splitNarrative(french, {
+    language: 'fr',
+    places: [{ name: 'Cuisine', keys: ['cuisine'] }, { name: 'Phare', keys: ['phare'] }]
+  }).shots.map(shot => shot.where)
+  assert.equal(frenchPlaces.includes('Phare'), false, frenchPlaces.join(' > '))
+  assert.ok(frenchPlaces.includes('Cuisine'), frenchPlaces.join(' > '))
+  const englishPlaces = splitNarrative(english, {
+    language: 'en',
+    places: [{ name: 'Office', keys: ['office'] }, { name: 'Harbour', keys: ['harbour'] }, { name: 'Bridge', keys: ['bridge'] }]
+  }).shots.map(shot => shot.where)
+  assert.equal(englishPlaces.includes('Harbour'), false, englishPlaces.join(' > '))
+  assert.deepEqual([...new Set(englishPlaces)], ['Office', 'Bridge'])
+})
+
+test('a sentence with a place or no known verb is still a shot', () => {
+  const narrative = splitNarrative('Nora reads in the kitchen. The curtains barely move. Still in the kitchen, the rain ticks on the glass.', {
+    language: 'en',
+    places: [{ name: 'Kitchen', keys: ['kitchen'] }]
+  })
+  const texts = narrative.shots.map(shot => shot.what)
+  assert.ok(texts.some(text => /curtains barely move/i.test(text)), texts.join(' | '))
+  assert.ok(texts.some(text => /rain ticks/i.test(text)), texts.join(' | '))
+  assert.ok(narrative.shots.every(shot => shot.where === 'Kitchen'), narrative.shots.map(shot => shot.where).join(' > '))
+  const cueOnly = splitNarrative('Maya reads in the kitchen. The next day. Then Maya pours water.', {
+    language: 'en',
+    places: [{ name: 'Kitchen', keys: ['kitchen'] }]
+  })
+  assert.equal(cueOnly.shots.some(shot => foldName(shot.what) === 'the next day'), false)
+})
+
+test('a door is not a costume line, and a wear verb still is', () => {
+  assert.equal(isCastLine("À midi, dans l'atelier, Elise ouvre la porte avec une clé de laiton."), false)
+  assert.equal(isCastLine('At noon, in the workshop, Elise opens the door with a brass key.'), false)
+  assert.equal(isCastLine('Elise, la trentaine, cheveux courts, porte un manteau de laine.'), true)
+  assert.equal(isCastLine('Elise, thirty, short dark hair, wears a wool coat.'), true)
+  const french = detectProse("À midi, dans l'atelier, Elise ouvre la porte avec une clé de laiton.")
+  assert.ok(french.scenes.some(scene => foldName(scene.where) === 'atelier'), french.scenes.map(scene => scene.where).join(' > '))
+  const english = detectProse('At noon, in the workshop, Elise opens the door with a brass key.')
+  assert.ok(english.scenes.some(scene => foldName(scene.where) === 'workshop'), english.scenes.map(scene => scene.where).join(' > '))
+})
+
+test('regular verb endings count without listing each form', () => {
+  assert.equal(matchesVerb('eats', new Set(['eat'])), true)
+  assert.equal(matchesVerb('buys', new Set(['buy'])), true)
+  assert.equal(matchesVerb('eating', new Set(['eat'])), true)
+  assert.equal(matchesVerb('lancent', new Set(['lance'])), true)
+  assert.equal(matchesVerb('souleve', new Set(['soulever'])), true)
+  assert.equal(matchesVerb('decouvrent', new Set(['decouvrir'])), true)
+  assert.equal(matchesVerb('enfile', new Set(['enfilent'])), true)
+  assert.equal(matchesVerb('table', new Set(['pose', 'ouvre', 'lance'])), false)
+  const narrative = splitNarrative('Les enfants lancent le ballon dans le parc. Lina soulève la caisse.', {
+    language: 'fr',
+    places: [{ name: 'Parc', keys: ['parc'] }],
+    verbs: ['lance']
+  })
+  assert.equal(narrative.shots.length >= 2, true, narrative.shots.map(shot => shot.what).join(' | '))
+  assert.ok(narrative.shots.some(shot => /lancent/i.test(shot.what)))
+  assert.ok(narrative.shots.some(shot => /soulève/i.test(shot.what)))
+})
+
+test('place aliases that differ only by an article are the same place', () => {
+  const story = { gold_places: [{ name: 'Brasserie', aliases: ['brasserie Le Cormoran'] }] }
+  assert.equal(canonicalPlace('Brasserie Cormoran', story), 'Brasserie')
+  assert.equal(canonicalPlace('The Cormoran Brasserie', story), '')
+  const swapped = { gold_places: [{ name: 'Brasserie', aliases: ['the cormoran brasserie'] }] }
+  assert.equal(canonicalPlace('Cormoran Brasserie', swapped), 'Brasserie')
+  const found = namedVenues("Dans la brasserie Le Cormoran, Nora s'assoit.", 'fr')
+  assert.ok(found.some(item => item.name === 'Brasserie Le Cormoran'), found.map(item => item.name).join(', '))
 })
