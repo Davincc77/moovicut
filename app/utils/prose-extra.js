@@ -31,7 +31,7 @@ const LEX = {
   },
   de: {
     stop: ['der', 'die', 'das', 'den', 'dem', 'des', 'ein', 'eine', 'einen', 'einem', 'einer', 'und', 'mit', 'auf', 'in', 'im', 'am', 'an', 'zu', 'vom', 'von', 'ist', 'nicht', 'sie', 'er', 'ihm', 'ihr', 'anfang', 'brief', 'mantel', 'haar', 'tür', 'tuer', 'stoppeln'],
-    verbs: ['gibt', 'geben', 'liest', 'lesen', 'geht', 'gehen', 'sieht', 'sehen', 'läuft', 'kommt', 'öffnet', 'lacht', 'reicht', 'legt', 'nimmt', 'wartet'],
+    verbs: ['gibt', 'geben', 'liest', 'lesen', 'geht', 'gehen', 'sieht', 'sehen', 'läuft', 'kommt', 'öffnet', 'lacht', 'reicht', 'legt', 'nimmt', 'wartet', 'hebt', 'trägt', 'tragt', 'hält', 'halt', 'schaut', 'steht', 'sitzt', 'ruft', 'nickt', 'macht', 'sagt', 'bleibt', 'steigt'],
     places: [
       ['kai', 'Kai', 'ein Kai'],
       ['café', 'Café', 'ein Café'],
@@ -194,7 +194,12 @@ function findCharacters(text, lex, places, language) {
     const window = traitWindow(text, name, [...counts.values()].map(item => [...item.forms.keys()][0]))
     const look = harvest(window, lex.look)
     const outfit = harvest(window, lex.outfit)
-    const keep = entry.count >= 2 || look.length || outfit.length
+    const label = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const german = language === 'de' && (
+      new RegExp(`(?<![\\p{L}])${label}(?![\\p{L}])\\s*,\\s*(?:\\d|Anfang)`, 'iu').test(text)
+      || new RegExp(`(?<!\\b(?:der|die|das|dem|den|des|ein|eine|einer|einem|einen)\\s)${label}(?![\\p{L}])\\s+(?:${lex.verbs.join('|')})\\b`, 'iu').test(text)
+    )
+    const keep = language === 'de' ? (german || look.length > 0) : (entry.count >= 2 || look.length || outfit.length)
     if (!keep) continue
     let confidence = 'high'
     if (!look.length || !outfit.length) confidence = 'low'
@@ -400,12 +405,26 @@ function detectCjk(text, language) {
       : [...String(text).matchAll(/([\p{Script=Han}]{1,3})(?:把|是)/gu)]
     particle.forEach(match => {
       const name = match[1]
-      if (['雨', '小', '在', '信'].includes(name) || isNumberWord(name, language)) return
+      if (['雨', '小', '在', '信', '二人', '人', '彼', '彼ら', '彼女'].includes(name) || /[着的一了是把和]/u.test(name) || isNumberWord(name, language)) return
+      if (language === 'zh-Hans' && name.length < 2) return
       if (characters.some(item => item.name === name)) return
       characters.push({ name, look: '', outfit: '', confidence: 'low' })
       warnings.push({ code: 'missing_look', message: `No look found for ${name}.`, target: 'characters', name })
       warnings.push({ code: 'missing_outfit', message: `No outfit found for ${name}.`, target: 'characters', name })
     })
+  }
+  const clauseNames = language === 'zh-Hans'
+    ? [...String(text).matchAll(/(?:^|[。！？])([\p{Script=Han}]{2,3})(?=[\p{Script=Han}]{0,4}(?:拿|走|看|说|笑|等|打|站|坐|在|把|是|读|写|开|关))/gu)]
+    : []
+  clauseNames.forEach(match => {
+    const name = match[1]
+    if (['二人', '人', '雨', '小'].includes(name) || /[着的一了是把和在]/u.test(name) || /[拿走看说笑等打站坐读写开关]$/u.test(name)) return
+    if (characters.some(item => item.name === name || item.name.endsWith(name) || name.endsWith(item.name))) return
+    characters.push({ name, look: '', outfit: '', confidence: 'low' })
+  })
+  for (let index = characters.length - 1; index >= 0; index -= 1) {
+    const name = characters[index].name
+    if (characters.some(item => item.name !== name && item.name.length > name.length && item.name.endsWith(name))) characters.splice(index, 1)
   }
   if (!characters.length) warnings.push({ code: 'missing_character', message: 'No character name found.', target: 'characters' })
   const places = []
@@ -415,12 +434,26 @@ function detectCjk(text, language) {
   namedVenues(text, language).forEach(venue => {
     if (!places.some(place => place.name === venue.name)) places.push({ name: venue.name, description: venue.description, confidence: 'high' })
   })
+  const locative = language === 'ja'
+    ? [...String(text).matchAll(/([\p{Script=Han}]{2,6})で(?![、,])/gu)]
+    : [...String(text).matchAll(/在([\p{Script=Han}]{2,6})/gu)]
+  locative.forEach(match => {
+    let name = match[1].replace(/(?:等待|等着|等|看着|看|走|拿|说|坐|站).*$/u, '')
+    const known = lex.places.find(([key]) => name.endsWith(key) || name.includes(key))
+    if (known) name = known[1]
+    if (/的/u.test(name) || /^(?:门口|旁边|里面|外面|上面|下面|中间|这里|那里)/u.test(name)) return
+    if (name.length < 2 || characters.some(item => name.includes(item.name))) return
+    if (!places.some(place => place.name === name)) places.push({ name, description: name, confidence: 'medium' })
+  })
   const scenes = []
   const sceneWarnings = []
   let lastWho = characters[0]?.name || ''
   let lastWhere = places[0]?.name || ''
   cjkSentences(text).forEach(sentence => {
-    if (!lex.verbs.some(verb => sentence.includes(verb))) return
+    if (/は[^。]{0,48}で、/u.test(sentence) && !lex.verbs.some(verb => sentence.includes(verb))) return
+    if (language === 'zh-Hans' && /[，、]/u.test(sentence) && !lex.verbs.some(verb => sentence.includes(verb))) return
+    const named = characters.some(item => sentence.includes(item.name))
+    if (!named && !lex.verbs.some(verb => sentence.includes(verb)) && !/[るたます]$/u.test(sentence.replace(/[。！？]+$/u, ''))) return
     const foundNames = characters.filter(character => sentence.includes(character.name))
     const who = foundNames.length ? foundNames.slice(0, 2).map(item => item.name).join(' and ') : lastWho
     if (who) lastWho = who.split(/\s+and\s+/)[0]
@@ -436,12 +469,13 @@ function detectCjk(text, language) {
       confidence = 'low'
       sceneWarnings.push({ code: 'missing_place', message: `No place found for scene ${scenes.length + 1}.`, target: 'scenes', index: scenes.length })
     }
-    scenes.push({ number: scenes.length + 1, who: who || '', where: where || '', what: cleanText(sentence).replace(/[。！？]+$/, ''), duration: 3, confidence })
+    let shotLight = ''
+    if (/黎明|夜明け|晨|日出|日の出/.test(sentence)) shotLight = 'dawn'
+    else if (/黄昏|夕暮れ|夕方|傍晚/.test(sentence)) shotLight = 'dusk'
+    else if (/夜|晚上/.test(sentence)) shotLight = 'night'
+    scenes.push({ number: scenes.length + 1, who: who || '', where: where || '', what: cleanText(sentence).replace(/[。！？]+$/, ''), duration: 3, confidence, light: shotLight })
   })
-  let light = ''
-  if (/黎明|夜明け|晨/.test(text)) light = 'dawn'
-  else if (/黄昏|夕暮れ|黄昏/.test(text)) light = 'dusk'
-  else if (/夜|晚上/.test(text)) light = 'night'
+  const light = scenes.find(scene => scene.light)?.light || ''
   let mood = ''
   if (/笑/.test(text)) mood = 'playful'
   return pack(text, language, {

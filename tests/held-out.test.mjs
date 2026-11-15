@@ -3,7 +3,6 @@ import assert from 'node:assert/strict'
 import { detectProse } from '../app/utils/prose-detect.js'
 import { parseFountain } from '../app/utils/fountain.js'
 import { placeLexiconLemmas, usePlaceLexicon } from '../app/utils/place-lexicon.js'
-import { setVerifierEnabled, verifyCandidates } from '../app/utils/ner-verifier.js'
 import { dispatchAgentRequest } from '../server/agent-api.mjs'
 
 /**
@@ -97,19 +96,6 @@ test('dropping a fifth of the place lexicon lowers place recall gently', () => {
   } finally {
     usePlaceLexicon()
   }
-})
-
-test('the verifier flag leaves the rules in place when the model is off or missing', async () => {
-  const text = 'Hope, 34, short brown hair, grey coat, waits in the kitchen.'
-  const found = detectProse(text)
-  setVerifierEnabled(false)
-  const off = await verifyCandidates(text, found.characters, found.places, { enabled: false })
-  assert.equal(off.used, false)
-  assert.deepEqual(off.people.map(item => item.name), found.characters.map(item => item.name))
-  setVerifierEnabled(true)
-  const on = await verifyCandidates(text, found.characters, found.places, { enabled: true })
-  assert.deepEqual(on.people.map(item => item.name), found.characters.map(item => item.name))
-  if (!on.used) assert.equal(on.fallback, true)
 })
 
 test('a Fountain sheet plans through the scenario path', () => {

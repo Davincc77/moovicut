@@ -10,7 +10,7 @@ Out of the box, a plan is **5 scenes × 3 seconds (15s total)**.
 
 That matches a short Grok Imagine generation. Pass `shots` and `duration`, or a `scenes` array, only when you want a different board. People can do the same in `/studio`: the 15s preset is selected by default, 30s is 10 × 3s, 60s is 20 × 3s, and **Step-by-step storyboard** (off by default) edits each scene.
 
-Per-scene duration must stay between 2 and 15 seconds. A board longer than 40 shots is split into parts. Each part holds at most 40 shots. The cut is the last scene boundary at or before shot 40, so a scene is not split. If one scene alone is longer than 40 shots, that scene is cut at a shot boundary and the response adds a `part_split_inside_scene` warning. No action is dropped. Every part uses the same film sheet, including each character lock line. The next part starts from the place and time in effect at the end of the previous part. The continuity checker runs on each part and across the join.
+Per-scene duration must stay between 2 and 15 seconds. A request of more than 40 shots is refused. Moovicut is built for up to 40 shots (a short or medium film, or one chapter). Split the story into chapters and send them one by one, reusing the exported character sheet so faces stay consistent. The HTTP API returns 400 `too_many_shots` with that guidance in the request's prompt language. There is no automatic Part 1 / Part 2 split.
 
 ## Studio wizard
 
@@ -24,7 +24,7 @@ Use `POST /mcp` when the client speaks MCP (Cursor, Claude, and other JSON-RPC t
 - `export_prompts` — return shot prompts only.
 - `validate_storyboard` — check a `shotboard.v1` document.
 
-Use `POST /api/v1/storyboard` for a plain JSON request. Send `compact: true` or `?compact=1` when you want only `title`, `premise`, `model`, `aspectRatio`, `studioUrl`, and `shots` of `{ order, duration, prompt }`. When the board has more than one part, the same payload adds `parts`: `{ index, from, to, place, time }`. `from` and `to` are inclusive shot orders. `place` and `time` are in effect at the start of that part. A board of 40 shots or fewer omits `parts` and stays the same payload. `format: "agent"` and `shotboard.compact.v1` include `parts` on the same rule.
+Use `POST /api/v1/storyboard` for a plain JSON request. Send `compact: true` or `?compact=1` when you want only `title`, `premise`, `model`, `aspectRatio`, `studioUrl`, and `shots` of `{ order, duration, prompt }`. A request of more than 40 shots is HTTP 400 `too_many_shots`. The payload has no `parts` field.
 
 Use `GET /openapi.json` for an OpenAPI 3.1 document. `GET /.well-known/mcp.json` is the discovery file. `GET /mcp` describes the endpoint.
 

@@ -106,8 +106,9 @@ const SEQUENCE = Object.freeze({
 
 const TIME_RULES = [
   { re: /(?<![\p{L}])(late that night|later that night|that night|tonight|last night|tard cette nuit|cette nuit-là|cette nuit|esta noite|essa noite|hoje à noite|heute nacht|heute abend|stanotte|quella notte|haut an der nuecht|その夜|夜遅く|那天夜里|那天晚上|深夜)(?![\p{L}])/iu, id: 'that-night', jump: 'part', light: 'night' },
-  { re: /(?<![\p{L}])(in the morning|one morning|early morning|dans la matinée|de manhã|am morgen|di mattina|moies)(?![\p{L}])/iu, id: 'in-the-morning', jump: 'part', light: 'dawn' },
-  { re: /(?<![\p{L}])(at night|in the night|by night|la nuit|de noite|nachts|di notte|an der nuecht)(?![\p{L}])/iu, id: 'at-night', jump: 'part', light: 'night' },
+  { re: /(?<![\p{L}])(in the morning|one morning|early morning|at sunrise|sunrise|dans la matinée|au lever du soleil|de manhã|ao nascer do sol|am morgen|bei sonnenaufgang|di mattina|all'alba|日の出|日出)(?![\p{L}])/iu, id: 'in-the-morning', jump: 'part', light: 'dawn' },
+  { re: /(?<![\p{L}])(in the evening|at evening|le soir|à la tombée|am abend|di sera|di sera|夕方|傍晚)(?![\p{L}])/iu, id: 'in-the-evening', jump: 'part', light: 'dusk' },
+  { re: /(?<![\p{L}])(at night|in the night|by night|la nuit|de noite|nachts|in der nacht|di notte|an der nuecht)(?![\p{L}])/iu, id: 'at-night', jump: 'part', light: 'night' },
   { re: /(?<![\p{L}])(that morning|this morning|early that morning|ce matin-là|ce matin|esta manhã|hoje de manhã|heute morgen|stamattina|haut de moien|その朝|那天早上|那天早晨)(?![\p{L}])/iu, id: 'that-morning', jump: 'part', light: 'dawn' },
   { re: /(?<![\p{L}])(that afternoon|this afternoon|cet après-midi|cet apres-midi|à tarde|a tarde|heute nachmittag|nel pomeriggio|その午後|那天下午)(?![\p{L}])/iu, id: 'that-afternoon', jump: 'part', light: 'day' },
   { re: /(?<![\p{L}])(this evening|that evening|ce soir-là|ce soir|hoje à noite|heute abend|stasera|haut owes|その夕方|那天傍晚)(?![\p{L}])/iu, id: 'that-evening', jump: 'part', light: 'dusk' },
@@ -263,6 +264,7 @@ function collectVenues(source, language, found) {
       const cut = properBefore.search(stop)
       if (cut >= 0) properBefore = properBefore.slice(cut + 1)
       let properAfter = (after.match(/^[\p{Script=Han}\p{Script=Katakana}]{1,4}/u) || [''])[0]
+      if (/^(?:等|看|走|拿|说|坐|站|出|回|来|去|打|开|关|读|写)/u.test(properAfter)) properAfter = ''
       const end = properAfter.search(stop)
       if (end >= 0) properAfter = properAfter.slice(0, end)
       const proper = properBefore || properAfter
@@ -415,6 +417,8 @@ function collectPlaceCues(sentence, language, places) {
       for (const index of findKeyHits(sentence, key)) {
         if (inSpans(index, spans)) continue
         const before = windowBefore(sentence, index)
+        const lead = before.trim().split(/\s+/).at(-1) || ''
+        if (/^(?:en|of|de)$/i.test(lead) && /^(?:bois|wood|métal|metal|cuir|leather|laine|wool|verre|glass|pierre|stone|acier|steel|coton|cotton|soie|silk)$/i.test(foldName(key))) continue
         const after = sentence.slice(index, index + key.length + 4)
         if (clauseLooks(before, language, MEMORY)) continue
         const afterClause = sentence.slice(index, Math.min(sentence.length, index + key.length + 16))
@@ -549,7 +553,7 @@ export function isPortraitSentence(sentence) {
   if (isLookIntro(raw)) return true
   if (/^\p{Lu}[\p{L}'’-]{1,40}(?:\s+\p{Lu}[\p{L}'’-]{1,40}){0,2}\s+is\s+/u.test(raw)) return true
   if (/^(?:she|he|they|elle|il)\s+(?:has|have|had|wears?|wore|is wearing|a|porte)\b/iu.test(raw)) return true
-  if (/\b(?:nephew|niece|brother|sister|cousin|son|daughter|mother|father|uncle|aunt|neveu|nièce|niece|cousin|cousine|frère|soeur|sœur)\s+\p{Lu}[\p{L}'’-]+\s+is\b/iu.test(raw)) return true
+  if (/\b(?:nephew|niece|brother|sister|cousin|son|daughter|mother|father|uncle|aunt|neveu|nièce|niece|cousine|frère|soeur|sœur)\s+(?:\p{Lu}[\p{L}'’-]+\s+){1,3}is\b/iu.test(raw)) return true
   return false
 }
 

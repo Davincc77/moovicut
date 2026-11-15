@@ -834,6 +834,7 @@ export function projectFromWizard(state, { id, promptLanguage = 'en' } = {}) {
   })
   const next = { ...project, shots }
   next.shots = shots.map((shot, index) => refreshShotPrompt(shot, next, index))
+  if (next.shots.length > 40) throw new Error('Moovicut is built for up to 40 shots (a short or medium film, or one chapter). Split the story into chapters and send them one by one, reusing the exported character sheet so faces stay consistent.')
   return next
 }
 

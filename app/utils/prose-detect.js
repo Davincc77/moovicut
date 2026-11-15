@@ -48,8 +48,7 @@ const EN_MARK = /\b(the|and|she|he|with|on|in|at|her|his|is|a)\b/gi
 const OTHER_MARKS = Object.freeze({
   pt: /\b(ela|ele|eles|elas|uma|não|nao|com|seu|sua|num|numa|pelo|pela|está|esta|encontra|entrega|dele|dela|cais|lê|le)\b/gi,
   de: /\b(und|sie|der|die|das|ein|eine|mit|ist|nicht|ihm|einen|dem|den|am|im|vom|trifft|gibt|liest)\b/gi,
-  it: /\b(lei|lui|una|uno|con|nel|nella|sul|sulla|che|non|gli|della|del|di|ha|anni|per|sono|incontra|porge|legge|cappotto|molo|lettera)\b/gi,
-  lb: /\b(hien|hie|si|eng|mat|fir|net|vun|ass|och|gëtt|vum|ëm|kënnt|geet|liest|huet|dem)\b/gi
+  it: /\b(lei|lui|una|uno|con|nel|nella|sul|sulla|che|non|gli|della|del|di|ha|anni|per|sono|incontra|porge|legge|cappotto|molo|lettera)\b/gi
 })
 
 function markCount(text, pattern) {
@@ -75,7 +74,7 @@ function languageScores(text) {
   const ranked = Object.entries(scores).sort((a, b) => b[1] - a[1])
   const [top, topScore] = ranked[0]
   const second = ranked[1]?.[1] || 0
-  if ((top === 'pt' || top === 'de' || top === 'it' || top === 'lb') && topScore >= 2 && topScore > Math.max(fr, en)) {
+  if ((top === 'pt' || top === 'de' || top === 'it') && topScore >= 2 && topScore > Math.max(fr, en)) {
     return { language: top, score: topScore, second: Math.max(fr, en, second) }
   }
   return { language: fr > en ? 'fr' : 'en', score: Math.max(fr, en), second }
@@ -195,7 +194,8 @@ function isTraitBit(bit) {
   if (GARMENT_WORD.test(clean) || CARRIED_ITEM.test(clean) || LOOK_WORD.test(clean)) return true
   if (/^\d{1,3}$/.test(clean) || /^(?:early|mid|late)\s+\d{1,2}s$/i.test(clean) || /^\d{1,2}s$/i.test(clean)) return true
   if (/^(?:twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)(?:-[a-z]+)?$/i.test(clean)) return true
-  if (/^(?:[\p{L}'’-]+\s+){0,5}(?:beard|locs|braid|braids|bun|curls|hair|eyes|glasses|stubble|scar|freckles|moustache|mustache)$/iu.test(clean)) return true
+  if (/^(?:[\p{L}'’-]+\s+){0,5}(?:beard|locs|braid|braids|bun|curls|fade|afro|crop|hair|eyes|glasses|stubble|scar|freckles|moustache|mustache)$/iu.test(clean)) return true
+  if (/^(?:a\s+)?pair\s+of\s+[\p{L}'’-]+$/iu.test(clean)) return true
   return false
 }
 
@@ -282,9 +282,9 @@ function traitsInClause(clause) {
   }
   clause.split(',').slice(1).forEach(part => {
     const bit = cleanText(part)
-    if (!bit || /\b(?:meets|entre|enters|comes|ouvre|opens|walks|lit|reads)\b/i.test(bit)) return
-    if (OUTFIT_WORD.test(bit)) outfits.push(bit)
-    else if (LOOK_WORD.test(bit)) looks.push(bit)
+    if (!isTraitBit(bit)) return
+    if (OUTFIT_WORD.test(bit) || GARMENT_WORD.test(bit)) outfits.push(bit)
+    else looks.push(bit)
   })
   return { looks, outfits }
 }
@@ -310,7 +310,7 @@ function castTraits(text, name, names) {
 
 const STREET_WORD = new Set(['rue', 'street', 'road', 'avenue', 'lane', 'boulevard', 'way', 'via', 'strasse', 'straße', 'strada', 'rua', 'calle', 'gasse'])
 const GARMENT_WORD = /\b(?:raincoats?|coats?|jackets?|aprons?|caps?|hats?|scarves?|scarf|dresses?|shirts?|boots?|peacoats?|sweaters?|cloaks?|robes?|hoodies?|hakama|vests?|uniforms?|shawls?)\b/i
-const CARRIED_ITEM = /\b(?:cord|chain|strap|string|ribbon|neck|wrist|belt|shoulder|locket|compass|watch|pendant)\b/i
+const CARRIED_ITEM = /\b(?:cord|chain|strap|string|ribbon|neck|wrist|belt|shoulder|locket|compass|watch|pendant|tongs|hammer|brush|lantern)\b/i
 
 function isNameNoise(token, language) {
   const key = foldName(token)
@@ -449,6 +449,7 @@ function keepPerson(text, name, count, mid = 0) {
   const positive = introducedPerson(text, name) || humanSubject(text, name) || mid >= 1
   if (positive) return true
   if (parts.length === 1 && placeLexiconHas(parts[0])) return false
+  if (new RegExp(`(?<![\\p{L}])${escapeName(name)}(?![\\p{L}])[^.:\\n]{0,90}:\\s*(?:\\d|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)`, 'iu').test(text)) return true
   return count >= 2
 }
 
@@ -554,6 +555,20 @@ function detectCharacters(text, places = [], language = 'en') {
   }
   introductions(text, characters, language)
   characters.forEach(person => {
+    const label = person.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const colon = String(text).match(new RegExp(`(?<![\\p{L}])${label}(?![\\p{L}])[^.:\\n]{0,90}:\\s*([^.]*)`, 'iu'))
+    if (!colon) return
+    const looks = []
+    const outfits = []
+    cutTraits(colon[1]).split(/,\s*|\s+\band\b\s+/i).forEach(part => {
+      const bit = cleanText(part).replace(/^(?:a|an|the|with)\s+/i, '')
+      if (!bit || TRAIT_STOP.test(bit) || bit.split(/\s+/).length > 6) return
+      if (GARMENT_WORD.test(bit) || CARRIED_ITEM.test(bit)) outfits.push(bit)
+      else looks.push(bit)
+    })
+    rememberPerson(characters, person.name, looks, outfits)
+  })
+  characters.forEach(person => {
     const looks = []
     const outfits = []
     const trimLead = value => {
@@ -571,7 +586,7 @@ function detectCharacters(text, places = [], language = 'en') {
     String(person.look || '').split(/,\s*/).forEach(part => {
       part.split(/\s+\band\b\s+/i).forEach(piece => {
         const bit = trimLead(piece)
-        if (!bit) return
+        if (!bit || TRAIT_STOP.test(bit)) return
         if (GARMENT_WORD.test(bit)) absorbOutfit(bit)
         else absorbTrait(looks, bit)
       })
@@ -612,16 +627,18 @@ function locativePhrases(source, language) {
   const pattern = /\b(?:in|at|on|inside|aboard|within|dans|sur|im|auf|nel|nella)\s+(?:the|a|an|le|la|les|l['’]|der|die|das|dem|den|il|lo|un|une)\s+([^.,;:!?]+)/giu
   for (const match of String(source || '').matchAll(pattern)) {
     if (isQuotedOrRemembered(source, match.index, language)) continue
+    const raw = cleanText(match[1]).split(/\s+/).filter(Boolean)
     const words = []
-    for (const word of cleanText(match[1]).split(/\s+/)) {
+    for (let index = 0; index < raw.length && words.length < 4; index += 1) {
+      const word = raw[index]
       const key = foldName(word)
       if (!key) continue
       if (words.length && /^\p{Lu}/u.test(word)) break
-      if (STOP.has(key) || TIME_BLOCK.has(key) || CALENDAR_WORD.has(key) || NOT_A_PERSON.has(key)) break
-      if (/^(?:and|but|while|when|with|where|who|that|his|her|their|she|he|then|by|near|under|beside)$/i.test(word)) break
-      if (VERBS.has(key) || TRAIT_STOP.test(word)) break
+      const compound = [1, 2, 3, 4].some(size => placeLexiconHas([...words, ...raw.slice(index, index + size)].map(foldName).join(' ')))
+      if (!compound && (STOP.has(key) || TIME_BLOCK.has(key) || CALENDAR_WORD.has(key) || NOT_A_PERSON.has(key))) break
+      if (!compound && /^(?:and|but|while|when|with|where|who|that|his|her|their|she|he|then|by|near|under|beside)$/i.test(word)) break
+      if (!compound && (VERBS.has(key) || TRAIT_STOP.test(word))) break
       words.push(word)
-      if (words.length === 4) break
     }
     if (!words.length) continue
     const head = foldName(words.at(-1))
@@ -634,7 +651,7 @@ function locativePhrases(source, language) {
     objectHead.add('sofa')
     objectHead.add('couch')
     if (!head || head.length < 3 || STOP.has(head) || TIME_BLOCK.has(head) || isNeverPlace(head) || isNeverPlace(words.join(' ')) || objectHead.has(head)) continue
-    if (['morning', 'evening', 'night', 'end', 'left', 'right', 'way', 'dark', 'light', 'distance', 'front', 'back', 'side', 'time', 'moment', 'meantime', 'same', 'other', 'another', 'next', 'meme', 'autre', 'cut', 'pixie', 'hair', 'eyebrow', 'scar', 'sweater', 'pocket', 'sleeve', 'collar', 'line'].includes(head)) continue
+    if (['morning', 'evening', 'night', 'end', 'left', 'right', 'way', 'dark', 'light', 'distance', 'front', 'back', 'side', 'time', 'moment', 'meantime', 'same', 'other', 'another', 'next', 'meme', 'autre', 'cut', 'pixie', 'hair', 'eyebrow', 'scar', 'sweater', 'pocket', 'sleeve', 'collar', 'line', 'bottom', 'top', 'edge', 'middle', 'corner', 'nail', 'pipe', 'screw', 'bolt', 'rope'].includes(head)) continue
     if (PLACE_KEYS.has(head)) continue
     if (!placeLexiconHas(head) && !placeLexiconHas(words.join(' '))) continue
     const phrase = words.join(' ')

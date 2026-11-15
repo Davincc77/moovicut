@@ -84,6 +84,7 @@ export const DYNAMIC_KEYS = [
   'Line {line} is missing what happens. Write: Scène 3 — Léa — Café — what happens.',
   'The name {name} is repeated. Use each character name once.',
   'The place {name} is repeated. Use each place name once.',
+  'Moovicut is built for up to 40 shots (a short or medium film, or one chapter). Split the story into chapters and send them one by one, reusing the exported character sheet so faces stay consistent.',
   'This part starts inside a scene because that scene is longer than 40 shots.',
   'Keep each scene within 40 shots when you can. This cut is at a shot boundary.',
   'This part does not start from the place and time in effect at the end of the previous part.',

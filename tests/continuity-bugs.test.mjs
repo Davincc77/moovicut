@@ -83,15 +83,14 @@ test('M5 an unrecognised place still plans with an uncertain setting', () => {
   assert.ok(detectProse('Inès ouvre le laboratoire. Inès attend.').places.some(place => /laboratoire/i.test(place.name)))
 })
 
-test('M6 a long board keeps every shot in a part', () => {
+test('M6 a board past 40 shots is refused instead of dropped or split', () => {
   const beats = Array.from({ length: 50 }, (_, index) => `Nia walks marker ${index + 1}`).join('. ')
   const planned = prose(`Nia, 40, short black hair, grey coat, ${beats} on the quay.`)
-  assert.equal(planned.status, 200)
-  assert.ok(planned.body.shots.length >= 50)
-  const markers = planned.body.shots.map(shot => shot.prompt.match(/marker (\d+)/)?.[1]).filter(Boolean)
-  assert.equal(new Set(markers).size, 50)
-  assert.ok(planned.body.parts?.length > 1)
-  planned.body.parts.forEach(part => assert.ok(part.to - part.from + 1 <= 40))
+  assert.equal(planned.status, 400)
+  assert.equal(planned.body.error, 'too_many_shots')
+  assert.match(planned.body.message, /40/)
+  assert.match(planned.body.message, /chapter/i)
+  assert.equal(planned.body.shots, undefined)
 })
 
 test('M7 time of day changes with the text', () => {

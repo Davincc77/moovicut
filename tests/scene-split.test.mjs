@@ -314,7 +314,7 @@ function scoreStory(name) {
   }
 }
 
-test('the four baseline stories return 200 and beat the live detector', () => {
+test('the four baseline stories beat the live detector, and a story past 40 shots is refused', () => {
   const rows = ['fr_medium', 'en_medium', 'fr_long', 'en_long'].map(scoreStory)
   let characterHits = 0
   let characterFound = 0
@@ -326,7 +326,7 @@ test('the four baseline stories return 200 and beat the live detector', () => {
   let boundaryGold = 0
   let falseCuts = 0
   rows.forEach(row => {
-    assert.equal(row.status, 200, row.name)
+    assert.equal(row.status, row.name.endsWith('_long') ? 400 : 200, row.name)
     assert.equal(row.falseCuts, 0, `${row.name} ${row.places.join(', ')}`)
     assert.equal(row.boundaryHits, row.boundaryGold, row.name)
     characterHits += new Set(row.characters.map(item => foldName(item)).filter(item => KEY.stories[row.name].gold_characters.some(gold => foldName(gold.name) === item))).size

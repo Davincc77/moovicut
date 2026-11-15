@@ -11,6 +11,8 @@ import { studioUrl } from '../app/utils/studio-link.js'
 import { cleanText } from '../app/utils/text.js'
 import { readPromptLanguage } from '../app/utils/prompt-lang.js'
 import { isFountain, parseFountain } from '../app/utils/fountain.js'
+import { SHOT_LIMIT, SHOT_LIMIT_MESSAGE } from '../app/utils/parts.js'
+import { translate } from '../app/i18n/index.js'
 
 export const RATE_LIMIT = Object.freeze({ limit: 30, windowMs: 60_000 })
 export const STORYBOARD_BODY_LIMIT = 32 * 1024
@@ -87,6 +89,12 @@ function fail(message, code) {
   error.status = 400
   error.code = code
   throw error
+}
+
+function refuseIfTooLong(project, input) {
+  if ((project?.shots?.length || 0) <= SHOT_LIMIT) return
+  const lang = optionalPromptLanguage(input) || 'en'
+  fail(translate(lang, SHOT_LIMIT_MESSAGE), 'too_many_shots')
 }
 
 function optionalPromptLanguage(input) {
@@ -353,6 +361,7 @@ function planProse(input, { origin, compact }) {
   }), input)
   project.sceneSplit = splitScenes
   project.cuts = detection.cuts
+  refuseIfTooLong(project, input)
   const link = boardLink(origin, project, { style: input.style })
   const board = compact ? compactStoryboard(project, link) : { ...project, studioUrl: link }
   const body = { ...board, ...detection }
@@ -400,6 +409,7 @@ function planRegenerate(input, { origin, compact }) {
   const project = validateProject(source).project
   const shotId = input.regenerateShot || input.shotId
   if (!shotId) fail('Send regenerateShot with the shot id to rebuild.', 'invalid_shot')
+  refuseIfTooLong(project, input)
   const result = regenerateOneShot(project, shotId, {
     overwrite: input.overwritePrompt === true,
     prompt: typeof input.prompt === 'string' ? input.prompt : undefined
@@ -419,6 +429,7 @@ function agentBody(project, link) {
 export function planFromInput(input, { origin = SITE, compact = false } = {}) {
   if (input && typeof input === 'object' && !Array.isArray(input) && input.schema === AGENT_BOARD_SCHEMA) {
     const project = importAgentBoard(input, { overwritePrompt: input.overwritePrompt === true })
+    refuseIfTooLong(project, input)
     const link = boardLink(origin, project, {})
     if (input.regenerateShot || input.shotId) return planRegenerate({ ...input, project }, { origin, compact })
     return agentBody(project, link)
@@ -429,6 +440,7 @@ export function planFromInput(input, { origin = SITE, compact = false } = {}) {
   const options = storyboardOptions(input)
   if (options.prose) return planProse(options.raw, { origin, compact })
   const project = withActionSplits(createStoryboard(options), input)
+  refuseIfTooLong(project, input)
   const link = boardLink(origin, project, options)
   if (input?.format === 'agent') {
     const body = agentBody(project, link)
@@ -544,7 +556,7 @@ const STORYBOARD_SCHEMA = {
   properties: {
     premise: { type: 'string', minLength: 8, maxLength: 6000, description: 'Story idea, 8 to 6,000 characters. Optional when scenario is sent. If it is omitted, the idea line is the character and place names only, not the first scene’s action.' },
     model: { type: 'string', enum: ['grok', 'google', 'sora', 'kling', 'runway', 'luma', 'wan', 'generic'], default: 'grok', description: 'Target video model. Shot length, aspect, prompt form, and risk warnings follow that model’s documented profile. grok and google keep their existing labeled prompts. veo is accepted as google.' },
-    shots: { type: 'integer', minimum: 1, default: 5, description: 'Scene count. Ignored when scenes is a non-empty array. Default 5. A board longer than 40 shots is split into parts.' },
+    shots: { type: 'integer', minimum: 1, maximum: 40, default: 5, description: 'Scene count. Ignored when scenes is a non-empty array. Default 5. At most 40 shots. A longer board is refused.' },
     mode: { type: 'string', enum: ['continuous', 'varied', 'scenario', 'ad', 'series', 'explainer'], description: 'Alias of sequenceMode. scenario reads the scenario field or a structured premise. ad, series, and explainer are light presets on the same film sheet. A prompt marked promptEdited is kept.' },
     sequenceMode: { type: 'string', enum: ['continuous', 'varied', 'scenario', 'ad', 'series', 'explainer'] },
     continuity: { type: 'string', enum: ['standard', 'strict'], default: 'standard' },
@@ -590,10 +602,10 @@ const STORYBOARD_SCHEMA = {
     audience: { type: 'string', description: 'Optional explainer audience. Stored once on the film sheet.' },
     steps: { description: 'Numbered explainer steps. A string, or an array of strings or { text, prompt } objects. Each step is one shot.', oneOf: [{ type: 'string' }, { type: 'array', items: {} }] },
     duration: { type: 'integer', minimum: 2, maximum: 15, default: 3, description: 'Seconds per scene when a scene does not set its own duration. Default 3. Preset modes snap this length to the selected model profile.' },
-    compact: { type: 'boolean', default: false, description: 'Return title, premise, model, aspectRatio, studioUrl, and shots of order, duration, and prompt. When the board has more than one part, parts is added. A board of 40 shots or fewer omits parts.' },
+    compact: { type: 'boolean', default: false, description: 'Return title, premise, model, aspectRatio, studioUrl, and shots of order, duration, and prompt.' },
     scenes: {
       type: 'array',
-      description: 'Optional per-scene overrides. When present, the board length is scenes.length instead of the default 5. Longer boards are split into parts of at most 40 shots.',
+      description: 'Optional per-scene overrides. When present, the board length is scenes.length instead of the default 5. More than 40 shots is refused.',
       items: SCENE_SCHEMA
     }
   }
@@ -606,7 +618,7 @@ export function openApiDocument() {
       title: 'Moovicut',
       version: '1.0.0',
       summary: 'Free deterministic storyboard planning. No API key, no account, no stored premises.',
-      description: 'Moovicut plans editable storyboards. It does not render video and it does not save the premise. The default board is 5 scenes × 3 seconds (15 seconds total). The default video prompt is short (prompt_style short): framing, the named action, the lock lines, the full place, one light, and locked-off camera unless a movement was set, capped near 700 characters. prompt_style detailed keeps the full film sheet in every shot. Pass shots and duration, or a scenes array, for a custom scene-by-scene board. A board longer than 40 shots is split into parts at a scene boundary. Each part holds at most 40 shots, keeps the same film sheet, and is listed in parts. A board of 40 shots or fewer omits parts. Humans can do the same in /studio Step-by-step mode. mode ad, series, and explainer are light presets on the same film sheet. A shot marked promptEdited is kept unless overwritePrompt is true. Duration snaps to the selected model profile. studioUrl is a /studio#board= link the browser can open without a server lookup.'
+      description: 'Moovicut plans editable storyboards. It does not render video and it does not save the premise. The default board is 5 scenes × 3 seconds (15 seconds total). The default video prompt is short (prompt_style short): framing, the named action, the lock lines, the full place, one light, and locked-off camera unless a movement was set, capped near 700 characters. prompt_style detailed keeps the full film sheet in every shot. Pass shots and duration, or a scenes array, for a custom scene-by-scene board. A request of more than 40 shots is refused with too_many_shots. Split the story into chapters and send them one by one, reusing the exported character sheet so faces stay consistent. Humans can do the same in /studio Step-by-step mode. mode ad, series, and explainer are light presets on the same film sheet. A shot marked promptEdited is kept unless overwritePrompt is true. Duration snaps to the selected model profile. studioUrl is a /studio#board= link the browser can open without a server lookup.'
     },
     servers: [{ url: SITE }],
     paths: {
@@ -681,23 +693,8 @@ export function openApiDocument() {
             model: { type: 'string' },
             aspectRatio: { type: 'string' },
             studioUrl: { type: 'string', description: 'Hash link to /studio. The board is in the fragment and is not sent to the server on open.' },
-            shots: { type: 'array', items: { $ref: '#/components/schemas/CompactShot' } },
-            parts: {
-              type: 'array',
-              description: 'Present only when the board is longer than 40 shots. Each part has index, inclusive shot orders from and to, and the place and time in effect at the start of the part. Omitted for a board of 40 shots or fewer, which stays the same payload as before.',
-              items: {
-                type: 'object',
-                required: ['index', 'from', 'to', 'place', 'time'],
-                properties: {
-                  index: { type: 'integer', description: 'Part number, starting at 1.' },
-                  from: { type: 'integer', description: 'First shot order in this part, inclusive.' },
-                  to: { type: 'integer', description: 'Last shot order in this part, inclusive.' },
-                  place: { type: 'string', description: 'Place in effect at the start of this part.' },
-                  time: { type: 'string', description: 'Time of day or light in effect at the start of this part.' }
-                }
-              }
-            },
-            warnings: { type: 'array', description: 'Present only when a shot has a pre-generation risk. Warnings never block the board. part_split_inside_scene marks a cut inside one scene that is longer than 40 shots.', items: { type: 'object', additionalProperties: true } },
+            shots: { type: 'array', items: { $ref: '#/components/schemas/CompactShot' }, maxItems: 40 },
+            warnings: { type: 'array', description: 'Present only when a shot has a pre-generation risk. Warnings never block the board.', items: { type: 'object', additionalProperties: true } },
             regenerated: { type: 'string', description: 'Shot id rebuilt by regenerateShot. Null when an edited prompt was kept.' }
           }
         },
@@ -718,7 +715,7 @@ export function openApiDocument() {
 const TOOLS = [
   {
     name: 'plan_storyboard',
-    description: 'Plan a deterministic storyboard. Default is 5 scenes × 3s (15s total) and a short per-shot video prompt: framing, the named action, the lock line, the place, one light, and locked-off camera unless a movement was set. Each character lock line is copied unchanged into every shot they appear in. Pass prompt_style "detailed" for the full sheet in every shot. Pass shots/duration, a scenes array, a scenario, mode ad, series, or explainer, input "prose", format "agent", or a model: grok, google, sora, kling, runway, luma, wan, or generic. Free prose splits on place and time cues unless splitScenes is false. The cuts array gives each cue and reason. A character with no look is a warning, not a 400. A board longer than 40 shots is split into parts at a scene boundary. parts lists each part index, inclusive shot range, and starting place and time, and is omitted when the board has 40 shots or fewer. A prompt marked promptEdited is kept. Returns a compact payload and a /studio# link. Nothing is stored.',
+    description: 'Plan a deterministic storyboard. Default is 5 scenes × 3s (15s total) and a short per-shot video prompt: framing, the named action, the lock line, the place, one light, and locked-off camera unless a movement was set. Each character lock line is copied unchanged into every shot they appear in. Pass prompt_style "detailed" for the full sheet in every shot. Pass shots/duration, a scenes array, a scenario, mode ad, series, or explainer, input "prose", format "agent", or a model: grok, google, sora, kling, runway, luma, wan, or generic. Free prose splits on place and time cues unless splitScenes is false. The cuts array gives each cue and reason. A character with no look is a warning, not a 400. A request of more than 40 shots is refused with too_many_shots. Split the story into chapters and send them one by one. A prompt marked promptEdited is kept. Returns a compact payload and a /studio# link. Nothing is stored.',
     inputSchema: STORYBOARD_SCHEMA
   },
   {

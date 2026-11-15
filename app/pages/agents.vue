@@ -14,7 +14,7 @@ OpenAPI: https://moovicut.studio/openapi.json
 Discovery: https://moovicut.studio/.well-known/mcp.json
 Guide: https://moovicut.studio/agents.md
 
-Send compact:true for a short payload (title, premise, model, aspectRatio, studioUrl, shots with order, duration, prompt). A board longer than 40 shots is split into parts of at most 40 shots, cut at a scene boundary. parts lists the part index, the inclusive shot range, and the starting place and time. A board of 40 shots or fewer omits parts.
+Send compact:true for a short payload (title, premise, model, aspectRatio, studioUrl, shots with order, duration, prompt). A request of more than 40 shots is refused. Split the story into chapters and send them one by one, reusing the exported character sheet so faces stay consistent.
 Open studioUrl in a browser. It is a /studio#board= link. The board is in the hash and is not saved on the server.
 
 Custom boards: pass shots and duration, or a scenes array. Each scene may set action (or beat), duration, framing, camera, lighting (or mood), and notes. Humans can do the same with Step-by-step mode in /studio.
@@ -45,7 +45,7 @@ useSeoMeta({
   ...socialPreview
 })
 const copy1 = `Out of the box, every plan is <strong>5 scenes × 3 seconds (15s total)</strong>. Pass <code>shots</code> and <code>duration</code>, or a <code>scenes</code> array, when you want a different length. People opening <a href="/studio">/studio</a> start in a six-step guide. Advanced mode keeps the 15s, 30s, and 60s presets and Step-by-step mode. The API is unchanged.`
-const copy13 = `A board longer than 40 shots is split into parts. Each part holds at most 40 shots, and the cut is at a scene boundary. One scene longer than 40 shots is cut at a shot boundary and marked. The same film sheet, including each character lock line, is used in every part. The next part starts from the place and time in effect at the end of the previous part. <code>parts</code> is added only when there is more than one part. A board of 40 shots or fewer stays the same.`
+const copy13 = `Moovicut is built for up to 40 shots (a short or medium film, or one chapter). Split the story into chapters and send them one by one, reusing the exported character sheet so faces stay consistent.`
 const copy2 = `<code>POST /mcp</code>`
 const copy3 = `JSON-RPC <code>initialize</code>, <code>tools/list</code>, and <code>tools/call</code>. Tools: <code>plan_storyboard</code>, <code>export_prompts</code>, <code>validate_storyboard</code>.`
 const copy4 = `<code>GET /openapi.json</code>`

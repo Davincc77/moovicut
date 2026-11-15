@@ -1,8 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createStoryboard, splitShotByAction } from '../app/utils/prompt-engine.js'
+import { createStoryboard } from '../app/utils/prompt-engine.js'
 import { lockLineFor } from '../app/utils/character-lock.js'
-import { assessProject } from '../app/utils/shot-risk.js'
 import { dispatchAgentRequest } from '../server/agent-api.mjs'
 
 const LIGHTHOUSE = 'A lighthouse keeper races the dusk to repair a failing beacon before the boats arrive.'
@@ -87,99 +86,44 @@ test('boards of 40 shots or fewer keep the previous payload', () => {
   assert.equal(JSON.stringify(forty.body).includes('"parts"'), false)
 })
 
-test('a 75-shot harbor story keeps every action and cuts only on scene boundaries', () => {
-  const planned = plan({ scenario: harborStory(), model: 'grok', format: 'agent' })
-  assert.equal(planned.status, 200)
-  const body = planned.body
-  assert.equal(body.schema, 'shotboard.compact.v1')
-  assert.equal(body.shots.length, 75)
-  assert.deepEqual(body.parts, [
-    { index: 1, from: 1, to: 33, place: 'Harbor', time: 'dusk' },
-    { index: 2, from: 34, to: 61, place: 'Harbor', time: 'dusk' },
-    { index: 3, from: 62, to: 75, place: 'Gallery', time: 'dusk' }
-  ])
-  const seen = body.shots.map(marker)
-  assert.deepEqual(seen.slice(0, 15), Array.from({ length: 15 }, (_, index) => String(index + 1)))
-  assert.equal(seen[14], '15')
-  assert.equal(seen[15], '1')
-  assert.equal(marker(body.shots[32]), '18')
-  assert.equal(marker(body.shots[33]), '1')
-  assert.equal(marker(body.shots[60]), '16')
-  assert.equal(marker(body.shots[61]), '1')
-  assert.equal(new Set(seen).size, 18)
-  assert.equal(seen.filter(Boolean).length, 75)
-  body.parts.forEach(part => assert.ok(part.to - part.from + 1 <= 40))
-  assert.equal((body.warnings || []).some(item => item.code === 'part_split_inside_scene'), false)
-  assert.equal((body.warnings || []).some(item => item.code === 'part_join'), false)
-
-  const project = createStoryboard({ scenario: harborStory(), model: 'grok' })
-  // The studio board is one scene per line until the API splits actions. The API board carries the lock.
-  body.shots.forEach(shot => {
-    if (/Nora/.test(shot.who) || /Nora/.test(shot.prompt)) assert.ok(shot.prompt.includes(NORA_LINE) || (shot.lockLines || []).includes(NORA_LINE))
-    if (/\bElias\b/.test(shot.who) || shot.prompt.includes('Elias —')) assert.ok((shot.lockLines || []).includes(ELIAS_LINE) || shot.prompt.includes(ELIAS_LINE))
-  })
-  const nora = project.filmSheet.characters.find(item => item.name === 'Nora')
-  const elias = project.filmSheet.characters.find(item => item.name === 'Elias')
-  assert.equal(lockLineFor(nora, 1), lockLineFor(nora, 50))
-  assert.equal(lockLineFor(elias, 16), lockLineFor(elias, 70))
-  body.parts.forEach(part => {
-    const first = body.shots[part.from - 1]
-    assert.equal(part.place, first.where)
-    assert.equal(part.time, first.light || body.filmSheet.light)
-  })
-})
-
-test('one scene longer than 40 shots is cut on a shot boundary and nothing is dropped', () => {
-  const what = actions('Nora', 'walks', 55)
-  const planned = plan({
+test('a 41-shot request is refused and a 40-shot request is kept whole', () => {
+  const fortyOne = plan({
     scenario: {
       characters: CAST.characters.slice(0, 1),
       places: CAST.places.slice(0, 1),
       light: 'dusk',
-      scenes: [{ who: 'Nora', where: 'Harbor', what, duration: 3 }]
+      scenes: [{ who: 'Nora', where: 'Harbor', what: actions('Nora', 'walks', 41), duration: 3 }]
     },
     model: 'grok',
     compact: true
   })
-  assert.equal(planned.status, 200)
-  const body = planned.body
-  assert.equal(body.shots.length, 55)
-  assert.deepEqual(body.parts.map(part => [part.from, part.to]), [[1, 40], [41, 55]])
-  assert.equal(body.parts[1].place, 'Harbor')
-  assert.equal(body.parts[1].time, 'dusk')
-  const numbers = body.shots.map(shot => Number(marker(shot)))
-  assert.deepEqual(numbers, Array.from({ length: 55 }, (_, index) => index + 1))
-  const inside = (body.warnings || []).filter(item => item.code === 'part_split_inside_scene')
-  assert.equal(inside.length, 1)
-  assert.equal(inside[0].order, 41)
-  body.shots.forEach(shot => assert.match(shot.prompt, new RegExp(NORA_LINE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))))
+  assert.equal(fortyOne.status, 400)
+  assert.equal(fortyOne.body.error, 'too_many_shots')
+  assert.match(fortyOne.body.message, /40/)
+  assert.match(fortyOne.body.message, /character sheet/i)
+  assert.equal(fortyOne.body.parts, undefined)
+  const french = plan({
+    premise: 'A lighthouse keeper races the dusk to repair a failing beacon.',
+    shots: 41,
+    model: 'grok',
+    promptLanguage: 'fr',
+    compact: true
+  })
+  assert.equal(french.status, 400)
+  assert.match(french.body.message, /40/)
+  assert.match(french.body.message, /chapitre/i)
 })
 
-test('the continuity checker runs across the part join on the same film sheet', () => {
-  let project = createStoryboard({ scenario: harborStory(), model: 'grok' })
-  for (let guard = 0; guard < 20; guard += 1) {
-    let next = null
-    for (const shot of project.shots) {
-      next = splitShotByAction(project, shot.id)
-      if (next) break
-    }
-    if (!next) break
-    project = next
-  }
-  assert.equal(project.shots.length, 75)
-  assert.equal(project.filmSheet.characters.map(item => item.name).join(', '), 'Nora, Elias')
-  const warnings = assessProject(project)
-  assert.equal(warnings.some(item => item.code === 'part_join'), false)
-  assert.equal(warnings.some(item => item.code === 'part_split_inside_scene'), false)
+test('a story longer than 40 shots is refused instead of split into parts', () => {
+  const planned = plan({ scenario: harborStory(), model: 'grok', format: 'agent' })
+  assert.equal(planned.status, 400)
+  assert.equal(planned.body.error, 'too_many_shots')
+  assert.equal(planned.body.parts, undefined)
+  assert.equal(planned.body.shots, undefined)
+  const project = createStoryboard({ scenario: harborStory(), model: 'grok' })
+  assert.equal(project.parts, undefined)
   const nora = project.filmSheet.characters.find(item => item.name === 'Nora')
   const elias = project.filmSheet.characters.find(item => item.name === 'Elias')
-  for (const order of [1, 33, 34, 61, 62, 75]) {
-    assert.equal(lockLineFor(nora, order), NORA_LINE)
-    assert.equal(lockLineFor(elias, order), ELIAS_LINE)
-  }
-  project.parts.forEach(part => {
-    const first = project.shots[part.from - 1]
-    assert.equal(part.place, first.where || project.filmSheet.places[0]?.name, `part ${part.index} place`)
-    assert.equal(part.time, first.light || project.filmSheet.light, `part ${part.index} time`)
-  })
+  assert.equal(lockLineFor(nora, 1), lockLineFor(nora, 50))
+  assert.equal(lockLineFor(elias, 16), lockLineFor(elias, 70))
 })
