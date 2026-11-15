@@ -18,7 +18,7 @@ export const WIZARD_STRINGS = Object.freeze({
   'advanced.enter': 'Advanced mode',
   'advanced.back': 'Back to the guide',
   'action.next': 'Next',
-  'action.back': 'Back',
+  'action.back': 'Go back',
   'action.generate': 'Generate prompts',
   'action.generateAgain': 'Generate prompts again',
   'action.addCharacter': 'Add character',

@@ -1,15 +1,15 @@
 /* Moovicut: shared foundations and Check 37 measured route layouts. */
-:root { color-scheme:dark; --body:"IBM Plex Sans",Inter,Arial,sans-serif; --display:"Space Grotesk","IBM Plex Sans",Arial,sans-serif; }
+:root { color-scheme:dark; --body:"IBM Plex Sans","PingFang SC","Hiragino Sans","Noto Sans CJK SC","Noto Sans CJK JP","Yu Gothic","Microsoft YaHei",Inter,Arial,sans-serif; --display:"Space Grotesk","IBM Plex Sans",Arial,sans-serif; }
 .moovicut-app { --bg:#0a0a0a;--bg-alt:#0f0f0f;--surface:#141414;--surface-hover:#1b1b1b;
  --bg:#0a0a0a;--bg-alt:#0f0f0f;--surface:#141414;--surface-hover:#1b1b1b;
  --text:#eae7df;--text-secondary:#9a9486;--accent:#d4a054;--accent-hover:#e8c078;
  --border:#eae7df1f;--muted-border:#eae7df0f;--error:#ef4444;
- --body:"IBM Plex Sans",Inter,Arial,sans-serif;--display:"Space Grotesk","IBM Plex Sans",Arial,sans-serif;
+ --body:"IBM Plex Sans","PingFang SC","Hiragino Sans","Noto Sans CJK SC","Noto Sans CJK JP","Yu Gothic","Microsoft YaHei",Inter,Arial,sans-serif;--display:"Space Grotesk","IBM Plex Sans",Arial,sans-serif;
  color-scheme:dark;font-family:var(--body);font-synthesis:none;
 }
 .moovicut-app { --gold:#f0b429;--gold-hover:#f6c85a;color:var(--text); }
 .moovicut-app * { box-sizing:border-box; }
-html,body,#__nuxt { margin:0;width:100%;min-width:0;font-family:"IBM Plex Sans",Inter,Arial,sans-serif; }
+html,body,#__nuxt { margin:0;width:100%;min-width:0;font-family:"IBM Plex Sans","PingFang SC","Hiragino Sans","Noto Sans CJK SC","Noto Sans CJK JP","Yu Gothic","Microsoft YaHei",Inter,Arial,sans-serif; }
 html:has(.moovicut-app),body:has(.moovicut-app),#__nuxt:has(.moovicut-app) { background:#0a0a0a; }
 .moovicut-app { margin:0;width:100%;min-width:0;background:var(--bg,#0a0a0a); }
 .moovicut-app { font-size:14px;line-height:1.5; }
@@ -21,8 +21,8 @@ a { color:inherit;text-decoration:none; }
 img,video,svg { max-width:100%; }
 :where(h1:not(.sr-only),h2:not(.sr-only),h3:not(.sr-only),h4:not(.sr-only)) { margin:0; }
 :is(h1,h2,h3,h4) { margin:0; }
-:is(.moovicut-app) { font-family:"IBM Plex Sans",Inter,Arial,sans-serif;color:var(--text); }
-.site-shell,.site-header,.site-footer { font-family:"IBM Plex Sans",Inter,Arial,sans-serif;color:var(--text); }
+:is(.moovicut-app) { font-family:"IBM Plex Sans","PingFang SC","Hiragino Sans","Noto Sans CJK SC","Noto Sans CJK JP","Yu Gothic","Microsoft YaHei",Inter,Arial,sans-serif;color:var(--text); }
+.site-shell,.site-header,.site-footer { font-family:"IBM Plex Sans","PingFang SC","Hiragino Sans","Noto Sans CJK SC","Noto Sans CJK JP","Yu Gothic","Microsoft YaHei",Inter,Arial,sans-serif;color:var(--text); }
 .moovicut-app :is(h1,h2,h3,h4):not(.sr-only),.site-shell :is(h1,h2,h3,h4):not(.sr-only) { font-family:var(--display);color:var(--text); }
 p,figure { margin:0; }
 ul,ol { margin:0;padding:0;list-style:none; }
@@ -744,6 +744,12 @@ input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-vis
 @media (max-width:767px) {
  .toast-region { position:fixed;top:auto;right:0;bottom:0;left:0;width:auto;max-width:none;margin:0;justify-content:center;padding:12px max(16px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
  .toast,.moovicut-toast { width:min(22rem,100%);max-width:min(22rem,100%); }
+}
+.language-switcher { display:inline-flex;align-items:center;flex:0 0 auto; }
+.language-switcher-select { color:var(--gold,#f0b429);background:#0a0a0a;border:1px solid color-mix(in srgb, var(--gold,#f0b429) 55%, transparent);border-radius:999px;min-height:36px;max-width:12.5rem;padding:4px 8px;font:inherit;font-size:14px;line-height:1.2;cursor:pointer; }
+.language-switcher-select:focus-visible { outline:2px solid var(--gold,#f0b429);outline-offset:2px; }
+@media (max-width:767px) {
+ .language-switcher-select { max-width:9.75rem;font-size:13px; }
 }
 
 .studio-advanced-bar { margin:0 0 16px; }

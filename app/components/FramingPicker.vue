@@ -16,7 +16,7 @@ function choose(event) {
 
 <template>
   <div class="framing-picker">
-    <label :for="fieldId">{{ label }}</label>
+    <label :for="fieldId">{{ $t(label) }}</label>
     <select :id="fieldId" :value="selected" @change="choose">
       <option v-for="term in FRAMING_TERMS" :key="term.id" :value="term.id">{{ framingOptionLabel(term) }}</option>
     </select>

@@ -28,7 +28,7 @@ async function openIn(id) {
 onBeforeUnmount(() => clearTimeout(copiedTimer))
 </script>
 <template>
-  <div class="open-in-actions" role="group" aria-label="Open prompt elsewhere">
-    <button v-for="target in targets" :key="target.id" class="open-in-button" :class="{ 'is-copied': copiedId === target.id }" type="button" @click="openIn(target.id)">{{ copiedId === target.id ? 'Prompt copied' : target.label }}</button>
+  <div class="open-in-actions" role="group" :aria-label="$t('Open prompt elsewhere')">
+    <button v-for="target in targets" :key="target.id" class="open-in-button" :class="{ 'is-copied': copiedId === target.id }" type="button" @click="openIn(target.id)">{{ copiedId === target.id ? $t('Prompt copied') : $t(target.label) }}</button>
   </div>
 </template>

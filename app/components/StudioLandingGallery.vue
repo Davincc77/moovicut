@@ -6,8 +6,8 @@ const appBaseURL = useRuntimeConfig().app.baseURL
 <template>
   <section class="studio-still-gallery" aria-labelledby="studio-gallery-heading">
     <div>
-      <h2 id="studio-gallery-heading">Scene stills</h2>
-      <p>Free local storyboarding. Use these stills as references while you edit shots and export JSON on this device. No account is required, and Moovicut does not render video.</p>
+      <h2 id="studio-gallery-heading">{{ $t('Scene stills') }}</h2>
+      <p>{{ $t('Free local storyboarding. Use these stills as references while you edit shots and export JSON on this device. No account is required, and Moovicut does not render video.') }}</p>
     </div>
     <ul>
       <li v-for="study in STUDIO_INSPIRATIONS" :key="study.file">

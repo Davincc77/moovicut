@@ -20,7 +20,7 @@ test('agents page, footer, and FAQ advertise the API without moving it onto the 
   assert.match(agents, /scenes/)
   assert.doesNotMatch(agents, /not affiliated with/)
   assert.match(footer, /pageHref\('agents'\)/)
-  assert.match(footer, />Agents</)
+  assert.match(footer, /\$t\('Agents'\)/)
   assert.match(footer, /not affiliated with/)
   assert.doesNotMatch(footer, /\/developers|For AI agents|agent-links|llms\.txt/)
   assert.match(faq, /\/agents/)

@@ -1,6 +1,6 @@
 <script setup>
 import { ArrowUpRight } from 'lucide-vue-next'
-import { wizardText } from '~/utils/wizard-strings.js'
+import { WIZARD_STRINGS, wizardText } from '~/utils/wizard-strings.js'
 import {
   WIZARD_STEPS,
   CHARACTER_FIELDS,
@@ -51,7 +51,12 @@ import { combinedShotPrompts } from '~/utils/open-targets.js'
 const emit = defineEmits(['advanced'])
 const store = useProjectStore()
 const { copyText } = useNotifier()
-const t = wizardText
+const { t: translate } = useI18n()
+function t(key, vars) {
+  const template = WIZARD_STRINGS[key]
+  if (!template) return key
+  return translate(template, vars)
+}
 const state = ref(blankWizard())
 const ready = ref(false)
 const heading = ref(null)
@@ -117,7 +122,7 @@ function describedBy(owner, field, empty, detected) {
 
 function gapText(item) {
   const message = t(item.key)
-  return item.name ? t('summary.named', { name: item.name, message }) : message
+  return item.name ? t('summary.named', { name: translate(item.name), message }) : message
 }
 
 function confidenceLabel(level) {
@@ -157,15 +162,15 @@ function generate() {
   if (!generateEnabled.value) return
   buildError.value = ''
   try {
-    store.commit(projectFromWizard(state.value), t('generate.done'))
+    store.commit(projectFromWizard(state.value), wizardText('generate.done'))
     state.value = markGenerated(state.value)
   } catch (error) {
-    buildError.value = error.message || t('generate.failed')
+    buildError.value = error.message || wizardText('generate.failed')
   }
 }
 
 function copyAgent() {
-  copyText(JSON.stringify(store.agentBoard()), t('generate.copiedAgent'))
+  copyText(JSON.stringify(store.agentBoard()), wizardText('generate.copiedAgent'))
 }
 
 </script>
@@ -331,14 +336,14 @@ function copyAgent() {
           <div class="wizard-choice">
             <label v-for="family in presets" :key="family.id">
               <input type="radio" name="wizard-style" :value="family.id" :checked="state.styleFamily === family.id" @change="state = setStyle(state, family.id)" />
-              <span>{{ family.label }}</span>
+              <span>{{ $t(family.label) }}</span>
             </label>
           </div>
         </fieldset>
         <div class="wizard-field">
           <label for="wizard-genre">{{ t('field.genre') }}</label>
           <select id="wizard-genre" name="genre" required :value="state.genre" @change="state = setGenre(state, $event.target.value)">
-            <option v-for="genre in genres" :key="genre.id" :value="genre.id">{{ genre.label }}</option>
+            <option v-for="genre in genres" :key="genre.id" :value="genre.id">{{ $t(genre.label) }}</option>
           </select>
         </div>
       </section>
@@ -420,7 +425,7 @@ function copyAgent() {
             <p>{{ t('check.blocked') }}</p>
             <ul class="wizard-issues">
               <li v-for="(issue, index) in report.blocking" :key="`${issue.code}-${issue.shotId}-${index}`">
-                <p>{{ issue.message }}</p>
+                <p>{{ $t(issue.message) }}</p>
                 <p>{{ issue.fix }}</p>
                 <button v-if="issue.fixId" class="button button-secondary" type="button" @click="state = applyCheckFix(state, issue)">{{ t('action.applyFix') }}</button>
               </li>
@@ -431,7 +436,7 @@ function copyAgent() {
             <p>{{ t('check.notesHelp') }}</p>
             <ul class="wizard-issues">
               <li v-for="(issue, index) in notes" :key="`note-${issue.code}-${index}`">
-                <p>{{ issue.message }}</p>
+                <p>{{ $t(issue.message) }}</p>
                 <p>{{ issue.fix }}</p>
                 <button v-if="issue.fixId" class="button button-secondary" type="button" @click="state = applyCheckFix(state, issue)">{{ t('action.applyFix') }}</button>
               </li>
@@ -443,12 +448,12 @@ function copyAgent() {
       <section v-else class="wizard-panel" :aria-label="t('generate.heading')">
         <h3>{{ t('generate.heading') }}</h3>
         <p>{{ t('generate.help') }}</p>
-        <p v-if="buildError" class="wizard-error" role="alert">{{ buildError }}</p>
+        <p v-if="buildError" class="wizard-error" role="alert">{{ $t(buildError) }}</p>
         <p v-if="stale" role="status">{{ t('generate.stale') }}</p>
         <div v-if="showOutputs" class="wizard-output">
           <p>{{ t('generate.ready') }}</p>
           <div class="wizard-actions">
-            <button class="button button-secondary" type="button" @click="copyText(combinedShotPrompts(project), t('generate.copiedAll'))">{{ t('action.copyAll') }}</button>
+            <button class="button button-secondary" type="button" @click="copyText(combinedShotPrompts(project), wizardText('generate.copiedAll'))">{{ t('action.copyAll') }}</button>
             <button class="button button-secondary" type="button" @click="copyAgent">{{ t('action.copyAgent') }}</button>
           </div>
           <article v-for="(item, index) in project.shots" :key="item.id" class="wizard-shot">
@@ -456,7 +461,7 @@ function copyAgent() {
             <p v-if="item.promptEdited" class="wizard-hint">{{ t('generate.edited') }}</p>
             <pre>{{ item.prompt }}</pre>
             <div class="wizard-actions">
-              <button class="button button-secondary" type="button" @click="copyText(item.prompt, t('generate.copiedShot'))">{{ t('action.copyShot') }}</button>
+              <button class="button button-secondary" type="button" @click="copyText(item.prompt, wizardText('generate.copiedShot'))">{{ t('action.copyShot') }}</button>
               <button class="button button-secondary" type="button" @click="store.regenerateOne(item.id)">{{ t('action.regenerate') }}</button>
             </div>
           </article>
