@@ -218,6 +218,7 @@ function copyAgent() {
           <textarea id="wizard-idea" name="idea" rows="5" required maxlength="6000" :value="state.idea" :aria-invalid="gaps.some(item => item.field === 'idea')" :aria-describedby="gaps.some(item => item.field === 'idea') ? 'wizard-idea-error' : undefined" @input="state = setIdea(state, $event.target.value)"></textarea>
           <p v-if="gaps.some(item => item.field === 'idea')" id="wizard-idea-error" class="wizard-error">{{ t(gaps.find(item => item.field === 'idea').key) }}</p>
           <p v-if="ideaHint" class="wizard-hint" role="status">{{ ideaHint }}</p>
+          <CjkNameTip :locale="locale" />
         </div>
         <div class="wizard-field">
           <label for="wizard-model">{{ t('idea.model') }}</label>
