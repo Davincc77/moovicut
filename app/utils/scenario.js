@@ -440,7 +440,7 @@ function parseScenarioObject(input, options = {}) {
     const description = cleanText(pick(entry, ['description', 'desc', 'd']))
     if (!name) errors.push(problem(`${path} is missing a name.`, { path: `${path}.name`, section: 'places', field: 'name', index }))
     if (!description) errors.push(problem(`${path} is missing a description.`, { path: `${path}.description`, section: 'places', field: 'description', index }))
-    if (name && description) places.push({ name, description })
+    if (name && description) places.push(entry.uncertain === true ? { name, description, uncertain: true } : { name, description })
   })
   const light = readEnum(source.light ?? source.lighting, LIGHT_VALUES, 'light', { path: 'light', section: 'style' }, errors)
   const mood = readEnum(source.mood, MOOD_VALUES, 'mood', { path: 'mood', section: 'style' }, errors)

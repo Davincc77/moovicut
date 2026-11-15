@@ -47,7 +47,11 @@ function copySheet(sheet) {
   if (!sheet) return undefined
   const copy = {
     characters: (sheet.characters || []).map(copyCharacter),
-    places: (sheet.places || []).map(item => ({ name: item.name || '', description: item.description || '' })),
+    places: (sheet.places || []).map(item => {
+      const place = { name: item.name || '', description: item.description || '' }
+      if (item.uncertain === true) place.uncertain = true
+      return place
+    }),
     light: sheet.light || '',
     mood: sheet.mood || '',
     style: sheet.style || ''

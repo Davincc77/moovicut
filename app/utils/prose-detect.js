@@ -34,7 +34,7 @@ const PLACES = [
   { keys: ['quai', 'quay', 'harbour', 'harbor'], fr: 'Quai', en: 'Quay', frDesc: 'un quai', enDesc: 'a quay' }
 ]
 
-const TIME_BLOCK = new Set(['matin', 'morning', 'soir', 'evening', 'nuit', 'night', 'jour', 'day', 'aube', 'dawn', 'dusk', 'soleil', 'sun', 'pluie', 'rain', 'tard', 'lendemain', 'petit'])
+const TIME_BLOCK = new Set(['matin', 'morning', 'soir', 'evening', 'nuit', 'night', 'jour', 'day', 'aube', 'dawn', 'dusk', 'soleil', 'sun', 'pluie', 'rain', 'tard', 'lendemain', 'petit', 'late', 'inside', 'outside', 'suddenly', 'finally', 'soon', 'meanwhile', 'tonight', 'yesterday', 'tomorrow', 'across', 'behind', 'above', 'below', 'under', 'near', 'around', 'during', 'upon', 'within', 'along', 'toward', 'towards', 'soudain', 'ensuite', 'dedans', 'dehors', 'hier', 'demain', 'alors', 'enfin', 'pendant', 'derriere', 'dessus', 'dessous', 'dentro', 'fora', 'ontem', 'amanha', 'entao', 'depois', 'plotzlich', 'drinnen', 'draussen', 'gestern', 'heute', 'spater', 'wahrend', 'improvvisamente', 'infine', 'stasera', 'bannen', 'baussen', 'geschter', 'muer'])
 const JUMP = /\b(plus tard|le lendemain|au lendemain|le matin suivant|the next morning|next morning|the next day|later)\b/i
 const VERBS = new Set(['entre', 'sort', 'verse', 'renverse', 'rit', 'rire', 'marche', 'court', 'revient', 'ouvre', 'ferme', 'regarde', 'sourit', 'prend', 'donne', 'boit', 'parle', 'dit', 'va', 'vient', 'arrive', 'part', 'tourne', 'tend', 'attrape', 'pose', 'voit', 'pleure', 'crie', 'attend', 'sert', 'quitte', 'traverse', 'monte', 'descend', 'pousse', 'tombe', 'lance', 'vole', 'porte', 'opens', 'open', 'pours', 'pour', 'laughs', 'laugh', 'walks', 'walk', 'returns', 'return', 'rides', 'ride', 'stops', 'stop', 'enters', 'enter', 'leaves', 'leave', 'sits', 'sit', 'stands', 'stand', 'looks', 'look', 'turns', 'turn', 'smiles', 'smile', 'spills', 'spill', 'runs', 'run', 'flies', 'fly', 'hits', 'hit', 'watches', 'watch', 'finds', 'find', 'follows', 'follow', 'crosses', 'cross', 'drinks', 'drink', 'waits', 'wait', 'closes', 'close', 'unlocks', 'unlock', 'meets', 'meet', 'boards', 'board', 'knocks', 'knock', 'hands', 'hand', 'gives', 'give', 'opens', 'reads', 'read'])
 const NOT_A_PLACE = new Set(['window', 'door', 'table', 'glass', 'cup', 'bottle', 'hand', 'hands', 'umbrella', 'pastry', 'apron', 'hair', 'face', 'eye', 'eyes'])
@@ -133,7 +133,7 @@ const PLACE_KEYS = placeLexicon()
 const NAME_STOP = new Set(['the', 'a', 'an', 'she', 'he', 'they', 'une', 'le', 'la', 'les', 'il', 'elle', 'un'])
 const LOOK_TRAIT = /\b(?:(?:early|mid|late)\s+)?\d{1,2}s\b|\b(?:short|long|curly|wavy|straight|black|brown|blonde|blond|red|grey|gray|silver|white|dark)\s+(?:black\s+|brown\s+|red\s+|grey\s+|gray\s+)?(?:pixie cut|bob|bangs|braid|hair)\b|\b(?:grey|gray|white|black|red|dark)\s+stubble\b|\bstubble\b|\bbeard\b|\bmoustache\b|\bmustache\b|\b(?:round\s+)?glasses\b|\b(?:blue|green|brown|amber|hazel)\s+eyes\b/giu
 const OUTFIT_TRAIT = /\b(?:[\p{L}'’-]+\s+){0,3}(?:peacoats?|overcoats?|coats?|jackets?|scarves|scarf|aprons?|sweaters?|boots?|dresses|dress|shirts?|suits?|hoodies?|cloaks?|robes?|uniforms?|jeans|skirts?|caps?|hats?|hakama)\b/giu
-const TRAIT_STOP = /\b(?:meets|sees|finds|wears|opens|walks|runs|enters|leaves|pours|hands|gives|sits|stands|laughs|reads|turns|crosses|follows|carries|holds|watches|on|in|at|inside|through|across)\b/i
+const TRAIT_STOP = /\b(?:meets|sees|finds|wears|opens|walks|runs|enters|leaves|pours|hands|gives|sits|stands|laughs|reads|turns|crosses|follows|carries|holds|watches)\b/i
 
 function traitHits(clause) {
   const source = String(clause || '')
@@ -198,7 +198,8 @@ export function isNamedTraitPremise(text) {
   let parts = 0
   slice.split(',').forEach(part => {
     const found = traitHits(part)
-    if (found.looks.length || found.outfits.length) parts += 1
+    const bit = cleanText(part)
+    if (found.looks.length || found.outfits.length || (bit && !TRAIT_STOP.test(bit))) parts += 1
   })
   return parts >= 2
 }
@@ -283,25 +284,123 @@ function castTraits(text, name, names) {
   return best
 }
 
+const STREET_WORD = new Set(['rue', 'street', 'road', 'avenue', 'lane', 'boulevard', 'way', 'via', 'strasse', 'straße', 'strada', 'rua', 'calle', 'gasse'])
+const GARMENT_WORD = /\b(?:raincoats?|coats?|jackets?|aprons?|caps?|hats?|scarves?|scarf|dresses?|shirts?|boots?|peacoats?|sweaters?|cloaks?|robes?|hoodies?|hakama|vests?|uniforms?)\b/i
+const CARRIED_ITEM = /\b(?:cord|chain|strap|string|ribbon|neck|wrist|belt|shoulder|locket|compass|watch|pendant)\b/i
+
+function isNameNoise(token, language) {
+  const key = foldName(token)
+  return !key || key.length < 2 || STOP.has(key) || TIME_BLOCK.has(key) || STREET_WORD.has(key) || PLACE_KEYS.has(key) || NOT_A_PLACE.has(key) || isFunctionWord(token, language) || isNumberWord(token, language) || isNeverPlace(token) || isVenueType(token, language)
+}
+
+function properNames(text, language) {
+  const source = String(text || '')
+  const matches = [...source.matchAll(/\p{Lu}[\p{L}'’-]*/gu)]
+  const names = []
+  let index = 0
+  while (index < matches.length) {
+    const first = matches[index]
+    const parts = [first[0]]
+    let end = first.index + first[0].length
+    let next = index + 1
+    while (next < matches.length && parts.length < 3) {
+      const gap = source.slice(end, matches[next].index)
+      if (!/^\s+$/.test(gap)) break
+      parts.push(matches[next][0])
+      end = matches[next].index + matches[next][0].length
+      next += 1
+    }
+    if (!isNameNoise(parts[0], language) && !STREET_WORD.has(foldName(parts[0])) && !/^(?:l|d|j|n|qu)['’]/i.test(parts[0])) {
+      const usable = []
+      for (const part of parts) {
+        if (/^(?:l|d|j|n|qu)['’]/i.test(part) || isNameNoise(part, language)) break
+        usable.push(part.replace(/['’]s$/i, ''))
+      }
+      if (usable.length) names.push({ name: usable.join(' '), index: first.index })
+    }
+    index = next
+  }
+  return names
+}
+
+function sentenceStartAt(text, index) {
+  const before = String(text || '').slice(0, index)
+  return !before.trim() || /[.!?。！？]\s*$/.test(before)
+}
+
+function uncoveredClauses(text, name, names, look, outfit) {
+  const slice = textAfterName(text, name, names)
+  if (!slice) return
+  slice.split(',').forEach(part => {
+    const raw = cleanText(part)
+    const bit = raw.replace(/^(?:and|with|a|an|the)\s+/i, '')
+    if (!bit || TRAIT_STOP.test(bit)) return
+    if (/^(?:on|in|at|inside|aboard)\s+(?:a|an|the)\b/i.test(raw) && !CARRIED_ITEM.test(raw)) return
+    const have = foldName([...look, ...outfit].join(' '))
+    const words = foldName(bit).split(/\s+/).filter(word => word.length > 2)
+    if (words.length && words.every(word => have.includes(word))) return
+    if (GARMENT_WORD.test(bit)) absorbTrait(outfit, bit)
+    else absorbTrait(look, bit)
+  })
+}
+
+function rememberPerson(characters, name, looks, outfits) {
+  const cleanName = cleanText(name)
+  if (!cleanName || isNameNoise(cleanName.split(/\s+/)[0], 'en')) return
+  let person = characters.find(item => foldName(item.name) === foldName(cleanName))
+  if (!person) {
+    person = { name: cleanName, look: '', outfit: '', confidence: 'medium' }
+    characters.push(person)
+  }
+  const look = person.look ? person.look.split(/,\s*/) : []
+  const outfit = person.outfit ? person.outfit.split(/,\s*/) : []
+  looks.forEach(item => absorbTrait(look, item))
+  outfits.forEach(item => absorbTrait(outfit, item))
+  person.look = look.filter(Boolean).join(', ')
+  person.outfit = outfit.filter(Boolean).join(', ')
+  if (person.look || person.outfit) person.confidence = person.confidence === 'low' ? 'medium' : person.confidence
+}
+
+function introductions(text, characters, language) {
+  sentencesOf(text).forEach(sentence => {
+    if (/\b(?:walks?|runs?|enters?|leaves?|opens?|pours?|reads?|turns?|lifts?|waits?|checks?)\b/i.test(sentence)) return
+    const named = sentence.match(/(\p{Lu}[\p{L}'’-]{1,40}(?:\s+\p{Lu}[\p{L}'’-]{1,40}){0,2})\s+is\s+([^.]*)/u)
+    if (named) {
+      const name = named[1].split(/\s+/).filter(part => !isNameNoise(part, language)).join(' ')
+      const looks = []
+      const outfits = []
+      named[2].split(/\s*,\s*|\s+\band\b\s+/i).forEach(part => {
+        const bit = cleanText(part).replace(/^(?:with|a|an|the)\s+/i, '')
+        if (!bit) return
+        if (GARMENT_WORD.test(bit)) outfits.push(bit)
+        else looks.push(bit)
+      })
+      rememberPerson(characters, name, looks, outfits)
+    }
+    const worn = sentence.match(/^(?:she|he|they|elle|il)\s+(?:has|have|had|a)\s+(.+?)(?:\s+and\s+(?:wears|wore|porte)\s+(.+))?$/iu)
+    if (worn && characters.length) {
+      const person = characters[characters.length - 1]
+      rememberPerson(characters, person.name, [cleanText(worn[1])], worn[2] ? [cleanText(worn[2]).replace(/^(?:a|an|the|un|une)\s+/i, '')] : [])
+    }
+  })
+}
+
 function detectCharacters(text, places = [], language = 'en') {
   const flagged = flaggedNameKeys(text)
   const reserved = placeTokens(places)
-  const starts = sentenceStarts(text)
   const counts = new Map()
   let skippedFlagged = false
-  for (const match of String(text || '').matchAll(/[\p{L}][\p{L}'’-]+/gu)) {
-    const token = match[0]
-    if (!/^\p{Lu}/u.test(token)) continue
-    if (/['’]s$/i.test(token)) continue
-    if (isQuotedOrRemembered(text, match.index, language)) continue
-    const key = foldName(token)
-    if (flagged.has(key)) { skippedFlagged = true; continue }
-    if (isNumberWord(token, language) || isVenueType(token, language) || inNamedVenue(text, match.index, language)) continue
-    if (key.length < 2 || STOP.has(key) || isFunctionWord(token, language) || PLACE_KEYS.has(key) || TIME_BLOCK.has(key) || reserved.has(key) || NOT_A_PLACE.has(key) || isNeverPlace(token)) continue
+  for (const found of properNames(text, language)) {
+    if (isQuotedOrRemembered(text, found.index, language)) continue
+    if (inNamedVenue(text, found.index, language)) continue
+    const parts = found.name.split(/\s+/)
+    if (parts.some(part => flagged.has(foldName(part)))) { skippedFlagged = true; continue }
+    if (parts.some(part => reserved.has(foldName(part)))) continue
+    const key = foldName(found.name)
     const entry = counts.get(key) || { forms: new Map(), count: 0, mid: 0 }
     entry.count += 1
-    if (!starts.has(key)) entry.mid += 1
-    entry.forms.set(token, (entry.forms.get(token) || 0) + 1)
+    if (!sentenceStartAt(text, found.index)) entry.mid += 1
+    entry.forms.set(found.name, (entry.forms.get(found.name) || 0) + 1)
     counts.set(key, entry)
   }
   const warnings = []
@@ -341,8 +440,7 @@ function detectCharacters(text, places = [], language = 'en') {
     const cast = castTraits(text, name, candidateNames)
     if (!look.length) cast.looks.forEach(item => absorbTrait(look, item))
     if (!outfit.length) cast.outfits.forEach(item => absorbTrait(outfit, item))
-    const keep = entry.count >= 2 || entry.mid >= 1 || look.length > 0 || outfit.length > 0
-    if (!keep) continue
+    uncoveredClauses(text, name, candidateNames, look, outfit)
     if (forms.length > 1) {
       warnings.push({ code: 'name_variant', message: `${forms.map(item => item[0]).join(' or ')}?`, target: 'characters', options: forms.map(item => item[0]), name })
     }
@@ -353,6 +451,31 @@ function detectCharacters(text, places = [], language = 'en') {
     if (!outfit.length) warnings.push({ code: 'missing_outfit', message: `No outfit found for ${name}.`, target: 'characters', name })
     characters.push({ name, look: look.join(', '), outfit: outfit.join(', '), confidence })
   }
+  introductions(text, characters, language)
+  characters.forEach(person => {
+    const looks = []
+    const outfits = []
+    const trimLead = value => {
+      let bit = cleanText(value).replace(/[.,;]+$/g, '')
+      while (/^(?:with|and|a|an|the)\s+/i.test(bit)) bit = bit.replace(/^(?:with|and|a|an|the)\s+/i, '')
+      return bit
+    }
+    const absorbOutfit = value => absorbTrait(outfits, trimLead(value))
+    String(person.outfit || '').split(/,\s*/).forEach(part => {
+      const bit = trimLead(part)
+      if (bit) absorbOutfit(bit)
+    })
+    String(person.look || '').split(/,\s*/).forEach(part => {
+      part.split(/\s+\band\b\s+/i).forEach(piece => {
+        const bit = trimLead(piece)
+        if (!bit) return
+        if (GARMENT_WORD.test(bit)) absorbOutfit(bit)
+        else absorbTrait(looks, bit)
+      })
+    })
+    person.look = looks.join(', ')
+    person.outfit = outfits.join(', ')
+  })
   if (!characters.length && !skippedFlagged) warnings.push({ code: 'missing_character', message: 'No character name found.', target: 'characters' })
   return { characters, warnings, skippedFlagged }
 }
@@ -392,9 +515,14 @@ function detectPlaces(text, language) {
     if (namedFlag(match[2])) { skippedFlagged = true; continue }
     pushPlace(places, match[2], language === 'fr' ? `un ${match[1]}` : `a ${match[1].toLowerCase()}`, 'high', true)
   }
+  for (const match of source.matchAll(/\b(Rue|Street|Road|Avenue|Lane|Boulevard|Via|Rua|Strasse|Straße|Strada)\s+(\p{Lu}[\p{L}'’-]*)/gu)) {
+    if (isQuotedOrRemembered(source, match.index, language)) continue
+    if (namedFlag(match[2])) { skippedFlagged = true; continue }
+    pushPlace(places, `${match[1]} ${match[2]}`, language === 'fr' ? 'une rue' : 'a street', 'high', true)
+  }
   for (const match of source.matchAll(/\b((?:\p{Lu}[\p{L}'’-]*)(?:\s+\p{Lu}[\p{L}'’-]*){0,2})\s+(Street|Road|Avenue|Lane|Boulevard|Way|Rue)\b/gu)) {
     if (isQuotedOrRemembered(source, match.index, language)) continue
-    if (namedFlag(match[1])) { skippedFlagged = true; continue }
+    if (namedFlag(match[1]) || isNameNoise(match[1], language)) { if (namedFlag(match[1])) skippedFlagged = true; continue }
     pushPlace(places, `${match[1]} ${match[2]}`, language === 'fr' ? 'une rue' : 'a street', 'high', true)
   }
   for (const match of source.matchAll(/\b((?:village|town|market|city)\s+square)\b/giu)) {
@@ -419,6 +547,20 @@ function detectPlaces(text, language) {
     if (places.some(place => foldName(place.name) === foldName(name) || foldName(place.name) === head)) continue
     pushPlace(places, name, `a ${phrase}`, 'high', true)
   }
+  for (const phrase of ['loading dock', 'restoration lab', 'ferry deck', 'courier depot', 'quai de chargement', 'laboratoire de restauration', 'pont du ferry', 'cais de carga', 'laderampe', 'fährdeck', 'banchina di carico', '積み込み場', '装卸台', 'vineyard', 'vignoble', 'vinhedo', 'weinberg', 'vigna', 'ぶどう畑', '葡萄园', 'laboratory', 'laboratoire', 'laboratório', 'laboratorio', 'depot', 'entrepôt', 'depósito', 'deposito']) {
+    if (!new RegExp(`(?<![\\p{L}])${phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}])`, 'iu').test(source)) continue
+    const name = phrase.replace(/^\p{Ll}/u, char => char.toUpperCase())
+    if (places.some(place => foldName(place.name) === foldName(name))) continue
+    pushPlace(places, name, placeDescription(source, phrase, language, `a ${phrase}`), 'high', true)
+  }
+  for (const match of source.matchAll(/\b(?:in|at|on|inside|aboard|dans|sur|au|aux|im|auf|nel|nella|an|am)\s+(?:the\s+|a\s+|an\s+|le\s+|la\s+|les\s+|l['’])?((?:[\p{L}'’-]+\s+){0,2}(?:dock|lab|laboratory|deck|vineyard|depot|warehouse|hangar|clinic|platform|pier|laboratoire|vignoble|entrepôt|entrepot|cais|laboratorio|banchina|vigna|deposito|weinberg|quai))\b/giu)) {
+    if (isQuotedOrRemembered(source, match.index, language)) continue
+    const phrase = cleanText(match[1])
+    const name = phrase.replace(/^\p{Ll}/u, char => char.toUpperCase())
+    if (!name || places.some(place => foldName(place.name) === foldName(name))) continue
+    const described = placeDescription(source, phrase, language)
+    pushPlace(places, name, described, 'high', true)
+  }
   const folded = foldName(source)
   const covered = new Set(places.flatMap(place => tokens(place.name).map(foldName)))
   PLACES.forEach(place => {
@@ -426,7 +568,9 @@ function detectPlaces(text, language) {
     if (!hit) return
     if (covered.has(foldName(hit)) && places.some(item => foldName(item.name).includes(foldName(hit)) && foldName(item.name) !== foldName(hit))) return
     const preceded = place.keys.some(key => new RegExp(`(?:au|aux|dans|sur|chez|du|de|at|in|on|to|through)\\s+(?:la\\s+|le\\s+|l'|the\\s+)?(?:[\\p{L}'’-]+\\s+){0,2}${foldName(key)}(?=[^\\p{L}]|$)`, 'u').test(folded))
-    pushPlace(places, language === 'fr' ? place.fr : place.en, language === 'fr' ? place.frDesc : place.enDesc, preceded ? 'high' : 'medium')
+    const label = language === 'fr' ? place.fr : place.en
+    const canned = language === 'fr' ? place.frDesc : place.enDesc
+    pushPlace(places, label, placeDescription(source, hit, language, canned), preceded ? 'high' : 'medium')
   })
   const unknown = [...source.matchAll(/\b(?:at the|in the|through the|to the|au|dans la|dans le|sur la|sur le)\s+([\p{Ll}'’-]+(?:\s+[\p{Ll}'’-]+){0,2})/gu)]
   unknown.forEach(match => {
@@ -446,14 +590,47 @@ function detectPlaces(text, language) {
     if (venue.spans.every(([start]) => inSpans(start, quote))) return
     pushPlace(places, venue.name, venue.description, 'high', true)
   })
-  const visible = places.filter(place => {
+  let visible = places.filter(place => {
     if (venues.some(venue => foldName(venue.name).includes(foldName(place.name)) && foldName(venue.name) !== foldName(place.name))) return false
     if (place.trusted) return true
     const known = PLACES.find(item => item.fr === place.name || item.en === place.name)
     const keys = known ? known.keys : [place.name]
     return keys.some(key => placeMentionIsReal(source, key, language))
   })
+  if (!visible.length) {
+    const generic = genericPlace(language)
+    visible = [{ ...generic, confidence: 'low', trusted: true }]
+    if (!skippedFlagged) warnings.push({ code: 'uncertain_place', message: `No place name found. Using ${generic.name}.`, target: 'places', name: generic.name, uncertain: true })
+  }
   return { places: visible, warnings, skippedFlagged }
+}
+
+const PLACE_ADJECTIVE = /^(?:small|little|tiny|old|quiet|busy|narrow|rainy|morning|evening|sunlit|dim|bright|warm|cold|windy|dusty|empty|crowded|sleepy|vast|white|dark|stone|wooden|petit|petite|vieux|vieille|calme|pluvieux|ensoleillé|ensoleille)$/i
+
+function placeDescription(source, key, language, fallback = '') {
+  const escaped = String(key || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const match = String(source || '').match(new RegExp(`((?:[\\p{L}'’-]+\\s+){1,4})${escaped}(?![\\p{L}])`, 'iu'))
+  if (match) {
+    const words = cleanText(match[1]).split(/\s+/).filter(word => PLACE_ADJECTIVE.test(word))
+    if (words.length) return `a ${words.join(' ')} ${key}`
+  }
+  const bare = foldName(fallback).replace(/^(?:a|an|the|un|une|le|la|les|der|die|das)\s+/, '')
+  if (fallback && bare !== foldName(key)) return fallback
+  return language === 'fr' ? 'nommé dans le texte' : 'named in the text'
+}
+
+function genericPlace(language) {
+  const table = {
+    fr: ['Le lieu', 'un lieu que le texte ne nomme pas'],
+    pt: ['O lugar', 'um lugar que o texto não nomeia'],
+    de: ['Der Ort', 'ein Ort, den der Text nicht nennt'],
+    it: ['Il luogo', 'un luogo che il testo non nomina'],
+    lb: ['D\'Plaz', 'eng Plaz, déi den Text net nennt'],
+    ja: ['場所', '文が名を挙げない場所'],
+    'zh-Hans': ['场景', '文中没有点名的地点']
+  }
+  const pair = table[language] || ['The setting', 'a place the text does not name']
+  return { name: pair[0], description: pair[1], uncertain: true }
 }
 
 function detectAmbience(text) {
@@ -484,7 +661,13 @@ function splitBlocks(text) {
 }
 
 function namesIn(text, characters) {
-  return characters.filter(character => tokens(text).some(token => foldName(token) === foldName(character.name)))
+  const source = String(text || '')
+  return characters.filter(character => {
+    const name = character?.name
+    if (!name) return false
+    const pattern = new RegExp(`(?<![\\p{L}])${String(name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}])`, 'iu')
+    return pattern.test(source)
+  })
 }
 
 function placeIn(text, places) {
@@ -624,6 +807,7 @@ export function detectProse(input, options = {}) {
   const foundPlaces = detectPlaces(text, language)
   const foundCharacters = detectCharacters(text, foundPlaces.places, language)
   const ambience = detectAmbience(text)
+  const openingLight = detectAmbience(sentencesOf(text)[0] || text).light
   const foundScenes = detectScenes(text, foundCharacters.characters, foundPlaces.places, language, flagged, options)
   const warnings = [...foundCharacters.warnings, ...foundPlaces.warnings, ...foundScenes.warnings]
   if (foundCharacters.skippedFlagged || foundPlaces.skippedFlagged) {
@@ -631,8 +815,8 @@ export function detectProse(input, options = {}) {
   }
   const scenario = {
     characters: foundCharacters.characters.map(({ name, look, outfit }) => ({ name, look, outfit })),
-    places: foundPlaces.places.map(({ name, description }) => ({ name, description })),
-    light: foundScenes.firstLight || ambience.light,
+    places: foundPlaces.places.map(({ name, description, uncertain }) => ({ name, description, ...(uncertain ? { uncertain: true } : {}) })),
+    light: foundScenes.firstLight || openingLight || ambience.light,
     mood: ambience.mood,
     scenes: foundScenes.scenes.map(({ number, who, where, what, duration, light }) => ({ number, who, where, what, duration, ...(light ? { light } : {}) }))
   }
@@ -650,7 +834,7 @@ export function detectProse(input, options = {}) {
     warnings,
     characters: foundCharacters.characters,
     places: foundPlaces.places,
-    light: foundScenes.firstLight || ambience.light,
+    light: foundScenes.firstLight || openingLight || ambience.light,
     mood: ambience.mood,
     scenes: foundScenes.scenes,
     cuts: options.splitScenes === false ? [] : (foundScenes.cuts || []),

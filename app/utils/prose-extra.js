@@ -1,7 +1,7 @@
 /** Rule-based prose detection beyond English and French. No model call. */
 import { cleanText } from './text.js'
 import { foldName, scenarioBudget, scenarioPremise, scenarioToFields } from './scenario.js'
-import { findPlaceCue, inNamedVenue, isFunctionWord, isNumberWord, isQuotedOrRemembered, isVenueType, namedVenues } from './scene-split.js'
+import { cueLight, findPlaceCue, inNamedVenue, isFunctionWord, isNumberWord, isQuotedOrRemembered, isVenueType, namedVenues } from './scene-split.js'
 
 const LEX = {
   pt: {
@@ -249,6 +249,7 @@ function findScenes(text, lex, characters, places, language) {
   const scenes = []
   let lastWho = characters[0]?.name || ''
   let lastWhere = places[0]?.name || ''
+  let light = ''
   sentences(text).forEach(sentence => {
     if (lex.meet.test(sentence) && (sentence.match(/,/g) || []).length >= 1 && !hasVerb(sentence.replace(lex.meet, ''), lex.verbs)) return
     if (!hasVerb(sentence, lex.verbs)) return
@@ -263,6 +264,8 @@ function findScenes(text, lex, characters, places, language) {
     const cue = findPlaceCue(action, language, records)
     const where = cue?.name || lastWhere
     if (where) lastWhere = where
+    const nextLight = cueLight(sentence, language)
+    if (nextLight) light = nextLight
     let confidence = foundNames.length && cue ? 'high' : 'medium'
     if (!where) {
       confidence = 'low'
@@ -272,7 +275,7 @@ function findScenes(text, lex, characters, places, language) {
       confidence = 'low'
       warnings.push({ code: 'missing_character', message: `No character found for scene ${scenes.length + 1}.`, target: 'scenes', index: scenes.length, options: characters.map(character => character.name) })
     }
-    scenes.push({ number: scenes.length + 1, who: who || '', where: where || '', what: action, duration: 3, confidence })
+    scenes.push({ number: scenes.length + 1, who: who || '', where: where || '', what: action, duration: 3, confidence, ...(light ? { light } : {}) })
   })
   return { scenes, warnings }
 }
@@ -284,14 +287,31 @@ function overall(parts) {
   return values.length ? 'high' : 'low'
 }
 
+function unnamedPlace(language) {
+  const table = {
+    pt: ['O lugar', 'um lugar que o texto não nomeia'],
+    de: ['Der Ort', 'ein Ort, den der Text nicht nennt'],
+    it: ['Il luogo', 'un luogo che il testo non nomina'],
+    lb: ['D\'Plaz', 'eng Plaz, déi den Text net nennt'],
+    ja: ['場所', '文が名を挙げない場所'],
+    'zh-Hans': ['场景', '文中没有点名的地点']
+  }
+  const pair = table[language] || ['The setting', 'a place the text does not name']
+  return { name: pair[0], description: pair[1], confidence: 'low', uncertain: true }
+}
+
 function pack(text, language, found) {
   const warnings = [...found.characters.warnings, ...found.places.warnings || [], ...found.scenes.warnings]
+  if (!found.places.length && found.characters.characters?.length && found.scenes.scenes?.length) {
+    found.places.push(unnamedPlace(language))
+    warnings.push({ code: 'uncertain_place', message: `No place name found. Using ${found.places.at(-1).name}.`, target: 'places', name: found.places.at(-1).name, uncertain: true })
+  }
   const scenario = {
     characters: found.characters.characters.map(({ name, look, outfit }) => ({ name, look, outfit })),
-    places: found.places.map(({ name, description }) => ({ name, description })),
+    places: found.places.map(({ name, description, uncertain }) => ({ name, description, ...(uncertain ? { uncertain: true } : {}) })),
     light: found.ambience.light,
     mood: found.ambience.mood,
-    scenes: found.scenes.scenes.map(({ number, who, where, what, duration }) => ({ number, who, where, what, duration }))
+    scenes: found.scenes.scenes.map(({ number, who, where, what, duration, light }) => ({ number, who, where, what, duration, ...(light ? { light } : {}) }))
   }
   const canonical = scenarioToFields(scenario)
   const budget = scenarioBudget([canonical.characters, canonical.places, canonical.scenes].join('\n'), found.scenes.scenes.length * 3)

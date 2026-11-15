@@ -67,8 +67,8 @@ export const BLOCKING_CODES = Object.freeze(new Set([
 ]))
 
 const COLOR_WORDS = ['black', 'brown', 'blonde', 'blond', 'red', 'ginger', 'auburn', 'silver', 'white', 'grey', 'gray', 'blue', 'green', 'pink', 'purple', 'navy', 'charcoal', 'oatmeal', 'rust', 'gold', 'amber', 'ash']
-const AGE_PATTERN = /\b((?:early|mid|late)\s+\d{1,2}s|\d{1,2}s)\b/i
-const HAIR_PATTERN = /\b(?:(?:short|long|curly|wavy|straight|black|brown|blonde|blond|red|grey|gray|silver|white|dark)\s+){0,3}(?:pixie cut|bob|bangs|braid|undercut|hair)\b/i
+const AGE_PATTERN = /\b((?:early|mid|late)\s+\d{1,2}s|\d{1,2}s|\d{1,3}|(?:twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)(?:-[a-z]+)?)\b/i
+const HAIR_PATTERN = /\b(?:(?:short|long|curly|wavy|straight|black|brown|blonde|blond|red|grey|gray|silver|white|dark|auburn|copper)\s+){0,4}(?:pixie cut|bob|bangs|braid|braids|undercut|hair|curls|bun)\b/i
 const FACE_PATTERN = /\b(?:(?:grey|gray|white|black|red|dark)\s+)?(?:stubble|beard|moustache|mustache)\b|\b(?:blue|green|brown|amber|hazel)\s+eyes\b/i
 const MARK_PATTERN = /\b(?:[\p{L}'’-]+\s+){0,3}(?:glasses|earrings?|scar|mole|tattoo|freckles|birthmark)\b/iu
 const ACCESSORY_PATTERN = /\b(?:[\p{L}'’-]+\s+){0,4}(?:scarf|scarves|glasses|earrings?|hat|cap|necklace|watch|gloves)\b/iu
@@ -319,7 +319,10 @@ function traitsFromDetection(character) {
   const age = (look.match(AGE_PATTERN) || [''])[0]
   const hair = (look.match(HAIR_PATTERN) || [''])[0]
   const face = (look.match(FACE_PATTERN) || [''])[0]
-  const mark = (look.match(MARK_PATTERN) || outfit.match(ACCESSORY_PATTERN) || [''])[0]
+  const marked = (look.match(MARK_PATTERN) || outfit.match(ACCESSORY_PATTERN) || [''])[0]
+  const used = [age, hair, face, marked].filter(Boolean)
+  const leftover = look.split(/\s*,\s*/).map(part => part.trim()).filter(part => part && !used.some(item => item === part || item.includes(part) || part.includes(item)))
+  const mark = [marked, ...leftover].filter(Boolean).join(', ')
   const level = character.confidence === 'high' || character.confidence === 'low' ? character.confidence : 'medium'
   const confidence = blankConfidence()
   const values = {

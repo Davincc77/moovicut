@@ -289,16 +289,7 @@ function scenesForPlan(detected) {
       cutKind: scene.cutKind || ''
     }
   })
-  if (scenes.length <= 48) return scenes
-  const required = []
-  const optional = []
-  scenes.forEach((scene, index) => {
-    if (index === 0 || scene.sceneCut) required.push(scene)
-    else optional.push(scene)
-  })
-  const room = Math.max(0, 48 - required.length)
-  const keep = new Set([...required, ...optional.slice(0, room)])
-  return scenes.filter(scene => keep.has(scene)).slice(0, 48)
+  return scenes
 }
 
 function planProse(input, { origin, compact }) {

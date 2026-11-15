@@ -105,6 +105,10 @@ const SEQUENCE = Object.freeze({
 })
 
 const TIME_RULES = [
+  { re: /(?<![\p{L}])(late that night|later that night|that night|tonight|last night|tard cette nuit|cette nuit-là|cette nuit|esta noite|essa noite|hoje à noite|heute nacht|heute abend|stanotte|quella notte|haut an der nuecht|その夜|夜遅く|那天夜里|那天晚上|深夜)(?![\p{L}])/iu, id: 'that-night', jump: 'part', light: 'night' },
+  { re: /(?<![\p{L}])(that morning|this morning|early that morning|ce matin-là|ce matin|esta manhã|hoje de manhã|heute morgen|stamattina|haut de moien|その朝|那天早上|那天早晨)(?![\p{L}])/iu, id: 'that-morning', jump: 'part', light: 'dawn' },
+  { re: /(?<![\p{L}])(that afternoon|this afternoon|cet après-midi|cet apres-midi|à tarde|a tarde|heute nachmittag|nel pomeriggio|その午後|那天下午)(?![\p{L}])/iu, id: 'that-afternoon', jump: 'part', light: 'day' },
+  { re: /(?<![\p{L}])(this evening|that evening|ce soir-là|ce soir|hoje à noite|heute abend|stasera|haut owes|その夕方|那天傍晚)(?![\p{L}])/iu, id: 'that-evening', jump: 'part', light: 'dusk' },
   { re: /(?<![\p{L}])(le lendemain|au lendemain|the next day|the next morning|no dia seguinte|am nächsten tag|am naechsten tag|il giorno dopo|den aneren dag|次の日|翌日|第二天|次日)(?![\p{L}])/iu, id: 'next-day', jump: 'day' },
   { re: /(?<![\p{L}])(trois jours plus tard|trois jours après|trois jours apres|three days later|três dias depois|tres dias depois|drei tage später|drei tage spater|tre giorni dopo|dräi deeg drop|dräi deeg méi spéit|三日後|三天后|三天之后)(?![\p{L}])/iu, id: 'plus-3d', jump: 'day' },
   { re: /(?<![\p{L}])(à l['’]aube|a l['’]aube|at dawn|au petit matin|en début de matinée|ao amanhecer|im morgengrauen|all['’]alba|am muergrauen|夜明け|黎明|拂晓)(?![\p{L}])/iu, id: 'dawn', jump: 'part', light: 'dawn' },
@@ -231,6 +235,12 @@ function collectVenues(source, language, found) {
     const tokens = clean.match(/[\p{L}][\p{L}'’-]+/gu) || []
     const nameTokens = tokens.filter(token => !isVenueType(token, language) && !isFunctionWord(token, language) && !isNumberWord(token, language))
     if (!nameTokens.length) return
+    const lastToken = nameTokens.at(-1)
+    const tokenAt = source.slice(start, end).lastIndexOf(lastToken)
+    if (tokenAt >= 0) {
+      const afterToken = source.slice(start + tokenAt + lastToken.length, start + tokenAt + lastToken.length + 24)
+      if (/^\s+(?:checks|walks|pours|waits|opens|lifts|sits|stands|reads|turns|enters|leaves|holds)\b/i.test(afterToken)) return
+    }
     found.push({
       name: clean.replace(/^\p{Ll}/u, char => char.toUpperCase()),
       type,
@@ -413,6 +423,8 @@ function collectPlaceCues(sentence, language, places) {
         const opener = clauseLooks(before, language, OPEN_PLACE)
         const weak = clauseLooks(before, language, WEAK_PLACE)
         if (!locative && !opener && !weak) continue
+        const afterKey = sentence.slice(index + key.length)
+        if (/^(?:\s+\p{L}[\p{L}'’-]*){0,3}\s+(?:window|door|table|wall|sill|pane|glass|frame|ledge|counter|desk|shutter|fenêtre|fenetre|porte|fenster|finestra|fënster|窗户|窗|窓)/iu.test(afterKey)) continue
         const cueStart = Math.max(0, index - 28)
         const cue = cleanText(sentence.slice(cueStart, index + key.length))
         hits.push({ name: place.name, key, cue, uncertain: Boolean(weak && !locative && !opener), index })
@@ -457,6 +469,11 @@ function clockOf(sentence, language) {
   if (marker.startsWith('p') && hour < 12) hour += 12
   if (marker.startsWith('a') && hour === 12) hour = 0
   return { hour, minute, minutes: hour * 60 + minute, cue: cleanText(match[0]) }
+}
+
+export function cueLight(sentence, language = 'en') {
+  const cue = timeCues(sentence, language).find(item => item.light)
+  return cue?.light || ''
 }
 
 function timeCues(sentence, language) {
@@ -521,6 +538,19 @@ function hasAction(sentence, language, extra) {
 
 const LOOK = new Set(['hair', 'cheveux', 'cabelo', 'haar', 'capelli', 'hoer', 'glasses', 'lunettes', 'oculos', 'brille', 'occhiali', 'beard', 'barbe', 'barba', 'bart', 'coat', 'manteau', 'casaco', 'mantel', 'cappotto', 'apron', 'tablier', 'avental', 'schuerze', 'grembiule', 'eyes', 'yeux', 'olhos', 'augen', 'occhi', 'face', 'visage', 'rosto', 'gesicht', 'viso', 'sweater', 'pull', 'pullover', 'maglione', 'shirt', 'chemise', 'camisa', 'hemd', 'camicia', 'dress', 'robe', 'vestido', 'kleid', 'vestito', 'hat', 'chapeau', 'hut', 'cappello', 'casquette', 'cap', 'scarf', 'echarpe', 'cachecol', 'schal', 'sciarpa', 'jacket', 'veste', 'boots', 'bottes', 'shoes', 'souliers'].map(word => foldName(word)))
 
+const STRONG_ACTION = /\b(walks?|runs?|enters?|leaves?|opens?|pours?|sits?|stands?|reads?|turns?|crosses?|gives?|hands?|waits?|checks?|lifts?|holds?|follows?|entre|sort|ouvre|verse|marche|lit|regarde|attend|porte|prend|donne|revient)\b/iu
+
+/** A sentence that only introduces a person. It fills the sheet and is not a shot. */
+export function isPortraitSentence(sentence) {
+  const raw = String(sentence || '').trim()
+  if (!raw || STRONG_ACTION.test(raw)) return false
+  if (isLookIntro(raw)) return true
+  if (/^\p{Lu}[\p{L}'’-]{1,40}(?:\s+\p{Lu}[\p{L}'’-]{1,40}){0,2}\s+is\s+/u.test(raw)) return true
+  if (/^(?:she|he|they|elle|il)\s+(?:has|have|had|wears?|wore|is wearing|a|porte)\b/iu.test(raw)) return true
+  if (/\b(?:nephew|niece|brother|sister|cousin|son|daughter|mother|father|uncle|aunt|neveu|nièce|niece|cousin|cousine|frère|soeur|sœur)\s+\p{Lu}[\p{L}'’-]+\s+is\b/iu.test(raw)) return true
+  return false
+}
+
 /** A name plus a list of looks. It fills the cast and is not a shot. */
 function isLookIntro(sentence) {
   const raw = String(sentence || '').trim()
@@ -556,7 +586,7 @@ function applyTime(cues, state) {
   for (const cue of cues) {
     if (cue.light) {
       state.light = cue.light
-      if (!state.firstLight) state.firstLight = cue.light
+      if (!state.firstLight && !state.started) state.firstLight = cue.light
     }
     state.timeLabel = cue.cue
     if (cue.jump === 'clock') {
@@ -625,11 +655,12 @@ export function splitNarrative(text, options = {}) {
     const times = timeCues(sentence, language)
     const sequence = sequenceCue(sentence, language)
     const cast = isCastLine(sentence)
-    const action = hasAction(sentence, language, extraVerbs) && !cast
+    const portrait = isPortraitSentence(sentence)
+    const action = hasAction(sentence, language, extraVerbs) && !cast && !portrait
     const firmPlace = place && !place.uncertain ? place : null
     const words = verbTokens(sentence).length
     const cueOnly = !action && !cast && !firmPlace && (times.length > 0 || Boolean(sequence)) && words <= 5
-    if (cast) {
+    if (cast || portrait) {
       if (firmPlace) state.place = firmPlace.name
       if (times.length) applyTime(times, state)
       return

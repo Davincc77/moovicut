@@ -954,5 +954,5 @@
   "Add a place or time cue, or merge this shot into the previous scene.": "补上地点或时间线索，或把这个镜头并回上一场。",
   "The time of day changes here without a cue.": "这里换了时段，但没有线索。",
   "Mark the time cue, or keep the previous time of day.": "标出时间线索，或保持上一个时段。",
-  "Free prose is split on place and time cues. A sequence word alone stays in the same scene. splitScenes defaults to true. Each cut has a cue and a reason. A character with no look still returns a board and a warning.": "自由散文按地点和时间线索切分。单独的顺序词留在同一场里。splitScenes 默认开启。每个切分都有线索和原因。没有外形的人物仍会返回分镜，并带一条警告。"
+  "Free prose is split on place and time cues. A sequence word alone stays in the same scene. splitScenes defaults to true. Each cut has a cue and a reason. A character with no look still returns a board and a warning. A sentence that only describes a person fills the character sheet and is not a shot. Age and a carried item stay in the lock line. A story with no named place still plans, and that place is marked uncertain. Time of day changes when the text changes it.": "自由散文按地点和时间线索切分。单独的顺序词留在同一场里。splitScenes 默认开启。每个切分都有线索和原因。没有外形的人物仍会返回分镜，并带一条警告。 只描写人物的句子写入人物表，不会变成镜头。年龄和随身物品留在锁定行里。没有写明地点的故事仍会规划，该地点标为不确定。一天中的时间随正文改变而改变。"
 }

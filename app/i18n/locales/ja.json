@@ -954,5 +954,5 @@
   "Add a place or time cue, or merge this shot into the previous scene.": "場所か時間の手がかりを足すか、このショットを前の場面に戻してください。",
   "The time of day changes here without a cue.": "手がかりなしに、時間帯がここで変わります。",
   "Mark the time cue, or keep the previous time of day.": "時間の手がかりを示すか、前の時間帯のままにしてください。",
-  "Free prose is split on place and time cues. A sequence word alone stays in the same scene. splitScenes defaults to true. Each cut has a cue and a reason. A character with no look still returns a board and a warning.": "自由な散文は場所と時間の手がかりで区切ります。順序の語だけなら同じ場面のままです。splitScenes の初期値は true です。各区切りには手がかりと理由があります。見た目のない人物でもボードは返り、警告が付きます。"
+  "Free prose is split on place and time cues. A sequence word alone stays in the same scene. splitScenes defaults to true. Each cut has a cue and a reason. A character with no look still returns a board and a warning. A sentence that only describes a person fills the character sheet and is not a shot. Age and a carried item stay in the lock line. A story with no named place still plans, and that place is marked uncertain. Time of day changes when the text changes it.": "自由な散文は場所と時間の手がかりで区切ります。順序の語だけなら同じ場面のままです。splitScenes の初期値は true です。各区切りには手がかりと理由があります。見た目のない人物でもボードは返り、警告が付きます。 人物を説明するだけの文は人物シートに入り、ショットにはなりません。年齢と携帯する品はロック行に残ります。場所が書かれていない物語も計画され、その場所は不確かと印が付きます。時刻は本文が変えたときに変わります。"
 }
