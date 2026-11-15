@@ -36,7 +36,7 @@ export function collectKeys(root = 'app') {
       keys.add(unescape(match[1]))
     }
   }
-  for (const file of ['app/pages/faq.vue', 'app/pages/index.vue', 'app/pages/[slug].vue']) {
+  for (const file of ['app/pages/faq.vue', 'app/pages/index.vue', 'app/pages/[slug].vue', 'app/pages/credits.vue']) {
     const source = readFileSync(file, 'utf8')
     for (const match of source.matchAll(/\[\s*'((?:\\'|[^'])*)'\s*,\s*'((?:\\'|[^'])*)'\s*\]/g)) {
       keys.add(unescape(match[1]))

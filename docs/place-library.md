@@ -6,6 +6,12 @@ A noun is either a **sure place** or **ambiguous**. A sure place can name the se
 
 Ambiguous tags record the other sense: `name`, `object`, `material`, or `other` (the lemma also belongs to a non-place synset). The audit lists live in `app/data/place-audit.json`. A library entry that is on those lists and is not tagged ambiguous fails `every library word that is also a common name, object, or material is tagged ambiguous`.
 
+## Licence of the shipped file
+
+`app/data/place-lexicon.json` is a compilation. It includes ShareAlike material from OpenWN-PT (Portuguese, CC BY-SA) and OdeNet (German, CC BY-SA 4.0). ShareAlike applies to those contributions, so the file is distributed under **Creative Commons Attribution-ShareAlike 4.0 International**. If you share the file or an adaptation of it, credit every source below and license the adaptation under CC BY-SA 4.0.
+
+The other sources are not ShareAlike, and their own terms still apply to their entries. English WordNet entries keep the [WordNet licence](https://wordnet.princeton.edu/license-and-commercial-use). French WOLF entries stay available under CeCILL-C as well as under the compilation licence. Italian MultiWordNet entries are CC BY 3.0. The Japanese and Chinese WordNets use WordNet-style licences that require attribution.
+
 ## Sources and licences
 
 | Language | Source | Licence |
@@ -14,7 +20,7 @@ Ambiguous tags record the other sense: `name`, `object`, `material`, or `other` 
 | French | WOLF, via Open Multilingual Wordnet 1.4, on those synsets | CeCILL-C |
 | Portuguese | OpenWN-PT, via Open Multilingual Wordnet 1.4 | CC BY-SA |
 | Italian | MultiWordNet, via Open Multilingual Wordnet 1.4 | CC BY 3.0 |
-| Japanese | Japanese Wordnet (NICT), via Open Multilingual Wordnet 1.4 | WordNet-style licence, attribution required |
+| Japanese | NICT Japanese Wordnet, via Open Multilingual Wordnet 1.4 | WordNet-style licence, attribution required |
 | Chinese | Chinese Open Wordnet, via Open Multilingual Wordnet 1.4 | WordNet-style licence |
 | German | OdeNet 1.3 hyponyms of place seeds (Gebäude, Zimmer, Straße, Gewässer, and the other seeds in the build script) | CC BY-SA 4.0 |
 

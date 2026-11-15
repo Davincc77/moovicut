@@ -1,7 +1,7 @@
 {
   "name": "moovicut-place-lexicon",
   "builtFrom": "Princeton WordNet 3.0 place-type hyponyms; Open Multilingual Wordnet 1.4 lemmas for French, Portuguese, Italian, Japanese, and Chinese on those synsets; OdeNet 1.3 hyponyms of German place seeds. A lemma that also belongs to a non-place synset, or to the audit list of names, objects, or materials, is tagged ambiguous.",
-  "license": "Compilation. English: WordNet License https://wordnet.princeton.edu/license-and-commercial-use . French WOLF: CeCILL-C. Portuguese OpenWN-PT: CC BY-SA. Italian MultiWordNet: CC BY 3.0. Japanese Wordnet: NICT WordNet-style licence. Chinese Open Wordnet: WordNet-style licence. German OdeNet: CC BY-SA 4.0. See docs/place-library.md.",
+  "license": "CC BY-SA 4.0 for this compilation, because it includes OpenWN-PT (CC BY-SA) and OdeNet (CC BY-SA 4.0). ShareAlike: if you share this file or an adaptation, credit the sources and use CC BY-SA 4.0. English: WordNet licence https://wordnet.princeton.edu/license-and-commercial-use . French WOLF: CeCILL-C (those French entries stay available under CeCILL-C). Portuguese OpenWN-PT: CC BY-SA. Italian MultiWordNet: CC BY 3.0. Japanese Wordnet: NICT WordNet-style licence. Chinese Open Wordnet: WordNet-style licence. German OdeNet: CC BY-SA 4.0. See docs/place-library.md.",
   "attribution": "Princeton University WordNet; Francis Bond and Kyonghee Paik, Open Multilingual Wordnet; WOLF; OpenWN-PT; MultiWordNet; NICT Japanese Wordnet; Chinese Open Wordnet; Melanie Siegel and Francis Bond, OdeNet.",
   "counts": {
     "en": {
