@@ -102,17 +102,25 @@ A `prompt` on an ad shot, an episode, or a step sets `promptEdited` and is kept 
 
 Send `regenerateShot` (or `shotId`) plus `project` or `storyboard` to rebuild one shot. Every other prompt stays as it was. A shot marked `promptEdited`, or a `prompt` included in that request, is kept unless `overwritePrompt` is true. The same action is **Regenerate this shot** in `/studio`, in every mode.
 
-`warnings` is added to a response only when a shot looks risky: too many actions for a short shot, on-screen text, a crowd, more than two people, a name that is not on the film sheet, two camera moves that fight each other, or a hand-off / very visible hands / held object (`hands_or_held_object`). Each warning has `shotId`, `order`, `code`, `message`, and `fix`. Warnings never reject the board. A default 5 × 3s plan has no `warnings` key.
+`warnings` is added to a response only when a shot looks risky: too many actions for a short shot, on-screen text, a crowd, more than two people, a name that is not on the film sheet, two camera moves that fight each other, a hand-off / very visible hands / held object (`hands_or_held_object`), a missing or contradicted character lock, a duplicated trait, an unknown character, an undeclared wardrobe change, more than one action (`several_actions`), or a missing framing term. Each warning has `shotId`, `order`, `code`, `message`, and `fix`. A warning with `fixId` is the one-click fix in `/studio`. Warnings never reject the board. A default 5 × 3s plan has no `warnings` key.
 
 ## Video prompt
 
 The text copied for the video model is **short by default**. Send `prompt_style` or `promptStyle` as `short` or `detailed`. An unknown value is 400 and lists the two allowed values.
 
-A short prompt is one shot, in this order: one style line from the preset; only the characters in that shot, each with two or three fixed traits from the film sheet (hair, outfit, a key prop); the place in a few words; the action; the camera, framing, and length. A shot with hands or a held object adds one line, `Simple hands, the held object stays the same shape.` When a character enters in a later shot, an earlier shot can say they are not yet in frame. It does not paste the full film sheet, a list of everyone who is absent, or the continuity paragraph. Aim for about 400–600 characters. The hard cap is about 700.
+A short prompt is one shot, in this order: one style line from the preset; only the characters in that shot, each with their full lock line; the place in a few words; the action; the camera, one English framing term, and the length. A shot with hands or a held object adds one line, `Simple hands, the held object stays the same shape.` When a character enters in a later shot, an earlier shot can say they are not yet in frame. It does not paste the full film sheet, a list of everyone who is absent, or the continuity paragraph. Aim for about 400–600 characters. The hard cap is about 700. The lock line is never the part that gets shortened.
 
-`prompt_style: "detailed"` keeps the previous long prompt, with the film sheet, the style preset block, and the continuity text in every shot. The same choice is the **Short / Detailed** control in `/studio`.
+`prompt_style: "detailed"` keeps the previous long prompt, with the film sheet, the style preset block, and the continuity text in every shot, and it also pastes the same lock line. The same choice is the **Short / Detailed** control in `/studio`.
 
-The film sheet, presets, and continuity data stay on the board, in the studio, and in `shotboard.compact.v1`. They are how the next shot stays consistent. They are no longer copied into every short video prompt.
+The film sheet, presets, and continuity data stay on the board, in the studio, and in `shotboard.compact.v1`. They are how the next shot stays consistent. A short prompt copies each character's lock line, not the whole sheet.
+
+## Character lock
+
+Each character has one lock line built from the film sheet: body or age, face, hair, outfit, colors, and distinctive marks. That line is pasted unchanged into every shot where the character appears, in short prompts, detailed prompts, scenario, quick idea, and `shotboard.compact.v1`. Edit it once on the character sheet. A wardrobe change is `states` on that character, `{ "fromOrder": 3, "change": "coat removed" }`. It replaces the outfit from that shot forward. The face, hair, and marks stay the same.
+
+Every shot gets one framing term from a fixed list, written in the prompt in English: `wide shot`, `medium shot`, `close-up`, `extreme close-up`, `high angle`, `low angle`, `over-the-shoulder`, `POV`, `tracking shot`, `static shot`, `crane shot`. Aliases such as plan d'ensemble, gros plan, plongée, contre-plongée, and amorce map to those English terms. The studio picker can change the term. One action per shot: a line with several verbs joined by and, then, or while, or more than one sentence of action, can be split into separate shots.
+
+The character sheet stores a turnaround (front, side, back), expressions, palette, outfit, props, and image slots for references you supply. Nothing is uploaded. Moovicut does not call an image or video API. Export a character packet as JSON or Markdown from `/studio`. `format: "agent"` includes `lockLine` and the sheet on each character.
 
 A prompt marked `promptEdited` is left untouched when the prompt style, mode, style preset, or model changes, and when **Regenerate this shot** runs. Reset still replaces that one prompt, and Undo puts the edit back. `overwritePrompt: true` is the explicit regenerate.
 

@@ -1,8 +1,10 @@
 /* Explicit imports keep these shared helpers available to the browser and the CLI. */
 import { createPreferences } from '../utils/preferences.js'
-import { applyModelProfile, applyStylePreset, canonicalAspect, canonicalModel, createStoryboard, normalizeProject, regenerateOneShot, regenerateShotPrompts, addShot, assignShotStages, refreshShotPrompt, retargetMode, serializeProject, STARTER, syncSequences, validateProject } from '../utils/prompt-engine.js'
+import { applyModelProfile, applyStylePreset, canonicalAspect, canonicalModel, createStoryboard, normalizeProject, regenerateOneShot, regenerateShotPrompts, addShot, assignShotStages, refreshShotPrompt, retargetMode, serializeProject, splitShotByAction, STARTER, syncSequences, validateProject } from '../utils/prompt-engine.js'
 import { profileFor } from '../utils/model-profiles.js'
-import { LIGHTS } from '../utils/scenario.js'
+import { findByName, foldName, LIGHTS } from '../utils/scenario.js'
+import { dedupePromptLine, insertLockLines, lockLinesForShot, normalizeStates } from '../utils/character-lock.js'
+import { ensureFramingInPrompt, suggestFraming, termById } from '../utils/framing.js'
 import { emptyLibrary, exportLibrary, importLibrary, readLibrary, saveCharacter, savePlace, saveStyle, writeLibrary } from '../utils/library.js'
 import { exportAgentBoard } from '../utils/agent-board.js'
 const clone = value => JSON.parse(JSON.stringify(value))
@@ -217,6 +219,74 @@ export function useProjectStore() {
       next.shots = updated.shots
     }, 'Style preset applied. Generated prompts now match it. Prompts you edited stay as you left them.')
   }
+  function setFraming(id, termId) {
+    const term = termById(termId)
+    if (!term) return
+    mutate(next => {
+      const index = next.shots.findIndex(shot => shot.id === id || shot.shot_id === id)
+      if (index < 0) throw new Error(`Shot not found: ${id}`)
+      const updated = { ...next.shots[index], framingTerm: term.id, framingChosen: true, framing: term.label }
+      next.shots[index] = refreshShotPrompt(updated, next, index)
+      syncSequences(next)
+    }, 'Framing updated. The English term is in the generated prompt.')
+  }
+  function applyShotFix(warning) {
+    if (!warning?.shotId) return
+    const fix = warning.fixId
+    if (fix === 'split-shot') {
+      const next = splitShotByAction(project.value, warning.shotId)
+      if (!next) { notify('This shot is already one action.', 'info'); return }
+      commit(next, 'Split into one action per shot.')
+      return
+    }
+    mutate(next => {
+      const index = next.shots.findIndex(shot => shot.id === warning.shotId || shot.shot_id === warning.shotId)
+      if (index < 0) return
+      let shot = { ...next.shots[index] }
+      if (fix === 'declare-wardrobe' && warning.name && warning.phrase && next.filmSheet) {
+        next.filmSheet = {
+          ...next.filmSheet,
+          characters: next.filmSheet.characters.map(item => foldName(item.name) === foldName(warning.name)
+            ? { ...item, states: normalizeStates([...(item.states || []), { fromOrder: shot.order || index + 1, change: warning.phrase }]) }
+            : item)
+        }
+      }
+      if (fix === 'add-character' && warning.name && next.filmSheet && !findByName(next.filmSheet.characters, warning.name)) {
+        next.filmSheet = { ...next.filmSheet, characters: [...next.filmSheet.characters, { name: warning.name, look: '', outfit: '' }] }
+      }
+      if (fix === 'apply-framing') {
+        const term = suggestFraming(shot)
+        shot = { ...shot, framingTerm: term.id, framingChosen: true, framing: term.label }
+        if (shot.promptEdited) shot = { ...shot, prompt: ensureFramingInPrompt(shot.prompt, term.label) }
+      }
+      if (fix === 'dedupe-traits') {
+        next.shots[index] = { ...shot, prompt: dedupePromptLine(shot.prompt), promptEdited: true }
+        syncSequences(next)
+        return
+      }
+      if (fix === 'insert-lock' && shot.promptEdited) {
+        next.shots[index] = { ...shot, prompt: insertLockLines(shot.prompt, lockLinesForShot(shot, next, index)), promptEdited: true }
+        syncSequences(next)
+        return
+      }
+      if (fix === 'drop-conflict' && warning.phrase) {
+        const cleaned = text => String(text || '').split(warning.phrase).join(warning.replacement || '').replace(/\s{2,}/g, ' ').trim()
+        shot = { ...shot, action: cleaned(shot.action), what: shot.what ? cleaned(shot.what) : shot.what }
+        if (shot.promptEdited) {
+          next.shots[index] = { ...shot, prompt: cleaned(shot.prompt), promptEdited: true }
+          syncSequences(next)
+          return
+        }
+      }
+      next.shots[index] = shot
+      const refreshAll = fix === 'declare-wardrobe' || fix === 'add-character'
+      next.shots = next.shots.map((item, itemIndex) => {
+        if (!refreshAll && itemIndex !== index) return item
+        return refreshShotPrompt(item, next, itemIndex, { overwrite: itemIndex === index && (fix === 'insert-lock' || fix === 'drop-conflict') })
+      })
+      syncSequences(next)
+    }, 'Continuity fix applied on this device.')
+  }
   function regenerateOne(id) {
     const result = regenerateOneShot(project.value, id)
     if (result.skipped) {
@@ -324,7 +394,7 @@ export function useProjectStore() {
   function libraryFile() { return exportLibrary(personalLibrary.value) }
   function replaceLibrary(text) { return rememberLibrary(importLibrary(text), 'Library imported on this device.') }
   function agentBoard() { return exportAgentBoard(project.value) }
-  const api = { project, hydrated, saving, saveState, settings, setPreference, attachReference, history, future, shotCount, duration, canUndo, hydrate, persist, commit, mutate, createNew, selectModel, applyPromptSettings, updateShot, updateShotFields, updateContinuity, patchFilmSheet, setSequenceMode, setStylePreset, regenerateOne, resetShotPrompt, restorePromptUndo, removeShot, moveShot, insertShot, addShotAtEnd, undo, redo, loadProject, removeSavedProject, resetWorkspace, restoreBackup, setIdentity, saveLocalIdentity, setGuestIdentity, importProject, rememberCharacter, rememberPlace, rememberStyle, libraryFile, replaceLibrary, agentBoard, serialized: computed(() => serializeProject(project.value)) }
+  const api = { project, hydrated, saving, saveState, settings, setPreference, attachReference, history, future, shotCount, duration, canUndo, hydrate, persist, commit, mutate, createNew, selectModel, applyPromptSettings, updateShot, updateShotFields, updateContinuity, patchFilmSheet, setSequenceMode, setStylePreset, setFraming, applyShotFix, regenerateOne, resetShotPrompt, restorePromptUndo, removeShot, moveShot, insertShot, addShotAtEnd, undo, redo, loadProject, removeSavedProject, resetWorkspace, restoreBackup, setIdentity, saveLocalIdentity, setGuestIdentity, importProject, rememberCharacter, rememberPlace, rememberStyle, libraryFile, replaceLibrary, agentBoard, serialized: computed(() => serializeProject(project.value)) }
   Object.defineProperty(api, 'promptUndo', { enumerable: true, get: () => promptUndo.value })
   Object.defineProperty(api, 'personalLibrary', { enumerable: true, get: () => personalLibrary.value })
   Object.defineProperty(api, 'identity', { enumerable: true, get: () => identity.value })
