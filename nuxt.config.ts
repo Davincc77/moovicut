@@ -1,5 +1,6 @@
 import { joinAppPath } from './app/utils/urls.js'
 import { socialPreviewMeta, upsertSocialMeta } from './app/utils/social-preview.js'
+import { hreflangEntries } from './app/i18n/logic.js'
 const baseURL = process.env.NUXT_APP_BASE_URL || '/'
 const siteOrigin = 'https://moovicut.studio'
 const socialPreview = socialPreviewMeta(siteOrigin, baseURL)
@@ -60,6 +61,10 @@ export default defineNuxtConfig({
       ],
       script: [
         {
+          innerHTML: `(function(){try{var q=new URLSearchParams(location.search).get('lang');var s='';try{s=localStorage.getItem('moovicut.language')||''}catch(e){}function g(t){t=String(t||'').toLowerCase().replace(/_/g,'-');if(t==='zh-hans'||t.indexOf('zh-hans-')===0||t==='zh-cn'||t.indexOf('zh-cn-')===0||t==='zh-sg'||t.indexOf('zh-sg-')===0||t==='zh')return 'zh-Hans';if(t.indexOf('pt')===0)return 'pt';if(t.indexOf('ja')===0)return 'ja';if(t.indexOf('fr')===0)return 'fr';if(t.indexOf('de')===0)return 'de';if(t.indexOf('lb')===0)return 'lb';if(t.indexOf('it')===0)return 'it';if(t.indexOf('en')===0)return 'en';return ''}var list=navigator.languages&&navigator.languages.length?navigator.languages:[navigator.language];var n='';for(var i=0;i<list.length&&!n;i++)n=g(list[i]);var allowed={en:1,'zh-Hans':1,pt:1,ja:1,fr:1,de:1,lb:1,it:1};var lang=allowed[q]?q:(allowed[s]?s:(n||'en'));document.documentElement.lang=lang;}catch(e){}})();`,
+          tagPosition: 'head'
+        },
+        {
           src: 'https://static.cloudflareinsights.com/beacon.min.js',
           type: 'module',
           tagPosition: 'bodyClose',
@@ -92,6 +97,12 @@ export default defineNuxtConfig({
         if (!html.includes('rel="canonical"')) html = html.replace('</head>', `<link rel="canonical" href="${url}"></head>`)
         if (!html.includes('property="og:url"')) html = html.replace('</head>', `<meta property="og:url" content="${url}"></head>`)
         html = upsertSocialMeta(html, siteOrigin, baseURL)
+        if (!html.includes('hreflang="x-default"')) {
+          const alternates = hreflangEntries({ origin: siteOrigin, path: url.replace(siteOrigin, '') || '/' })
+            .map(item => `<link rel="alternate" hreflang="${item.hreflang}" href="${item.href}">`)
+            .join('')
+          html = html.replace('</head>', `${alternates}</head>`)
+        }
         route.contents = html
       })
     }

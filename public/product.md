@@ -10,6 +10,10 @@ Scenario mode keeps one film sheet (characters, places, style, light) and resolv
 
 Saved projects stay in this browser. Export a JSON file to share or back up a project. The studio can also export or restore a local library backup of saved projects. Deleting a saved project asks for confirmation. There is no remote copy.
 
+## Languages
+
+The interface is available in English (default), Simplified Chinese, Portuguese, Japanese, French, German, Luxembourgish, and Italian. The header control is keyboard accessible, remembers the choice in this browser, and on a first visit follows `navigator.language` or stays in English. `?lang=` is the shareable form. Catalogs are `app/i18n/locales/*.json`, with the English string as the key. Shot prompts, lock lines, framing terms, and API fields stay English. Free-prose detection reads English and French only.
+
 ## Accounts
 
 There is no account and no profile page. The storyboard stays in this browser.

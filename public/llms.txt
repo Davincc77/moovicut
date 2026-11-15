@@ -2,7 +2,7 @@
 
 > Free, local-first storyboard and shot list. No account and no video rendering.
 
-Prompts work with Grok Imagine, Google, or any other AI image or video model. Moovicut does not render video.
+Prompts work with Grok Imagine, Google, or any other AI image or video model. Moovicut does not render video. The website UI is in English, Simplified Chinese, Portuguese, Japanese, French, German, Luxembourgish, and Italian (`?lang=`, stored as `moovicut.language`). Shot prompts, lock lines, framing terms, and API fields stay English. Free-prose detection reads English and French only and does not call a model.
 
 - [Product guide](product.md): local planning, storage, and output.
 - [FAQ](faq.md): models, local work, export, and storage.
