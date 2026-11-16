@@ -8,7 +8,6 @@ export const LOCALES = Object.freeze([
   { code: 'pt', htmlLang: 'pt', native: 'Português' },
   { code: 'ja', htmlLang: 'ja', native: '日本語' },
   { code: 'fr', htmlLang: 'fr', native: 'Français' },
-  { code: 'de', htmlLang: 'de', native: 'Deutsch' },
   { code: 'it', htmlLang: 'it', native: 'Italiano' }
 ])
 
@@ -30,7 +29,6 @@ export function matchLanguageTag(tag) {
   if (value.startsWith('pt')) return 'pt'
   if (value.startsWith('ja')) return 'ja'
   if (value.startsWith('fr')) return 'fr'
-  if (value.startsWith('de')) return 'de'
   if (value.startsWith('it')) return 'it'
   if (value.startsWith('en')) return 'en'
   return ''

@@ -34,11 +34,6 @@ test('R1 a shallow dish and a narrow bar are not places', () => {
   assert.equal(found.some(name => /^narrow$/i.test(name) || /^shallow$/i.test(name)), false, found.join(', '))
 })
 
-test('R2 a German garment is not the place', () => {
-  const body = plan('Ansgar Pfeiffenberger, 45 Jahre, grauer Pferdeschwanz, schwarzer Rollkragenpullover, trägt eine Notenmappe.\n\nAm Morgen wartet Ansgar im Amtsgericht. Ansgar legt die Notenmappe auf das Pult. Ansgar liest einen Brief.').body
-  assert.equal(places(body).includes('Rollkragenpullover'), false, places(body).join(', '))
-})
-
 test('R3 a later school does not replace the mine', () => {
   const body = plan(`${EN}\n\nAt dawn, Mara climbs down into the old tin mine. Mara taps the wall with a hammer. Mara reads a map.\n\nIn the evening, Mara walks to the tennis court behind the school. Mara serves the ball.`).body
   const where = wheres(body)
@@ -58,18 +53,6 @@ test('R5 Italian action sentences stay shots when the verb is not on a short lis
   const result = plan('Ludovica Ferraresi, 38 anni, caschetto nero, giacca di pelle rossa, porta una macchina fotografica.\n\nAl mattino Ludovica arriva al porto. Ludovica ripara una rete. Ludovica fotografa le barche. Ludovica accende la pipa.')
   assert.equal(result.status, 200, result.body.message)
   assert.ok(wheres(result.body).length >= 4, wheres(result.body).join(' | '))
-})
-
-test('R5b German action sentences stay shots when the verb is not on a short list', () => {
-  const result = plan('Gerlinde Haberkorn, 67 Jahre, weiße Hochsteckfrisur, grüner Lodenmantel, ein Gehstock.\n\nAm Morgen betritt Gerlinde die kleine Bank. Gerlinde unterschreibt ein Formular. Gerlinde zählt das Geld. Gerlinde liest einen Brief.')
-  assert.equal(result.status, 200, result.body.message)
-  assert.ok(wheres(result.body).length >= 4, wheres(result.body).join(' | '))
-})
-
-test('R6 a German full name stays one character', () => {
-  const found = detectProse('Gerlinde Haberkorn, 67 Jahre, weiße Hochsteckfrisur, grüner Lodenmantel, ein Gehstock.\n\nAm Morgen betritt Gerlinde die kleine Bank. Gerlinde unterschreibt ein Formular.')
-  assert.equal(found.characters.some(person => person.name === 'Haberkorn'), false, found.characters.map(person => person.name).join(', '))
-  assert.equal(found.characters.some(person => person.name === 'Gerlinde Haberkorn'), true)
 })
 
 test('R7 Chinese places are library nouns, not a six-character slice', () => {
@@ -110,14 +93,12 @@ test('R10 Japanese common nouns with が are not characters', () => {
 
 test('R11a adjectives and garments are not sure places', () => {
   for (const word of ['shallow', 'narrow', 'deep', 'stairs']) assert.notEqual(placeTag('en', word), 's', word)
-  assert.notEqual(placeTag('de', 'rollkragenpullover'), 's')
   assert.equal(placeTag('fr', 'son'), '')
 })
 
 test('R11b a locative noun is kept even when it was not copied from a test report', () => {
   const samples = [
     ['fr', 'Léonie entre dans le bois.', /bois/i],
-    ['de', 'Ansgar liest und wartet im Dorf.', /dorf/i],
     ['it', 'Giulia ha 40 anni e entra nella miniera. Giulia legge.', /miniera/i],
     ['pt', 'Rui tem 40 anos e entra na mina. Rui lê uma carta.', /mina/i]
   ]

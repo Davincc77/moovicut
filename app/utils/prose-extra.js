@@ -30,31 +30,6 @@ const LEX = {
     light: [[/\b(amanhecer|aurora)\b/i, 'dawn'], [/\b(crepúsculo|anoitecer|entardecer)\b/i, 'dusk'], [/\b(noite|meia-noite)\b/i, 'night'], [/\b(dia|manhã|tarde)\b/i, 'day']],
     mood: [[/\b(sorri|rir|riso)\b/i, 'playful'], [/\b(medo|ansioso)\b/i, 'uneasy'], [/\b(calmo|silêncio|triste)\b/i, 'quiet']]
   },
-  de: {
-    stop: ['der', 'die', 'das', 'den', 'dem', 'des', 'ein', 'eine', 'einen', 'einem', 'einer', 'und', 'mit', 'auf', 'in', 'im', 'am', 'an', 'zu', 'vom', 'von', 'ist', 'nicht', 'sie', 'er', 'ihm', 'ihr', 'anfang', 'brief', 'mantel', 'haar', 'tür', 'tuer', 'stoppeln'],
-    verbs: ['gibt', 'geben', 'liest', 'lesen', 'geht', 'gehen', 'sieht', 'sehen', 'läuft', 'kommt', 'öffnet', 'lacht', 'reicht', 'legt', 'nimmt', 'wartet', 'hebt', 'trägt', 'tragt', 'hält', 'halt', 'schaut', 'steht', 'sitzt', 'ruft', 'nickt', 'macht', 'sagt', 'bleibt', 'steigt'],
-    places: [
-      ['kai', 'Kai', 'ein Kai'],
-      ['café', 'Café', 'ein Café'],
-      ['cafe', 'Café', 'ein Café'],
-      ['straße', 'Straße', 'eine Straße'],
-      ['strasse', 'Straße', 'eine Straße'],
-      ['strand', 'Strand', 'ein Strand'],
-      ['wald', 'Wald', 'ein Wald'],
-      ['haus', 'Haus', 'ein Haus'],
-      ['park', 'Park', 'ein Park'],
-      ['bahnhof', 'Bahnhof', 'ein Bahnhof'],
-      ['küche', 'Küche', 'eine Küche'],
-      ['brücke', 'Brücke', 'eine Brücke']
-    ],
-    look: /(?:anfang \d+|\d+|kurzes [\p{L} -]{0,24}haar|graue stoppeln|stoppeln)/giu,
-    outfit: /(?:[\p{L}-]+ )?[\p{L}-]*mantel\b/giu,
-    feminine: ['sie'],
-    masculine: ['er'],
-    meet: /\btrifft\b/i,
-    light: [[/\b(morgendämmerung|morgenrot)\b/i, 'dawn'], [/\b(abenddämmerung|dämmerung)\b/i, 'dusk'], [/\b(nacht|mitternacht)\b/i, 'night'], [/\b(tag|morgen|vormittag)\b/i, 'day']],
-    mood: [[/\b(lacht|lachen)\b/i, 'playful'], [/\b(angst|unruhig)\b/i, 'uneasy'], [/\b(still|traurig|ruhe)\b/i, 'quiet']]
-  },
   it: {
     stop: ['il', 'lo', 'la', 'i', 'gli', 'le', 'un', 'una', 'uno', 'di', 'del', 'della', 'dei', 'in', 'nel', 'nella', 'sul', 'sulla', 'e', 'che', 'con', 'per', 'non', 'lei', 'lui', 'si', 'da', 'dalla'],
     verbs: ['porge', 'porgere', 'legge', 'leggere', 'allontana', 'allontanarsi', 'guarda', 'guardare', 'entra', 'esce', 'cammina', 'corre', 'sorride', 'dà', 'da', 'apre', 'aspetta', 'prende'],
@@ -146,7 +121,6 @@ function findCharacters(text, lex, places, language) {
     const token = nameOf(words[index][0])
     if (!/^\p{Lu}/u.test(token)) continue
     if (isQuotedOrRemembered(text, words[index].index, language) || isFunctionWord(token, language) || isNumberWord(token, language) || isVenueType(token, language) || inNamedVenue(text, words[index].index, language)) continue
-    if (language === 'de' && /(?:im|am|beim|zum|zur|ins|aufs|vom|der|die|das|dem|den|des|ein|eine|einem|einer|einen)\s+$/iu.test(text.slice(Math.max(0, words[index].index - 16), words[index].index))) continue
     const parts = [token]
     let cursor = index
     while (parts.length < 3 && cursor + 1 < words.length) {
@@ -175,12 +149,7 @@ function findCharacters(text, lex, places, language) {
     const window = traitWindow(text, name, [...counts.values()].map(item => [...item.forms.keys()][0]))
     const look = harvest(window, lex.look)
     const outfit = harvest(window, lex.outfit)
-    const label = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    const german = language === 'de' && (
-      new RegExp(`(?<![\\p{L}])${label}(?![\\p{L}])\\s*,\\s*(?:\\d|Anfang)`, 'iu').test(text)
-      || new RegExp(`(?<!\\b(?:der|die|das|dem|den|des|ein|eine|einer|einem|einen|im|am|beim|zum|zur|ins|aufs|vom)\\s)${label}(?![\\p{L}])\\s+(?:${lex.verbs.join('|')})\\b`, 'iu').test(text)
-    )
-    const keep = language === 'de' ? (german || look.length > 0) : (entry.count >= 2 || look.length || outfit.length)
+    const keep = entry.count >= 2 || look.length || outfit.length
     if (!keep) continue
     let confidence = 'high'
     if (!look.length || !outfit.length) confidence = 'low'
@@ -303,7 +272,6 @@ function overall(parts) {
 function unnamedPlace(language) {
   const table = {
     pt: ['O lugar', 'um lugar que o texto não nomeia'],
-    de: ['Der Ort', 'ein Ort, den der Text nicht nennt'],
     it: ['Il luogo', 'un luogo che il testo non nomina'],
     ja: ['場所', '文が名を挙げない場所'],
     'zh-Hans': ['场景', '文中没有点名的地点']

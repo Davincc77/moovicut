@@ -61,22 +61,6 @@ const RULES = {
     functions: ['Então', 'Depois', 'Ela', 'Nos'],
     neverPlaces: ['olho', 'olhos', 'manga', 'silêncio', 'luz', 'desenho']
   },
-  de: {
-    places: [{ name: 'Küche', keys: ['küche', 'kuche'] }, { name: 'Bahnhof', keys: ['bahnhof'] }, { name: 'Strand', keys: ['strand'] }],
-    opening: 'Maya liest einen Brief im Bahnhof.',
-    combined: 'Danach, in der Küche, um 10 Uhr, öffnet Maya den Kühlschrank.',
-    sequence: 'Dann gießt sie Wasser ein.',
-    cueOnly: 'Am nächsten Tag.',
-    silence: 'Sie wartet in der Stille.',
-    memory: 'Sie denkt an den Strand.',
-    dialogue: 'Er sagt: "Wir sollten an den Strand gehen."',
-    eyes: 'Sie sieht in seine Augen.',
-    closeClock: 'Um 10:05 Uhr lächelt sie.',
-    uncertain: 'Sie geht in Richtung Bahnhof.',
-    glance: 'Sie blickt zur Straße, ohne zu verlassen.',
-    functions: ['Dann', 'Danach', 'Wir', 'So'],
-    neverPlaces: ['auge', 'augen', 'ärmel', 'stille', 'licht', 'zeichnung']
-  },
   it: {
     places: [{ name: 'Cucina', keys: ['cucina'] }, { name: 'Stazione', keys: ['stazione'] }, { name: 'Spiaggia', keys: ['spiaggia'] }],
     opening: 'Maya legge una lettera nella stazione.',
@@ -362,7 +346,6 @@ const NUMBER_CASES = [
   ['en', 'Three days later. Kenji, round steel glasses, rust-red cardigan, waits in the kitchen.', 'Three'],
   ['fr', 'Trois jours plus tard. Hélène, lunettes fines, attend dans la cuisine.', 'Trois'],
   ['pt', 'Três dias depois. Inês espera na cozinha. Inês sorri.', 'Três'],
-  ['de', 'Drei Tage später. Otto wartet in der Küche. Otto liest.', 'Drei'],
   ['it', 'Tre giorni dopo. Giulia aspetta in cucina. Giulia sorride.', 'Tre'],
   ['ja', '三日後。麻耶は厨房で待つ。', '三'],
   ['zh-Hans', '三天后。玛雅在厨房等。', '三']
@@ -383,7 +366,6 @@ const VENUE_CASES = [
   ['en', "After that, in Harbottle's bookshop, they sit down by the window.", "Harbottle's bookshop", 'Harbottle'],
   ['en', 'Atlas bookshop opens at dawn. Maya opens the door.', 'Atlas bookshop', 'Atlas'],
   ['en', 'In the Blue Moon bar, Bridget waits.', 'Blue Moon bar', 'Moon'],
-  ['de', 'In der Bäckerei Krause öffnet Otto die Tür.', 'Bäckerei Krause', 'Krause'],
   ['pt', 'Na livraria Atlas, Inês abre a porta.', 'Livraria Atlas', 'Atlas'],
   ['it', 'Nella libreria Atlas, Giulia apre la porta.', 'Libreria Atlas', 'Atlas'],
   ['ja', '麻耶は光書店でドアを開ける。', '光書店', '光'],
@@ -528,16 +510,6 @@ test('an article inside a venue name is not a later place cue', () => {
   const frenchSequence = []
   frenchPlaces.forEach(place => { if (frenchSequence[frenchSequence.length - 1] !== place) frenchSequence.push(place) })
   assert.deepEqual(frenchSequence.map(foldName), ['bureau', 'brasserie les tilleuls', 'bureau'])
-  const german = splitNarrative('Otto liest im Büro. Danach, in der Galerie Der Falke, hängt Otto eine Skizze. Dann, im Büro, öffnet Otto die Schublade. Acht Tassen stehen in der Vitrine.', {
-    language: 'de',
-    places: [
-      { name: 'Büro', keys: ['Büro'] },
-      { name: 'Galerie Der Falke', keys: ['Galerie Der Falke', 'Der', 'Falke'] }
-    ]
-  })
-  const germanSequence = []
-  german.shots.forEach(shot => { if (germanSequence[germanSequence.length - 1] !== shot.where) germanSequence.push(shot.where) })
-  assert.deepEqual(germanSequence, ['Büro', 'Galerie Der Falke', 'Büro'])
   const spanishArticle = splitNarrative('Nora reads in the office. After that, in the hotel El Nido, Nora hangs a key. Then, in the office, Nora opens the drawer.', {
     language: 'en',
     places: [

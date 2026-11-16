@@ -47,12 +47,6 @@ test('a Japanese name longer than four kanji and containing 一 is kept', () => 
   assert.equal(result.body.filmSheet.characters.some(person => person.name === '中村宗一郎'), true)
 })
 
-test('a German time phrase is not a character', () => {
-  const found = detectProse('Henrike Sauerbrey, 44 Jahre, kurze graue Haare, grüne Regenjacke, trägt einen Rucksack. Am Abend gehen beide ins Kino.')
-  assert.equal(found.characters.some(person => /abend/i.test(person.name)), false)
-  assert.match(found.scenes.at(-1).where, /kino/i)
-})
-
 test('a place kanji does not match inside a longer Japanese name', () => {
   const hits = libraryHits('姪の小野寺さゆりは十歳。', 'ja').map(hit => hit.lemma)
   assert.equal(hits.includes('小野'), false)

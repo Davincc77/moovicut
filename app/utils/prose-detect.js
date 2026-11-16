@@ -47,7 +47,6 @@ const FR_MARK = /\b(le|la|les|un|une|des|dans|elle|il|avec|sur|au|aux|et|est|son
 const EN_MARK = /\b(the|and|she|he|with|on|in|at|her|his|is)\b/gi
 const OTHER_MARKS = Object.freeze({
   pt: /\b(ela|ele|eles|elas|uma|não|nao|com|seu|sua|num|numa|pelo|pela|está|esta|encontra|entrega|dele|dela|cais|lê|le|tem|anos|entra|na|ao|à|do|da|dos|das)\b/gi,
-  de: /\b(und|sie|der|die|das|ein|eine|mit|ist|nicht|ihm|einen|dem|den|am|im|vom|trifft|gibt|liest)\b/gi,
   it: /\b(lei|lui|una|uno|con|nel|nella|sul|sulla|che|non|gli|alla|allo|alle|dello|della|degli|delle|del|di|ha|anni|per|sono|incontra|porge|legge|cappotto|molo|lettera|più|piu|questo|questa)\b/gi
 })
 
@@ -75,10 +74,10 @@ function languageScores(text) {
   const ranked = Object.entries(scores).sort((a, b) => b[1] - a[1])
   const [top, topScore] = ranked[0]
   const second = ranked[1]?.[1] || 0
-  if (italianOnly >= 2 && scores.it >= 2 && scores.it >= Math.max(scores.pt || 0, scores.de || 0)) {
+  if (italianOnly >= 2 && scores.it >= 2 && scores.it >= (scores.pt || 0)) {
     return { language: 'it', score: scores.it, second: Math.max(fr, en, second) }
   }
-  if ((top === 'pt' || top === 'de' || top === 'it') && topScore >= 2 && topScore > Math.max(fr, en)) {
+  if ((top === 'pt' || top === 'it') && topScore >= 2 && topScore > Math.max(fr, en)) {
     return { language: top, score: topScore, second: Math.max(fr, en, second) }
   }
   return { language: fr > en ? 'fr' : 'en', score: Math.max(fr, en), second }
@@ -844,7 +843,6 @@ function genericPlace(language) {
   const table = {
     fr: ['Le lieu', 'un lieu que le texte ne nomme pas'],
     pt: ['O lugar', 'um lugar que o texto não nomeia'],
-    de: ['Der Ort', 'ein Ort, den der Text nicht nennt'],
     it: ['Il luogo', 'un luogo che il testo non nomina'],
     ja: ['場所', '文が名を挙げない場所'],
     'zh-Hans': ['场景', '文中没有点名的地点']
@@ -1019,7 +1017,7 @@ function detectScenes(text, characters, places, language, flagged, options = {})
     const pronounWho = whoFromPronoun(shot.what, characters, genders, language)
     const who = canonicalWho(foundNames.length ? foundNames.map(item => item.name).join(' and ') : (pronounWho || shot.who), characters)
     const head = locativeHeads(shot.what, language).find(item => item.moves !== false && mentionMovesScene(shot.what, item.index, language))
-    const genericWhere = /^(?:Le lieu|The setting|Der Ort|O lugar|Il luogo|場所|场景)$/u.test(shot.where || '')
+    const genericWhere = /^(?:Le lieu|The setting|O lugar|Il luogo|場所|场景)$/u.test(shot.where || '')
     const flaggedOnly = riskNamesOnly(shot.what, flagged)
     let confidence = 'high'
     if (!foundNames.length) confidence = 'medium'

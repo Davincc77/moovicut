@@ -11,15 +11,15 @@ function fold(value) {
   return String(value || '').trim().toLowerCase().replace(/’/g, "'")
 }
 
-test('the place library covers the seven site languages and records its sources', () => {
-  assert.deepEqual(placeLibraryLanguages().sort(), ['de', 'en', 'fr', 'it', 'ja', 'pt', 'zh-Hans'])
+test('the place library covers the six site languages and records its sources', () => {
+  assert.deepEqual(placeLibraryLanguages().sort(), ['en', 'fr', 'it', 'ja', 'pt', 'zh-Hans'])
   for (const language of placeLibraryLanguages()) {
     const count = placeLibraryCounts()[language]
     assert.ok(count.total >= 200, `${language} ${count.total}`)
     assert.ok(count.sure > 0 && count.ambiguous > 0, language)
   }
   assert.match(data.license, /WordNet/)
-  assert.match(data.license, /OdeNet/)
+  assert.doesNotMatch(data.license, /OdeNet/)
   assert.match(data.license, /CC BY-SA/)
   assert.match(data.attribution, /Bond/)
 })
@@ -27,7 +27,6 @@ test('the place library covers the seven site languages and records its sources'
 test('every library word that is also a name, object, material, adjective, or garment is not a sure place, and a determiner is not a place', () => {
   const failures = []
   const suffixes = {
-    de: ['pullover', 'jacke', 'mantel', 'weste', 'hemd', 'hose', 'kleid', 'schal', 'bluse', 'muetze', 'mütze', 'stiefel'],
     en: ['sweater', 'pullover', 'jacket', 'blouse', 'scarf', 'apron', 'turtleneck'],
     fr: ['manteau', 'écharpe', 'echarpe'],
     it: ['maglione', 'giacca', 'cappotto', 'sciarpa'],
@@ -57,7 +56,6 @@ test('every library word that is also a name, object, material, adjective, or ga
   assert.notEqual(placeTag('en', 'shallow'), 's')
   assert.notEqual(placeTag('en', 'narrow'), 's')
   assert.notEqual(placeTag('en', 'stairs'), 's')
-  assert.notEqual(placeTag('de', 'rollkragenpullover'), 's')
   assert.deepEqual(failures, [])
 })
 
@@ -95,7 +93,6 @@ test('each site language reads a locative place from the library', () => {
   const cases = [
     ['en', 'Nia waits in the greenhouse. Nia reads.', /greenhouse/i],
     ['fr', 'Apolline, 40, cheveux courts, manteau gris, attend dans la serre. Apolline lit.', /serre/i],
-    ['de', 'Hannelore, 60, graue Locken, wartet in der Küche. Hannelore liest den Brief.', /küche/i],
     ['pt', 'Rui, 40, barba grisalha, casaco azul, espera na cozinha. Ele lê uma carta.', /cozinha/i],
     ['it', 'Giulia, 29, capelli neri, cappotto blu, aspetta nella cucina. Giulia legge.', /cucina/i],
     ['ja', '美咲は台所で待つ。美咲は手紙を読む。', /台所/],

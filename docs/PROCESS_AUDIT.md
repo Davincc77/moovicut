@@ -1,5 +1,7 @@
 # Process audit
 
+German (`de`) is not a supported language. The six languages are English, Simplified Chinese, Portuguese, Japanese, French, and Italian. A `promptLanguage` of `de` is HTTP 400 `invalid_prompt_language`, the same as any other code outside that list, and the message lists the six codes. `?lang=de`, a stored `de`, and a browser tag of `de` or `de-LU` are skipped, the same way `es` is skipped. The notes below are the audit from before German was removed. Those German rules no longer run.
+
 Audit of the planner on this branch, done before the place, Chinese, and German fixes in the same change. Each stage says what the code does, what was checked, and the bug or doc mismatch found. Fixes are covered by `tests/process-audit.test.mjs` plus the existing suite.
 
 ## 1. Input parsing, per language

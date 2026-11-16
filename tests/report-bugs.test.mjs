@@ -52,19 +52,6 @@ test('D3 a French material is not a place', () => {
   assert.ok(found.places.some(place => /rue/i.test(place.name)))
 })
 
-test('D4 German nouns are not people and the actions stay', () => {
-  const text = 'Hannelore, 60, graue Locken, wartet in der Küche. Sie hebt den Kristall. Hannelore liest den Brief. Hannelore geht zur Tür. Am Morgen wartet Hannelore. In der Nacht liest Hannelore.'
-  const found = detectProse(text)
-  assert.equal(found.language, 'de')
-  assert.deepEqual(names(found), ['Hannelore'])
-  assert.ok(found.scenes.length >= 4, found.scenes.map(scene => scene.what).join(' | '))
-  assert.equal(found.places.some(place => /locken|kristall/i.test(place.name)), false)
-  const morning = found.scenes.find(scene => /morgen/i.test(scene.what))
-  const night = found.scenes.find(scene => /nacht/i.test(scene.what))
-  assert.equal(morning?.light, 'dawn')
-  assert.equal(night?.light, 'night')
-})
-
 test('D5 Japanese without quotes keeps the person, the place, and more than one shot', () => {
   const text = '佐伯美咲は台所で待つ。美咲は手紙を読む。二人は座る。'
   const found = detectProse(text)
@@ -140,7 +127,7 @@ test('D10 a locative place noun is kept when it is in the lexicon', () => {
   assert.equal(found.places.some(place => /setting/i.test(place.name)), false)
 })
 
-test('D11 the public guide lists seven languages and does not mention the removed checker', () => {
+test('D11 the public guide lists six languages and does not mention the removed checker', () => {
   const full = readFileSync('public/llms-full.txt', 'utf8')
   const llms = readFileSync('public/llms.txt', 'utf8')
   const readme = readFileSync('README.md', 'utf8')
@@ -148,6 +135,6 @@ test('D11 the public guide lists seven languages and does not mention the remove
     assert.doesNotMatch(text, /Luxembourgish|\blb\b|verifier|roberta-ner|MOOVICUT_NER|zero AI/i)
   }
   assert.doesNotMatch(full, /English and French only/i)
-  assert.match(full, /English, Simplified Chinese, Portuguese, Japanese, French, German, and Italian/)
+  assert.match(full, /English, Simplified Chinese, Portuguese, Japanese, French, and Italian/)
   assert.match(full, /40 shots/)
 })

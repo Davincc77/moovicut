@@ -36,19 +36,3 @@ test('a Chinese semicolon is its own sentence', () => {
   assert.equal(found.language, 'zh-Hans')
   assert.ok(found.scenes.length >= 2)
 })
-
-test('a German compound after im is a place, and a separable particle is not a name', () => {
-  const found = detectProse('Im Bootshaus wartet Lena. Lena liest einen Brief. Lena geht hinaus.')
-  assert.equal(found.language, 'de')
-  assert.equal(found.characters.some(person => /bootshaus|hinaus/i.test(person.name)), false)
-  assert.ok(found.characters.some(person => person.name === 'Lena'))
-  assert.ok(found.places.some(place => /bootshaus/i.test(place.name)) || found.scenes.some(scene => /bootshaus/i.test(scene.where || '')))
-  assert.equal(locativeHeads('Im Bootshaus wartet Lena.', 'de').map(head => head.name).join(' '), 'Bootshaus')
-})
-
-test('a German noun after an article is not a person', () => {
-  const found = detectProse('In der Küche steht Otto. Otto liest einen Brief und geht hinaus.')
-  assert.equal(found.language, 'de')
-  assert.equal(found.characters.some(person => /küche/i.test(person.name)), false)
-  assert.ok(found.scenes.some(scene => /küche/i.test(scene.where || '')))
-})

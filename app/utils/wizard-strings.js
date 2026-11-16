@@ -96,7 +96,6 @@ export const WIZARD_STRINGS = Object.freeze({
   'detect.language.en': 'English',
   'detect.language.fr': 'French',
   'detect.language.pt': 'Portuguese',
-  'detect.language.de': 'German',
   'detect.language.it': 'Italian',
   'detect.language.ja': 'Japanese',
   'detect.language.zh-Hans': 'Chinese',

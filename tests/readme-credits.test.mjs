@@ -25,7 +25,7 @@ test('the served README matches the repository README and the agent files link i
     assert.match(text, /chapter/i, file)
     assert.match(text, /rule-based|does not call a model/i, file)
     assert.match(text, /place library|place-lexicon/i, file)
-    assert.match(text, /English, Simplified Chinese, Portuguese, Japanese, French, German, and Italian|English, Simplified Chinese \(zh-Hans\), Portuguese, Japanese, French, German, and Italian/, file)
+    assert.match(text, /English, Simplified Chinese, Portuguese, Japanese, French, and Italian|English, Simplified Chinese \(zh-Hans\), Portuguese, Japanese, French, and Italian/, file)
   }
   assert.match(read('app/pages/readme.vue'), /README\.md\?raw/)
   assert.match(read('app/components/SiteFooter.vue'), /pageHref\('credits'\)/)
@@ -49,7 +49,7 @@ test('the credits page names every place-library source and the ShareAlike licen
   const docs = read('docs/place-library.md')
   const readme = read('README.md')
   for (const text of [page, docs, readme]) {
-    for (const name of ['Princeton WordNet', 'Open Multilingual Wordnet', 'WOLF', 'CeCILL-C', 'OpenWN-PT', 'MultiWordNet', 'NICT Japanese Wordnet', 'Chinese Open Wordnet', 'OdeNet', 'CC BY-SA 4.0']) {
+    for (const name of ['Princeton WordNet', 'Open Multilingual Wordnet', 'WOLF', 'CeCILL-C', 'OpenWN-PT', 'MultiWordNet', 'NICT Japanese Wordnet', 'Chinese Open Wordnet', 'CC BY-SA 4.0']) {
       assert.match(text, new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), name)
     }
   }

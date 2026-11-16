@@ -95,7 +95,6 @@ const STRONG = Object.freeze({
   en: ['in', 'at', 'on', 'inside', 'into', 'within', 'through', 'to', 'reaches', 'reach'],
   fr: ['dans', 'au', 'aux', 'à', 'chez', 'sur'],
   pt: ['em', 'no', 'na', 'nos', 'nas', 'num', 'numa', 'ao', 'à', 'aos', 'às', 'dentro', 'entra', 'chega'],
-  de: ['in', 'im', 'am', 'an', 'auf', 'bei', 'ins', 'zum', 'zur', 'beim', 'betritt', 'betrat'],
   it: ['in', 'nel', 'nello', 'nella', 'negli', 'nelle', 'sul', 'sullo', 'sulla', 'sui', 'sugli', 'sulle', 'al', 'allo', 'alla', 'ai', 'agli', 'alle', 'dentro', 'entra', 'entro', 'arriva', 'apre']
 })
 const ARTICLE = new Set(['the', 'a', 'an', 'le', 'la', 'les', 'un', 'une', 'des', 'du', 'o', 'os', 'as', 'um', 'uma', 'der', 'die', 'das', 'dem', 'den', 'ein', 'eine', 'einem', 'einer', 'einen', 'il', 'lo', 'gli', 'i', 'del', 'della', 'dei', 'delle', 'his', 'her', 'their', 'son', 'sa', 'ses', 'mon', 'ma', 'mes', 'seu', 'sua', 'suo', 'mio', 'mia', 'l', 'd'])
@@ -167,10 +166,9 @@ export function locativeHeads(text, language) {
       const upcoming = bareToken(tokens[look + 1]?.[0] || '').toLowerCase()
       if (preps.has(folded) || PHRASE_STOP.has(folded) || PRONOUN.has(folded) || WEAK_BEFORE.test(` ${folded} `)) break
       if (words.length && isVerbHead(upcoming) && !placeTag(lang, `${words.map(item => item.word).join(' ')} ${word}`)) break
-      const capitalName = lang !== 'de' && word[0] !== word[0].toLowerCase() && word[0] === word[0].toUpperCase()
+      const capitalName = word[0] !== word[0].toLowerCase() && word[0] === word[0].toUpperCase()
       if (!words.length && TIME_WORD.has(folded)) break
       if (!words.length && (isVerbHead(folded, upcoming) || ARTICLE.has(folded) || isModifierWord(word, lang) || capitalName)) continue
-      if (lang === 'de' && words.length) break
       if (capitalName || TIME_WORD.has(folded) || isVerbHead(folded, upcoming) || ARTICLE.has(folded) || SKIP_HEAD.has(folded) || POSITIONAL.has(folded) || NEVER_PLACE.has(folded) || word.length < 3) break
       words.push({ word, at: tokens[look].index })
     }
@@ -185,7 +183,7 @@ export function locativeHeads(text, language) {
     if (tag && UNUSABLE.has(tag)) continue
     if (!tag) {
       if (!DESTINATION.has(prep) && words.length === 1) continue
-      const namedPerson = lang !== 'de' && words.every(item => item.word[0] !== item.word[0].toLowerCase())
+      const namedPerson = words.every(item => item.word[0] !== item.word[0].toLowerCase())
       if (namedPerson) continue
       tag = 'unlisted'
     }
@@ -315,8 +313,6 @@ export function libraryHits(text, language) {
       if (headed.has(at)) break
       const before = source.slice(Math.max(0, at - 24), at)
       if (WEAK_BEFORE.test(before)) break
-      const original = tokens[index][0]
-      if (lang === 'de' && original[0] === original[0].toLowerCase()) break
       push(lemma, tag, at, false)
       index += size - 1
       break
