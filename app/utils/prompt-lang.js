@@ -1,7 +1,7 @@
 /** Prompt language for planner-written lines. English is returned unchanged. */
 import { PHRASES } from './prompt-phrases.js'
 
-export const PROMPT_LANGUAGES = Object.freeze(['en', 'zh-Hans', 'pt'])
+export const PROMPT_LANGUAGES = Object.freeze(['en', 'pt'])
 const CODES = new Set(PROMPT_LANGUAGES)
 
 export function readPromptLanguage(value) {
@@ -79,7 +79,6 @@ const BEATS = [
     fill(lang, where, when, who) {
       const at = phrase(lang, when)
       const table = {
-        'zh-Hans': `${where}的远景，${at}，${who}进入画面`,
         pt: `Um plano geral de ${where}, ${at}, com ${who} a entrar no quadro`,
       }
       return table[lang]
@@ -89,7 +88,6 @@ const BEATS = [
     re: /^(.+?) is readable in a closer frame, posture and expression clear\.?$/,
     fill(lang, who) {
       const table = {
-        'zh-Hans': `${who}在更近的景别里清晰可读，姿态和表情清楚`,
         pt: `${who} lê-se num plano mais próximo, postura e expressão claras`,
       }
       return table[lang]
@@ -99,7 +97,6 @@ const BEATS = [
     re: /^One new detail appears in (.+) and changes the next gesture\.?$/,
     fill(lang, where) {
       const table = {
-        'zh-Hans': `${where}里出现一个新细节，并改变下一个动作`,
         pt: `Um pormenor novo aparece em ${where} e muda o gesto seguinte`,
       }
       return table[lang]
@@ -109,7 +106,6 @@ const BEATS = [
     re: /^(.+?) stops as the situation turns\.?$/,
     fill(lang, who) {
       const table = {
-        'zh-Hans': `${who}在局势转向时停下`,
         pt: `${who} pára quando a situação vira`,
       }
       return table[lang]
@@ -119,7 +115,6 @@ const BEATS = [
     re: /^(.+?) says “(.+)”\.?$/,
     fill(lang, who, line) {
       const table = {
-        'zh-Hans': `${who}说“${line}”`,
         pt: `${who} diz “${line}”`,
       }
       return table[lang]
@@ -129,7 +124,6 @@ const BEATS = [
     re: /^(.+?) chooses a direction and moves through (.+)\.?$/,
     fill(lang, who, where) {
       const table = {
-        'zh-Hans': `${who}选定方向，穿过${where}`,
         pt: `${who} escolhe uma direcção e atravessa ${where}`,
       }
       return table[lang]
@@ -139,7 +133,6 @@ const BEATS = [
     re: /^The result of that choice is visible around (.+)\.?$/,
     fill(lang, who) {
       const table = {
-        'zh-Hans': `这个选择的结果在${who}周围可见`,
         pt: `O resultado dessa escolha vê-se à volta de ${who}`,
       }
       return table[lang]
@@ -150,7 +143,6 @@ const BEATS = [
     fill(lang, where, when) {
       const at = phrase(lang, when)
       const table = {
-        'zh-Hans': `${where}，${at}，安静停留`,
         pt: `Uma pausa quieta em ${where}, ${at}`,
       }
       return table[lang]
@@ -160,7 +152,6 @@ const BEATS = [
     re: /^The last image stays on (.+?) in (.+)\.?$/,
     fill(lang, who, where) {
       const table = {
-        'zh-Hans': `最后的画面停在${where}里的${who}上`,
         pt: `A última imagem fica em ${who} em ${where}`,
       }
       return table[lang]
@@ -173,7 +164,6 @@ const BEATS = [
       const beat = phrase(lang, stage)
       const rhythm = phrase(lang, pace)
       const table = {
-        'zh-Hans': `${who}在${at}的${where}完成${beat}这一拍，${rhythm}`,
         pt: `${who} faz o tempo ${beat} em ${where} à ${at}, ${rhythm}`,
       }
       return table[lang]
@@ -185,7 +175,6 @@ const BEATS = [
       const tone = phrase(lang, mood)
       const place = translateLocation(lang, location)
       const table = {
-        'zh-Hans': `独立的${tone}画面，${who}在${place}，镜头 ${number}`,
         pt: `Um quadro autónomo de ${tone} de ${who} em ${place}, plano ${number}`,
       }
       return table[lang]
@@ -195,35 +184,27 @@ const BEATS = [
 
 const LOCATIONS = [
   [/^a far edge of (.+)$/, {
-    'zh-Hans': place => `${place}的远处边缘`,
     pt: place => `uma margem distante de ${place}`,
   }],
   [/^a close corner of (.+)$/, {
-    'zh-Hans': place => `${place}的近角`,
     pt: place => `um canto próximo de ${place}`,
   }],
   [/^ground level at (.+)$/, {
-    'zh-Hans': place => `${place}的地面高度`,
     pt: place => `ao nível do chão em ${place}`,
   }],
   [/^an overhead view of (.+)$/, {
-    'zh-Hans': place => `${place}的俯视`,
     pt: place => `uma vista de cima de ${place}`,
   }],
   [/^the shadowed side of (.+)$/, {
-    'zh-Hans': place => `${place}的阴影一侧`,
     pt: place => `o lado em sombra de ${place}`,
   }],
   [/^a foreground detail within (.+)$/, {
-    'zh-Hans': place => `${place}前景中的一个细节`,
     pt: place => `um detalhe em primeiro plano dentro de ${place}`,
   }],
   [/^eye level inside (.+)$/, {
-    'zh-Hans': place => `${place}内的平视高度`,
     pt: place => `à altura dos olhos dentro de ${place}`,
   }],
   [/^the opposite side of (.+)$/, {
-    'zh-Hans': place => `${place}的对面`,
     pt: place => `o lado oposto de ${place}`,
   }]
 ]
@@ -336,8 +317,8 @@ function applyTemplates(line, lang) {
     const body = match[2].replace(/\.$/, '')
     const action = translateBeat(body, lang) || translateInline(body, lang)
     const frame = phrase(lang, match[1].toLowerCase() === 'pov' ? 'POV' : match[1].toLowerCase())
-    const ofWord = lang === 'zh-Hans' ? '：' : ` ${phrase(lang, 'of')} `
-    const joined = lang === 'zh-Hans' ? `${frame}${ofWord}${action}` : `${frame}${ofWord}${action}`
+    const ofWord = ` ${phrase(lang, 'of')} `
+    const joined = `${frame}${ofWord}${action}`
     return /\.$/.test(match[2]) || line.endsWith('.') ? `${joined}.` : joined
   }
   match = line.match(/^Create a (\d+)-second ([0-9:]+) shot\.$/)
@@ -359,7 +340,6 @@ function applyTemplates(line, lang) {
 
 function createShotLine(lang, duration, aspect) {
   const table = {
-    'zh-Hans': `制作一条 ${duration} 秒的 ${aspect} 镜头。`,
     pt: `Cria um plano de ${duration} segundos em ${aspect}.`,
   }
   return table[lang] || `Create a ${duration}-second ${aspect} shot.`
@@ -367,7 +347,6 @@ function createShotLine(lang, duration, aspect) {
 
 function shotCountLine(lang, index, total) {
   const table = {
-    'zh-Hans': `镜头 ${index} / ${total}。`,
     pt: `Plano ${index} de ${total}.`,
   }
   return table[lang] || `Shot ${index} of ${total}.`
@@ -375,7 +354,6 @@ function shotCountLine(lang, index, total) {
 
 function independentShotLine(lang, index, total) {
   const table = {
-    'zh-Hans': `独立镜头 ${index} / ${total}。一个单独的角度，不是延续。`,
     pt: `Plano independente ${index} de ${total}. Um ângulo à parte, não uma continuação.`,
   }
   return table[lang] || `Independent shot ${index} of ${total}. A separate angle, not a continuation.`
@@ -383,7 +361,6 @@ function independentShotLine(lang, index, total) {
 
 function aspectLine(lang, aspect) {
   const table = {
-    'zh-Hans': `画幅 ${aspect}`,
     pt: `proporção ${aspect}`,
   }
   return table[lang] || `aspect ratio ${aspect}`
@@ -391,7 +368,6 @@ function aspectLine(lang, aspect) {
 
 function timingShort(lang, duration, aspect) {
   const table = {
-    'zh-Hans': `${duration} 秒，${aspect}。不要字幕、标题、标志或水印。`,
     pt: `${duration}s, ${aspect}. Sem legendas, títulos, logótipos ou marcas de água.`,
   }
   return table[lang] || `${duration}s, ${aspect}. No captions, titles, logos or watermarks.`
@@ -399,7 +375,6 @@ function timingShort(lang, duration, aspect) {
 
 function timingLong(lang, duration, aspect, index) {
   const table = {
-    'zh-Hans': `${duration} 秒，${aspect}。镜头 ${index}。不要字幕、标题、标志或水印。`,
     pt: `${duration} segundos, ${aspect}. Plano ${index}. Sem legendas, títulos, logótipos ou marcas de água.`,
   }
   return table[lang] || `${duration} seconds, ${aspect}. Shot ${index}. No captions, titles, logos or watermarks.`
@@ -407,7 +382,6 @@ function timingLong(lang, duration, aspect, index) {
 
 function timingLabel(lang, duration) {
   const table = {
-    'zh-Hans': `时长：${duration} 秒。不要字幕、标题、标志或水印。`,
     pt: `TEMPO: ${duration} segundos. Sem legendas, títulos, logótipos ou marcas de água.`,
   }
   return table[lang] || `TIMING: ${duration} seconds. No captions, titles, logos or watermarks.`

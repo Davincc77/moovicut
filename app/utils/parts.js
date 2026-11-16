@@ -106,10 +106,15 @@ export const SHOT_LIMIT = 40
 /** Shown in every site language. English is the catalog key. */
 export const SHOT_LIMIT_MESSAGE = 'Moovicut is built for up to 40 shots (a short or medium film, or one chapter). Split the story into chapters and send them one by one, reusing the exported character sheet so faces stay consistent.'
 
-/** A request is one board. Longer stories are refused, not split into parts. */
+/** Attach `parts` only when the board needs more than one. Single-part boards gain no fields. */
 export function finalizeParts(project) {
   if (!project || !Array.isArray(project.shots)) return project
-  delete project.parts
+  const described = describeParts(project)
+  if (described.length < 2) {
+    delete project.parts
+    return project
+  }
+  project.parts = publicParts(described)
   return project
 }
 

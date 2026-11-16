@@ -11,9 +11,8 @@ useSeoMeta({
 })
 const sources = [
   ['Princeton WordNet', 'English place names come from Princeton WordNet 3.0, Princeton University. Licence: https://wordnet.princeton.edu/license-and-commercial-use'],
-  ['Open Multilingual Wordnet', 'Portuguese and Chinese place names are lemmas from Open Multilingual Wordnet 1.4, the compilation of Francis Bond and Kyonghee Paik.'],
+  ['Open Multilingual Wordnet', 'Portuguese place names are lemmas from Open Multilingual Wordnet 1.4, the compilation of Francis Bond and Kyonghee Paik.'],
   ['OpenWN-PT', 'Portuguese lemmas come from OpenWN-PT. Licence: Creative Commons Attribution-ShareAlike.'],
-  ['Chinese Open Wordnet', 'Chinese lemmas come from the Chinese Open Wordnet. The licence is WordNet-style.'],
   ['Video prompt profiles', 'Shot length, aspect, and prompt form for ChatGPT video, Midjourney video, MiniMax Hailuo, ByteDance Seedance, and Pika are cited in docs/model-profiles.md. A limit the provider page does not state uses the generic profile. Sora stays a separate profile.']
 ]
 </script>

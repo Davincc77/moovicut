@@ -166,22 +166,40 @@ function nameMentioned(text, name) {
   return new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, 'iu').test(foldName(text))
 }
 
-/** People actually in this shot. The same rules the prompt compiler uses. */
+function characterNamedIn(text, character, characters) {
+  if (nameMentioned(text, character.name)) return true
+  const tokens = String(character.name || '').split(/\s+/).filter(token => foldName(token).length >= 3)
+  return tokens.some(token => {
+    if (!nameMentioned(text, token)) return false
+    const owners = characters.filter(other => other.name.split(/\s+/).some(part => foldName(part) === foldName(token)))
+    return owners.length === 1
+  })
+}
+
+function personFromWho(name, characters, project) {
+  const match = findByName(characters, name)
+  if (match) return match
+  const lead = project.continuitySheet
+  if (lead && foldName(lead.character) === foldName(name)) return { name: lead.character, look: '', outfit: lead.appearance || '' }
+  return { name, look: '', outfit: '' }
+}
+
+/** People actually in this shot. A name in the action counts, not only the `who` subject. */
 export function charactersInShot(shot, project = {}) {
   const characters = project.filmSheet?.characters || []
   const named = nameParts(shot?.who)
-  if (named.length) {
-    return named.map(name => {
-      const match = findByName(characters, name)
-      if (match) return match
-      const lead = project.continuitySheet
-      if (lead && foldName(lead.character) === foldName(name)) return { name: lead.character, look: '', outfit: lead.appearance || '' }
-      return { name, look: '', outfit: '' }
-    })
-  }
   const source = [shot?.action, shot?.what, shot?.title].filter(Boolean).join(' ')
-  const mentioned = characters.filter(character => nameMentioned(source, character.name))
-  if (mentioned.length) return mentioned
+  const found = []
+  const add = person => {
+    if (!person?.name) return
+    if (found.some(item => foldName(item.name) === foldName(person.name))) return
+    found.push(person)
+  }
+  named.forEach(name => add(personFromWho(name, characters, project)))
+  characters.forEach(character => {
+    if (characterNamedIn(source, character, characters)) add(character)
+  })
+  if (found.length) return found
   if (characters.length === 1) return [characters[0]]
   const leadName = project.continuitySheet?.character
   if (leadName) return [findByName(characters, leadName) || { name: leadName, look: '', outfit: project.continuitySheet.appearance || '' }]

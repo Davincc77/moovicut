@@ -1,6 +1,6 @@
 # Process audit
 
-French (`fr`), Japanese (`ja`), and Italian (`it`) are not supported languages, the same way German (`de`) is not. The three languages are English, Simplified Chinese, and Portuguese. A `promptLanguage` of `fr`, `ja`, `it`, or `de` is HTTP 400 `invalid_prompt_language`, and the message lists `en`, `zh-Hans`, and `pt`. `?lang=` for those codes, a stored choice, and a browser tag such as `fr`, `ja`, `it`, `de`, or `de-LU` are skipped, the same way `es` is skipped. Path prefixes such as `/fr`, `/ja`, `/it`, and `/de` still redirect to the English page. The notes below are the audit from before those languages were removed. Those rules no longer run.
+Chinese (`zh-Hans`), French (`fr`), Japanese (`ja`), Italian (`it`), and German (`de`) are not supported languages. The two languages are English and Portuguese. A `promptLanguage` of `zh-Hans`, `fr`, `ja`, `it`, or `de` is HTTP 400 `invalid_prompt_language`, and the message lists `en` and `pt`. `?lang=` for those codes, a stored choice, and a browser tag such as `fr`, `ja`, `it`, `de`, or `de-LU` are skipped, the same way `es` is skipped. Path prefixes such as `/fr`, `/ja`, `/it`, and `/de` still redirect to the English page. The notes below are the audit from before those languages were removed. Those rules no longer run.
 
 Audit of the planner on this branch, done before the place, Chinese, and German fixes in the same change. Each stage says what the code does, what was checked, and the bug or doc mismatch found. Fixes are covered by `tests/process-audit.test.mjs` plus the existing suite.
 
@@ -63,9 +63,9 @@ Bug: Chinese dropped or merged action clauses that were not in the short verb li
 
 ## 7. Shot building and the 40-shot cap
 
-`planProse` builds shots from the detected scenes. Duration comes from the model profile when the request omits it. More than 40 shots is HTTP 400 `too_many_shots`. There is no part split. The same five long stories still refuse.
+`planProse` builds shots from the detected scenes. Duration comes from the model profile when the request omits it. More than 40 shots is split into parts of at most 40. The same character sheet and place sheet are reused. The response includes `parts`.
 
-Checked: `server/agent-api.mjs` (`too_many_shots`, OpenAPI `maxItems: 40`) and the baseline test that expects 400 for `en_long` and `fr_long`.
+Checked: `server/agent-api.mjs` (`finalizeParts`, OpenAPI `parts`) and the test that expects a split for a story longer than 40 shots.
 
 Bug: none. The cap is unchanged.
 

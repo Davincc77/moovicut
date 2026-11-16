@@ -948,7 +948,7 @@ export function normalizeWizard(value) {
   next.genreOrigin = value.genreOrigin === 'user' ? 'user' : 'default'
   if (value.detection && typeof value.detection === 'object') {
     next.detection = {
-      language: ['en', 'pt', 'zh-Hans'].includes(value.detection.language) ? value.detection.language : 'en',
+      language: ['en', 'pt'].includes(value.detection.language) ? value.detection.language : 'en',
       confidence: ['high', 'medium', 'low'].includes(value.detection.confidence) ? value.detection.confidence : 'low',
       uncertain: value.detection.uncertain === true,
       warnings: asArray(value.detection.warnings)?.filter(item => typeof item === 'string').slice(0, 24) || []

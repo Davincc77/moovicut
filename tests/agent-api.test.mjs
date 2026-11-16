@@ -23,9 +23,10 @@ test('OpenAPI 3.1 documents the 5 x 3s default and custom scenes', () => {
   assert.equal(doc.components.schemas.StoryboardRequest.properties.shots.default, 5)
   assert.equal(doc.components.schemas.StoryboardRequest.properties.duration.default, 3)
   assert.equal(doc.components.schemas.StoryboardRequest.properties.scenes.maxItems, undefined)
-  assert.equal(doc.components.schemas.StoryboardRequest.properties.shots.maximum, 40)
-  assert.equal(doc.components.schemas.CompactStoryboard.properties.parts, undefined)
-  assert.match(doc.info.description, /too_many_shots/)
+  assert.equal(doc.components.schemas.StoryboardRequest.properties.shots.maximum, undefined)
+  assert.ok(doc.components.schemas.CompactStoryboard.properties.parts)
+  assert.match(doc.info.description, /parts of at most 40/)
+  assert.doesNotMatch(doc.info.description, /too_many_shots/)
   assert.match(doc.info.description, /5 scenes/)
   const schema = doc.components.schemas.StoryboardRequest
   assert.equal(schema.required, undefined)

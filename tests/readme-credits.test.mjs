@@ -22,10 +22,10 @@ test('the served README matches the repository README and the agent files link i
     assert.match(text, /README\.md/, file)
     assert.match(text, /\/readme/, file)
     assert.match(text, /40 shots/, file)
-    assert.match(text, /chapter/i, file)
+    assert.match(text, /parts/i, file)
     assert.match(text, /rule-based|does not call a model/i, file)
     assert.match(text, /place library|place-lexicon/i, file)
-    assert.match(text, /English, Simplified Chinese, and Portuguese|English, Simplified Chinese \(zh-Hans\), and Portuguese/, file)
+    assert.match(text, /English and Portuguese/, file)
     assert.doesNotMatch(text, /Japanese \(日本語|Français|Italiano/, file)
   }
   assert.match(read('app/pages/readme.vue'), /README\.md\?raw/)
@@ -50,7 +50,7 @@ test('the credits page names every place-library source and the ShareAlike licen
   const docs = read('docs/place-library.md')
   const readme = read('README.md')
   for (const text of [page, docs, readme]) {
-    for (const name of ['Princeton WordNet', 'Open Multilingual Wordnet', 'OpenWN-PT', 'Chinese Open Wordnet', 'CC BY-SA 4.0']) {
+    for (const name of ['Princeton WordNet', 'Open Multilingual Wordnet', 'OpenWN-PT', 'CC BY-SA 4.0']) {
       assert.match(text, new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), name)
     }
     for (const name of ['WOLF', 'CeCILL-C', 'MultiWordNet', 'NICT Japanese Wordnet']) {

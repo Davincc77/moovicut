@@ -95,7 +95,6 @@ export const WIZARD_STRINGS = Object.freeze({
   'detect.summary': 'Detection confidence is {confidence}. Language read as {language}. Correct anything that looks wrong. Edited fields are left as you wrote them.',
   'detect.language.en': 'English',
   'detect.language.pt': 'Portuguese',
-  'detect.language.zh-Hans': 'Chinese',
   'hint.languageDiffers': 'This text looks like {language}. Fixed prompt lines follow {site}. Your own words stay as you typed them.',
   'hint.detectionUncertain': 'Automatic reading of {language} is uncertain, so names and places were not filled in. Add them in the next steps.',
   'character.list': 'Characters',

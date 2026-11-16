@@ -11,7 +11,6 @@ import { studioUrl } from '../app/utils/studio-link.js'
 import { cleanText } from '../app/utils/text.js'
 import { readPromptLanguage } from '../app/utils/prompt-lang.js'
 import { isFountain, parseFountain } from '../app/utils/fountain.js'
-import { SHOT_LIMIT, SHOT_LIMIT_MESSAGE } from '../app/utils/parts.js'
 import { translate } from '../app/i18n/index.js'
 
 export const RATE_LIMIT = Object.freeze({ limit: 30, windowMs: 60_000 })
@@ -89,12 +88,6 @@ function fail(message, code) {
   error.status = 400
   error.code = code
   throw error
-}
-
-function refuseIfTooLong(project, input) {
-  if ((project?.shots?.length || 0) <= SHOT_LIMIT) return
-  const lang = optionalPromptLanguage(input) || 'en'
-  fail(translate(lang, SHOT_LIMIT_MESSAGE), 'too_many_shots')
 }
 
 function optionalPromptLanguage(input) {
@@ -400,7 +393,6 @@ function planProse(input, { origin, compact }) {
   }), input)
   project.sceneSplit = splitScenes
   project.cuts = detection.cuts
-  refuseIfTooLong(project, input)
   const link = boardLink(origin, project, { style: input.style })
   const board = compact ? compactStoryboard(project, link) : { ...project, studioUrl: link }
   const body = { ...board, ...detection }
@@ -448,7 +440,6 @@ function planRegenerate(input, { origin, compact }) {
   const project = validateProject(source).project
   const shotId = input.regenerateShot || input.shotId
   if (!shotId) fail('Send regenerateShot with the shot id to rebuild.', 'invalid_shot')
-  refuseIfTooLong(project, input)
   const result = regenerateOneShot(project, shotId, {
     overwrite: input.overwritePrompt === true,
     prompt: typeof input.prompt === 'string' ? input.prompt : undefined
@@ -546,7 +537,6 @@ function refuseUnplannedPremise(project, input) {
 export function planFromInput(input, { origin = SITE, compact = false } = {}) {
   if (input && typeof input === 'object' && !Array.isArray(input) && input.schema === AGENT_BOARD_SCHEMA) {
     const project = importAgentBoard(input, { overwritePrompt: input.overwritePrompt === true })
-    refuseIfTooLong(project, input)
     const link = boardLink(origin, project, {})
     if (input.regenerateShot || input.shotId) return planRegenerate({ ...input, project }, { origin, compact })
     return agentBody(project, link)
@@ -558,7 +548,6 @@ export function planFromInput(input, { origin = SITE, compact = false } = {}) {
   if (options.prose) return planProse(options.raw, { origin, compact })
   const project = withActionSplits(createStoryboard(options), input)
   refuseUnplannedPremise(project, input)
-  refuseIfTooLong(project, input)
   const link = boardLink(origin, project, options)
   if (input?.format === 'agent') {
     const body = agentBody(project, link)
@@ -681,15 +670,15 @@ const STORYBOARD_SCHEMA = {
   properties: {
     premise: { type: 'string', minLength: 8, maxLength: 6000, description: 'Story idea, 8 to 6,000 characters. Optional when scenario is sent. If it is omitted, the idea line is the character and place names only, not the first scene’s action.' },
     model: { type: 'string', enum: ['grok', 'google', 'sora', 'chatgpt', 'midjourney', 'hailuo', 'seedance', 'pika', 'kling', 'runway', 'luma', 'wan', 'generic'], default: 'grok', description: 'Target video model. Shot length, aspect, prompt form, and risk warnings follow that model’s documented profile. grok and google keep their existing labeled prompts. veo is accepted as google.' },
-    shots: { type: 'integer', minimum: 1, maximum: 40, default: 5, description: 'Scene count. Ignored when scenes is a non-empty array. Default 5. At most 40 shots. A longer board is refused.' },
+    shots: { type: 'integer', minimum: 1, default: 5, description: 'Scene count. Ignored when scenes is a non-empty array. Default 5. A board longer than 40 shots is split into parts of at most 40 shots. The same character sheet and place sheet are reused.' },
     mode: { type: 'string', enum: ['continuous', 'varied', 'scenario', 'ad', 'series', 'explainer'], description: 'Alias of sequenceMode. scenario reads the scenario field or a structured premise. ad, series, and explainer are light presets on the same film sheet. A prompt marked promptEdited is kept.' },
     sequenceMode: { type: 'string', enum: ['continuous', 'varied', 'scenario', 'ad', 'series', 'explainer'] },
     continuity: { type: 'string', enum: ['standard', 'strict'], default: 'standard' },
     density: { type: 'string', enum: ['standard', 'concise'], default: 'standard', description: 'Used by the detailed prompt. Concise keeps one short continuity line. Standard includes the shared sheet once. Strict still repeats the sheet verbatim.' },
     prompt_style: { type: 'string', enum: ['short', 'detailed'], default: 'short', description: 'short is the default video prompt: framing, the named action, the lock lines, the full place, one light, and the style with locked-off camera unless a movement was set. It stays under about 700 characters and never shortens the action or the lock line. detailed keeps the full film sheet and continuity text in every shot. A hand-edited prompt is kept either way unless overwritePrompt is true.' },
     promptStyle: { type: 'string', enum: ['short', 'detailed'], description: 'Alias of prompt_style.' },
-    promptLanguage: { type: 'string', enum: ['en', 'zh-Hans', 'pt'], default: 'en', description: 'Language of the fixed lines the planner writes: framing, light, mood, style preset, camera line, lock-line labels, and shot structure. Default en, so a client that omits the field gets the English prompt. prompt_language is an alias. The user\'s own idea, names, places, and actions stay as written. Field names in the JSON stay English.' },
-    prompt_language: { type: 'string', enum: ['en', 'zh-Hans', 'pt'], description: 'Alias of promptLanguage.' },
+    promptLanguage: { type: 'string', enum: ['en', 'pt'], default: 'en', description: 'Language of the fixed lines the planner writes: framing, light, mood, style preset, camera line, lock-line labels, and shot structure. Default en, so a client that omits the field gets the English prompt. prompt_language is an alias. The user\'s own idea, names, places, and actions stay as written. Field names in the JSON stay English.' },
+    prompt_language: { type: 'string', enum: ['en', 'pt'], description: 'Alias of promptLanguage.' },
     aspectRatio: { type: 'string', enum: ['9:16', '1:1', '4:5', '16:9'], default: '16:9' },
     genre: { type: 'string', description: `Story genre, or a style-preset genre. Preset families: ${listPresets().map(family => `${family.id} (${family.genres.map(genre => genre.id).join(', ')})`).join('; ')}. Default preset when a scenario omits both is cinema / drama.` },
     style: { type: 'string', description: 'Fun, Normal, Spicy, a visual style id such as cinematic or illustrative, or a preset family: anime, cinema, documentary. manga is an alias of anime. An unknown family is 400. A named family locks that preset into every mode, including a plain premise.' },
@@ -730,7 +719,7 @@ const STORYBOARD_SCHEMA = {
     compact: { type: 'boolean', default: false, description: 'Return title, premise, model, aspectRatio, studioUrl, and shots of order, duration, and prompt.' },
     scenes: {
       type: 'array',
-      description: 'Optional per-scene overrides. When present, the board length is scenes.length instead of the default 5. More than 40 shots is refused.',
+      description: 'Optional per-scene overrides. When present, the board length is scenes.length instead of the default 5. More than 40 shots is split into parts of at most 40.',
       items: SCENE_SCHEMA
     }
   }
@@ -743,7 +732,7 @@ export function openApiDocument() {
       title: 'Moovicut',
       version: '1.0.0',
       summary: 'Free deterministic storyboard planning. No API key, no account, no stored premises.',
-      description: 'Moovicut plans editable storyboards. It does not render video and it does not save the premise. The default board is 5 scenes × 3 seconds (15 seconds total). The default video prompt is short (prompt_style short): framing, the named action, the lock lines, the full place, one light, and locked-off camera unless a movement was set, capped near 700 characters. prompt_style detailed keeps the full film sheet in every shot. Pass shots and duration, or a scenes array, for a custom scene-by-scene board. A request of more than 40 shots is refused with too_many_shots. Split the story into chapters and send them one by one, reusing the exported character sheet so faces stay consistent. Humans can do the same in /studio Step-by-step mode. mode ad, series, and explainer are light presets on the same film sheet. A shot marked promptEdited is kept unless overwritePrompt is true. Duration snaps to the selected model profile. studioUrl is a /studio#board= link the browser can open without a server lookup. The agent skill is /skill and raw Markdown is /SKILL.md.'
+      description: 'Moovicut plans editable storyboards. It does not render video and it does not save the premise. The default board is 5 scenes × 3 seconds (15 seconds total). The default video prompt is short (prompt_style short): framing, the named action, the lock lines, the full place, one light, and locked-off camera unless a movement was set, capped near 700 characters. prompt_style detailed keeps the full film sheet in every shot. Pass shots and duration, or a scenes array, for a custom scene-by-scene board. A story longer than 40 shots is split into parts of at most 40 shots each. The same character sheet and place sheet are reused across parts, so continuity holds. The response includes parts with index, from, to, place, and time. Humans can do the same in /studio Step-by-step mode. mode ad, series, and explainer are light presets on the same film sheet. A shot marked promptEdited is kept unless overwritePrompt is true. Duration snaps to the selected model profile. studioUrl is a /studio#board= link the browser can open without a server lookup. The agent skill is /skill and raw Markdown is /SKILL.md.'
     },
     servers: [{ url: SITE }],
     paths: {
@@ -818,7 +807,8 @@ export function openApiDocument() {
             model: { type: 'string' },
             aspectRatio: { type: 'string' },
             studioUrl: { type: 'string', description: 'Hash link to /studio. The board is in the fragment and is not sent to the server on open.' },
-            shots: { type: 'array', items: { $ref: '#/components/schemas/CompactShot' }, maxItems: 40 },
+            shots: { type: 'array', items: { $ref: '#/components/schemas/CompactShot' } },
+            parts: { type: 'array', description: 'Present when the board has more than 40 shots. Each part has at most 40 shots and reuses the same character and place sheet.', items: { type: 'object', required: ['index', 'from', 'to', 'place', 'time'], properties: { index: { type: 'integer' }, from: { type: 'integer' }, to: { type: 'integer' }, place: { type: 'string' }, time: { type: 'string' } } } },
             warnings: { type: 'array', description: 'Present only when a shot has a pre-generation risk. Warnings never block the board.', items: { type: 'object', additionalProperties: true } },
             regenerated: { type: 'string', description: 'Shot id rebuilt by regenerateShot. Null when an edited prompt was kept.' }
           }
@@ -840,7 +830,7 @@ export function openApiDocument() {
 const TOOLS = [
   {
     name: 'plan_storyboard',
-    description: 'Plan a deterministic storyboard. Default is 5 scenes × 3s (15s total) and a short per-shot video prompt: framing, the named action, the lock line, the place, one light, and locked-off camera unless a movement was set. Each character lock line is copied unchanged into every shot they appear in. Pass prompt_style "detailed" for the full sheet in every shot. Pass shots/duration, a scenes array, a scenario, mode ad, series, or explainer, input "prose", format "agent", or a model: grok, google, sora, chatgpt, midjourney, hailuo, seedance, pika, kling, runway, luma, wan, or generic. Free prose splits on place and time cues unless splitScenes is false. The cuts array gives each cue and reason. A character with no look is a warning, not a 400. A request of more than 40 shots is refused with too_many_shots. Split the story into chapters and send them one by one. A prompt marked promptEdited is kept. Returns a compact payload and a /studio# link. Nothing is stored.',
+    description: 'Plan a deterministic storyboard. Default is 5 scenes × 3s (15s total) and a short per-shot video prompt: framing, the named action, the lock line, the place, one light, and locked-off camera unless a movement was set. Each character lock line is copied unchanged into every shot they appear in. Pass prompt_style "detailed" for the full sheet in every shot. Pass shots/duration, a scenes array, a scenario, mode ad, series, or explainer, input "prose", format "agent", or a model: grok, google, sora, chatgpt, midjourney, hailuo, seedance, pika, kling, runway, luma, wan, or generic. Free prose splits on place and time cues unless splitScenes is false. The cuts array gives each cue and reason. A character with no look is a warning, not a 400. A story longer than 40 shots is split into parts of at most 40 shots. The same character sheet and place sheet are reused across parts. A prompt marked promptEdited is kept. Returns a compact payload and a /studio# link. Nothing is stored.',
     inputSchema: STORYBOARD_SCHEMA
   },
   {
@@ -859,7 +849,7 @@ const TOOLS = [
         continuity: { type: 'string', enum: ['standard', 'strict'] },
         density: { type: 'string', enum: ['standard', 'concise'] },
         prompt_style: { type: 'string', enum: ['short', 'detailed'], default: 'short' },
-        promptLanguage: { type: 'string', enum: ['en', 'zh-Hans', 'pt'], default: 'en', description: 'Alias of the storyboard field. Omitted means English.' },
+        promptLanguage: { type: 'string', enum: ['en', 'pt'], default: 'en', description: 'Alias of the storyboard field. Omitted means English.' },
         prompt_language: { type: 'string', description: 'Alias of promptLanguage.' },
         aspectRatio: { type: 'string' },
         genre: { type: 'string' },

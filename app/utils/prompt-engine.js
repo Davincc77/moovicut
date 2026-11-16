@@ -982,39 +982,6 @@ function joinNames(names, lang = 'en') {
 }
 
 const LEAD_PRONOUN = /^(she|he|they|elle|il|ils|elles|ela|ele|eles|elas|sie|er|lei|lui|si|hien|hatt)\b/i
-const CJK_PRONOUN = /^(彼女|彼|她|他)/u
-const GENERIC_PLACE = /^(?:the setting|le lieu|o lugar|il luogo|場所|场景)$/i
-
-function shotPlaceName(shot, project) {
-  const where = cleanText(shot?.where || '').split(/\s+and\s+/i)[0]
-  if (where && !GENERIC_PLACE.test(where)) return where
-  const named = cleanText(project?.filmSheet?.places?.[0]?.name || project?.continuitySheet?.place || '')
-  if (!named || GENERIC_PLACE.test(named)) return ''
-  return named
-}
-
-/** Chinese opening line: subject, then 在 and the place, then the verb. No full stop between the name and the action. */
-function tightenChineseAction(text, names, place) {
-  if (!/\p{Script=Han}/u.test(text)) return ''
-  let action = cleanText(text).replace(/[。．.]+$/u, '')
-  const hanNames = names.filter(name => /\p{Script=Han}/u.test(name))
-  const subject = hanNames.length <= 1 ? (hanNames[0] || '') : hanNames.join('和')
-  if (subject && hanNames.every(name => !action.includes(name))) {
-    if (/^(?:她|他|他们|她们)/u.test(action)) action = action.replace(/^(?:她|他|他们|她们)/u, subject)
-    else action = `${subject}${action}`
-  } else {
-    hanNames.filter(name => !action.includes(name)).forEach(name => { action = `${name}和${action}` })
-  }
-  const placeName = cleanText(place).split(/[，,]/)[0]
-  if (placeName && /\p{Script=Han}/u.test(placeName) && !action.includes(placeName)) {
-    const lead = subject && action.startsWith(subject) ? subject : (hanNames.find(name => action.startsWith(name)) || '')
-    if (lead) {
-      const rest = action.slice(lead.length)
-      action = rest.startsWith('在') ? `${lead}在${placeName}${rest.slice(1)}` : `${lead}在${placeName}${rest}`
-    } else action = `${action}，在${placeName}`
-  }
-  return action
-}
 
 /** The action, unchanged except a missing subject is named. Prop nouns stay verbatim. */
 function namedAction(shot, project, lang = 'en') {
@@ -1024,10 +991,6 @@ function namedAction(shot, project, lang = 'en') {
     if (beat) text = beat
   }
   const names = charactersInShot(shot, project).map(person => person.name).filter(Boolean)
-  if (lang === 'zh-Hans' && /\p{Script=Han}/u.test(text)) {
-    const tightened = tightenChineseAction(text, names, shotPlaceName(shot, project))
-    if (tightened) return tightened
-  }
   if (!text || !names.length) return text
   if (names.every(name => mentionsName(text, name))) return text
   const pronoun = text.match(LEAD_PRONOUN)
@@ -1037,8 +1000,6 @@ function namedAction(shot, project, lang = 'en') {
     const subject = plural ? joinNames(names, lang) : names[0]
     return text.replace(LEAD_PRONOUN, subject)
   }
-  const cjk = text.match(CJK_PRONOUN)
-  if (cjk) return text.replace(CJK_PRONOUN, names[0])
   if (/^[\p{Ll}]/u.test(text)) return `${joinNames(names, lang)} ${text}`
   return `${joinNames(names, lang)}. ${text}`
 }
@@ -1087,20 +1048,15 @@ function stylePhrase(project) {
 }
 
 function placePhrase(shot, project) {
+  if (!cleanText(shot?.where)) return ''
   const places = project.filmSheet?.places || []
-  if (shot?.where) {
-    return nameParts(shot.where).map(part => {
-      const match = findByName(places, part)
-      if (!match) return part
-      const extra = cleanText(match.description)
-      if (!extra || foldName(extra) === foldName(match.name)) return match.name
-      return `${match.name}, ${extra}`
-    }).filter(Boolean).join('; ')
-  }
-  const named = project.continuitySheet?.place || places[0]?.name || ''
-  const description = places[0]?.description || project.continuitySheet?.placeDescription || ''
-  const extra = description && foldName(description) !== foldName(named) ? cleanText(description) : ''
-  return [named, extra].filter(Boolean).join(', ')
+  return nameParts(shot.where).map(part => {
+    const match = findByName(places, part)
+    if (!match) return part
+    const extra = cleanText(match.description)
+    if (!extra || foldName(extra) === foldName(match.name)) return match.name
+    return `${match.name}, ${extra}`
+  }).filter(Boolean).join('; ')
 }
 
 /** Shot light wins. Preset lighting is the one light only when the shot does not define one. */
@@ -1117,8 +1073,6 @@ function oneLight(shot, project) {
     }
     return lighting
   }
-  const sheet = cleanText(project?.filmSheet?.light || '')
-  if (sheet && LIGHTS[sheet]) return LIGHTS[sheet]
   if (presetLight) return presetLight
   return ''
 }

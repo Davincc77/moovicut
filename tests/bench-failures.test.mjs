@@ -21,22 +21,12 @@ test('a named Chinese premise that cannot be planned is 400, not a template boar
   const removed = post({ premise: JAPANESE_PREMISE, promptLanguage: 'ja', format: 'agent', model: 'generic' })
   assert.equal(removed.status, 400)
   assert.equal(removed.body.error, 'invalid_prompt_language')
-  assert.match(removed.body.message, /en, zh-Hans, pt/)
+  assert.match(removed.body.message, /en, pt/)
   assert.doesNotMatch(removed.body.message, /\bja\b/)
-  for (const [premise, promptLanguage, name] of [
-    [CHINESE_PREMISE, 'zh-Hans', '卫明']
-  ]) {
-    const planned = post({ premise, promptLanguage, format: 'agent', model: 'generic' })
-    assert.equal(planned.status, 400, planned.body.message)
-    assert.equal(planned.body.error, 'invalid_plan')
-    assert.match(planned.body.message, new RegExp(name))
-    assert.match(planned.body.message, /scenario/i)
-    assert.match(planned.body.message, /who may be a string or a list of names/)
-    assert.match(planned.body.message, /look/)
-    assert.ok(Array.isArray(planned.body.errors) && planned.body.errors.length >= 2)
-    assert.equal(planned.body.shots, undefined)
-    assert.doesNotMatch(planned.body.message, /entering the frame|retro-futurism|フレームに入る/)
-  }
+  const chinese = post({ premise: CHINESE_PREMISE, promptLanguage: 'zh-Hans', format: 'agent', model: 'generic' })
+  assert.equal(chinese.status, 400)
+  assert.equal(chinese.body.error, 'invalid_prompt_language')
+  assert.match(chinese.body.message, /en, pt/)
   const lighthouse = post({ premise: 'A lighthouse keeper races the dusk to repair a failing beacon.', model: 'grok', compact: true })
   assert.equal(lighthouse.status, 200)
   assert.equal(lighthouse.body.shots.length, 5)
@@ -75,7 +65,6 @@ test('a Japanese loanword does not select the science-fiction style', () => {
 test('a scenario plans every named person and every action, and who may be a list', () => {
   const planned = post({
     model: 'generic',
-    promptLanguage: 'zh-Hans',
     format: 'agent',
     scenario: {
       characters: [
@@ -126,32 +115,15 @@ test('an unsupported who shape names the expected shape', () => {
   assert.doesNotMatch(planned.body.message, /missing who/)
 })
 
-test('a Chinese short prompt keeps the subject, the place, and the action in one clause', () => {
+test('a Chinese prompt language is rejected', () => {
   const planned = post({
     model: 'grok',
     promptLanguage: 'zh-Hans',
-    scenario: {
-      characters: [
-        { name: '卫明', look: '四十多岁，圆脸，发髻', outfit: '锈红色的腕带' },
-        { name: '茶青', look: '四十多岁，圆脸，短发', outfit: '靛蓝围裙' }
-      ],
-      places: [{ name: '焙茶房', description: '室内的焙茶房，竹焙笼和陶罐' }],
-      scenes: [
-        { who: '卫明', where: '焙茶房', what: '掀开一个竹焙笼的盖', camera: 'close' },
-        { who: ['卫明', '茶青'], where: '焙茶房', what: '在长案两侧比对叶片', framing: '特写' },
-        { who: '卫明', where: '焙茶房', what: '把焙好的叶子倒进陶罐并盖上盖子', camera: 'close-up' }
-      ]
-    }
+    premise: 'A lighthouse keeper races the dusk to repair a failing beacon.'
   })
-  assert.equal(planned.status, 200, planned.body.message)
-  const lines = planned.body.shots.map(shot => shot.prompt.split('\n')[0])
-  assert.match(lines[0], /特写: 卫明在焙茶房掀开一个竹焙笼的盖/)
-  assert.doesNotMatch(lines[0], /卫明\./)
-  assert.match(lines[1], /特写: 卫明和茶青在焙茶房长案两侧比对叶片/)
-  assert.doesNotMatch(lines[1], /在焙茶房在/)
-  assert.match(lines[2], /特写: 卫明在焙茶房把焙好的叶子倒进陶罐并盖上盖子/)
-  assert.match(planned.body.shots[0].prompt, /焙茶房/)
-  assert.match(planned.body.shots[0].prompt, /锈红色的腕带/)
+  assert.equal(planned.status, 400)
+  assert.equal(planned.body.error, 'invalid_prompt_language')
+  assert.match(planned.body.message, /en, pt/)
 })
 
 test('format agent warns when characters or places come out empty', () => {

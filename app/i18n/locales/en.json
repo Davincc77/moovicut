@@ -150,9 +150,6 @@
   "Characters": "Characters",
   "Characters, places, and styles stay in this browser. Export the file if you want a copy.": "Characters, places, and styles stay in this browser. Export the file if you want a copy.",
   "Check": "Check",
-  "Chinese": "Chinese",
-  "Chinese Open Wordnet": "Chinese Open Wordnet",
-  "Chinese lemmas come from the Chinese Open Wordnet. The licence is WordNet-style.": "Chinese lemmas come from the Chinese Open Wordnet. The licence is WordNet-style.",
   "Choose": "Choose",
   "Choose Grok Imagine or Google.": "Choose Grok Imagine or Google.",
   "Choose a PNG, JPEG, WebP, GIF, AVIF or SVG image.": "Choose a PNG, JPEG, WebP, GIF, AVIF or SVG image.",
@@ -600,7 +597,6 @@
   "Playful": "Playful",
   "Portrait": "Portrait",
   "Portuguese": "Portuguese",
-  "Portuguese and Chinese place names are lemmas from Open Multilingual Wordnet 1.4, the compilation of Francis Bond and Kyonghee Paik.": "Portuguese and Chinese place names are lemmas from Open Multilingual Wordnet 1.4, the compilation of Francis Bond and Kyonghee Paik.",
   "Portuguese lemmas come from OpenWN-PT. Licence: Creative Commons Attribution-ShareAlike.": "Portuguese lemmas come from OpenWN-PT. Licence: Creative Commons Attribution-ShareAlike.",
   "Practical": "Practical",
   "Prefer a 4 second clip, or cut the beat into two 4 second clips.": "Prefer a 4 second clip, or cut the beat into two 4 second clips.",
@@ -975,5 +971,6 @@
   "{path} must be an object with who, where, and what.": "{path} must be an object with who, where, and what.",
   "{title} storyboard study": "{title} storyboard study",
   "{title} — Moovicut": "{title} — Moovicut",
-  "“{trait}” is repeated in the same line.": "“{trait}” is repeated in the same line."
+  "“{trait}” is repeated in the same line.": "“{trait}” is repeated in the same line.",
+  "Portuguese place names are lemmas from Open Multilingual Wordnet 1.4, the compilation of Francis Bond and Kyonghee Paik.": "Portuguese place names are lemmas from Open Multilingual Wordnet 1.4, the compilation of Francis Bond and Kyonghee Paik."
 }

@@ -15,7 +15,7 @@ import { takeStudioHandoff } from '~/utils/studio-handoff.js'
 import { textLanguageHint } from '~/utils/prose-detect.js'
 const store = useProjectStore()
 const { locale, t } = useI18n()
-const LANGUAGE_NAMES = { en: 'English', pt: 'Portuguese', 'zh-Hans': 'Chinese' }
+const LANGUAGE_NAMES = { en: 'English', pt: 'Portuguese' }
 function sitePromptLanguage() {
   const lang = locale.value
   return lang && lang !== 'en' ? { promptLanguage: lang } : {}
