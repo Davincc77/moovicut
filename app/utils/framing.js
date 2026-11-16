@@ -1,7 +1,7 @@
 /** Fixed cinematic framing. The English term is the source. Other prompt languages translate it. */
 import { cleanText } from './text.js'
 import { foldName } from './scenario.js'
-import { framingTermsForMatch } from './prompt-lang.js'
+import { PROMPT_LANGUAGES, framingTermsForMatch, phrase } from './prompt-lang.js'
 
 export const FRAMING_TERMS = Object.freeze([
   { id: 'ecu', label: 'extreme close-up', hint: 'très gros plan', aliases: ['extreme close up', 'close up insert', 'macro insert', 'tres gros plan', 'insert'] },
@@ -57,6 +57,21 @@ function fromAction(text) {
   if (/\b(crane|rises over|rising)\b/.test(source)) return termById('crane')
   if (/\b(wide|horizon|skyline|landscape|establish)\b/.test(source)) return termById('wide')
   return termById('medium')
+}
+
+/** English framing label for a picker value, an alias, or a translated label such as 特写. */
+export function canonicalFramingLabel(value) {
+  const direct = aliasMatch(value)
+  if (direct) return direct.label
+  const folded = foldFraming(value)
+  if (!folded) return ''
+  for (const term of FRAMING_TERMS) {
+    for (const lang of PROMPT_LANGUAGES) {
+      const spoken = phrase(lang, term.label)
+      if (spoken && foldFraming(spoken) === folded) return term.label
+    }
+  }
+  return ''
 }
 
 /** Auto suggestion. An explicit picker choice wins when framingChosen is set. */

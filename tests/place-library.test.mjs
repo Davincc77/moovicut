@@ -89,6 +89,25 @@ test('a person name wins over a place word', () => {
   assert.ok(found.scenes.every(scene => /kitchen/i.test(scene.where)))
 })
 
+test('a body part or a garment is not a place in any site language', () => {
+  const cases = [
+    ['en', 'Nia touches her eyebrow in the kitchen. Nia waits.', /eyebrow|arm|sleeve/i, /kitchen/i],
+    ['fr', 'Léa touche son sourcil dans la cuisine. Léa attend.', /sourcil|manche|bras/i, /cuisine/i],
+    ['pt', 'Rui espera na cozinha. Ele não toca a sobrancelha. Rui lê uma carta.', /sobrancelha|braço|manga/i, /cozinha/i],
+    ['it', 'Giulia tocca il sopracciglio nella cucina. Giulia aspetta nella cucina.', /sopracciglio|braccio|manica/i, /cucina/i],
+    ['ja', '美咲は右の眉尻に触れ、台所で待つ。美咲は腕カバーをつけたまま手紙を読む。', /眉|腕|カバー|手ぬぐい/, /台所/],
+    ['zh-Hans', '赵明远摸了摸眉毛，穿着围裙，在厨房等待。赵明远拿着一封信。', /眉|围裙|头发|眼睛|腕/, /厨房/]
+  ]
+  for (const [language, text, banned, place] of cases) {
+    const found = detectProse(text)
+    assert.equal(found.language, language, text)
+    const names = found.places.map(item => item.name).join(' | ')
+    assert.doesNotMatch(names, banned, `${language} places ${names}`)
+    assert.ok(found.places.some(item => place.test(item.name)), `${language} places ${names}`)
+    assert.ok(found.scenes.every(scene => !scene.where || place.test(scene.where)), `${language} where ${found.scenes.map(scene => scene.where).join(' > ')}`)
+  }
+})
+
 test('each site language reads a locative place from the library', () => {
   const cases = [
     ['en', 'Nia waits in the greenhouse. Nia reads.', /greenhouse/i],

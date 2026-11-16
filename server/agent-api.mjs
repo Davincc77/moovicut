@@ -430,6 +430,50 @@ function planRegenerate(input, { origin, compact }) {
 function agentBody(project, link) {
   return attachWarnings({ ...exportAgentBoard(project), studioUrl: link }, project)
 }
+
+function shotIsTemplate(shot) {
+  const action = shot?.action || ''
+  return /entering the frame|One new detail appears|is readable in a closer frame|chooses a direction and moves through|The result of that choice is visible|The last image stays on|plays the \w+ beat/i.test(action)
+    || /standalone .+ frame of/i.test(action)
+}
+
+/** A named premise that would come back as the generic template is a failed plan, not a board. */
+function refuseUnplannedPremise(project, input) {
+  const mode = project?.sequenceMode || ''
+  if (mode === 'scenario' || mode === 'ad' || mode === 'series' || mode === 'explainer') return
+  if (Array.isArray(input?.scenes) && input.scenes.some(scene => scene && (scene.action || scene.beat || scene.description))) return
+  const premise = cleanText(project?.premise || '')
+  if (premise.length < 8) return
+  const detected = detectProse(premise)
+  const names = (detected.characters || []).map(item => cleanText(item.name)).filter(Boolean)
+  const actions = (detected.scenes || []).map(item => cleanText(item.what)).filter(item => item && item !== premise)
+  if (!names.length && actions.length < 2) return
+  const shots = project.shots || []
+  const templates = shots.filter(shotIsTemplate).length
+  if (!shots.length || templates < Math.ceil(shots.length / 2)) return
+  const blob = shots.map(shot => `${shot.who || ''}\n${shot.what || ''}\n${shot.action || ''}`).join('\n')
+  const droppedNames = names.filter(name => name && !blob.includes(name))
+  const droppedActions = actions.filter(action => action && !blob.includes(action.slice(0, Math.min(action.length, 18))))
+  const namesDropped = names.length > 0 && droppedNames.length > 0
+  const actionsDropped = actions.length >= 2 && droppedActions.length >= Math.ceil(actions.length / 2)
+  if (!namesDropped && !actionsDropped) return
+  const errors = []
+  if (names.length) {
+    const listedNames = droppedNames.length ? droppedNames : names
+    const nameWord = listedNames.length === 1 ? 'name' : 'names'
+    const nameVerb = listedNames.length === 1 ? 'was' : 'were'
+    errors.push({ section: 'premise', field: 'characters', message: `The ${nameWord} ${listedNames.join(', ')} ${nameVerb} not planned into shots. Add each person with name, look, and outfit.` })
+  }
+  if (actions.length >= 2) {
+    errors.push({ section: 'premise', field: 'scenes', message: `The premise has ${actions.length} actions and they were not planned as shots. Give each action its own scene with who, where, and what.` })
+  }
+  errors.push({ section: 'premise', field: 'scenario', message: 'Send a scenario. who may be a string or a list of names. A plain premise that cannot keep those names and actions is not returned as a template board.' })
+  const error = new Error(errors.map(item => item.message).join(' '))
+  error.status = 400
+  error.code = 'invalid_plan'
+  error.errors = errors
+  throw error
+}
 export function planFromInput(input, { origin = SITE, compact = false } = {}) {
   if (input && typeof input === 'object' && !Array.isArray(input) && input.schema === AGENT_BOARD_SCHEMA) {
     const project = importAgentBoard(input, { overwritePrompt: input.overwritePrompt === true })
@@ -444,6 +488,7 @@ export function planFromInput(input, { origin = SITE, compact = false } = {}) {
   const options = storyboardOptions(input)
   if (options.prose) return planProse(options.raw, { origin, compact })
   const project = withActionSplits(createStoryboard(options), input)
+  refuseUnplannedPremise(project, input)
   refuseIfTooLong(project, input)
   const link = boardLink(origin, project, options)
   if (input?.format === 'agent') {
@@ -471,7 +516,7 @@ const SCENE_SCHEMA = {
     beat: { type: 'string' },
     description: { type: 'string' },
     duration: { type: 'integer', minimum: 2, maximum: 15, description: 'Seconds for this scene. Defaults to 3.' },
-    framing: { type: 'string' },
+    framing: { type: 'string', description: 'Optional framing term, such as close-up or 特写. A known term is kept. Camera close, medium, and wide still set the frame.' },
     camera: { type: 'string' },
     lighting: { type: 'string' },
     mood: { type: 'string', description: 'Alias of lighting.' },
@@ -515,8 +560,14 @@ const SCENARIO_SCENE = {
   additionalProperties: true,
   description: 'A scene. Short fields: w for who, at for where, do for what, cam for camera, s for duration in seconds.',
   properties: {
-    who: { type: 'string' },
-    w: aliasOf('who'),
+    who: {
+      description: 'Character name, or a list of names for a shot with more than one person. A list is joined in order. A number or an object is rejected, and the message says who must be a string or a list of names.',
+      oneOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }]
+    },
+    w: {
+      description: 'Short alias of who. A string or a list of names.',
+      oneOf: [{ type: 'string' }, { type: 'array', items: { type: 'string' } }]
+    },
     character: aliasOf('who'),
     where: { type: 'string' },
     at: aliasOf('where'),
@@ -525,8 +576,9 @@ const SCENARIO_SCENE = {
     do: aliasOf('what'),
     action: aliasOf('what'),
     beat: aliasOf('what'),
-    camera: { type: 'string', enum: [...CAMERA_VALUES] },
+    camera: { type: 'string', enum: [...CAMERA_VALUES], description: 'Camera id. close-up, 特写, gros plan, and the other framing labels map to the matching id.' },
     cam: { type: 'string', enum: [...CAMERA_VALUES], description: 'Short alias of camera.' },
+    framing: { type: 'string', description: 'Framing term, such as close-up or 特写. A known term is written into the prompt. Unknown text is left off.' },
     light: { type: 'string', enum: [...LIGHT_VALUES] },
     lighting: { type: 'string', enum: [...LIGHT_VALUES], description: 'Alias of light.' },
     mood: { type: 'string', enum: [...MOOD_VALUES] },
@@ -539,7 +591,7 @@ const SCENARIO_SCENE = {
 const SCENARIO_OBJECT = {
   type: 'object',
   additionalProperties: true,
-  description: 'Characters, places, and scenes. Short aliases: characters n/l/o, places n/desc/d, scenes w/at/do, plus cam and s.',
+  description: 'Characters, places, and scenes. Short aliases: characters n/l/o, places n/desc/d, scenes w/at/do, plus cam and s. who and w accept a string or a list of names.',
   properties: {
     characters: { type: 'array', items: SCENARIO_CHARACTER },
     places: { type: 'array', items: SCENARIO_PLACE },

@@ -1,6 +1,6 @@
 /** Deterministic scene cuts. Closed word lists only. No model call. */
 import { cleanText } from './text.js'
-import { heldPlaceNoun, placeTag } from './place-lexicon.js'
+import { heldPlaceNoun, isNonPlaceNoun, placeTag } from './place-lexicon.js'
 import { foldName } from './scenario.js'
 import { splitActionText } from './action-split.js'
 
@@ -237,6 +237,11 @@ function collectVenues(source, language, found) {
     const stop = /[在的了是把与和ではがを]/u
     for (const match of source.matchAll(re)) {
       const type = match[0]
+      if (language === 'ja') {
+        const prev = source[match.index - 1] || ''
+        const next = source[match.index + type.length] || ''
+        if (/\p{Script=Katakana}/u.test(prev) || /\p{Script=Katakana}/u.test(next)) continue
+      }
       const before = source.slice(Math.max(0, match.index - 4), match.index)
       const after = source.slice(match.index + type.length, match.index + type.length + 4)
       let properBefore = (before.match(/[\p{Script=Han}\p{Script=Katakana}]{1,4}$/u) || [''])[0]
@@ -294,8 +299,8 @@ export function isCueStopword(token) {
 export function isNeverPlace(token) {
   const key = foldName(token)
   if (!key) return false
-  if (NOT_A_PLACE.has(key)) return true
-  return key.split(/\s+/).some(part => NOT_A_PLACE.has(part))
+  if (NOT_A_PLACE.has(key) || isNonPlaceNoun(token)) return true
+  return key.split(/\s+/).some(part => NOT_A_PLACE.has(part) || isNonPlaceNoun(part))
 }
 
 export function quoteSpans(text) {
