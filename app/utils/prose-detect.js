@@ -188,9 +188,18 @@ function cutTraits(slice) {
   return cleanText(verb >= 0 ? clause.slice(0, verb) : clause)
 }
 
+const AGE_PHRASE = /\b(?:in\s+(?:his|her|their)\s+)?(?:early|mid|late)\s+(?:twenties|thirties|forties|fifties|sixties|seventies|\d{1,2}s)\b|\b(?:early|mid|late)\s+\d{1,2}s\b|\b\d{1,2}s\b|\b(?:twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)(?:\s*-\s*[a-z]+|\s+years\s+old)?\b|\b(?:la\s+)?(?:vingtaine|trentaine|quarantaine|cinquantaine|soixantaine)\b|\bdébut\s+de\s+la\s+\p{L}+\b|\b\d{1,3}\s+ans\b|\bnos\s+seus\s+(?:vinte|trinta|quarenta|cinquenta|sessenta)\b|\b(?:cerca\s+de\s+)?\d{1,3}\s+anos\b|\bsulla\s+cinquantina\b|\b(?:poco\s+più\s+di\s+)?\d{1,3}\s+anni\b|五十代(?:前半|後半)?|四十代(?:前半|後半)?|三十代(?:前半|後半)?|二十代(?:前半|後半)?|五十出头|四十出头|三十出头|五十多岁|四十多岁|三十多岁/iu
+const ROLE_PHRASE = /\b(?:fisherman|fisherwoman|fishers?|baker|keeper|farmer|sailor|teacher|doctor|nurse|chef|waiter|waitress|driver|painter|carpenter|shepherd|hunter|merchant|soldier|guard|monk|priest|student|artist|cook|captain|lighthouse\s+keeper|p[eê]cheur|p[eê]cheuse|boulanger|boulangère|gardien|fermier|fermière|marin|professeur|m[eé]decin|infirmier|infirmi[eè]re|cuisinier|cuisini[eè]re|serveur|serveuse|peintre|charpentier|berger|chasseur|marchand|soldat|moine|pr[eê]tre|[eé]tudiant|[eé]tudiante|pescador|pescadora|padeiro|padeira|guarda|agricultor|marinheiro|professor|professora|m[eé]dico|enfermeiro|cozinheiro|cozinheira|pescatore|pescatrice|fornaio|fornaia|guardiano|contadino|contadina|marinaio|professore|professoressa|medico|infermiere|cuoco|cuoca)\b|漁師|渔夫|渔民|面包师|看守|农夫/iu
+const IDENTITY_NOUN = /\b(?:face|faces|visage|rosto|viso|beard|barbe|barba|scar|cicatrice|wrinkles?|weathered|burin[eé]|marcado|segnato|build|stature|skin|peau|pele|pelle)\b/iu
+
+function isIdentityBit(text) {
+  return AGE_PHRASE.test(text) || ROLE_PHRASE.test(text)
+}
+
 function isTraitBit(bit) {
-  const clean = cleanText(bit).replace(/^(?:and|with|a|an|the)\s+/i, '')
+  const clean = cleanText(bit).replace(/^(?:and|with|a|an|the|un|une)\s+/i, '')
   if (!clean || clean.length > 80 || TRAIT_STOP.test(clean)) return false
+  if (isIdentityBit(clean)) return true
   const head = foldName(clean.split(/\s+/)[0])
   if (!head || CALENDAR_WORD.has(head) || NOT_A_PERSON.has(head) || CALENDAR_WORD.has(foldName(clean))) return false
   if (/^(?:his|her|their|neighbour|neighbor)\b/i.test(clean)) return false
@@ -199,6 +208,7 @@ function isTraitBit(bit) {
   if (/^(?:twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)(?:-[a-z]+)?$/i.test(clean)) return true
   if (/^(?:[\p{L}'’-]+\s+){0,5}(?:beard|locs|braid|braids|bun|curls|fade|afro|crop|hair|eyes|glasses|stubble|scar|freckles|moustache|mustache)$/iu.test(clean)) return true
   if (/^(?:a\s+)?pair\s+of\s+[\p{L}'’-]+$/iu.test(clean)) return true
+  if (IDENTITY_NOUN.test(clean) && clean.split(/\s+/).length <= 6) return true
   return false
 }
 

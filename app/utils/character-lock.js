@@ -54,6 +54,8 @@ export function asCharacter(character = {}) {
     name: cleanText(character.name).slice(0, 80),
     look: cleanText(character.look).slice(0, 400),
     outfit: cleanText(character.outfit).slice(0, 300),
+    age: cleanText(character.age).slice(0, 160),
+    role: cleanText(character.role).slice(0, 160),
     body: cleanText(character.body).slice(0, 160),
     face: cleanText(character.face).slice(0, 200),
     hair: cleanText(character.hair).slice(0, 200),
@@ -104,7 +106,7 @@ export function derivedLockLine(character) {
   const person = asCharacter(character)
   const name = person.name
   if (!name) return ''
-  const identity = [person.body, person.face, person.hair, person.colors, person.marks, usable(person.look)].filter(Boolean)
+  const identity = [person.age, person.role, person.body, person.face, person.hair, person.colors, person.marks, usable(person.look)].filter(Boolean)
   const outfit = usable(person.outfit)
   const parts = dedupeParts([...identity, outfit].filter(Boolean))
   if (!parts.length) return `${name}.`
@@ -120,7 +122,7 @@ export function activeState(character, order = 1) {
 }
 
 function identityParts(person) {
-  return dedupeParts([person.body, person.face, person.hair, person.colors, person.marks, usable(person.look)].filter(Boolean))
+  return dedupeParts([person.age, person.role, person.body, person.face, person.hair, person.colors, person.marks, usable(person.look)].filter(Boolean))
 }
 
 /** Byte-stable line for this character at this shot, including a carried wardrobe change. */
@@ -199,6 +201,10 @@ function pickedExtras(entry) {
     const value = cleanText(entry[key])
     if (value) next[key] = value.slice(0, 200)
   })
+  const age = cleanText(entry.age || entry.years)
+  const role = cleanText(entry.role || entry.job || entry.occupation)
+  if (age) next.age = age.slice(0, 160)
+  if (role) next.role = role.slice(0, 160)
   if (typeof entry.lockLine === 'string' && entry.lockLine.trim()) next.lockLine = entry.lockLine.trim().slice(0, 700)
   if (entry.lockEdited === true) next.lockEdited = true
   if (Array.isArray(entry.states) && entry.states.length) next.states = normalizeStates(entry.states)

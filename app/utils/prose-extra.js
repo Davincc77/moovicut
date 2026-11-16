@@ -23,7 +23,7 @@ const LEX = {
       ['cozinha', 'Cozinha', 'uma cozinha'],
       ['ponte', 'Ponte', 'uma ponte']
     ],
-    look: /(?:cerca de \d+ anos|\d+ anos|cabelo (?:preto|castanho|loiro|curto|comprido)(?: (?:preto|castanho|loiro|curto|comprido))?|barba por fazer)/giu,
+    look: /(?:cerca de \d+ anos|\d+ anos|nos seus cinquenta(?: e poucos)?|cinquenta e poucos|pescador|pescadora|cabelo (?:preto|castanho|loiro|curto|comprido)(?: (?:preto|castanho|loiro|curto|comprido))?|barba por fazer)/giu,
     outfit: /(?:casaco de lã [\p{L}-]+|casaco [\p{L}-]+)/giu,
     feminine: ['ela'],
     masculine: ['ele'],
@@ -47,7 +47,7 @@ const LEX = {
       ['cucina', 'Cucina', 'una cucina'],
       ['ponte', 'Ponte', 'un ponte']
     ],
-    look: /(?:\d+ anni|poco più di [\p{L}’']+|caschetto [\p{L}]+|barba [\p{L}]+)/giu,
+    look: /(?:\d+ anni|sulla cinquantina|poco più di [\p{L}’']+|pescatore|pescatrice|caschetto [\p{L}]+|barba [\p{L}]+)/giu,
     outfit: /(?:cappotto [\p{L} -]{0,28})/giu,
     feminine: ['lei'],
     masculine: ['lui'],
@@ -348,13 +348,13 @@ const CJK = {
   ja: {
     verbs: ['渡す', '渡した', '読む', '読んだ', '歩き去る', '歩いて', '見る', '見た', '笑う', '入る', '出る', '開ける', '渡します'],
     places: [['埠頭', '埠頭', '雨の埠頭'], ['カフェ', 'カフェ', '小さなカフェ'], ['駅', '駅', '駅'], ['森', '森', '森'], ['海岸', '海岸', '海岸'], ['通り', '通り', '通り']],
-    look: /(?:三十代前半|五十代|短い黒髪|白い無精ひげ|[\p{Script=Han}]{1,6}髪)/gu,
+    look: /(?:三十代前半|五十代前半|五十代|四十代|漁師|短い黒髪|白い無精ひげ|[\p{Script=Han}]{1,6}髪)/gu,
     outfit: /(?:[\p{Script=Han}ァ-ンー]{1,12}コート|エプロン|帽子)/gu
   },
   'zh-Hans': {
     verbs: ['交给', '读了', '读', '走开', '看着', '看', '笑', '走进', '打开', '递给'],
     places: [['码头', '码头', '雨中的码头'], ['咖啡馆', '咖啡馆', '小咖啡馆'], ['车站', '车站', '车站'], ['森林', '森林', '森林'], ['海边', '海边', '海边'], ['街道', '街道', '街道']],
-    look: /(?:三十出头|五十多岁|黑色短发|灰白胡茬|[\p{Script=Han}]{2,8}发)/gu,
+    look: /(?:三十出头|五十出头|五十多岁|四十多岁|渔夫|渔民|黑色短发|灰白胡茬|[\p{Script=Han}]{2,8}发)/gu,
     outfit: /(?:[\p{Script=Han}]{2,8}大衣|[\p{Script=Han}]{2,6}外套|围裙)/gu
   }
 }

@@ -1,5 +1,6 @@
 /** One action per shot. Deterministic splits, no model call. */
 import { cleanText } from './text.js'
+import { hasConstraint, joinConstraint } from './physical-constraint.js'
 
 const ACTION_VERB = /\b(pours?|spills?|runs?|opens?|walks?|enters?|leaves?|rides?|turns?|hands?|gives?|takes?|sits?|stands?|looks?|knocks?|returns?|climbs?|fights?|repairs?|guides?|delivers?|laughs?|reads?|writes?|calls?|falls?|jumps?|flies|holds?|lifts?|removes?|puts?|picks?|grabs?|throws?|catches?|hugs?|waves?|points?|steps?|stops?|starts?|begins?|closes?|cuts?|slices?|serves?|washes?|rinses?|offers?|waits?|follows?|chases?)\b/i
 
@@ -43,12 +44,28 @@ function inheritSubject(parts) {
 export function splitActionText(text) {
   const clean = cleanText(text)
   if (!clean) return []
-  const sentences = clean.split(/(?<=[.!?])\s+/).map(part => part.trim()).filter(Boolean)
+  const sentences = clean.split(/(?<=[.!?。！？])\s+/u).map(part => part.trim()).filter(Boolean)
   const pieces = []
+  let pending = ''
+  const hold = sentence => {
+    pending = pending ? joinConstraint(pending, sentence) : cleanText(sentence).replace(/[.!?。！？]+$/u, '')
+  }
   sentences.forEach(sentence => {
-    if (!hasVerb(sentence)) return
-    pieces.push(...inheritSubject(clauseParts(sentence)))
+    if (!hasVerb(sentence)) {
+      if (hasConstraint(sentence)) {
+        if (pieces.length) pieces[pieces.length - 1] = joinConstraint(pieces[pieces.length - 1], sentence)
+        else hold(sentence)
+      }
+      return
+    }
+    const parts = inheritSubject(clauseParts(sentence))
+    if (pending) {
+      parts[0] = joinConstraint(parts[0], pending)
+      pending = ''
+    }
+    pieces.push(...parts)
   })
+  if (pending && pieces.length) pieces[pieces.length - 1] = joinConstraint(pieces[pieces.length - 1], pending)
   if (pieces.length < 2) return []
-  return pieces.map(part => part.replace(/[.!?]+$/, ''))
+  return pieces.map(part => part.replace(/[.!?。！？]+$/u, ''))
 }

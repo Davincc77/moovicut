@@ -54,7 +54,7 @@ function serverErrorCodes() {
   const found = new Set()
   for (const file of files) {
     const source = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')
-    for (const match of source.matchAll(/'(invalid_[a-z_]+|too_many_shots|unknown_tool|rate_limited|payload_too_large|method_not_allowed|invalid_json|not_found|invalid_request)'/g)) found.add(match[1])
+    for (const match of source.matchAll(/'(invalid_[a-z_]+|too_many_shots|misplaced_scenario_fields|unknown_tool|rate_limited|payload_too_large|method_not_allowed|invalid_json|not_found|invalid_request)'/g)) found.add(match[1])
   }
   return found
 }

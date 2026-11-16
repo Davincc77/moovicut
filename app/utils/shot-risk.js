@@ -5,6 +5,7 @@ import { allowedDurations, profileFor, snapAspect } from './model-profiles.js'
 import { continuityWarnings } from './continuity-check.js'
 import { partJoinWarnings, partitionShots } from './parts.js'
 import { splitActionText } from './action-split.js'
+import { mentionedFraming, suggestFraming } from './framing.js'
 
 const ACTION_VERBS = /\b(pours|pour|spills|spill|laughs|laugh|runs|run|opens|open|walks|walk|enters|enter|leaves|leave|rides|ride|turns|turn|verse|renverse|rit|court|entre|sort|marche|revient|ouvre)\b/gi
 const TEXT_ON_SCREEN = /\b(title card|subtitle|subtitles|caption|captions|logo|on-screen text|onscreen text|écrit|ecrit|sign reads|text reading|words on screen)\b/i
@@ -126,6 +127,19 @@ export function assessShot(shot, project = {}) {
   }
   if (profile && Number.isFinite(profile.maxPromptLength) && String(shot.prompt || '').length > profile.maxPromptLength) {
     warnings.push(warning(shot, 'prompt_too_long', `This prompt is longer than the ${profile.maxPromptLength} characters ${profile.label} documents.`, 'Shorten the prompt before you paste it.'))
+  }
+  const sizeInAction = mentionedFraming(`${shot.what || ''}\n${shot.action || ''}`)
+  if (sizeInAction) {
+    const chosen = suggestFraming(shot)
+    const same = chosen.id === sizeInAction.term.id
+    warnings.push(warning(
+      shot,
+      'shot_size_in_action',
+      same
+        ? `The action already states the shot size “${sizeInAction.raw}”. The prompt uses that size once.`
+        : `The action states “${sizeInAction.raw}” (${sizeInAction.term.label}) and the shot framing is ${chosen.label}. The prompt uses ${sizeInAction.term.label} once.`,
+      'Keep one shot size. Remove it from the action, or set framing to that size.'
+    ))
   }
   if (CROWD.test(source)) {
     warnings.push(warning(shot, 'crowd', 'A crowd is hard to keep stable in a short clip.', 'Show one or two people instead of a crowd.'))
