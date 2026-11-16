@@ -4,7 +4,7 @@ import { foldName, scenarioBudget, scenarioPremise, scenarioToFields } from './s
 import { flaggedNameKeys } from './shot-risk.js'
 import { splitActionText } from './action-split.js'
 import { detectLocalized } from './prose-extra.js'
-import { inNamedVenue, inSpans, isCueStopword, isFunctionWord, isNeverPlace, isNumberWord, isQuotedOrRemembered, isVenueType, namedVenues, placeMentionIsReal, quoteSpans, splitNarrative } from './scene-split.js'
+import { inNamedVenue, inSpans, isCueStopword, isFunctionWord, isNeverPlace, isNumberWord, isQuotedOrRemembered, isVenueType, mentionMovesScene, namedVenues, placeMentionIsReal, quoteSpans, splitNarrative } from './scene-split.js'
 import { libraryHits, locativeHeads, placeLexiconHas, placeTag } from './place-lexicon.js'
 
 const STOP = new Set(['the', 'a', 'an', 'he', 'she', 'they', 'it', 'his', 'her', 'their', 'then', 'when', 'after', 'before', 'later', 'next', 'once', 'this', 'that', 'there', 'here', 'un', 'une', 'le', 'la', 'les', 'il', 'elle', 'ils', 'elles', 'lui', 'leur', 'puis', 'quand', 'apres', 'avant', 'dans', 'sur', 'sous', 'avec', 'pour', 'par', 'chez', 'au', 'aux', 'du', 'des', 'en', 'et', 'mais', 'ou', 'ce', 'cette', 'ces', 'son', 'sa', 'ses', 'mon', 'ma', 'mes', 'je', 'tu', 'nous', 'vous', 'on', 'plus', 'tout', 'toute', 'tous', 'morning', 'evening', 'night', 'day', 'matin', 'soir', 'nuit', 'jour', 'aube', 'tard', 'lendemain', 'and', 'with', 'from', 'into', 'over', 'while', 'its', 'our', 'your'])
@@ -455,7 +455,7 @@ function keepPerson(text, name, count, mid = 0) {
   // Weekdays and the closed noise list (Early, Water, Sawdust) are not names.
   // Ordinary dictionary words such as Hope or Will are not in that list: a verb or an appositive keeps them.
   if (parts.some(part => CALENDAR_WORD.has(foldName(part)) || NOT_A_PERSON.has(foldName(part)))) return false
-  if (parts.length === 1 && new RegExp(`\\b(?:in|at|on|into|to|dans|sur|im|em|nel|nella)\\s+${escapeName(name)}\\b`, 'iu').test(text) && !introducedPerson(text, name) && !humanSubject(text, name)) return false
+  if (parts.length === 1 && new RegExp(`\\b(?:in|at|on|into|to|dans|sur|im|am|beim|zum|zur|ins|em|nel|nella|der|die|das|dem|den)\\s+${escapeName(name)}\\b`, 'iu').test(text) && !introducedPerson(text, name) && !humanSubject(text, name)) return false
   const positive = introducedPerson(text, name) || humanSubject(text, name) || mid >= 1
   if (positive) return true
   if (parts.length === 1 && placeLexiconHas(parts[0])) return false
@@ -758,7 +758,7 @@ function detectPlaces(text, language, people = new Set()) {
   const unknown = [...source.matchAll(/\b(?:at the|in the|through the|to the|au|dans la|dans le|sur la|sur le)\s+([\p{Ll}'’-]+(?:\s+[\p{Ll}'’-]+){0,2})/gu)]
   unknown.forEach(match => {
     if (isQuotedOrRemembered(source, match.index, language)) return
-    const phrase = cleanText(match[1])
+    const phrase = cleanText(match[1]).split(/\s+/).filter((word, index, all) => index === all.length - 1 || !/^(?:meme|même|autre|petit|petite|vieux|vieille|grand|grande|old|same|little|small)$/iu.test(word)).join(' ')
     if (namedFlag(phrase)) { skippedFlagged = true; return }
     const key = foldName(phrase.split(/\s+/).at(-1))
     if (!key || STOP.has(key) || TIME_BLOCK.has(key) || !PLACE_KEYS.has(key) || NOT_A_PLACE.has(key) || isNeverPlace(phrase) || isNeverPlace(key) || /\b(?:village|town|city|of)\b/i.test(phrase) || places.some(place => foldName(place.name) === key || foldName(place.name).endsWith(key))) return
@@ -1018,7 +1018,7 @@ function detectScenes(text, characters, places, language, flagged, options = {})
     const foundNames = namesIn(shot.what, characters)
     const pronounWho = whoFromPronoun(shot.what, characters, genders, language)
     const who = canonicalWho(foundNames.length ? foundNames.map(item => item.name).join(' and ') : (pronounWho || shot.who), characters)
-    const head = locativeHeads(shot.what, language).find(item => !isQuotedOrRemembered(shot.what, item.index, language))
+    const head = locativeHeads(shot.what, language).find(item => item.moves !== false && mentionMovesScene(shot.what, item.index, language))
     const genericWhere = /^(?:Le lieu|The setting|Der Ort|O lugar|Il luogo|場所|场景)$/u.test(shot.where || '')
     const flaggedOnly = riskNamesOnly(shot.what, flagged)
     let confidence = 'high'

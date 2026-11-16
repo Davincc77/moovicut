@@ -99,12 +99,12 @@ const STRONG = Object.freeze({
   it: ['in', 'nel', 'nello', 'nella', 'negli', 'nelle', 'sul', 'sullo', 'sulla', 'sui', 'sugli', 'sulle', 'al', 'allo', 'alla', 'ai', 'agli', 'alle', 'dentro', 'entra', 'entro', 'arriva', 'apre']
 })
 const ARTICLE = new Set(['the', 'a', 'an', 'le', 'la', 'les', 'un', 'une', 'des', 'du', 'o', 'os', 'as', 'um', 'uma', 'der', 'die', 'das', 'dem', 'den', 'ein', 'eine', 'einem', 'einer', 'einen', 'il', 'lo', 'gli', 'i', 'del', 'della', 'dei', 'delle', 'his', 'her', 'their', 'son', 'sa', 'ses', 'mon', 'ma', 'mes', 'seu', 'sua', 'suo', 'mio', 'mia', 'l', 'd'])
-const MODIFIER = new Set(['old', 'little', 'small', 'tiny', 'narrow', 'big', 'large', 'young', 'new', 'grand', 'petit', 'petite', 'vieux', 'vieille', 'alt', 'alte', 'alter', 'alten', 'klein', 'kleine', 'kleiner', 'kleinen', 'vecchio', 'vecchia', 'piccolo', 'piccola', 'grande', 'velho', 'velha', 'pequeno', 'pequena', 'antico', 'antica', 'antigo', 'tin', 'early', 'late', 'same', 'other', 'next', 'meme', 'même'])
-const TIME_WORD = new Set(['dawn', 'morning', 'noon', 'night', 'evening', 'dusk', 'sunrise', 'sunset', 'sundown', 'afternoon', 'day', 'midnight', 'nightfall', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday', 'mattina', 'mattino', 'sera', 'serata', 'pomeriggio', 'tramonto', 'mezzogiorno', 'alba', 'giorno', 'notte', 'abend', 'morgen', 'nacht', 'morgens', 'mittags', 'nachmittags', 'vormittags', 'abends', 'nachts', 'mittag', 'noite', 'manha', 'manhã', 'tarde', 'dia', 'meio', 'meio-dia', 'fim', 'aube', 'soir', 'midi', 'matin', 'coucher', 'jour', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche', 'early', 'late'])
-const PRONOUN = new Set(['she', 'he', 'they', 'her', 'his', 'him', 'them', 'we', 'you', 'elle', 'il', 'sie', 'er', 'ela', 'ele', 'lei', 'lui'])
+const MODIFIER = new Set(['old', 'little', 'small', 'tiny', 'narrow', 'big', 'large', 'young', 'new', 'grand', 'petit', 'petite', 'vieux', 'vieille', 'alt', 'alte', 'alter', 'alten', 'klein', 'kleine', 'kleiner', 'kleinen', 'gross', 'große', 'grossen', 'großen', 'neu', 'neue', 'neuen', 'rot', 'rote', 'roten', 'roter', 'blau', 'blaue', 'blauen', 'vecchio', 'vecchia', 'piccolo', 'piccola', 'grande', 'velho', 'velha', 'pequeno', 'pequena', 'antico', 'antica', 'antigo', 'tin', 'early', 'late', 'same', 'other', 'next', 'meme', 'même'])
+const TIME_WORD = new Set(['dawn', 'morning', 'noon', 'night', 'evening', 'dusk', 'twilight', 'sunrise', 'sunset', 'sundown', 'afternoon', 'day', 'midnight', 'nightfall', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday', 'mattina', 'mattino', 'sera', 'serata', 'pomeriggio', 'tramonto', 'mezzogiorno', 'alba', 'giorno', 'notte', 'abend', 'morgen', 'nacht', 'morgens', 'mittags', 'nachmittags', 'vormittags', 'abends', 'nachts', 'mittag', 'dämmerung', 'dammerung', 'noite', 'manha', 'manhã', 'tarde', 'dia', 'meio', 'meio-dia', 'fim', 'aube', 'soir', 'midi', 'matin', 'coucher', 'jour', 'nuit', 'soiree', 'soirée', 'apres-midi', 'après-midi', 'crépuscule', 'crepuscule', 'crepuscolo', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche', 'early', 'late'])
+const PRONOUN = new Set(['she', 'he', 'they', 'her', 'his', 'him', 'them', 'we', 'you', 'elle', 'il', 'ils', 'elles', 'nous', 'vous', 'sie', 'er', 'ihn', 'ihr', 'ihnen', 'ela', 'ele', 'lei', 'lui'])
 const VERB_STEM = new Set(['climb', 'walk', 'swim', 'go', 'come', 'run', 'enter', 'leave', 'reach', 'open', 'close', 'sit', 'stand', 'read', 'wait', 'look', 'turn', 'give', 'take', 'hold', 'carry', 'wear', 'unlock', 'rake', 'lower', 'boil', 'wave', 'buy', 'pay', 'drink', 'sleep', 'write', 'arrive', 'pick', 'put', 'eat', 'check', 'pour', 'lift', 'set', 'switch', 'speak', 'sitzen', 'gehen', 'kommen', 'kaufen', 'bezahlen', 'trinken', 'lesen', 'spielen', 'schlafen', 'entra', 'legge', 'scrive', 'accende', 'siede', 'compra', 'espera', 'mostra', 'apanha', 'fecha', 'come', 'marche', 'entre', 'ouvre', 'lit', 'regarde', 'attend'])
 const PARTICLE = new Set(['down', 'up', 'away', 'back', 'out', 'off', 'along', 'over'])
-const SKIP_HEAD = new Set(['him', 'her', 'them', 'me', 'you', 'elle', 'lui', 'pixie', 'silence', 'counter', 'pocket', 'bolso', 'sleeve', 'left', 'right', 'hair', 'cut', 'hand', 'hands', 'eye', 'eyes', 'face', 'door', 'window', 'table', 'cup', 'letter', 'water', 'tea', 'it', 'one', 'end', 'side', 'front', 'back', 'top', 'bottom', 'yeux', 'oeil', 'sourcil', 'dos', 'poche', 'tiroir', 'tiroirs', 'main', 'mains', 'cheveux', 'ink', 'drawing', 'mark', 'sketch', 'paper', 'step', 'steps', 'stair', 'stairs', 'post', 'rail', 'rails', 'drawer', 'drawers'])
+const SKIP_HEAD = new Set(['him', 'her', 'them', 'me', 'you', 'elle', 'lui', 'pixie', 'silence', 'counter', 'pocket', 'bolso', 'sleeve', 'left', 'right', 'hair', 'cut', 'hand', 'hands', 'eye', 'eyes', 'face', 'door', 'window', 'table', 'cup', 'letter', 'water', 'tea', 'it', 'one', 'end', 'side', 'front', 'back', 'top', 'bottom', 'yeux', 'oeil', 'sourcil', 'dos', 'poche', 'tiroir', 'tiroirs', 'main', 'mains', 'cheveux', 'ink', 'drawing', 'mark', 'sketch', 'paper', 'step', 'steps', 'stair', 'stairs', 'post', 'rail', 'rails', 'drawer', 'drawers', 'coat', 'jacket', 'shirt', 'dress', 'hat', 'apron', 'manteau', 'tablier', 'mantel', 'hemd', 'kleid', 'hut', 'tasche', 'schuerze', 'schürze', 'auge', 'augen', 'gesicht', 'haar', 'kopf', 'bein', 'brief', 'stille', 'licht', 'traum', 'stimme', 'fenster', 'tisch', 'glas', 'tasse', 'sleep', 'schlaf', 'sommeil', 'sonno', 'dream', 'memory', 'thought', 'voice', 'name'])
 const DESTINATION = new Set(['to', 'into', 'onto', 'dans', 'au', 'aux', 'entra', 'apre', 'ins', 'zum', 'zur', 'alla', 'al', 'allo', 'reaches', 'reach', 'chega', 'para', 'na', 'no', 'nel', 'nella', 'im'])
 const WEAK_BEFORE = /(?:^|[^\p{L}])(?:behind|below|under|above|beside|near|across|of|from|about|vers|près|pres|hinter|unter|neben|vicino|sotto|sopra|perto|atrás|atras)\s+(?:the\s+|a\s+|an\s+|le\s+|la\s+|les\s+|il\s+|lo\s+|l['’])?$/iu
 const MATERIAL_BEFORE = /(?:en|of|de|aus|di|von)\s+$/iu
@@ -170,11 +170,15 @@ export function locativeHeads(text, language) {
       const capitalName = lang !== 'de' && word[0] !== word[0].toLowerCase() && word[0] === word[0].toUpperCase()
       if (!words.length && TIME_WORD.has(folded)) break
       if (!words.length && (isVerbHead(folded, upcoming) || ARTICLE.has(folded) || isModifierWord(word, lang) || capitalName)) continue
+      if (lang === 'de' && words.length) break
       if (capitalName || TIME_WORD.has(folded) || isVerbHead(folded, upcoming) || ARTICLE.has(folded) || SKIP_HEAD.has(folded) || POSITIONAL.has(folded) || NEVER_PLACE.has(folded) || word.length < 3) break
       words.push({ word, at: tokens[look].index })
     }
     if (!words.length || possessive) continue
-    if (TIME_WORD.has(words[0].word.toLowerCase()) || isVerbHead(words[0].word)) continue
+    if (words.some(item => {
+      const folded = item.word.toLowerCase()
+      return PRONOUN.has(folded) || TIME_WORD.has(folded) || isVerbHead(item.word)
+    })) continue
     const lemma = words.map(item => item.word).join(' ')
     let tag = placeTag(lang, lemma)
     if ((!tag || UNUSABLE.has(tag)) && words.length > 1) tag = placeTag(lang, words.at(-1).word)
@@ -185,7 +189,10 @@ export function locativeHeads(text, language) {
       if (namedPerson) continue
       tag = 'unlisted'
     }
-    heads.push({ lemma, name: displayName(lemma), tag, index: words[0].at, locative: true })
+    const toward = new Set(['to', 'into', 'onto', 'zum', 'zur', 'ins', 'vers', 'para', 'verso'])
+    const arrived = /(?:^|[^\p{L}])(?:go(?:es|ing|ne)?|went|walk(?:s|ed|ing)?|climb(?:s|ed|ing)?|enter(?:s|ed|ing)?|reach(?:es|ed|ing)?|come[s]?|came|arriv(?:e|es|ed|ing)|step(?:s|ped)?|descend(?:s|ed|ing)?|geht|gehen|ging|komm(?:t|en)|kam|betritt|betrat|erreicht|entra(?:r|ndo)?|chega|vai|va|arrive|entre|descend|monte|走进|来到|回到|进了)/iu
+    const moves = !toward.has(prep) || arrived.test(source.slice(Math.max(0, tokens[index].index - 48), words.at(-1).at + words.at(-1).word.length))
+    heads.push({ lemma, name: displayName(lemma), tag, index: words[0].at, locative: true, moves })
     index = cursor
   }
   return heads
@@ -203,6 +210,12 @@ export function libraryHits(text, language) {
     if (tag === 'a:material' && !locative) return
     if (lang === 'zh-Hans' && (lemma === '门口' || ((lemma.startsWith('小') || lemma.startsWith('大')) && [...table.keys()].some(key => key !== lemma && lemma.endsWith(key))))) return
     if (tag !== 's' && tag !== 'unlisted' && !locative) return
+    if (!locative) {
+      const before = source.slice(Math.max(0, index - 24), index)
+      const towardOnly = /(?:^|[^\p{L}])(?:to|into|onto|zum|zur|ins|vers|para|verso)\s+(?:the\s+|a\s+|an\s+|der\s+|die\s+|das\s+|dem\s+|den\s+)?$/iu.test(before)
+      const arrived = /(?:walk|go(?:es|ing)?|went|enter|reach|come|arriv|geht|komm|betritt|entra|chega)/iu.test(source.slice(Math.max(0, index - 48), index))
+      if (towardOnly && !arrived) return
+    }
     const followsParticle = /^(?:で|に|へ)/.test(source.slice(index + String(lemma).length, index + String(lemma).length + 1))
     if (heldPlaceNoun(source, index) && !followsParticle) return
     if (tag.startsWith('a:material') && MATERIAL_BEFORE.test(source.slice(Math.max(0, index - 8), index))) return
@@ -288,7 +301,7 @@ export function libraryHits(text, language) {
     return hits.filter(hit => !hits.some(other => other.lemma.length > hit.lemma.length && other.index <= hit.index && other.index + other.lemma.length >= hit.index + hit.lemma.length))
   }
   locativeHeads(source, lang).forEach(head => {
-    if (head.tag === 'unlisted') return
+    if (head.moves === false) return
     push(head.lemma, head.tag, head.index, true)
   })
   const tokens = [...source.matchAll(/[\p{L}][\p{L}'’-]+/gu)]

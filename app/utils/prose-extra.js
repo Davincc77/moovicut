@@ -1,7 +1,7 @@
 /** Rule-based prose detection beyond English and French. No model call. */
 import { cleanText } from './text.js'
 import { foldName, scenarioBudget, scenarioPremise, scenarioToFields } from './scenario.js'
-import { cueLight, findPlaceCue, inNamedVenue, isFunctionWord, isNumberWord, isQuotedOrRemembered, isVenueType, namedVenues } from './scene-split.js'
+import { cueLight, findPlaceCue, inNamedVenue, isFunctionWord, isNumberWord, isQuotedOrRemembered, isVenueType, mentionMovesScene, namedVenues } from './scene-split.js'
 import { libraryHits, locativeHeads } from './place-lexicon.js'
 
 const LEX = {
@@ -124,7 +124,12 @@ function findPlaces(text, lex, language) {
     places.push({ name: venue.name, description: venue.description, confidence: 'high' })
   })
   libraryHits(text, language).forEach(hit => {
-    if (places.some(place => foldName(place.name) === foldName(hit.name))) return
+    const right = foldName(hit.name)
+    if (places.some(place => foldName(place.name) === right)) return
+    if (places.some(place => {
+      const left = foldName(place.name)
+      return left && (right.startsWith(`${left} `) || right.endsWith(` ${left}`))
+    })) return
     places.push({ name: hit.name, description: hit.name, confidence: hit.tag === 's' ? 'high' : hit.tag === 'unlisted' ? 'low' : 'medium', ...(hit.tag === 'unlisted' ? { unlisted: true } : {}) })
   })
   return places
@@ -141,6 +146,7 @@ function findCharacters(text, lex, places, language) {
     const token = nameOf(words[index][0])
     if (!/^\p{Lu}/u.test(token)) continue
     if (isQuotedOrRemembered(text, words[index].index, language) || isFunctionWord(token, language) || isNumberWord(token, language) || isVenueType(token, language) || inNamedVenue(text, words[index].index, language)) continue
+    if (language === 'de' && /(?:im|am|beim|zum|zur|ins|aufs|vom|der|die|das|dem|den|des|ein|eine|einem|einer|einen)\s+$/iu.test(text.slice(Math.max(0, words[index].index - 16), words[index].index))) continue
     const parts = [token]
     let cursor = index
     while (parts.length < 3 && cursor + 1 < words.length) {
@@ -172,7 +178,7 @@ function findCharacters(text, lex, places, language) {
     const label = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     const german = language === 'de' && (
       new RegExp(`(?<![\\p{L}])${label}(?![\\p{L}])\\s*,\\s*(?:\\d|Anfang)`, 'iu').test(text)
-      || new RegExp(`(?<!\\b(?:der|die|das|dem|den|des|ein|eine|einer|einem|einen)\\s)${label}(?![\\p{L}])\\s+(?:${lex.verbs.join('|')})\\b`, 'iu').test(text)
+      || new RegExp(`(?<!\\b(?:der|die|das|dem|den|des|ein|eine|einer|einem|einen|im|am|beim|zum|zur|ins|aufs|vom)\\s)${label}(?![\\p{L}])\\s+(?:${lex.verbs.join('|')})\\b`, 'iu').test(text)
     )
     const keep = language === 'de' ? (german || look.length > 0) : (entry.count >= 2 || look.length || outfit.length)
     if (!keep) continue
@@ -255,7 +261,7 @@ function findScenes(text, lex, characters, places, language) {
       keys: lex.places.filter(([, name]) => name === place.name).map(([key]) => key).concat(place.name),
       unlisted: place.unlisted === true
     }))
-    const headed = locativeHeads(action, language)[0]
+    const headed = locativeHeads(action, language).find(item => item.moves !== false && mentionMovesScene(action, item.index, language))
     const cue = headed
       ? { name: headed.name, key: headed.lemma, uncertain: false, unlisted: headed.tag === 'unlisted' }
       : findPlaceCue(action, language, records)
@@ -384,8 +390,26 @@ const CJK = {
   }
 }
 
-function cjkSentences(text) {
-  return String(text || '').split(/(?<=[。！？])/).map(item => item.trim()).filter(Boolean)
+function looksVerbal(part) {
+  if (/出头|出頭|岁|歲/u.test(part) && !/[了着过]/u.test(part)) return false
+  return /[了着过]|(?:走|看|说|笑|拿|打|站|坐|开|关|读|写|等|到|来|去|买|卖|吃|喝|睡|跑|进|出|上|下|给|送|放|找|听|问|答|想|做|干|洗|切|煮|烧|修|装|搬|抬|推|拉|摇|点|挥|望|倒|填|吹|交)/u.test(part)
+}
+
+function cjkSentences(text, language) {
+  const sentences = String(text || '').split(/(?<=[。！？；;])/).map(item => item.trim()).filter(Boolean)
+  if (language !== 'zh-Hans') return sentences
+  const clauses = []
+  for (const sentence of sentences) {
+    if (/岁|歲|出头|出頭/u.test(sentence) && !looksVerbal(sentence)) {
+      clauses.push(sentence)
+      continue
+    }
+    const parts = sentence.split(/[，,]/).map(item => item.trim()).filter(Boolean)
+    const verbal = parts.filter(looksVerbal)
+    if (verbal.length >= 2) clauses.push(...verbal)
+    else clauses.push(sentence)
+  }
+  return clauses
 }
 
 function detectCjk(text, language) {
@@ -420,11 +444,11 @@ function detectCjk(text, language) {
     })
   }
   const clauseNames = language === 'zh-Hans'
-    ? [...String(text).matchAll(/(?:^|[。！？])([\p{Script=Han}]{2,3})(?=[\p{Script=Han}]{0,4}(?:拿|走|看|说|笑|等|打|站|坐|把|是|读|写|开|关))/gu)]
+    ? [...String(text).matchAll(/(?:^|[。！？，,])([\p{Script=Han}]{2,3})(?=[\p{Script=Han}]{0,4}(?:拿|走|看|说|笑|等|打|站|坐|把|是|读|写|开|关|倒))/gu)]
     : []
   clauseNames.forEach(match => {
     const name = match[1]
-    if (cjkReject(name) || /[拿走看说笑等打站坐读写开关给那处]$/u.test(name)) return
+    if (cjkReject(name) || /[拿走看说笑等打站坐读写开关给那处在把的了从向对]$/u.test(name)) return
     if (characters.some(item => item.name === name || item.name.endsWith(name) || name.endsWith(item.name))) return
     characters.push({ name, look: '', outfit: '', confidence: 'low' })
   })
@@ -449,11 +473,12 @@ function detectCjk(text, language) {
   let lastWho = characters[0]?.name || ''
   let lastWhere = ''
   let light = ''
-  cjkSentences(text).forEach(sentence => {
-    if (/は[^。]{0,48}で、/u.test(sentence) && !lex.verbs.some(verb => sentence.includes(verb))) return
-    if (language === 'zh-Hans' && /岁|歲|出头|出頭/u.test(sentence) && /[，、]/u.test(sentence) && !/[去到走拿说开坐站读吹填把交]/u.test(sentence)) return
+  cjkSentences(text, language).forEach(sentence => {
+    if (language !== 'zh-Hans' && /は[^。]{0,48}で、/u.test(sentence) && !lex.verbs.some(verb => sentence.includes(verb))) return
+    if (language === 'zh-Hans' && /岁|歲|出头|出頭/u.test(sentence) && !looksVerbal(sentence)) return
     const named = characters.some(item => sentence.includes(item.name))
-    if (!named && !lex.verbs.some(verb => sentence.includes(verb)) && !/[るたます]$/u.test(sentence.replace(/[。！？]+$/u, ''))) return
+    if (language !== 'zh-Hans' && !named && !lex.verbs.some(verb => sentence.includes(verb)) && !/[るたます]$/u.test(sentence.replace(/[。！？；]+$/u, ''))) return
+    if (language === 'zh-Hans' && !named && !looksVerbal(sentence) && !lex.verbs.some(verb => sentence.includes(verb))) return
     const foundNames = characters.filter(character => {
       if (sentence.includes(character.name)) return true
       const kana = character.name.match(/[\p{Script=Hiragana}\p{Script=Katakana}]{2,}$/u)

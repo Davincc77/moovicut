@@ -11,7 +11,7 @@ const FUNCTION = Object.freeze({
   en: ['the', 'a', 'an', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them', 'my', 'your', 'his', 'our', 'their', 'this', 'that', 'these', 'those', 'then', 'than', 'so', 'and', 'but', 'or', 'if', 'when', 'while', 'after', 'before', 'later', 'next', 'once', 'only', 'just', 'still', 'already', 'now', 'today', 'tomorrow', 'yesterday', 'suddenly', 'finally', 'in', 'on', 'at', 'to', 'from', 'into', 'over', 'with', 'without', 'of', 'for', 'by', 'as', 'there', 'here', 'its', 'suddenly'],
   fr: ['le', 'la', 'les', 'un', 'une', 'des', 'je', 'tu', 'il', 'elle', 'on', 'nous', 'vous', 'ils', 'elles', 'lui', 'leur', 'moi', 'toi', 'ce', 'cette', 'ces', 'son', 'sa', 'ses', 'mon', 'ma', 'mes', 'et', 'mais', 'ou', 'donc', 'or', 'ni', 'car', 'puis', 'ensuite', 'alors', 'soudain', 'enfin', 'donc', 'hier', 'demain', 'aujourd', 'hui', 'apres', 'avant', 'plus', 'tard', 'lendemain', 'dans', 'sur', 'sous', 'avec', 'sans', 'pour', 'par', 'chez', 'au', 'aux', 'du', 'en', 'vers', 'pendant', 'toujours', 'jamais', 'ici', 'quand', 'comme', 'si'],
   pt: ['o', 'a', 'os', 'as', 'um', 'uma', 'eu', 'tu', 'ele', 'ela', 'nos', 'voce', 'eles', 'elas', 'meu', 'minha', 'seu', 'sua', 'e', 'mas', 'ou', 'depois', 'entao', 'de', 'repente', 'subitamente', 'enfim', 'ontem', 'amanha', 'hoje', 'mais', 'tarde', 'no', 'na', 'nos', 'nas', 'em', 'por', 'para', 'com', 'sem', 'so', 'apenas', 'ainda', 'ja', 'agora', 'quando', 'se', 'ao', 'aos', 'à', 'às', 'pela', 'pelo', 'do', 'da', 'dos', 'das'],
-  de: ['der', 'die', 'das', 'den', 'dem', 'des', 'ein', 'eine', 'einen', 'ich', 'du', 'er', 'sie', 'es', 'wir', 'ihr', 'mich', 'ihn', 'uns', 'mein', 'dein', 'sein', 'und', 'aber', 'oder', 'dann', 'danach', 'plotzlich', 'endlich', 'so', 'gestern', 'morgen', 'heute', 'spater', 'nach', 'vor', 'in', 'im', 'am', 'an', 'auf', 'ins', 'zum', 'zur', 'mit', 'ohne', 'von', 'zu', 'nur', 'noch', 'schon', 'wenn', 'als', 'abend', 'abends', 'nacht', 'mittag', 'vormittag', 'nachmittag', 'morgens', 'mittags', 'nachmittags', 'vormittags', 'nachts', 'sonnenaufgang', 'sohn', 'tochter', 'mutter', 'vater', 'neffe', 'nichte', 'enkel', 'enkelin', 'bruder', 'schwester', 'onkel', 'tante'],
+  de: ['der', 'die', 'das', 'den', 'dem', 'des', 'ein', 'eine', 'einen', 'ich', 'du', 'er', 'sie', 'es', 'wir', 'ihr', 'mich', 'ihn', 'uns', 'ihnen', 'mein', 'dein', 'sein', 'und', 'aber', 'oder', 'dann', 'danach', 'plotzlich', 'endlich', 'so', 'gestern', 'morgen', 'heute', 'spater', 'nach', 'vor', 'in', 'im', 'am', 'beim', 'an', 'auf', 'ins', 'zum', 'zur', 'mit', 'ohne', 'von', 'zu', 'nur', 'noch', 'schon', 'wenn', 'als', 'abend', 'abends', 'nacht', 'mittag', 'vormittag', 'nachmittag', 'morgens', 'mittags', 'nachmittags', 'vormittags', 'nachts', 'sonnenaufgang', 'sohn', 'tochter', 'mutter', 'vater', 'neffe', 'nichte', 'enkel', 'enkelin', 'bruder', 'schwester', 'onkel', 'tante', 'ab', 'aus', 'ein', 'her', 'hin', 'weg', 'hinein', 'heraus', 'hinauf', 'hinunter', 'hinaus', 'herein'],
   it: ['il', 'lo', 'la', 'i', 'gli', 'le', 'un', 'una', 'uno', 'io', 'tu', 'lui', 'lei', 'noi', 'voi', 'loro', 'mio', 'tuo', 'suo', 'e', 'ma', 'o', 'poi', 'quindi', 'allora', 'improvvisamente', 'infine', 'ieri', 'domani', 'oggi', 'dopo', 'prima', 'piu', 'tardi', 'nel', 'nella', 'in', 'su', 'sul', 'con', 'senza', 'per', 'da', 'solo', 'ancora', 'gia', 'adesso', 'quando', 'se'],
   ja: ['それから', 'そして', 'その後', 'すると', '突然', 'ついに', '次の日', '翌日', 'あとで', '今朝', '今夜'],
   'zh-Hans': ['然后', '接着', '随后', '于是', '突然', '终于', '后来', '第二天', '次日', '之后', '今晚', '今早']
@@ -331,6 +331,13 @@ export function isQuotedOrRemembered(text, index, language = 'en') {
   return pattern.test(before)
 }
 
+/** A place inside speech, memory, or a glance does not move the scene. */
+export function mentionMovesScene(text, index, language = 'en') {
+  if (isQuotedOrRemembered(text, index, language)) return false
+  const before = String(text || '').slice(Math.max(0, index - 64), index)
+  return !clauseLooks(before, language, GLANCE)
+}
+
 export function sentencesOf(text) {
   const source = String(text || '').replace(/\r\n/g, '\n')
   const spans = quoteSpans(source)
@@ -429,6 +436,8 @@ function collectPlaceCues(sentence, language, places) {
         if (/\b(?:across|d['’]en face)\s+(?:the\s+|la\s+|le\s+)?$/i.test(before)) continue
         const afterKey = sentence.slice(index + key.length)
         const locative = clauseLooks(before, language, LOCATIVE) || (language === 'ja' && /^(?:で|に|へ|の中|を)/.test(afterKey)) || (language === 'zh-Hans' && (/^(?:里|上|中|内|边|旁)/.test(afterKey) || /(?:在|去|到|来到)/.test(before)))
+        const towardOnly = /(?:^|[^\p{L}])(?:to|into|onto|zum|zur|ins|vers|para|verso)\s+(?:the\s+|a\s+|an\s+|der\s+|die\s+|das\s+|dem\s+|den\s+|o\s+|il\s+|lo\s+|la\s+|le\s+)?$/iu.test(before)
+        const arrived = /(?:go(?:es|ing|ne)?|went|walk(?:s|ed|ing)?|climb(?:s|ed|ing)?|enter(?:s|ed|ing)?|reach(?:es|ed|ing)?|come[s]?|came|arriv|step(?:s|ped)?|descend(?:s|ed|ing)?|geht|gehen|ging|komm(?:t|en)|kam|betritt|betrat|erreicht|entra|chega|vai|\bva\b|arrive|entre|monte)/iu.test(sentence.slice(Math.max(0, index - 48), index))
         if (heldPlaceNoun(sentence, index)) continue
         const opener = clauseLooks(before, language, OPEN_PLACE)
         const weak = clauseLooks(before, language, WEAK_PLACE)
@@ -436,7 +445,7 @@ function collectPlaceCues(sentence, language, places) {
         if (/^(?:\s+\p{L}[\p{L}'’-]*){0,3}\s+(?:window|door|table|wall|sill|pane|glass|frame|ledge|counter|desk|shutter|fenêtre|fenetre|porte|fenster|finestra|fënster|窗户|窗|窓)/iu.test(afterKey)) continue
         const cueStart = Math.max(0, index - 28)
         const cue = cleanText(sentence.slice(cueStart, index + key.length))
-        hits.push({ name: place.name, key, cue, uncertain: Boolean(weak && !locative && !opener), index })
+        hits.push({ name: place.name, key, cue, uncertain: Boolean((weak && !locative && !opener) || (towardOnly && !arrived)), index })
       }
     }
   }
@@ -742,7 +751,8 @@ export function splitNarrative(text, options = {}) {
     if (!state.place) {
       const mentioned = mentionedPlace(sentence, places)
       const blocked = mentioned && String(placeTag(language, mentioned.name)).startsWith('a:')
-      if (mentioned && !personOwns(mentioned.name) && !blocked) state.place = mentioned.name
+      const passing = place?.uncertain && foldName(place.name) === foldName(mentioned?.name)
+      if (mentioned && !personOwns(mentioned.name) && !blocked && !passing) state.place = mentioned.name
       else if (places[0]?.uncertain) state.place = places[0].name
     }
     if (!state.started) {
