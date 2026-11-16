@@ -94,12 +94,14 @@ test('invalid_plan counts names and actions given in scene what', () => {
 test('a negative physical constraint stays in the short and detailed prompts in every language', () => {
   const lines = [
     ['en', 'They walk to the end of the dock. They stand face to face. Without touching.', /without touching/i],
-    ['fr', 'Ils marchent jusqu’au bout du quai. Ils se font face. Sans se toucher.', /sans se toucher/i],
     ['pt', 'Eles caminham até o fim do cais. Ficam frente a frente. Sem se tocar.', /sem se tocar/i],
-    ['it', 'Camminano fino in fondo al molo. Stanno faccia a faccia. Senza toccarsi.', /senza toccarsi/i],
-    ['ja', '二人は桟橋の端まで歩く。向かい合う。触れずに。', /触れずに/],
     ['zh-Hans', '两人走到码头尽头。面对面站着。不接触。', /不接触/]
   ]
+  for (const code of ['fr', 'ja', 'it']) {
+    const removed = post({ model: 'generic', promptLanguage: code, scenario: { characters: [{ name: 'Nils', look: 'weathered face', outfit: 'oilskin coat' }], places: dock, scenes: [{ who: 'Nils', where: 'Dock', what: 'He waits' }] } })
+    assert.equal(removed.status, 400, code)
+    assert.match(removed.body.message, /en, zh-Hans, pt/)
+  }
   for (const [promptLanguage, what, pattern] of lines) {
     for (const prompt_style of ['short', 'detailed']) {
       const planned = post({
@@ -132,7 +134,7 @@ test('the lock line keeps age and role in every prompt language', () => {
   assert.match(nils.look, /weathered face/)
   assert.match(lia.look, /early thirties/)
   assert.match(lia.look, /teacher/)
-  for (const promptLanguage of ['en', 'zh-Hans', 'pt', 'ja', 'fr', 'it']) {
+  for (const promptLanguage of ['en', 'zh-Hans', 'pt']) {
     const planned = post({
       model: 'generic',
       promptLanguage,
@@ -159,11 +161,8 @@ test('the lock line keeps age and role in every prompt language', () => {
 
 test('a shot size written in the action is not repeated', () => {
   const samples = [
-    ['fr', 'Gros plan, jour, calme : Léa pose la tasse', /gros plan/i, /plan moyen/i],
     ['en', 'Close-up, day, calm: Lea sets the cup down', /close-up/i, /medium shot/i],
     ['pt', 'Grande plano, dia, calmo: Lia pousa a chávena', /grande plano/i, /plano médio/i],
-    ['it', 'Primo piano, giorno, calmo: Lia posa la tazza', /primo piano/i, /piano medio/i],
-    ['ja', 'クローズアップ、昼、静か：リアがカップを置く', /クローズアップ/, /ミディアムショット/],
     ['zh-Hans', '特写，白天，平静：莉亚放下杯子', /特写/, /中景/]
   ]
   for (const [promptLanguage, what, kept, dropped] of samples) {
@@ -185,16 +184,16 @@ test('a shot size written in the action is not repeated', () => {
   }
   const conflict = post({
     model: 'generic',
-    promptLanguage: 'fr',
+    promptLanguage: 'pt',
     scenario: {
       characters: [{ name: 'Léa', look: 'curly hair', outfit: 'green apron' }],
       places: [{ name: 'Café', description: 'a small morning cafe' }],
-      scenes: [{ who: 'Léa', where: 'Café', what: 'Gros plan : Léa pose la tasse', framing: 'wide shot' }]
+      scenes: [{ who: 'Léa', where: 'Café', what: 'Grande plano: Léa pousa a chávena', framing: 'wide shot' }]
     }
   })
   const line = conflict.body.shots[0].prompt.split('\n')[0]
-  assert.match(line, /gros plan/i)
-  assert.doesNotMatch(line, /plan large|plan d'ensemble|wide shot/i)
+  assert.match(line, /grande plano/i)
+  assert.doesNotMatch(line, /plano geral|wide shot/i)
   const note = conflict.body.warnings.find(item => item.code === 'shot_size_in_action')
   assert.match(note.message, /wide shot/i)
 })

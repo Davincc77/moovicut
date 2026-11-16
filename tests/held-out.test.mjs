@@ -14,17 +14,9 @@ const STORIES = [
   { lang: 'en', text: 'Will, 41, grey beard, navy jacket, waits in the garden. That night, Will locks the gate.', names: ['Will'], where: /garden/i, lights: ['', 'night'] },
   { lang: 'en', text: 'Rose, 29, black curls, red scarf, waits in the library. Rose reads a letter.', names: ['Rose'], where: /library/i },
   { lang: 'en', text: 'Mark, 52, white hair, brown coat, waits in the station. Mark lifts a bag.', names: ['Mark'], where: /station/i },
-  { lang: 'fr', text: 'Inès, 33, cheveux courts, manteau gris, attend dans la cuisine. Inès ouvre la porte.', names: ['Inès'], where: /cuisine/i },
-  { lang: 'fr', text: 'Paul, 40, barbe grise, veste bleue, attend dans le jardin. Paul lit une lettre.', names: ['Paul'], where: /jardin/i },
-  { lang: 'fr', text: 'Chloé, 28, cheveux noirs, robe verte, attend à la gare. Chloé sourit.', names: ['Chloé'], where: /gare/i },
   { lang: 'pt', text: 'Lia, 30, cabelo curto, casaco cinza, espera na cozinha. Ela abre uma porta.', names: ['Lia'], where: /cozinha/i },
   { lang: 'pt', text: 'Rui, 48, barba grisalha, casaco azul, espera no parque. Ele lê uma carta.', names: ['Rui'], where: /parque/i },
   { lang: 'pt', text: 'Ana, 27, cabelo preto, vestido verde, espera na estação. Ela sorri com calma.', names: ['Ana'], where: /estação|estacao/i },
-  { lang: 'it', text: 'Giulia, 32, capelli corti, cappotto grigio, aspetta in cucina. Lei apre una porta.', names: ['Giulia'], where: /cucina/i },
-  { lang: 'it', text: 'Marco, 45, barba grigia, giacca blu, aspetta nel parco. Lui legge una lettera.', names: ['Marco'], where: /parco/i },
-  { lang: 'it', text: 'Elena, 29 anni, ricci neri, sciarpa rossa, aspetta in stazione. Elena sorride con calma.', names: ['Elena'], where: /stazione/i },
-  { lang: 'ja', text: '「春」は三十代前半で、短い黒髪、グレーのコート。春はカフェで待つ。春は手紙を読む。', names: ['春'], where: /カフェ/ },
-  { lang: 'ja', text: '「蓮」は五十代で、白い無精ひげ、ネイビーのコート。蓮は駅で待つ。蓮はドアを開ける。', names: ['蓮'], where: /駅/ },
   { lang: 'zh-Hans', text: '「林」三十出头，黑色短发，灰色大衣。林在咖啡馆等待。林打开门。', names: ['林'], where: /咖啡馆/ },
   { lang: 'zh-Hans', text: '「周」五十多岁，灰白胡茬，棕色大衣。周在车站等待。周笑。', names: ['周'], where: /车站/ },
   { lang: 'en', text: 'In the morning, Hope waits in the kitchen. That night, Hope waits in the garden.', names: ['Hope'], where: /kitchen/i, lights: ['dawn', 'night'], wheres: [/kitchen/i, /garden/i] }
@@ -46,10 +38,11 @@ function score(stories, detect = detectProse) {
   return { names: names / nameGold, places: places / placeGold, count: stories.length }
 }
 
-test('held-out stories across six languages keep the named person and place', () => {
-  assert.ok(STORIES.length >= 18)
+test('held-out stories across the three site languages keep the named person and place', () => {
+  assert.ok(STORIES.length >= 8)
   const languages = new Set(STORIES.map(story => story.lang))
-  for (const code of ['en', 'fr', 'pt', 'it', 'ja', 'zh-Hans']) assert.ok(languages.has(code), code)
+  assert.deepEqual([...languages].sort(), ['en', 'pt', 'zh-Hans'])
+  for (const code of ['fr', 'ja', 'it']) assert.equal(languages.has(code), false, code)
   for (const story of STORIES) {
     const found = detectProse(story.text)
     for (const name of story.names) {

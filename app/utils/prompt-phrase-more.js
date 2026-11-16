@@ -1,5 +1,5 @@
 /** Style-preset lines that the short prompt and the preset block paste in. */
-const LANGS = ['zh-Hans', 'pt', 'ja', 'fr', 'it']
+const LANGS = ['zh-Hans', 'pt']
 
 function row(en, values) {
   const entry = {}

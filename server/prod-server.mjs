@@ -40,7 +40,7 @@ export function resolveStaticRoot(env = process.env, root = rootDir) {
   return generated
 }
 
-const LOCALES = new Set(['zh', 'ru', 'de', 'fr', 'ja', 'ko', 'es', 'pt', 'tr'])
+const LOCALES = new Set(['zh', 'ru', 'de', 'fr', 'ja', 'it', 'ko', 'es', 'pt', 'tr'])
 const STUDIO_PATHS = new Set([
   '/dashboard/ai-video/home',
   '/pricing',

@@ -43,12 +43,8 @@ const VERBS = new Set(['entre', 'sort', 'verse', 'renverse', 'rit', 'rire', 'mar
 const NOT_A_PLACE = new Set(['window', 'door', 'table', 'glass', 'cup', 'bottle', 'hand', 'hands', 'umbrella', 'pastry', 'apron', 'hair', 'face', 'eye', 'eyes'])
 const ROLE_WORDS = /\b(baker|boulanger|boulangère|keeper|gardien|neighbour|neighbor|courier|detective|astronaut|painter|explorer)\b/iu
 
-const FR_MARK = /\b(le|la|les|un|une|des|dans|elle|il|avec|sur|au|aux|et|est|son|sa)\b/gi
 const EN_MARK = /\b(the|and|she|he|with|on|in|at|her|his|is)\b/gi
-const OTHER_MARKS = Object.freeze({
-  pt: /\b(ela|ele|eles|elas|uma|não|nao|com|seu|sua|num|numa|pelo|pela|está|esta|encontra|entrega|dele|dela|cais|lê|le|tem|anos|entra|na|ao|à|do|da|dos|das)\b/gi,
-  it: /\b(lei|lui|una|uno|con|nel|nella|sul|sulla|che|non|gli|alla|allo|alle|dello|della|degli|delle|del|di|ha|anni|per|sono|incontra|porge|legge|cappotto|molo|lettera|più|piu|questo|questa)\b/gi
-})
+const PT_MARK = /\b(ela|ele|eles|elas|uma|não|nao|com|seu|sua|num|numa|pelo|pela|está|esta|encontra|entrega|dele|dela|cais|lê|le|tem|anos|entra|na|ao|à|do|da|dos|das)\b/gi
 
 function markCount(text, pattern) {
   pattern.lastIndex = 0
@@ -58,29 +54,17 @@ function markCount(text, pattern) {
 function cjkLanguage(text) {
   const han = (String(text).match(/\p{Script=Han}/gu) || []).length
   const kana = (String(text).match(/[\u3040-\u30ff]/gu) || []).length
-  if (kana >= 2 && han + kana >= 8) return 'ja'
   if (han >= 8 && kana === 0) return 'zh-Hans'
   return ''
 }
 
 function languageScores(text) {
   const cjk = cjkLanguage(text)
-  if (cjk) return { language: cjk, score: (text.match(/\p{Script=Han}|[\u3040-\u30ff]/gu) || []).length, second: 0 }
-  const fr = markCount(text, FR_MARK)
+  if (cjk) return { language: cjk, score: (text.match(/\p{Script=Han}/gu) || []).length, second: 0 }
+  const pt = markCount(text, PT_MARK)
   const en = markCount(text, EN_MARK)
-  const scores = { fr, en }
-  for (const [code, pattern] of Object.entries(OTHER_MARKS)) scores[code] = markCount(text, pattern)
-  const italianOnly = markCount(text, /\b(gli|alla|allo|alle|agli|dello|della|degli|delle|nello|negli|nelle|nella|anni|più|piu|questo|questa|perché|perche)\b/gi)
-  const ranked = Object.entries(scores).sort((a, b) => b[1] - a[1])
-  const [top, topScore] = ranked[0]
-  const second = ranked[1]?.[1] || 0
-  if (italianOnly >= 2 && scores.it >= 2 && scores.it >= (scores.pt || 0)) {
-    return { language: 'it', score: scores.it, second: Math.max(fr, en, second) }
-  }
-  if ((top === 'pt' || top === 'it') && topScore >= 2 && topScore > Math.max(fr, en)) {
-    return { language: top, score: topScore, second: Math.max(fr, en, second) }
-  }
-  return { language: fr > en ? 'fr' : 'en', score: Math.max(fr, en), second }
+  if (pt >= 2 && pt > en) return { language: 'pt', score: pt, second: en }
+  return { language: 'en', score: en, second: pt }
 }
 
 function languageOf(text) {
@@ -90,7 +74,7 @@ function languageOf(text) {
 export function detectTextLanguage(text) {
   const found = languageScores(String(text || ''))
   let confidence = 'low'
-  if (found.language === 'ja' || found.language === 'zh-Hans') confidence = found.score >= 12 ? 'high' : 'medium'
+  if (found.language === 'zh-Hans') confidence = found.score >= 12 ? 'high' : 'medium'
   else if (found.score >= 4 && found.score > found.second) confidence = 'high'
   else if (found.score >= 2) confidence = 'medium'
   return { language: found.language, confidence }
@@ -1085,7 +1069,7 @@ function overall(parts) {
 export function detectProse(input, options = {}) {
   const text = String(input || '').replace(/\r\n/g, '\n').trim()
   const language = languageOf(text)
-  if (language !== 'en' && language !== 'fr') return detectLocalized(text, language, options)
+  if (language !== 'en') return detectLocalized(text, language, options)
   const flagged = flaggedNameKeys(text)
   const roughCast = detectCharacters(text, [], language)
   const personKeys = new Set(roughCast.characters.flatMap(person => [foldName(person.name), ...person.name.split(/\s+/).map(foldName)]))

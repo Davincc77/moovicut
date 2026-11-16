@@ -4,21 +4,13 @@ import { cleanText } from './text.js'
 const PATTERNS = [
   /\b(?:do not|don't|dont|never|not|without|no)\s+touch(?:ing)?(?:\s+each\s+other)?\b/giu,
   /\b(?:without|no)\s+contact\b/giu,
-  /\bsans\s+(?:se\s+)?toucher\b/giu,
-  /\bne\s+(?:se\s+touchent\s+pas|pas\s+se\s+toucher)\b/giu,
-  /\bsans\s+contact\b/giu,
   /\bsem\s+(?:se\s+)?tocar\b/giu,
   /\bsem\s+contact[oa]\b/giu,
   /\bn[aã]o\s+se\s+tocam\b/giu,
-  /\bsenza\s+toccarsi\b/giu,
-  /\bsenza\s+toccare\b/giu,
-  /\bsenza\s+contatto\b/giu,
-  /\bnon\s+si\s+toccano\b/giu,
-  /触れずに|触らずに|触れないように|接触せず|接触しない/gu,
   /不接触|不要接触|没有接触|互不接触|互不碰|不碰/gu
 ]
 
-/** Phrases such as "without touching" or "sans se toucher", in the order they appear. */
+/** Phrases such as "without touching", "不接触", or "sem se tocar", in the order they appear. */
 export function constraintPhrases(text) {
   const source = String(text || '')
   const found = []

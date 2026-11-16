@@ -42,11 +42,9 @@ test('R3 a later school does not replace the mine', () => {
   assert.equal(where.slice(0, 3).some(name => /mine/i.test(name)), true, where.join(' | '))
 })
 
-test('R4 a later Japanese place replaces the earlier one and is not copied backward', () => {
-  const body = plan('岸本透は七十歳で、禿げ頭に茶色のエプロンをして、鍬を担いでいる。\n\n朝、岸本さんは畑に出た。岸本さんは鍬で土を起こした。\n\n昼、岸本さんは醤油工場を訪ねた。岸本さんは樽を見た。\n\n夕方、岸本さんは小学校の校庭で旗を振った。岸本さんは笑った。').body
-  const where = wheres(body)
-  assert.equal(where.at(-1), '校庭', where.join(' | '))
-  assert.notEqual(where[1], '校庭')
+test('R4 Japanese prose is not planned as Japanese', () => {
+  const result = plan('岸本透は七十歳で、禿げ頭に茶色のエプロンをして、鍬を担いでいる。\n\n朝、岸本さんは畑に出た。岸本さんは鍬で土を起こした。\n\n夕方、岸本さんは小学校の校庭で旗を振った。岸本さんは笑った。')
+  assert.notEqual(result.body.language, 'ja')
 })
 
 test('R5 Italian action sentences stay shots when the verb is not on a short list', () => {
@@ -70,18 +68,15 @@ test('R8 a later night does not light the morning shots', () => {
   assert.equal(prompts[1].includes('Night'), false)
 })
 
-test('R8b a later dusk does not light the morning shots', () => {
-  const body = plan('岸本透は七十歳で、禿げ頭に茶色のエプロンをして、鍬を担いでいる。\n\n朝、岸本さんは畑に出た。岸本さんは鍬で土を起こした。\n\n夕方、岸本さんは校庭で旗を振った。').body
-  const prompts = (body.shots || []).map(shot => shot.prompt || '')
-  assert.ok(prompts.length >= 2)
-  assert.equal(prompts.slice(0, 2).some(prompt => prompt.includes('Dusk')), false, prompts.slice(0, 2).join('\n---\n'))
+test('R8b Japanese prose is not planned as Japanese', () => {
+  const result = plan('岸本透は七十歳で、禿げ頭に茶色のエプロンをして、鍬を担いでいる。\n\n朝、岸本さんは畑に出た。岸本さんは鍬で土を起こした。\n\n夕方、岸本さんは校庭で旗を振った。')
+  assert.notEqual(result.body.language, 'ja')
 })
 
-test('R9 a French possessive and a sunrise noun are not places, and the mill is', () => {
-  const body = plan('Léonie Vasseur, 19 ans, longue tresse châtain, ciré jaune, un sifflet.\n\nAu lever du soleil, Léonie entre dans le moulin. Léonie souffle dans son sifflet. Léonie ramasse une plume.').body
-  const found = places(body)
-  assert.equal(found.some(name => /^son$/i.test(name) || /^lever$/i.test(name)), false, found.join(', '))
-  assert.equal(found.some(name => /moulin/i.test(name)), true, found.join(', '))
+test('R9 French prose is not planned as French', () => {
+  const result = plan('Léonie Vasseur, 19 ans, longue tresse châtain, ciré jaune, un sifflet.\n\nAu lever du soleil, Léonie entre dans le moulin. Léonie souffle dans son sifflet. Léonie ramasse une plume.')
+  assert.notEqual(result.body.language, 'fr')
+  assert.equal(placeTag('fr', 'son'), '')
 })
 
 test('R10 Japanese common nouns with が are not characters', () => {
@@ -98,8 +93,6 @@ test('R11a adjectives and garments are not sure places', () => {
 
 test('R11b a locative noun is kept even when it was not copied from a test report', () => {
   const samples = [
-    ['fr', 'Léonie entre dans le bois.', /bois/i],
-    ['it', 'Giulia ha 40 anni e entra nella miniera. Giulia legge.', /miniera/i],
     ['pt', 'Rui tem 40 anos e entra na mina. Rui lê uma carta.', /mina/i]
   ]
   for (const [language, text, place] of samples) {
@@ -109,11 +102,16 @@ test('R11b a locative noun is kept even when it was not copied from a test repor
   }
 })
 
-test('an Italian portrait with no scene returns the error in Italian', () => {
+test('an Italian portrait is not answered as Italian', () => {
   const result = plan('Chiara Bellandi, 40 anni, capelli corti, cappotto blu.')
-  assert.equal(result.status, 400)
-  assert.doesNotMatch(result.body.message || '', /Scène/)
-  assert.match(result.body.message || '', /scena/i)
+  assert.notEqual(result.body.language, 'it')
+  const rejected = dispatchAgentRequest({
+    method: 'POST',
+    pathname: '/api/v1/storyboard',
+    body: JSON.stringify({ premise: 'A lighthouse keeper races the dusk to repair a failing beacon.', promptLanguage: 'it' })
+  })
+  assert.equal(rejected.status, 400)
+  assert.match(JSON.parse(rejected.body).message, /promptLanguage must be one of: en, zh-Hans, pt/)
 })
 
 test('Luxembourgish cue tables are gone from the detectors', () => {

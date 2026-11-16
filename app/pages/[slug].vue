@@ -2,7 +2,7 @@
 import { ArrowUpRight } from 'lucide-vue-next'
 import { socialPreviewSeo } from '~/utils/social-preview.js'
 const route = useRoute()
-const localeCodes = new Set(['zh', 'ru', 'de', 'fr', 'ja', 'ko', 'es', 'pt', 'tr'])
+const localeCodes = new Set(['zh', 'ru', 'de', 'fr', 'ja', 'it', 'ko', 'es', 'pt', 'tr'])
 const localeRoot = localeCodes.has(String(route.params.slug || ''))
 if (localeRoot) onMounted(() => navigateTo('/', { replace: true }))
 const pages = {

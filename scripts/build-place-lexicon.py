@@ -3,8 +3,8 @@
 
 Sources, fetched only when this script runs:
 - Princeton WordNet 3.0 (WORDNET_TAR, default /tmp/wn.tar.gz)
-- Open Multilingual Wordnet 1.4 (OMW_ZIP, default /tmp/omw.zip): fra, por, ita, jpn, cmn
-German is not a site language, so OdeNet is not read.
+- Open Multilingual Wordnet 1.4 (OMW_ZIP, default /tmp/omw.zip): por, cmn
+German, French, Italian, and Japanese are not site languages, so OdeNet, WOLF, MultiWordNet, and the Japanese Wordnet are not read.
 
 Ambiguous tags come from app/data/place-audit.json and from a lemma that also
 belongs to a non-place synset.
@@ -41,10 +41,7 @@ EXCLUDE_ROOTS = {
 EXCLUDE_ROOTS.discard('artifact')
 
 OMW = {
-    'fr': 'omw-1.4/fra/wn-data-fra.tab',
     'pt': 'omw-1.4/por/wn-data-por.tab',
-    'it': 'omw-1.4/ita/wn-data-ita.tab',
-    'ja': 'omw-1.4/jpn/wn-data-jpn.tab',
     'zh-Hans': 'omw-1.4/cow/wn-data-cmn.tab',
 }
 DE_SEEDS = [
@@ -58,10 +55,7 @@ DE_EXCLUDE = ['Person', 'Tier', 'Pflanze', 'Nahrung', 'Gefühl', 'Farbe', 'Zeit'
 # tests/supplement-vocab.test.mjs fails if one of those words is added back.
 SUPPLEMENT = {
     'en': ['quay', 'pier', 'wharf', 'cafe', 'rink', 'boathouse', 'car wash', 'pawnshop', 'fire escape', 'sawmill', 'mine', 'hayloft', 'embankment', 'gym', 'bowling alley'],
-    'fr': ['serre', 'quai', 'piscine', 'forêt', 'foret'],
     'pt': ['estufa', 'cais', 'piscina'],
-    'it': ['serra', 'molo', 'piscina'],
-    'ja': ['台所', '温室', '埠頭', 'カフェ', '駅'],
     'zh-Hans': ['厨房', '温室', '码头', '咖啡馆', '车站'],
 }
 
@@ -254,9 +248,9 @@ def main():
         counts[language] = {'sure': sure, 'ambiguous': ambiguous, 'total': sure + ambiguous}
     payload = {
         'name': 'moovicut-place-lexicon',
-        'builtFrom': 'Princeton WordNet 3.0 place-type hyponyms; Open Multilingual Wordnet 1.4 lemmas for French, Portuguese, Italian, Japanese, and Chinese on those synsets. A lemma that also belongs to a non-place synset, or to the audit list of names, objects, or materials, is tagged ambiguous.',
-        'license': 'CC BY-SA 4.0 for this compilation, because it includes OpenWN-PT (CC BY-SA). ShareAlike: if you share this file or an adaptation, credit the sources and use CC BY-SA 4.0. English: WordNet licence https://wordnet.princeton.edu/license-and-commercial-use . French WOLF: CeCILL-C (those French entries stay available under CeCILL-C). Portuguese OpenWN-PT: CC BY-SA. Italian MultiWordNet: CC BY 3.0. Japanese Wordnet: NICT WordNet-style licence. Chinese Open Wordnet: WordNet-style licence. See docs/place-library.md.',
-        'attribution': 'Princeton University WordNet; Francis Bond and Kyonghee Paik, Open Multilingual Wordnet; WOLF; OpenWN-PT; MultiWordNet; NICT Japanese Wordnet; Chinese Open Wordnet.',
+        'builtFrom': 'Princeton WordNet 3.0 place-type hyponyms; Open Multilingual Wordnet 1.4 lemmas for Portuguese and Chinese on those synsets. A lemma that also belongs to a non-place synset, or to the audit list of names, objects, or materials, is tagged ambiguous. French, Italian, and Japanese are not site languages, so those OMW wordnets are not read.',
+        'license': 'CC BY-SA 4.0 for this compilation, because it includes OpenWN-PT (CC BY-SA). ShareAlike: if you share this file or an adaptation, credit the sources and use CC BY-SA 4.0. English: WordNet licence https://wordnet.princeton.edu/license-and-commercial-use . Portuguese OpenWN-PT: CC BY-SA. Chinese Open Wordnet: WordNet-style licence. See docs/place-library.md.',
+        'attribution': 'Princeton University WordNet; Francis Bond and Kyonghee Paik, Open Multilingual Wordnet; OpenWN-PT; Chinese Open Wordnet.',
         'counts': counts,
         'lemmas': sorted(tags.get('en', {})),
         'tags': tags,

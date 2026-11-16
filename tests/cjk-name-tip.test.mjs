@@ -18,7 +18,7 @@ function page(locale) {
   })
 }
 
-test('the name-detection tip renders in Japanese and Simplified Chinese and not in English', async () => {
+test('the name-detection tip renders in Simplified Chinese and not in English or Japanese', async () => {
   const ja = await renderToString(page('ja'))
   const zh = await renderToString(page('zh-Hans'))
   const en = await renderToString(page('en'))
@@ -29,9 +29,11 @@ test('the name-detection tip renders in Japanese and Simplified Chinese and not 
   }))
   assert.equal(cjkNameTip('en'), '')
   assert.equal(cjkNameTip('fr'), '')
-  assert.equal(cjkNameTip('ja'), CJK_NAME_TIPS.ja)
+  assert.equal(cjkNameTip('ja'), '')
+  assert.equal(cjkNameTip('it'), '')
+  assert.equal(CJK_NAME_TIPS.ja, undefined)
   assert.equal(cjkNameTip('zh-Hans'), CJK_NAME_TIPS['zh-Hans'])
-  assert.ok(ja.includes(`data-cjk-name-tip>${CJK_NAME_TIPS.ja}</p>`))
+  assert.equal(ja.includes('data-cjk-name-tip'), false)
   assert.ok(zh.includes(`data-cjk-name-tip>${CJK_NAME_TIPS['zh-Hans']}</p>`))
   assert.equal(en.includes('data-cjk-name-tip'), false)
   assert.equal(en, bare)
