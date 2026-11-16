@@ -74,6 +74,25 @@ export default defineNuxtConfig({
     }
   },
   runtimeConfig: { public: { appUrl: siteOrigin, productionOrigin: siteOrigin } },
+  vite: {
+    plugins: [
+      {
+        name: 'json-import-for-client',
+        enforce: 'pre',
+        transform(code: string, id: string) {
+          const file = id.split('?')[0]
+          if (!file.endsWith('/app/utils/place-lexicon.js') && !file.endsWith('/app/i18n/index.js')) return
+          if (!code.includes('createRequire')) return
+          const next = code
+            .replace("import { createRequire } from 'node:module'\n", '')
+            .replace('const require = createRequire(import.meta.url)\n', '')
+            .replace("const data = require('../data/place-lexicon.json')\n", "import data from '../data/place-lexicon.json'\n")
+            .replace(/const (\w+) = require\('(\.\/locales\/[^']+\.json)'\)\n/g, "import $1 from '$2'\n")
+          return next === code ? undefined : { code: next, map: null }
+        }
+      }
+    ]
+  },
   nitro: {
     preset: 'static',
     prerender: {

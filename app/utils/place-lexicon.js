@@ -1,5 +1,12 @@
 /** Static place library. Membership is not a sentence list. Sure places can be named on their own. Ambiguous ones count only inside a locative. */
-import data from '../data/place-lexicon.json' with { type: 'json' }
+import { createRequire } from 'node:module'
+
+// `with { type: 'json' }` is a with-statement to Rollup, so `nuxt generate` rejects it.
+// Node still needs an attribute for a static JSON import. createRequire loads the file for
+// tests and `node server/prod-server.mjs`. The Vite plugin in nuxt.config.ts rewrites this
+// call into a plain JSON import for the client build.
+const require = createRequire(import.meta.url)
+const data = require('../data/place-lexicon.json')
 
 const TABLES = new Map(Object.entries(data.tags || {}).map(([language, table]) => [language, new Map(Object.entries(table))]))
 const FULL = new Set(data.lemmas || [])

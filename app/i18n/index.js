@@ -1,9 +1,13 @@
-import en from './locales/en.json' with { type: 'json' }
-import zhHans from './locales/zh-Hans.json' with { type: 'json' }
-import pt from './locales/pt.json' with { type: 'json' }
-import ja from './locales/ja.json' with { type: 'json' }
-import fr from './locales/fr.json' with { type: 'json' }
-import it from './locales/it.json' with { type: 'json' }
+import { createRequire } from 'node:module'
+
+// Same JSON loading as place-lexicon.js: createRequire for Node, rewritten to a plain import by Vite.
+const require = createRequire(import.meta.url)
+const en = require('./locales/en.json')
+const zhHans = require('./locales/zh-Hans.json')
+const pt = require('./locales/pt.json')
+const ja = require('./locales/ja.json')
+const fr = require('./locales/fr.json')
+const it = require('./locales/it.json')
 import { createI18n, trustedCatalogHtml } from './logic.js'
 
 const catalogs = { en, 'zh-Hans': zhHans, pt, ja, fr, it }
