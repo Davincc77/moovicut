@@ -7,7 +7,8 @@ import { detectProse, isNamedTraitPremise, premiseShotPlan } from './prose-detec
 import { canonicalStyleFamily, formatPresetBlock, listPresets, presetFamilies, presetGenres, resolvePreset } from './presets/index.js'
 import { shotInvolvesHands } from './shot-risk.js'
 import { charactersInShot, lockLinesForShot, mergeCharacterExtras } from './character-lock.js'
-import { canonicalFramingLabel, promptFraming, suggestFraming } from './framing.js'
+import { canonicalFramingLabel, mentionedFraming, promptFraming, stripFramingPhrase, suggestFraming } from './framing.js'
+import { ensureConstraints } from './physical-constraint.js'
 import { isNonPlaceNoun } from './place-lexicon.js'
 import { splitActionText } from './action-split.js'
 import { finalizeParts } from './parts.js'
@@ -1048,6 +1049,27 @@ function framingLabel(shot) {
   return label.charAt(0).toUpperCase() + label.slice(1)
 }
 
+function spokenFraming(label, lang) {
+  const spoken = phrase(lang, label)
+  if (!spoken || spoken === 'POV') return spoken || 'Medium shot'
+  return spoken.charAt(0).toUpperCase() + spoken.slice(1)
+}
+
+/** One shot size. A size written in the action wins, and it is not written again. */
+function composeOpening(shot, project, lang) {
+  const source = `${shot?.what || ''}\n${shot?.action || ''}`
+  const mention = mentionedFraming(source)
+  let action = namedAction(shot, project, lang)
+  if (mention) action = stripFramingPhrase(action, mention.raw)
+  const label = mention ? spokenFraming(mention.term.label, lang) : spokenFraming(framingLabel(shot), lang)
+  if (!action) return endPeriod(label)
+  return endPeriod(`${label}: ${action}`.replace(/:\s*\./, '.'))
+}
+
+function withConstraints(text, shot) {
+  return ensureConstraints(text, `${shot?.what || ''}\n${shot?.action || ''}`)
+}
+
 function stylePhrase(project) {
   const lang = promptLanguageOf(project)
   const preset = project.preset
@@ -1185,8 +1207,7 @@ function fitShortPrompt(parts, max = SHORT_PROMPT_MAX) {
 /** Labeled short prompt for Grok and Veo. Prose models keep createShortPrompt. */
 export function createStructuredShort(shot, project, index = 0) {
   const lang = promptLanguageOf(project)
-  const action = namedAction(shot, project, lang)
-  const opening = endPeriod(`${phrase(lang, framingLabel(shot))}: ${action}`.replace(/:\s*\./, '.'))
+  const opening = composeOpening(shot, project, lang)
   const locks = lockLinesForShot(shot, project, index).filter(Boolean)
   const place = placePhrase(shot, project)
   const light = localizeLight(lang, oneLight(shot, project))
@@ -1197,20 +1218,19 @@ export function createStructuredShort(shot, project, index = 0) {
   const lines = id === 'google'
     ? [`SCENE: ${opening}`, ...locks.map(line => `SUBJECT: ${line}`), place ? `PLACE: ${endPeriod(place)}` : '', light ? `LIGHTING: ${endPeriod(sentence(light))}` : '', `CAMERA: ${camera}.`, style ? `STYLE: ${endPeriod(style)}` : '', stability]
     : [`SHOT: ${opening}`, ...locks, place ? `PLACE: ${endPeriod(place)}` : '', light ? `LIGHT: ${endPeriod(sentence(light))}` : '', `CAMERA: ${camera}.`, style ? `STYLE: ${endPeriod(style)}` : '', stability]
-  return fitShortPrompt({ opening: lines.filter(Boolean).join('\n'), locks: [], place: '', light: '', style: '', camera: '', stability: '' }, plannedLengthBudget(profileFor(project.model || project.target_model)))
+  return withConstraints(fitShortPrompt({ opening: lines.filter(Boolean).join('\n'), locks: [], place: '', light: '', style: '', camera: '', stability: '' }, plannedLengthBudget(profileFor(project.model || project.target_model))), shot)
 }
 
 /** The video-model prompt: framing and the named action, then locks, place, one light, style, camera. */
 export function createShortPrompt(shot, project, index = 0) {
   const lang = promptLanguageOf(project)
-  const action = namedAction(shot, project, lang)
-  const opening = endPeriod(`${phrase(lang, framingLabel(shot))}: ${action}`.replace(/:\s*\./, '.'))
+  const opening = composeOpening(shot, project, lang)
   const locks = lockLinesForShot(shot, project, index)
   const place = placePhrase(shot, project)
   const light = localizeLight(lang, oneLight(shot, project))
   const style = stylePhrase(project)
   const stability = shotInvolvesHands(shot) ? phrase(lang, STABILITY_CUE) : ''
-  return fitShortPrompt({
+  return withConstraints(fitShortPrompt({
     opening,
     locks,
     place: place ? endPeriod(place) : '',
@@ -1218,7 +1238,7 @@ export function createShortPrompt(shot, project, index = 0) {
     style,
     camera: cameraPhrase(shot, lang),
     stability
-  }, plannedLengthBudget(profileFor(project.model || project.target_model)))
+  }, plannedLengthBudget(profileFor(project.model || project.target_model))), shot)
 }
 
 function promptHeader(project) {
@@ -1238,9 +1258,12 @@ export function createPrompt(shot, project, index = 0) {
   const lockedStyle = styleLockFor(project)
   const guided = project.sequenceMode === 'scenario' || isPresetMode(project.sequenceMode)
   const spokenBase = guided ? scenarioShotForPrompt(shot, project) : spokenShot(shot, project)
+  const sizeInAction = mentionedFraming(`${shot.what || ''}\n${shot.action || ''}`)
   const spoken = {
     ...spokenBase,
-    framing: promptFraming(shot),
+    framing: sizeInAction ? sizeInAction.term.label : promptFraming(shot),
+    action: sizeInAction ? stripFramingPhrase(spokenBase.action, sizeInAction.raw) : spokenBase.action,
+    directions: sizeInAction ? stripFramingPhrase(spokenBase.directions || '', sizeInAction.raw) : spokenBase.directions,
     camera: explicitCameraMove(shot) || 'locked-off camera',
     lens: shot.lensChosen ? cleanText(shot.lens) : ''
   }
@@ -1255,7 +1278,8 @@ export function createPrompt(shot, project, index = 0) {
   }
   const finish = text => {
     const lang = promptLanguageOf(project)
-    return lang === 'en' ? text : translateDetailedPrompt(text, lang)
+    const translated = lang === 'en' ? text : translateDetailedPrompt(text, lang)
+    return withConstraints(translated, shot)
   }
   if (guided && project.filmSheet) return finish(withLock(`${header}\n${body}`))
   if (project.sequenceMode === 'continuous' && project.continuitySheet) {

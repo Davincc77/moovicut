@@ -151,8 +151,43 @@ function presetOptions(input, model, mode) {
   }
 }
 
+const SCENARIO_SCENE_KEYS = ['who', 'w', 'where', 'at', 'what', 'do', 'character', 'place']
+const SCENARIO_EXAMPLE = '{"scenario":{"characters":[{"name":"Léa","look":"curly hair","outfit":"green apron"}],"places":[{"name":"Café","description":"a small morning cafe"}],"scenes":[{"who":"Léa","where":"Café","what":"She pours a latte"}]}}'
+
+function present(value) {
+  return value != null && value !== ''
+}
+
+function misplacedScenarioFields(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return []
+  const fields = []
+  if (present(input.characters)) fields.push('characters')
+  if (present(input.places)) fields.push('places')
+  const scenes = Array.isArray(input.scenes) ? input.scenes : null
+  if (scenes?.some(scene => scene && typeof scene === 'object' && !Array.isArray(scene) && SCENARIO_SCENE_KEYS.some(key => present(scene[key])))) fields.push('scenes')
+  if (fields.length) {
+    for (const key of ['light', 'mood']) if (present(input[key]) && !fields.includes(key)) fields.push(key)
+  }
+  return fields
+}
+
+function refuseMisplacedScenario(input) {
+  const fields = misplacedScenarioFields(input)
+  if (!fields.length) return
+  const list = fields.join(', ')
+  const pronoun = fields.length === 1 ? 'it' : 'them'
+  const verb = fields.length === 1 ? 'was' : 'were'
+  const message = `${list} ${verb} sent at the top level. Put ${pronoun} inside scenario. Example: ${SCENARIO_EXAMPLE}`
+  const error = new Error(message)
+  error.status = 400
+  error.code = 'misplaced_scenario_fields'
+  error.errors = fields.map(field => ({ section: 'scenario', field, message: `Put ${field} inside scenario.` }))
+  throw error
+}
+
 function storyboardOptions(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) fail('Send a JSON object.', 'invalid_body')
+  refuseMisplacedScenario(input)
   if (input.input === 'prose' || input.type === 'prose') return { prose: true, raw: input }
   const fountainText = typeof input.fountain === 'string' ? input.fountain : (input.input === 'fountain' || input.type === 'fountain' ? String(input.text || input.premise || '') : (isFountain(input.premise) ? input.premise : ''))
   if (fountainText) {
@@ -443,25 +478,56 @@ function plannedCharacter(name, project) {
   return (project?.filmSheet?.characters || []).some(person => foldName(person?.name) === key)
 }
 
+function suppliedScenePlan(input) {
+  const names = []
+  const actions = []
+  const scenes = Array.isArray(input?.scenes) ? input.scenes : []
+  for (const scene of scenes) {
+    if (!scene || typeof scene !== 'object' || Array.isArray(scene)) continue
+    const who = scene.who ?? scene.w
+    const list = Array.isArray(who) ? who : (typeof who === 'string' ? who.split(/\s+and\s+/i) : [])
+    list.forEach(name => {
+      const clean = cleanText(name)
+      if (clean) names.push(clean)
+    })
+    const what = cleanText(scene.what || scene.do || '').replace(/[.!?]+$/g, '')
+    if (what) actions.push(what)
+  }
+  return { names, actions }
+}
+
+/** Names and actions from scene `what` / `who` that the board did not keep. */
+export function scenePlanGaps(input, project) {
+  const supplied = suppliedScenePlan(input)
+  const blob = (project?.shots || []).map(shot => `${shot.who || ''}\n${shot.what || ''}\n${shot.action || ''}\n${shot.prompt || ''}`).join('\n')
+  return {
+    names: supplied.names.filter(name => !plannedCharacter(name, project) && !blob.includes(name)),
+    actions: supplied.actions.filter(action => !blob.includes(action))
+  }
+}
+
 /** A named premise that would come back as the generic template is a failed plan, not a board. */
 function refuseUnplannedPremise(project, input) {
   const mode = project?.sequenceMode || ''
   if (mode === 'scenario' || mode === 'ad' || mode === 'series' || mode === 'explainer') return
-  if (Array.isArray(input?.scenes) && input.scenes.some(scene => scene && (scene.action || scene.beat || scene.description))) return
+  const supplied = scenePlanGaps(input, project)
+  const overridesOnly = Array.isArray(input?.scenes) && input.scenes.some(scene => scene && (scene.action || scene.beat || scene.description)) && !supplied.names.length && !supplied.actions.length
+  if (overridesOnly) return
   const premise = cleanText(project?.premise || '')
-  if (premise.length < 8) return
-  const detected = detectProse(premise)
-  const names = (detected.characters || []).map(item => cleanText(item.name)).filter(Boolean)
-  const actions = (detected.scenes || []).map(item => cleanText(item.what)).filter(item => item && item !== premise)
-  if (!names.length && actions.length < 2) return
+  if (premise.length < 8 && !supplied.names.length && !supplied.actions.length) return
+  const detected = premise.length >= 8 ? detectProse(premise) : { characters: [], scenes: [] }
+  const names = [...new Set([...(detected.characters || []).map(item => cleanText(item.name)).filter(Boolean), ...supplied.names])]
+  const actions = [...new Set([...(detected.scenes || []).map(item => cleanText(item.what)).filter(item => item && item !== premise), ...supplied.actions])]
+  if (!names.length && actions.length < 2 && !supplied.names.length && !supplied.actions.length) return
   const shots = project.shots || []
   const templates = shots.filter(shotIsTemplate).length
-  if (!shots.length || templates < Math.ceil(shots.length / 2)) return
+  const templateBoard = !shots.length || templates >= Math.ceil(shots.length / 2)
+  if (!templateBoard && !supplied.names.length && !supplied.actions.length) return
   const blob = shots.map(shot => `${shot.who || ''}\n${shot.what || ''}\n${shot.action || ''}`).join('\n')
   const droppedNames = names.filter(name => !plannedCharacter(name, project))
   const droppedActions = actions.filter(action => !blob.includes(action))
   const namesDropped = names.length > 0 && droppedNames.length > 0
-  const actionsDropped = actions.length >= 2 && droppedActions.length >= Math.ceil(actions.length / 2)
+  const actionsDropped = (actions.length >= 2 && droppedActions.length >= Math.ceil(actions.length / 2)) || supplied.actions.some(action => !blob.includes(action))
   if (!namesDropped && !actionsDropped) return
   const errors = []
   for (const name of droppedNames) {

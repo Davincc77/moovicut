@@ -91,6 +91,55 @@ export function promptFraming(shot = {}) {
   return suggestFraming(shot).label
 }
 
+const FRAMING_ALIAS_SKIP = new Set(['wide', 'medium', 'insert', 'static', 'crane', 'dolly', 'jib', 'portrait', 'tracking', 'pov', 'macro', 'overhead', 'close', 'handheld'])
+
+function framingNeedles(term) {
+  const labels = new Set([term.label])
+  for (const lang of PROMPT_LANGUAGES) {
+    const spoken = phrase(lang, term.label)
+    if (spoken) labels.add(spoken)
+  }
+  for (const alias of term.aliases) {
+    if (!alias || FRAMING_ALIAS_SKIP.has(foldFraming(alias))) continue
+    labels.add(alias)
+  }
+  return [...labels].filter(label => {
+    const folded = foldFraming(label)
+    if (!folded || FRAMING_ALIAS_SKIP.has(folded)) return false
+    if (/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u.test(label)) return folded.length >= 2
+    return folded.length >= 4
+  })
+}
+
+/** The shot size written in an action, in any of the six prompt languages. Longest phrase wins. */
+export function mentionedFraming(text) {
+  const source = String(text || '')
+  if (!source.trim()) return null
+  let best = null
+  for (const term of FRAMING_TERMS) {
+    for (const label of framingNeedles(term)) {
+      const body = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+')
+      const match = new RegExp(`(?<![\\p{L}\\p{N}])${body}(?![\\p{L}\\p{N}])`, 'iu').exec(source)
+      if (!match) continue
+      const length = foldFraming(match[0]).length
+      if (!best || length > best.length || (length === best.length && match.index < best.index)) {
+        best = { term, raw: match[0], index: match.index, length }
+      }
+    }
+  }
+  return best
+}
+
+/** Drop one written shot-size phrase so the prompt does not say it twice. */
+export function stripFramingPhrase(text, raw) {
+  const source = String(text || '')
+  const phraseText = cleanText(raw)
+  if (!phraseText) return cleanText(source)
+  const body = phraseText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+')
+  const next = source.replace(new RegExp(`(?<![\\p{L}\\p{N}])${body}(?![\\p{L}\\p{N}])`, 'iu'), ' ')
+  return cleanText(next).replace(/^[\s,;:：，、\-–—]+/u, '').replace(/[\s,;:：，、\-–—]+$/u, '').replace(/\s{2,}/g, ' ').trim()
+}
+
 export function promptHasFraming(prompt) {
   const folded = foldFraming(prompt)
   if (FRAMING_TERMS.some(term => folded.includes(foldFraming(term.label)))) return true
