@@ -111,7 +111,7 @@ function framingNeedles(term) {
   })
 }
 
-/** The shot size written in an action, in any of the six prompt languages. Longest phrase wins. */
+/** The shot size written in an action, in any of the three prompt languages. Longest phrase wins. */
 export function mentionedFraming(text) {
   const source = String(text || '')
   if (!source.trim()) return null

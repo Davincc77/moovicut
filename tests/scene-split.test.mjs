@@ -190,21 +190,19 @@ test('merge drops a scene boundary and split promotes a shot cue', () => {
 })
 
 test('sentence-initial connectors are not characters, and a missing look does not reject the board', () => {
-  const french = detectProse('Ensuite Maya ouvre la porte. Soudain Maya sourit. Elle pense à Paris.')
-  assert.equal(french.characters.some(item => /^(Ensuite|Soudain|Elle|Paris)$/i.test(item.name)), false)
   const english = detectProse('In the early evening Maya reads. Suddenly Maya smiles. We should go. So Maya waits.')
   assert.equal(english.characters.some(item => /^(In|Suddenly|We|So|At|Only)$/.test(item.name)), false)
   const bare = dispatchAgentRequest({
     method: 'POST',
     pathname: '/api/v1/storyboard',
-    body: JSON.stringify({ input: 'prose', prose: 'Jules enters the cafe. Jules waits by the counter.', promptLanguage: 'fr' })
+    body: JSON.stringify({ input: 'prose', prose: 'Jules enters the cafe. Jules waits by the counter.', promptLanguage: 'pt' })
   })
   assert.equal(bare.status, 200)
   const body = JSON.parse(bare.body)
   const warning = body.warnings.find(item => item.code === 'missing_look' && item.name === 'Jules')
   assert.ok(warning)
   assert.match(warning.message, /Jules/)
-  assert.match(warning.message, /apparence/i)
+  assert.match(warning.message, /aparência/i)
   const strict = dispatchAgentRequest({
     method: 'POST',
     pathname: '/api/v1/storyboard',
@@ -299,7 +297,7 @@ function scoreStory(name) {
 }
 
 test('the four baseline stories beat the live detector, and a story past 40 shots is refused', () => {
-  const rows = ['fr_medium', 'en_medium', 'fr_long', 'en_long'].map(scoreStory)
+  const rows = ['en_medium', 'en_long'].map(scoreStory)
   let characterHits = 0
   let characterFound = 0
   let characterGold = 0
@@ -327,7 +325,7 @@ test('the four baseline stories beat the live detector, and a story past 40 shot
     characterPrecision: characterHits / characterFound,
     characterRecall: characterHits / characterGold,
     placePrecision: placeHits / placeFound,
-    placeRecall: placeGold / ['fr_medium', 'en_medium', 'fr_long', 'en_long'].reduce((sum, name) => sum + KEY.stories[name].gold_places.length, 0),
+    placeRecall: placeGold / ['en_medium', 'en_long'].reduce((sum, name) => sum + KEY.stories[name].gold_places.length, 0),
     boundary: `${boundaryHits}/${boundaryGold}`,
     falseCuts,
     statuses: rows.map(row => row.status)
@@ -383,7 +381,7 @@ test('a venue type plus a proper name is a place, not a character', () => {
     })
     assert.ok(narrative.shots.some(scene => foldName(scene.where) === foldName(place)), `${language} ${narrative.shots.map(scene => scene.where).join(' > ')}`)
     const detected = detectProse(text)
-    if (detected.language === language || language === 'en' || language === 'fr') {
+    if (detected.language === language || language === 'en') {
       assert.equal(detected.characters.some(item => foldName(item.name) === foldName(person)), false, `${language} character ${person} in ${detected.characters.map(item => item.name).join(',')}`)
       assert.ok(detected.places.some(item => foldName(item.name) === foldName(place)), `${language} places ${detected.places.map(item => item.name).join(', ')}`)
     }
@@ -391,9 +389,8 @@ test('a venue type plus a proper name is a place, not a character', () => {
 })
 
 test('an uncertain toward-cue does not leave a firm cut from that place', () => {
-  const french = "Hélène lit dans le jardin. Elle marche vers la gare. Plus tard, dans la boulangerie, Hélène entre."
   const english = 'Bridget reads in the garden. She walks toward the station. Later, in the bakery, Bridget opens the door.'
-  for (const [text, from, toward, next] of [[french, 'jardin', 'gare', 'boulangerie'], [english, 'garden', 'station', 'bakery']]) {
+  for (const [text, from, toward, next] of [[english, 'garden', 'station', 'bakery']]) {
     const detected = detectProse(text)
     const wheres = detected.scenes.map(scene => foldName(scene.where))
     assert.equal(wheres.includes(toward), false, wheres.join(' > '))
@@ -505,11 +502,6 @@ test('an article inside a venue name is not a later place cue', () => {
     { name: 'Office', keys: ['office'] }
   ])
   assert.equal(forced.name, 'Office')
-  const french = "Nora lit dans le bureau. Ensuite, dans la brasserie Les Tilleuls, Nora commande un thé. Puis, dans le bureau, Nora range les carnets dans les tiroirs."
-  const frenchPlaces = detectProse(french).scenes.map(scene => scene.where)
-  const frenchSequence = []
-  frenchPlaces.forEach(place => { if (frenchSequence[frenchSequence.length - 1] !== place) frenchSequence.push(place) })
-  assert.deepEqual(frenchSequence.map(foldName), ['bureau', 'brasserie les tilleuls', 'bureau'])
   const spanishArticle = splitNarrative('Nora reads in the office. After that, in the hotel El Nido, Nora hangs a key. Then, in the office, Nora opens the drawer.', {
     language: 'en',
     places: [

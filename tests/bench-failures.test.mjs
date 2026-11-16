@@ -17,9 +17,13 @@ function post(body) {
   return { status: response.status, body: JSON.parse(response.body) }
 }
 
-test('a named Japanese or Chinese premise that cannot be planned is 400, not a template board', () => {
+test('a named Chinese premise that cannot be planned is 400, not a template board', () => {
+  const removed = post({ premise: JAPANESE_PREMISE, promptLanguage: 'ja', format: 'agent', model: 'generic' })
+  assert.equal(removed.status, 400)
+  assert.equal(removed.body.error, 'invalid_prompt_language')
+  assert.match(removed.body.message, /en, zh-Hans, pt/)
+  assert.doesNotMatch(removed.body.message, /\bja\b/)
   for (const [premise, promptLanguage, name] of [
-    [JAPANESE_PREMISE, 'ja', '文子'],
     [CHINESE_PREMISE, 'zh-Hans', '卫明']
   ]) {
     const planned = post({ premise, promptLanguage, format: 'agent', model: 'generic' })
@@ -71,7 +75,7 @@ test('a Japanese loanword does not select the science-fiction style', () => {
 test('a scenario plans every named person and every action, and who may be a list', () => {
   const planned = post({
     model: 'generic',
-    promptLanguage: 'ja',
+    promptLanguage: 'zh-Hans',
     format: 'agent',
     scenario: {
       characters: [

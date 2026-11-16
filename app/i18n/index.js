@@ -5,12 +5,9 @@ const require = createRequire(import.meta.url)
 const en = require('./locales/en.json')
 const zhHans = require('./locales/zh-Hans.json')
 const pt = require('./locales/pt.json')
-const ja = require('./locales/ja.json')
-const fr = require('./locales/fr.json')
-const it = require('./locales/it.json')
 import { createI18n, trustedCatalogHtml } from './logic.js'
 
-const catalogs = { en, 'zh-Hans': zhHans, pt, ja, fr, it }
+const catalogs = { en, 'zh-Hans': zhHans, pt }
 const i18n = createI18n(catalogs)
 
 export function translate(locale, message, params) {

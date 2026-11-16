@@ -67,7 +67,7 @@ test('the served skill matches the repository skill', async () => {
   assert.match(readFileSync('AGENTS.md', 'utf8'), /\/SKILL\.md/)
   assert.match(readFileSync('app/pages/agents.vue', 'utf8'), /\/SKILL\.md/)
   assert.match(doc.info.description, /\/SKILL\.md/)
-  assert.doesNotMatch(readFileSync('nuxt.config.ts', 'utf8'), /de:1|lb:1/)
+  assert.doesNotMatch(readFileSync('nuxt.config.ts', 'utf8'), /de:1|lb:1|fr:1|ja:1|it:1/)
   const directory = mkdtempSync(join(tmpdir(), 'moovicut-skill-'))
   writeFileSync(join(directory, 'SKILL.md'), skill)
   const server = createProdServer({ staticRoot: directory })

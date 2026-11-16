@@ -1,7 +1,7 @@
 /** Planner phrases. English keys stay the prompt text when the language is English. */
 import { MORE_PHRASES } from './prompt-phrase-more.js'
 
-const LANGS = ['zh-Hans', 'pt', 'ja', 'fr', 'it']
+const LANGS = ['zh-Hans', 'pt']
 
 function row(en, values) {
   const entry = {}

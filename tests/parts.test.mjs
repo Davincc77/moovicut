@@ -102,16 +102,16 @@ test('a 41-shot request is refused and a 40-shot request is kept whole', () => {
   assert.match(fortyOne.body.message, /40/)
   assert.match(fortyOne.body.message, /character sheet/i)
   assert.equal(fortyOne.body.parts, undefined)
-  const french = plan({
+  const portuguese = plan({
     premise: 'A lighthouse keeper races the dusk to repair a failing beacon.',
     shots: 41,
     model: 'grok',
-    promptLanguage: 'fr',
+    promptLanguage: 'pt',
     compact: true
   })
-  assert.equal(french.status, 400)
-  assert.match(french.body.message, /40/)
-  assert.match(french.body.message, /chapitre/i)
+  assert.equal(portuguese.status, 400)
+  assert.match(portuguese.body.message, /40/)
+  assert.match(portuguese.body.message, /capítulo/i)
 })
 
 test('a story longer than 40 shots is refused instead of split into parts', () => {

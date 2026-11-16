@@ -15,7 +15,7 @@ The live skill is [https://moovicut.studio/skill](https://moovicut.studio/skill)
 2. A scenario character needs `name`, `look`, and `outfit` (`n`, `l`, and `o` are the short names). A place needs `name` and `description` (`d` or `desc`). A scene needs `who`, `where`, and `what` (`w`, `at`, and `do`). `who` and `w` are a name or a list of names, joined in order. A number, an object, or any other shape is 400, and the message says a string or a list of names is expected. It does not say the field is missing. One missing piece returns 400 and `errors` lists each one. Put `characters`, `places`, and `scenes` inside `scenario`. The same fields at the top level are 400 `misplaced_scenario_fields`, not a template board and not `invalid_premise`. `age` and `role` on a character stay in the lock line. A shot size written in `what` is used once. A constraint such as "without touching" stays in the short and the detailed prompt.
 3. Give every shot one framing term from the fixed list: `wide shot`, `medium shot`, `close-up`, `extreme close-up`, `high angle`, `low angle`, `over-the-shoulder`, `POV`, `tracking shot`, `static shot`, `crane shot`.
 4. Stay at or under 40 shots. A longer board is one chapter. Send the next chapter as its own request and reuse the exported character sheet so the faces stay the same.
-5. Set `promptLanguage` to one of `en`, `zh-Hans`, `pt`, `ja`, `fr`, `it`. Omit it to get English. `de` and any other code are rejected.
+5. Set `promptLanguage` to one of `en`, `zh-Hans`, `pt`. Omit it to get English. `fr`, `ja`, `it`, `de`, and any other code are rejected.
 
 ## Endpoints
 
@@ -79,11 +79,11 @@ Send `format` `agent` when you need the film sheet, each shot's `source` and `fl
 
 ### promptLanguage
 
-`en` `zh-Hans` `pt` `ja` `fr` `it`
+`en` `zh-Hans` `pt`
 
 ### prompt_language
 
-`en` `zh-Hans` `pt` `ja` `fr` `it`
+`en` `zh-Hans` `pt`
 
 ### aspectRatio
 
@@ -135,7 +135,7 @@ A 400 body has error, message, and an errors array that lists every problem. Fix
 - `misplaced_scenario_fields`: `characters`, `places`, `scenes`, or another scenario field was sent at the top level instead of inside `scenario`. The message names each field and includes a short example. This outranks `invalid_premise` when the premise is missing or short.
 - `invalid_scenario`: the scenario is over 8,000 characters, or a character, place, or scene is missing `look`, `outfit`, `description`, or the action. Add the named field. A present `who` with the wrong shape is this code too, and the message says `who` must be a string or a list of names.
 - `invalid_plan`: a premise names people or several actions, or a scene `what` / `who` names an action or a person, but those shots cannot be planned. The response is 400, not a generic board, a placeholder line such as someone entering the frame, or an invented style. The message names every dropped person and quotes every dropped action, each action ending in a period: `This action was not planned: "Maya hands Rui a letter on the quay".` Send a scenario: characters with `name`, `look`, and `outfit`; places with `name` and `description`; scenes with `who` (a string or a list of names), `where`, and `what`.
-- `invalid_prompt_language`: `promptLanguage` is not one of the six codes. Omit it, or send `en`, `zh-Hans`, `pt`, `ja`, `fr`, or `it`.
+- `invalid_prompt_language`: `promptLanguage` is not one of the three codes. Omit it, or send `en`, `zh-Hans`, or `pt`.
 - `invalid_model`: `model` is not in the model enum.
 - `invalid_mode`: `mode` is not in the mode enum.
 - `invalid_duration`: `duration` is outside 2 to 15 seconds.
@@ -162,6 +162,6 @@ Warnings do not reject the board. They are present only when a shot looks risky.
 
 Read `flags` on each shot when `format` is `agent`. `place_missing` means the shot has no place: prefer a generic setting over a guess. `place_unlisted` means the place was kept from a locative but is not in the library. `place_carried` and `light_carried` mean the value came from the previous shot. `who_missing` and `who_carried` mean the person was absent or copied forward.
 
-`format` `agent` also warns when characters or places come out empty. `empty_characters` and `empty_places` mean that list has no name. `empty_who` and `empty_where` mean a scenario shot left that field empty. A body part, a garment, or a similar noun is never a place, in English, French, Portuguese, Italian, Japanese, and Chinese. A Chinese short prompt names the subject, then the place with 在, then the action, with no full stop between the name and the verb.
+`format` `agent` also warns when characters or places come out empty. `empty_characters` and `empty_places` mean that list has no name. `empty_who` and `empty_where` mean a scenario shot left that field empty. A body part, a garment, or a similar noun is never a place, in English, Portuguese, and Chinese. A Chinese short prompt names the subject, then the place with 在, then the action, with no full stop between the name and the verb.
 
 `continuity` `strict` repeats the continuity sheet in a detailed prompt. `standard` keeps one shared sheet. A short prompt still copies each character's lock line, not the whole sheet, and stays under about 700 characters.

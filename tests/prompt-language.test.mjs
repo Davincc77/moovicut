@@ -127,14 +127,14 @@ test('the wizard and the advanced editor build the same prompts in every languag
     const fromEditor = engineFrom(state, lang)
     assert.equal(fromWizard.shots.map(shot => shot.prompt).join('\n'), fromEditor.shots.map(shot => shot.prompt).join('\n'), lang)
   }
-  const french = projectFromWizard(state, { promptLanguage: 'fr' })
-  assert.match(french.shots[0].prompt, /Maya hands him a letter/)
-  assert.match(french.shots[0].prompt, /Rainy quay, a wet stone quay at the harbour/)
-  assert.match(french.shots[0].prompt, /charcoal wool coat/)
-  assert.match(french.shots[0].prompt, /Gros plan:/)
-  assert.match(french.shots[0].prompt, /caméra fixe/)
-  assert.match(french.shots[0].prompt, /Mains simples/)
-  assert.doesNotMatch(french.shots[0].prompt, /locked-off camera|Close-up:|Dusk light/)
+  const portuguese = projectFromWizard(state, { promptLanguage: 'pt' })
+  assert.match(portuguese.shots[0].prompt, /Maya hands him a letter/)
+  assert.match(portuguese.shots[0].prompt, /Rainy quay, a wet stone quay at the harbour/)
+  assert.match(portuguese.shots[0].prompt, /charcoal wool coat/)
+  assert.match(portuguese.shots[0].prompt, /Grande plano:/)
+  assert.match(portuguese.shots[0].prompt, /câmara fixa/)
+  assert.match(portuguese.shots[0].prompt, /Mãos simples/)
+  assert.doesNotMatch(portuguese.shots[0].prompt, /locked-off camera|Close-up:|Dusk light|Gros plan|caméra fixe/)
   const chinese = projectFromWizard(state, { promptLanguage: 'zh-Hans' })
   assert.match(chinese.shots[0].prompt, /特写: Maya hands him a letter/)
   assert.match(chinese.shots[1].prompt, /跟踪镜头: Rui walks away/)
@@ -152,23 +152,25 @@ test('the API keeps English output unless promptLanguage is set', () => {
   assert.equal(plainBody.shots[0].prompt, englishBody.shots[0].prompt)
   assert.equal(plainBody.shots[0].prompt, ENGLISH_SHOT)
   const rejected = dispatchAgentRequest({ method: 'POST', pathname: '/api/v1/storyboard', body: JSON.stringify({ ...base, promptLanguage: 'es' }) })
-  const german = dispatchAgentRequest({ method: 'POST', pathname: '/api/v1/storyboard', body: JSON.stringify({ ...base, promptLanguage: 'de' }) })
-  assert.equal(german.status, 400)
-  assert.match(JSON.parse(german.body).message, /promptLanguage must be one of/)
-  assert.doesNotMatch(JSON.parse(german.body).message, /\bde\b/)
+  for (const code of ['de', 'fr', 'ja', 'it', 'lb']) {
+    const removed = dispatchAgentRequest({ method: 'POST', pathname: '/api/v1/storyboard', body: JSON.stringify({ ...base, promptLanguage: code }) })
+    assert.equal(removed.status, 400, code)
+    const message = JSON.parse(removed.body).message
+    assert.match(message, /promptLanguage must be one of: en, zh-Hans, pt\./)
+    assert.doesNotMatch(message, new RegExp(`\\b${code}\\b`))
+  }
   assert.equal(rejected.status, 400)
-  assert.match(JSON.parse(rejected.body).message, /promptLanguage must be one of/)
-  const french = dispatchAgentRequest({ method: 'POST', pathname: '/api/v1/storyboard', body: JSON.stringify({ premise: lighthouse, promptLanguage: 'fr', format: 'agent', style: 'cinema', genre: 'drama', sequenceMode: 'continuous' }) })
-  const board = JSON.parse(french.body)
-  assert.equal(board.promptLanguage, 'fr')
-  assert.match(board.shots[0].prompt, /Plan large:/)
-  assert.doesNotMatch(board.shots[0].prompt, /^Wide shot:/)
+  assert.match(JSON.parse(rejected.body).message, /promptLanguage must be one of: en, zh-Hans, pt\./)
+  assert.deepEqual([...PROMPT_LANGUAGES], ['en', 'zh-Hans', 'pt'])
+  const portuguese = dispatchAgentRequest({ method: 'POST', pathname: '/api/v1/storyboard', body: JSON.stringify({ premise: lighthouse, promptLanguage: 'pt', format: 'agent', style: 'cinema', genre: 'drama', sequenceMode: 'continuous' }) })
+  const board = JSON.parse(portuguese.body)
+  assert.equal(board.promptLanguage, 'pt')
+  assert.match(board.shots[0].prompt, /Plano geral:/)
+  assert.doesNotMatch(board.shots[0].prompt, /^Wide shot:|Plan large:/)
 })
 
 const SAMPLES = {
   pt: 'Maya tem cerca de 30 anos, cabelo preto curto e um casaco de lã cinza. Rui tem 50 anos, barba por fazer e um casaco azul-marinho. No cais chuvoso, Maya entrega uma carta a Rui. Rui lê a carta. Rui afasta-se pelo cais. No café pequeno, Maya observa Rui da porta.',
-  it: 'Maya ha poco più di trent’anni, un caschetto nero e un cappotto di lana antracite. Rui ha 50 anni, la barba incolta e un cappotto blu. Sul molo sotto la pioggia, Maya porge una lettera a Rui. Rui legge la lettera. Rui si allontana. Nel piccolo caffè, Maya guarda Rui dalla porta.',
-  ja: '「麻耶」は三十代前半で、短い黒髪、チャコールグレーのウールコート。「ルイ」は五十代で、白い無精ひげ、ネイビーのピーコート。雨の埠頭で麻耶はルイに手紙を渡す。ルイは手紙を読む。ルイは歩き去る。小さなカフェで麻耶は扉からルイを見る。',
   'zh-Hans': '「玛雅」三十出头，黑色短发，炭灰色羊毛大衣。「睿」五十多岁，灰白胡茬，海军蓝大衣。在雨中的码头，玛雅把信交给睿。睿读了信。睿走开了。在小咖啡馆，玛雅在门口看着睿。'
 }
 
@@ -176,7 +178,7 @@ test('free-prose detection reads each site language without calling a model', ()
   const report = {}
   for (const [language, text] of Object.entries(SAMPLES)) {
     const detected = detectProse(text)
-    const names = language === 'ja' ? ['麻耶', 'ルイ'] : language === 'zh-Hans' ? ['玛雅', '睿'] : ['Maya', 'Rui']
+    const names = language === 'zh-Hans' ? ['玛雅', '睿'] : ['Maya', 'Rui']
     const nameHits = names.filter(name => detected.characters.some(item => item.name === name)).length
     const lookHits = detected.characters.filter(item => names.includes(item.name) && item.look).length
     const outfitHits = detected.characters.filter(item => names.includes(item.name) && item.outfit).length
@@ -198,11 +200,14 @@ test('free-prose detection reads each site language without calling a model', ()
     assert.equal(detected.scenes.length, 4, language)
     assert.equal(detected.reliable, true, language)
   }
-  const unmarked = detectProse('今日はいい天気です。公園を歩きました。')
-  assert.equal(unmarked.language, 'ja')
-  assert.equal(unmarked.reliable, false)
-  assert.ok(textLanguageHint('Elle entre au café avec un parapluie rouge.', 'en'))
+  const french = detectProse('Léa, 30 ans, cheveux courts, manteau gris, attend dans la cuisine. Léa ouvre la porte.')
+  const japanese = detectProse('「麻耶」は三十代前半で、短い黒髪、グレーのコート。麻耶は台所で待つ。')
+  const italian = detectProse('Giulia, 32, capelli corti, cappotto grigio, aspetta in cucina. Giulia apre una porta.')
+  assert.notEqual(french.language, 'fr')
+  assert.notEqual(japanese.language, 'ja')
+  assert.notEqual(italian.language, 'it')
+  for (const detected of [french, japanese, italian]) assert.ok(['en', 'pt', 'zh-Hans'].includes(detected.language))
+  assert.equal(textLanguageHint('Elle entre au café avec un parapluie rouge.', 'en'), null)
   assert.equal(textLanguageHint('She walks into the cafe with a red umbrella.', 'en'), null)
-  assert.equal(report.ja.characters, '2/2')
   assert.equal(report['zh-Hans'].actions, 4)
 })

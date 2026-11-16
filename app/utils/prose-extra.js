@@ -1,4 +1,4 @@
-/** Rule-based prose detection beyond English and French. No model call. */
+/** Rule-based prose detection for Portuguese and Simplified Chinese. No model call. */
 import { cleanText } from './text.js'
 import { foldName, scenarioBudget, scenarioPremise, scenarioToFields } from './scenario.js'
 import { cueLight, findPlaceCue, inNamedVenue, isFunctionWord, isNumberWord, isQuotedOrRemembered, isVenueType, mentionMovesScene, namedVenues } from './scene-split.js'
@@ -30,30 +30,6 @@ const LEX = {
     meet: /\b(encontra|conhece)\b/i,
     light: [[/\b(amanhecer|aurora)\b/i, 'dawn'], [/\b(crepúsculo|anoitecer|entardecer)\b/i, 'dusk'], [/\b(noite|meia-noite)\b/i, 'night'], [/\b(dia|manhã|tarde)\b/i, 'day']],
     mood: [[/\b(sorri|rir|riso)\b/i, 'playful'], [/\b(medo|ansioso)\b/i, 'uneasy'], [/\b(calmo|silêncio|triste)\b/i, 'quiet']]
-  },
-  it: {
-    stop: ['il', 'lo', 'la', 'i', 'gli', 'le', 'un', 'una', 'uno', 'di', 'del', 'della', 'dei', 'in', 'nel', 'nella', 'sul', 'sulla', 'e', 'che', 'con', 'per', 'non', 'lei', 'lui', 'si', 'da', 'dalla'],
-    verbs: ['porge', 'porgere', 'legge', 'leggere', 'allontana', 'allontanarsi', 'guarda', 'guardare', 'entra', 'esce', 'cammina', 'corre', 'sorride', 'dà', 'da', 'apre', 'aspetta', 'prende'],
-    places: [
-      ['molo', 'Molo', 'un molo'],
-      ['caffè', 'Caffè', 'un caffè'],
-      ['caffe', 'Caffè', 'un caffè'],
-      ['strada', 'Strada', 'una strada'],
-      ['spiaggia', 'Spiaggia', 'una spiaggia'],
-      ['bosco', 'Bosco', 'un bosco'],
-      ['casa', 'Casa', 'una casa'],
-      ['parco', 'Parco', 'un parco'],
-      ['stazione', 'Stazione', 'una stazione'],
-      ['cucina', 'Cucina', 'una cucina'],
-      ['ponte', 'Ponte', 'un ponte']
-    ],
-    look: /(?:\d+ anni|sulla cinquantina|poco più di [\p{L}’']+|pescatore|pescatrice|caschetto [\p{L}]+|barba [\p{L}]+)/giu,
-    outfit: /(?:cappotto [\p{L} -]{0,28})/giu,
-    feminine: ['lei'],
-    masculine: ['lui'],
-    meet: /\bincontra\b/i,
-    light: [[/\b(alba|aurora)\b/i, 'dawn'], [/\b(crepuscolo|tramonto)\b/i, 'dusk'], [/\b(notte|mezzanotte)\b/i, 'night'], [/\b(giorno|mattina|pomeriggio)\b/i, 'day']],
-    mood: [[/\b(sorride|ride)\b/i, 'playful'], [/\b(paura|ansioso)\b/i, 'uneasy'], [/\b(calmo|silenzio|triste)\b/i, 'quiet']]
   }
 }
 
@@ -345,12 +321,6 @@ function detectSpaced(text, language) {
 }
 
 const CJK = {
-  ja: {
-    verbs: ['渡す', '渡した', '読む', '読んだ', '歩き去る', '歩いて', '見る', '見た', '笑う', '入る', '出る', '開ける', '渡します'],
-    places: [['埠頭', '埠頭', '雨の埠頭'], ['カフェ', 'カフェ', '小さなカフェ'], ['駅', '駅', '駅'], ['森', '森', '森'], ['海岸', '海岸', '海岸'], ['通り', '通り', '通り']],
-    look: /(?:三十代前半|五十代前半|五十代|四十代|漁師|短い黒髪|白い無精ひげ|[\p{Script=Han}]{1,6}髪)/gu,
-    outfit: /(?:[\p{Script=Han}ァ-ンー]{1,12}コート|エプロン|帽子)/gu
-  },
   'zh-Hans': {
     verbs: ['交给', '读了', '读', '走开', '看着', '看', '笑', '走进', '打开', '递给'],
     places: [['码头', '码头', '雨中的码头'], ['咖啡馆', '咖啡馆', '小咖啡馆'], ['车站', '车站', '车站'], ['森林', '森林', '森林'], ['海边', '海边', '海边'], ['街道', '街道', '街道']],
@@ -398,10 +368,8 @@ function detectCjk(text, language) {
     characters.push({ name, look: look.join('，'), outfit: outfit.join('，'), confidence })
   })
   const cjkReject = name => !name || ['雨', '小', '在', '信', '二人', '人', '两人', '他们', '她们', '我们', '大家', '彼', '彼ら', '彼女', '三十', '四十', '五十', '六十', '七十', '八十'].includes(name) || /^[一二三四五六七八九十百千万零\d]+$/u.test(name) || /^在/.test(name) || /[里上边中内]$/.test(name) || /[了着过说给]/.test(name)
-  if (!characters.length || language === 'ja' || language === 'zh-Hans') {
-    const particle = language === 'ja'
-      ? [...String(text).matchAll(/(?:姪|甥|兄|姉|弟|妹|父|母|息子|娘|祖父|祖母)の([\p{Script=Han}]{1,8}[\p{Script=Hiragana}\p{Script=Katakana}]{0,8})は|([\p{Script=Han}]{2,8}[\p{Script=Hiragana}\p{Script=Katakana}]{0,8})は/gu)]
-      : [...String(text).matchAll(/(?:表哥|表妹|表弟|表姐|侄子|侄女|哥哥|姐姐|弟弟|妹妹|父亲|母亲|叔叔|阿姨)?([\p{Script=Han}]{2,4}?)(?=[一二三四五六七八九十百千万零\d]{1,6}岁)/gu)]
+  if (!characters.length || language === 'zh-Hans') {
+    const particle = [...String(text).matchAll(/(?:表哥|表妹|表弟|表姐|侄子|侄女|哥哥|姐姐|弟弟|妹妹|父亲|母亲|叔叔|阿姨)?([\p{Script=Han}]{2,4}?)(?=[一二三四五六七八九十百千万零\d]{1,6}岁)/gu)]
     particle.forEach(match => {
       const name = match[1] || match[2]
       if (cjkReject(name) || isNumberWord(name, language)) return
@@ -500,6 +468,6 @@ function detectCjk(text, language) {
 }
 
 export function detectLocalized(text, language) {
-  if (language === 'ja' || language === 'zh-Hans') return detectCjk(text, language)
+  if (language === 'zh-Hans') return detectCjk(text, language)
   return detectSpaced(text, language)
 }

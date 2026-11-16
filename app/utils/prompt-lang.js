@@ -1,7 +1,7 @@
 /** Prompt language for planner-written lines. English is returned unchanged. */
 import { PHRASES } from './prompt-phrases.js'
 
-export const PROMPT_LANGUAGES = Object.freeze(['en', 'zh-Hans', 'pt', 'ja', 'fr', 'it'])
+export const PROMPT_LANGUAGES = Object.freeze(['en', 'zh-Hans', 'pt'])
 const CODES = new Set(PROMPT_LANGUAGES)
 
 export function readPromptLanguage(value) {
@@ -81,9 +81,6 @@ const BEATS = [
       const table = {
         'zh-Hans': `${where}的远景，${at}，${who}进入画面`,
         pt: `Um plano geral de ${where}, ${at}, com ${who} a entrar no quadro`,
-        ja: `${at}の${where}のワイド。${who}がフレームに入る`,
-        fr: `Un plan large de ${where}, ${at}, avec ${who} qui entre dans le cadre`,
-        it: `Un campo lungo di ${where}, ${at}, con ${who} che entra nell'inquadratura`
       }
       return table[lang]
     }
@@ -94,9 +91,6 @@ const BEATS = [
       const table = {
         'zh-Hans': `${who}在更近的景别里清晰可读，姿态和表情清楚`,
         pt: `${who} lê-se num plano mais próximo, postura e expressão claras`,
-        ja: `${who}は近めのフレームで読み取れる。姿勢と表情は明確`,
-        fr: `${who} est lisible dans un cadre plus proche, posture et expression claires`,
-        it: `${who} è leggibile in un quadro più vicino, postura ed espressione chiare`
       }
       return table[lang]
     }
@@ -107,9 +101,6 @@ const BEATS = [
       const table = {
         'zh-Hans': `${where}里出现一个新细节，并改变下一个动作`,
         pt: `Um pormenor novo aparece em ${where} e muda o gesto seguinte`,
-        ja: `${where}に新しい細部が現れ、次の仕草が変わる`,
-        fr: `Un détail nouveau apparaît dans ${where} et change le geste suivant`,
-        it: `Un dettaglio nuovo appare in ${where} e cambia il gesto successivo`
       }
       return table[lang]
     }
@@ -120,9 +111,6 @@ const BEATS = [
       const table = {
         'zh-Hans': `${who}在局势转向时停下`,
         pt: `${who} pára quando a situação vira`,
-        ja: `状況が転じ、${who}は立ち止まる`,
-        fr: `${who} s’arrête quand la situation tourne`,
-        it: `${who} si ferma quando la situazione gira`
       }
       return table[lang]
     }
@@ -133,9 +121,6 @@ const BEATS = [
       const table = {
         'zh-Hans': `${who}说“${line}”`,
         pt: `${who} diz “${line}”`,
-        ja: `${who}は「${line}」と言う`,
-        fr: `${who} dit « ${line} »`,
-        it: `${who} dice “${line}”`
       }
       return table[lang]
     }
@@ -146,9 +131,6 @@ const BEATS = [
       const table = {
         'zh-Hans': `${who}选定方向，穿过${where}`,
         pt: `${who} escolhe uma direcção e atravessa ${where}`,
-        ja: `${who}は方向を決め、${where}を進む`,
-        fr: `${who} choisit une direction et traverse ${where}`,
-        it: `${who} sceglie una direzione e attraversa ${where}`
       }
       return table[lang]
     }
@@ -159,9 +141,6 @@ const BEATS = [
       const table = {
         'zh-Hans': `这个选择的结果在${who}周围可见`,
         pt: `O resultado dessa escolha vê-se à volta de ${who}`,
-        ja: `その選択の結果が${who}の周りに見える`,
-        fr: `Le résultat de ce choix est visible autour de ${who}`,
-        it: `Il risultato di quella scelta è visibile intorno a ${who}`
       }
       return table[lang]
     }
@@ -173,9 +152,6 @@ const BEATS = [
       const table = {
         'zh-Hans': `${where}，${at}，安静停留`,
         pt: `Uma pausa quieta em ${where}, ${at}`,
-        ja: `${where}、${at}を静かに保つ`,
-        fr: `Un maintien calme sur ${where}, ${at}`,
-        it: `Una tenuta quieta su ${where}, ${at}`
       }
       return table[lang]
     }
@@ -186,9 +162,6 @@ const BEATS = [
       const table = {
         'zh-Hans': `最后的画面停在${where}里的${who}上`,
         pt: `A última imagem fica em ${who} em ${where}`,
-        ja: `最後の絵は${where}の${who}に留まる`,
-        fr: `La dernière image reste sur ${who} dans ${where}`,
-        it: `L’ultima immagine resta su ${who} in ${where}`
       }
       return table[lang]
     }
@@ -202,9 +175,6 @@ const BEATS = [
       const table = {
         'zh-Hans': `${who}在${at}的${where}完成${beat}这一拍，${rhythm}`,
         pt: `${who} faz o tempo ${beat} em ${where} à ${at}, ${rhythm}`,
-        ja: `${who}は${at}の${where}で${beat}の拍を演じる、${rhythm}`,
-        fr: `${who} joue le temps ${beat} dans ${where} à ${at}, ${rhythm}`,
-        it: `${who} esegue il tempo ${beat} in ${where} a ${at}, ${rhythm}`
       }
       return table[lang]
     }
@@ -217,9 +187,6 @@ const BEATS = [
       const table = {
         'zh-Hans': `独立的${tone}画面，${who}在${place}，镜头 ${number}`,
         pt: `Um quadro autónomo de ${tone} de ${who} em ${place}, plano ${number}`,
-        ja: `独立した${tone}のフレーム。${who}、${place}、ショット ${number}`,
-        fr: `Un cadre autonome ${tone} de ${who} dans ${place}, plan ${number}`,
-        it: `Un quadro autonomo ${tone} di ${who} in ${place}, inquadratura ${number}`
       }
       return table[lang]
     }
@@ -230,58 +197,34 @@ const LOCATIONS = [
   [/^a far edge of (.+)$/, {
     'zh-Hans': place => `${place}的远处边缘`,
     pt: place => `uma margem distante de ${place}`,
-    ja: place => `${place}の遠い端`,
-    fr: place => `un bord lointain de ${place}`,
-    it: place => `un bordo lontano di ${place}`
   }],
   [/^a close corner of (.+)$/, {
     'zh-Hans': place => `${place}的近角`,
     pt: place => `um canto próximo de ${place}`,
-    ja: place => `${place}の近い隅`,
-    fr: place => `un coin proche de ${place}`,
-    it: place => `un angolo vicino di ${place}`
   }],
   [/^ground level at (.+)$/, {
     'zh-Hans': place => `${place}的地面高度`,
     pt: place => `ao nível do chão em ${place}`,
-    ja: place => `${place}の地面の高さ`,
-    fr: place => `au niveau du sol à ${place}`,
-    it: place => `a livello del suolo a ${place}`
   }],
   [/^an overhead view of (.+)$/, {
     'zh-Hans': place => `${place}的俯视`,
     pt: place => `uma vista de cima de ${place}`,
-    ja: place => `${place}の俯瞰`,
-    fr: place => `une vue plongeante de ${place}`,
-    it: place => `una vista dall'alto di ${place}`
   }],
   [/^the shadowed side of (.+)$/, {
     'zh-Hans': place => `${place}的阴影一侧`,
     pt: place => `o lado em sombra de ${place}`,
-    ja: place => `${place}の影の側`,
-    fr: place => `le côté à l’ombre de ${place}`,
-    it: place => `il lato in ombra di ${place}`
   }],
   [/^a foreground detail within (.+)$/, {
     'zh-Hans': place => `${place}前景中的一个细节`,
     pt: place => `um detalhe em primeiro plano dentro de ${place}`,
-    ja: place => `${place}の前景の細部`,
-    fr: place => `un détail au premier plan dans ${place}`,
-    it: place => `un dettaglio in primo piano dentro ${place}`
   }],
   [/^eye level inside (.+)$/, {
     'zh-Hans': place => `${place}内的平视高度`,
     pt: place => `à altura dos olhos dentro de ${place}`,
-    ja: place => `${place}の中の目の高さ`,
-    fr: place => `à hauteur des yeux dans ${place}`,
-    it: place => `all’altezza degli occhi dentro ${place}`
   }],
   [/^the opposite side of (.+)$/, {
     'zh-Hans': place => `${place}的对面`,
     pt: place => `o lado oposto de ${place}`,
-    ja: place => `${place}の反対側`,
-    fr: place => `le côté opposé de ${place}`,
-    it: place => `il lato opposto di ${place}`
   }]
 ]
 
@@ -393,8 +336,8 @@ function applyTemplates(line, lang) {
     const body = match[2].replace(/\.$/, '')
     const action = translateBeat(body, lang) || translateInline(body, lang)
     const frame = phrase(lang, match[1].toLowerCase() === 'pov' ? 'POV' : match[1].toLowerCase())
-    const ofWord = lang === 'zh-Hans' || lang === 'ja' ? '：' : ` ${phrase(lang, 'of')} `
-    const joined = lang === 'zh-Hans' || lang === 'ja' ? `${frame}${ofWord}${action}` : `${frame}${ofWord}${action}`
+    const ofWord = lang === 'zh-Hans' ? '：' : ` ${phrase(lang, 'of')} `
+    const joined = lang === 'zh-Hans' ? `${frame}${ofWord}${action}` : `${frame}${ofWord}${action}`
     return /\.$/.test(match[2]) || line.endsWith('.') ? `${joined}.` : joined
   }
   match = line.match(/^Create a (\d+)-second ([0-9:]+) shot\.$/)
@@ -418,9 +361,6 @@ function createShotLine(lang, duration, aspect) {
   const table = {
     'zh-Hans': `制作一条 ${duration} 秒的 ${aspect} 镜头。`,
     pt: `Cria um plano de ${duration} segundos em ${aspect}.`,
-    ja: `${duration}秒、${aspect} のショットを作る。`,
-    fr: `Crée un plan de ${duration} secondes en ${aspect}.`,
-    it: `Crea un’inquadratura di ${duration} secondi in ${aspect}.`
   }
   return table[lang] || `Create a ${duration}-second ${aspect} shot.`
 }
@@ -429,9 +369,6 @@ function shotCountLine(lang, index, total) {
   const table = {
     'zh-Hans': `镜头 ${index} / ${total}。`,
     pt: `Plano ${index} de ${total}.`,
-    ja: `ショット ${index} / ${total}。`,
-    fr: `Plan ${index} sur ${total}.`,
-    it: `Inquadratura ${index} di ${total}.`
   }
   return table[lang] || `Shot ${index} of ${total}.`
 }
@@ -440,9 +377,6 @@ function independentShotLine(lang, index, total) {
   const table = {
     'zh-Hans': `独立镜头 ${index} / ${total}。一个单独的角度，不是延续。`,
     pt: `Plano independente ${index} de ${total}. Um ângulo à parte, não uma continuação.`,
-    ja: `独立ショット ${index} / ${total}。別のアングルで、続きではない。`,
-    fr: `Plan indépendant ${index} sur ${total}. Un angle à part, pas une suite.`,
-    it: `Inquadratura indipendente ${index} di ${total}. Un angolo a sé, non una continuazione.`
   }
   return table[lang] || `Independent shot ${index} of ${total}. A separate angle, not a continuation.`
 }
@@ -451,9 +385,6 @@ function aspectLine(lang, aspect) {
   const table = {
     'zh-Hans': `画幅 ${aspect}`,
     pt: `proporção ${aspect}`,
-    ja: `アスペクト比 ${aspect}`,
-    fr: `format ${aspect}`,
-    it: `formato ${aspect}`
   }
   return table[lang] || `aspect ratio ${aspect}`
 }
@@ -462,9 +393,6 @@ function timingShort(lang, duration, aspect) {
   const table = {
     'zh-Hans': `${duration} 秒，${aspect}。不要字幕、标题、标志或水印。`,
     pt: `${duration}s, ${aspect}. Sem legendas, títulos, logótipos ou marcas de água.`,
-    ja: `${duration}秒、${aspect}。字幕、タイトル、ロゴ、透かしは入れない。`,
-    fr: `${duration} s, ${aspect}. Pas de sous-titres, titres, logos ni filigranes.`,
-    it: `${duration} s, ${aspect}. Niente sottotitoli, titoli, loghi o filigrane.`
   }
   return table[lang] || `${duration}s, ${aspect}. No captions, titles, logos or watermarks.`
 }
@@ -473,9 +401,6 @@ function timingLong(lang, duration, aspect, index) {
   const table = {
     'zh-Hans': `${duration} 秒，${aspect}。镜头 ${index}。不要字幕、标题、标志或水印。`,
     pt: `${duration} segundos, ${aspect}. Plano ${index}. Sem legendas, títulos, logótipos ou marcas de água.`,
-    ja: `${duration}秒、${aspect}。ショット ${index}。字幕、タイトル、ロゴ、透かしは入れない。`,
-    fr: `${duration} secondes, ${aspect}. Plan ${index}. Pas de sous-titres, titres, logos ni filigranes.`,
-    it: `${duration} secondi, ${aspect}. Inquadratura ${index}. Niente sottotitoli, titoli, loghi o filigrane.`
   }
   return table[lang] || `${duration} seconds, ${aspect}. Shot ${index}. No captions, titles, logos or watermarks.`
 }
@@ -484,9 +409,6 @@ function timingLabel(lang, duration) {
   const table = {
     'zh-Hans': `时长：${duration} 秒。不要字幕、标题、标志或水印。`,
     pt: `TEMPO: ${duration} segundos. Sem legendas, títulos, logótipos ou marcas de água.`,
-    ja: `タイミング：${duration}秒。字幕、タイトル、ロゴ、透かしは入れない。`,
-    fr: `DURÉE : ${duration} secondes. Pas de sous-titres, titres, logos ni filigranes.`,
-    it: `TEMPO: ${duration} secondi. Niente sottotitoli, titoli, loghi o filigrane.`
   }
   return table[lang] || `TIMING: ${duration} seconds. No captions, titles, logos or watermarks.`
 }

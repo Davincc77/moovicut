@@ -5,10 +5,7 @@ export const STORAGE_KEY = 'moovicut.language'
 export const LOCALES = Object.freeze([
   { code: 'en', htmlLang: 'en', native: 'English' },
   { code: 'zh-Hans', htmlLang: 'zh-Hans', native: '中文' },
-  { code: 'pt', htmlLang: 'pt', native: 'Português' },
-  { code: 'ja', htmlLang: 'ja', native: '日本語' },
-  { code: 'fr', htmlLang: 'fr', native: 'Français' },
-  { code: 'it', htmlLang: 'it', native: 'Italiano' }
+  { code: 'pt', htmlLang: 'pt', native: 'Português' }
 ])
 
 const CODES = new Set(LOCALES.map(item => item.code))
@@ -27,9 +24,6 @@ export function matchLanguageTag(tag) {
   if (!value) return ''
   if (value === 'zh-hans' || value.startsWith('zh-hans-') || value === 'zh-cn' || value.startsWith('zh-cn-') || value === 'zh-sg' || value.startsWith('zh-sg-') || value === 'zh') return 'zh-Hans'
   if (value.startsWith('pt')) return 'pt'
-  if (value.startsWith('ja')) return 'ja'
-  if (value.startsWith('fr')) return 'fr'
-  if (value.startsWith('it')) return 'it'
   if (value.startsWith('en')) return 'en'
   return ''
 }

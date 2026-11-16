@@ -43,7 +43,7 @@ test('translations keep placeholders and are not a copy of English', () => {
   }
 })
 
-test('the language switcher renders all six native names', async () => {
+test('the language switcher renders the three native names', async () => {
   const source = readFileSync('app/components/LanguageSwitcher.vue', 'utf8')
   assert.match(source, /v-for="item in LOCALES"/)
   assert.match(source, /item\.native/)
@@ -57,7 +57,8 @@ test('the language switcher renders all six native names', async () => {
     compilerOptions: { bindingMetadata: compiled.bindings }
   })
   assert.deepEqual(result.errors, [])
-  const natives = ['English', '中文', 'Português', '日本語', 'Français', 'Italiano']
+  const natives = ['English', '中文', 'Português']
+  assert.deepEqual(LOCALES.map(item => item.code), ['en', 'zh-Hans', 'pt'])
   assert.deepEqual(LOCALES.map(item => item.native), natives)
   const app = createSSRApp({
     setup() {
@@ -66,27 +67,36 @@ test('the language switcher renders all six native names', async () => {
   })
   const html = await renderToString(app)
   for (const name of natives) assert.match(html, new RegExp(`>${name}<`))
-  assert.equal((html.match(/<option\b/g) || []).length, 6)
+  assert.equal((html.match(/<option\b/g) || []).length, 3)
+  assert.doesNotMatch(html, /Français|日本語|Italiano/)
 })
 
 test('locale choice uses the query, then storage, then the browser, then English', () => {
-  assert.equal(resolveLocale({ query: 'fr', stored: 'de', navigatorLanguages: ['ja'] }), 'fr')
-  assert.equal(resolveLocale({ query: 'nope', stored: 'lb', navigatorLanguages: ['it'] }), 'it')
+  assert.equal(resolveLocale({ query: 'pt', stored: 'de', navigatorLanguages: ['ja'] }), 'pt')
+  assert.equal(resolveLocale({ query: 'nope', stored: 'lb', navigatorLanguages: ['it'] }), 'en')
   assert.equal(resolveLocale({ navigatorLanguages: ['zh-CN', 'en-US'] }), 'zh-Hans')
   assert.equal(resolveLocale({ navigatorLanguages: ['zh-TW'] }), 'en')
   assert.equal(resolveLocale({ navigatorLanguages: ['pt-BR'] }), 'pt')
-  assert.equal(resolveLocale({ query: 'de', stored: 'fr', navigatorLanguages: ['it'] }), 'fr')
+  assert.equal(resolveLocale({ query: 'de', stored: 'fr', navigatorLanguages: ['it'] }), 'en')
+  assert.equal(resolveLocale({ query: 'fr', stored: 'ja', navigatorLanguages: ['it'] }), 'en')
   assert.equal(resolveLocale({ navigatorLanguages: ['de-LU', 'lb'] }), 'en')
-  assert.equal(resolveLocale({ navigatorLanguages: ['de', 'it'] }), 'it')
+  assert.equal(resolveLocale({ navigatorLanguages: ['de', 'it'] }), 'en')
+  assert.equal(resolveLocale({ navigatorLanguages: ['fr-FR', 'en'] }), 'en')
+  assert.equal(resolveLocale({ navigatorLanguages: ['ja-JP', 'pt'] }), 'pt')
   assert.equal(resolveLocale({ navigatorLanguages: ['lb-LU'] }), 'en')
   assert.equal(resolveLocale({ navigatorLanguages: [] }), 'en')
-  assert.equal(matchLanguageTag('ja-JP'), 'ja')
+  assert.equal(matchLanguageTag('ja-JP'), '')
+  assert.equal(matchLanguageTag('fr'), '')
+  assert.equal(matchLanguageTag('it-IT'), '')
   assert.equal(htmlLang('zh-Hans'), 'zh-Hans')
-  const links = hreflangEntries({ origin: 'https://moovicut.studio', path: '/faq', search: '?lang=fr&ref=1' })
+  const links = hreflangEntries({ origin: 'https://moovicut.studio', path: '/faq', search: '?lang=pt&ref=1' })
   assert.equal(links[0].hreflang, 'x-default')
   assert.equal(links[0].href, 'https://moovicut.studio/faq?ref=1')
-  assert.equal(links.find(item => item.hreflang === 'fr').href, 'https://moovicut.studio/faq?ref=1&lang=fr')
+  assert.equal(links.find(item => item.hreflang === 'pt').href, 'https://moovicut.studio/faq?ref=1&lang=pt')
   assert.equal(links.find(item => item.hreflang === 'zh-Hans').href, 'https://moovicut.studio/faq?ref=1&lang=zh-Hans')
   assert.equal(links.find(item => item.hreflang === 'de'), undefined)
-  assert.equal(links.length, 7)
+  assert.equal(links.find(item => item.hreflang === 'fr'), undefined)
+  assert.equal(links.find(item => item.hreflang === 'ja'), undefined)
+  assert.equal(links.find(item => item.hreflang === 'it'), undefined)
+  assert.equal(links.length, 4)
 })

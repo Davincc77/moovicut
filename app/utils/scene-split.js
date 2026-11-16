@@ -853,10 +853,7 @@ export function supportedCueLanguages() {
 
 const CAST_WARNING = Object.freeze({
   en: { missing_look: name => `No look found for ${name}.`, missing_outfit: name => `No outfit found for ${name}.` },
-  fr: { missing_look: name => `Aucune apparence trouvée pour ${name}.`, missing_outfit: name => `Aucun vêtement trouvé pour ${name}.` },
   pt: { missing_look: name => `Nenhuma aparência encontrada para ${name}.`, missing_outfit: name => `Nenhuma roupa encontrada para ${name}.` },
-  it: { missing_look: name => `Nessun aspetto trovato per ${name}.`, missing_outfit: name => `Nessun abito trovato per ${name}.` },
-  ja: { missing_look: name => `${name} の見た目が見つかりません。`, missing_outfit: name => `${name} の服装が見つかりません。` },
   'zh-Hans': { missing_look: name => `没有找到 ${name} 的外形。`, missing_outfit: name => `没有找到 ${name} 的服装。` }
 })
 

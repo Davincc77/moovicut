@@ -44,25 +44,17 @@ test('D2 a verb after the age is not part of the look and parking is not Park', 
   assert.ok(found.places.some(place => /parking/i.test(place.name)))
 })
 
-test('D3 a French material is not a place', () => {
+test('D3 French prose is not detected as French', () => {
   const found = detectProse('Apolline, 40, cheveux courts, canne en bois, marche dans la rue. Apolline attend.')
-  assert.equal(found.language, 'fr')
-  assert.equal(found.places.some(place => /forêt|foret/i.test(place.name)), false)
-  assert.equal(found.places.some(place => /canne/i.test(`${place.name} ${place.description}`)), false)
-  assert.ok(found.places.some(place => /rue/i.test(place.name)))
+  assert.notEqual(found.language, 'fr')
+  assert.ok(['en', 'pt', 'zh-Hans'].includes(found.language))
 })
 
-test('D5 Japanese without quotes keeps the person, the place, and more than one shot', () => {
+test('D5 Japanese prose is not detected as Japanese', () => {
   const text = '佐伯美咲は台所で待つ。美咲は手紙を読む。二人は座る。'
   const found = detectProse(text)
-  assert.equal(found.language, 'ja')
-  assert.equal(names(found).includes('二人'), false)
-  assert.equal(names(found).filter(name => name.includes('美咲')).length, 1)
-  assert.ok(found.places.some(place => /台所/.test(place.name)))
-  assert.ok(found.scenes.length >= 2, String(found.scenes.length))
-  const planned = plan({ input: 'prose', prose: text, model: 'grok', compact: true })
-  assert.equal(planned.status, 200, planned.body.message)
-  assert.ok(planned.body.shots.length >= 2)
+  assert.notEqual(found.language, 'ja')
+  assert.ok(['en', 'pt', 'zh-Hans'].includes(found.language))
 })
 
 test('D6 a Chinese name stays and a holding fragment does not, and night is not dawn', () => {
@@ -127,7 +119,7 @@ test('D10 a locative place noun is kept when it is in the lexicon', () => {
   assert.equal(found.places.some(place => /setting/i.test(place.name)), false)
 })
 
-test('D11 the public guide lists six languages and does not mention the removed checker', () => {
+test('D11 the public guide lists three languages and does not mention the removed checker', () => {
   const full = readFileSync('public/llms-full.txt', 'utf8')
   const llms = readFileSync('public/llms.txt', 'utf8')
   const readme = readFileSync('README.md', 'utf8')
@@ -135,6 +127,7 @@ test('D11 the public guide lists six languages and does not mention the removed 
     assert.doesNotMatch(text, /Luxembourgish|\blb\b|verifier|roberta-ner|MOOVICUT_NER|zero AI/i)
   }
   assert.doesNotMatch(full, /English and French only/i)
-  assert.match(full, /English, Simplified Chinese, Portuguese, Japanese, French, and Italian/)
+  assert.match(full, /English, Simplified Chinese \(zh-Hans\), and Portuguese/)
+  assert.match(full, /French, Japanese, and Italian are not site languages/)
   assert.match(full, /40 shots/)
 })

@@ -11,15 +11,18 @@ function fold(value) {
   return String(value || '').trim().toLowerCase().replace(/’/g, "'")
 }
 
-test('the place library covers the six site languages and records its sources', () => {
-  assert.deepEqual(placeLibraryLanguages().sort(), ['en', 'fr', 'it', 'ja', 'pt', 'zh-Hans'])
+test('the place library covers the three site languages and records its sources', () => {
+  assert.deepEqual(placeLibraryLanguages().sort(), ['en', 'pt', 'zh-Hans'])
+  assert.equal(placeLibraryLanguages().includes('fr'), false)
+  assert.equal(placeLibraryLanguages().includes('ja'), false)
+  assert.equal(placeLibraryLanguages().includes('it'), false)
   for (const language of placeLibraryLanguages()) {
     const count = placeLibraryCounts()[language]
     assert.ok(count.total >= 200, `${language} ${count.total}`)
     assert.ok(count.sure > 0 && count.ambiguous > 0, language)
   }
   assert.match(data.license, /WordNet/)
-  assert.doesNotMatch(data.license, /OdeNet/)
+  assert.doesNotMatch(data.license, /OdeNet|WOLF|CeCILL|MultiWordNet|Japanese Wordnet/)
   assert.match(data.license, /CC BY-SA/)
   assert.match(data.attribution, /Bond/)
 })
@@ -52,7 +55,9 @@ test('every library word that is also a name, object, material, adjective, or ga
       if (tag === 's' && list.some(suffix => lemma.endsWith(suffix) && lemma.length > suffix.length)) failures.push(`${language} garment ${lemma}`)
     }
   }
-  assert.equal(placeTag('fr', 'son'), '')
+  assert.equal(placeTag('fr', 'cuisine'), '')
+  assert.equal(placeTag('ja', '台所'), '')
+  assert.equal(placeTag('it', 'cucina'), '')
   assert.notEqual(placeTag('en', 'shallow'), 's')
   assert.notEqual(placeTag('en', 'narrow'), 's')
   assert.notEqual(placeTag('en', 'stairs'), 's')
@@ -74,12 +79,11 @@ test('a scene place stays until a new locative sentence replaces it', () => {
   assert.deepEqual(found.scenes.map(scene => scene.where), ['Kitchen', 'Kitchen', 'Greenhouse'])
 })
 
-test('a held noun does not become the place, in English and in French', () => {
+test('a held noun does not become the place', () => {
   const english = detectProse('Nia takes the greenhouse in the kitchen. Nia waits.')
   assert.deepEqual(english.places.map(place => place.name), ['Kitchen'])
-  const french = detectProse('Apolline prend la serre dans la rue. Apolline attend.')
-  assert.equal(french.places.some(place => /serre/i.test(place.name)), false)
-  assert.ok(french.places.some(place => /rue/i.test(place.name)))
+  const portuguese = detectProse('Rui pega a estufa na cozinha. Rui espera.')
+  assert.equal(portuguese.places.some(place => /estufa/i.test(place.name)), false)
 })
 
 test('a person name wins over a place word', () => {
@@ -92,10 +96,7 @@ test('a person name wins over a place word', () => {
 test('a body part or a garment is not a place in any site language', () => {
   const cases = [
     ['en', 'Nia touches her eyebrow in the kitchen. Nia waits.', /eyebrow|arm|sleeve/i, /kitchen/i],
-    ['fr', 'Léa touche son sourcil dans la cuisine. Léa attend.', /sourcil|manche|bras/i, /cuisine/i],
     ['pt', 'Rui espera na cozinha. Ele não toca a sobrancelha. Rui lê uma carta.', /sobrancelha|braço|manga/i, /cozinha/i],
-    ['it', 'Giulia tocca il sopracciglio nella cucina. Giulia aspetta nella cucina.', /sopracciglio|braccio|manica/i, /cucina/i],
-    ['ja', '美咲は右の眉尻に触れ、台所で待つ。美咲は腕カバーをつけたまま手紙を読む。', /眉|腕|カバー|手ぬぐい/, /台所/],
     ['zh-Hans', '赵明远摸了摸眉毛，穿着围裙，在厨房等待。赵明远拿着一封信。', /眉|围裙|头发|眼睛|腕/, /厨房/]
   ]
   for (const [language, text, banned, place] of cases) {
@@ -111,10 +112,7 @@ test('a body part or a garment is not a place in any site language', () => {
 test('each site language reads a locative place from the library', () => {
   const cases = [
     ['en', 'Nia waits in the greenhouse. Nia reads.', /greenhouse/i],
-    ['fr', 'Apolline, 40, cheveux courts, manteau gris, attend dans la serre. Apolline lit.', /serre/i],
     ['pt', 'Rui, 40, barba grisalha, casaco azul, espera na cozinha. Ele lê uma carta.', /cozinha/i],
-    ['it', 'Giulia, 29, capelli neri, cappotto blu, aspetta nella cucina. Giulia legge.', /cucina/i],
-    ['ja', '美咲は台所で待つ。美咲は手紙を読む。', /台所/],
     ['zh-Hans', '赵明远在厨房等待。赵明远拿着一封信。', /厨房/]
   ]
   for (const [language, text, place] of cases) {
