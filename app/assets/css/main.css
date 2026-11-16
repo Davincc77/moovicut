@@ -806,3 +806,11 @@ input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-vis
  .studio-wizard .wizard-top { flex-direction:column; }
  .studio-wizard .wizard-top .button,.studio-wizard .wizard-actions .button { width:100%; }
 }
+.board-parts-note { margin:12px 0; color:var(--text-secondary); }
+.board-part { display:flex; flex-direction:column; gap:12px; margin:16px 0; padding:16px; border:1px solid var(--border); border-radius:12px; }
+.board-part-heading h3 { margin:0; font-size:1.05rem; }
+.board-part-heading p { margin:4px 0 0; color:var(--text-secondary); }
+.board-part-actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+@media (max-width:767px) {
+ .board-part-actions .button { width:100%; }
+}

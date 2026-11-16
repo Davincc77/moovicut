@@ -6,7 +6,6 @@ export const SCENARIO_WARN_AT = 6000
 export const SCENARIO_MAX_CHARS = 8000
 export const SEQUENCE_MIN_SECONDS = 15
 export const SEQUENCE_MAX_SECONDS = 60
-export const MAX_SCENARIO_SCENES = 48
 export const SCENARIO_EXAMPLE = 'Scène 3 — Léa — Café — Elle renverse son latte et rit.'
 
 /** Framing ids set the frame only. Movement ids are an explicit camera move. No default lens. */
@@ -166,7 +165,7 @@ function parseSceneLine(text, line) {
   for (const item of [
     tooLong(scene.who, 120, line, 'scenes', 'who', 'character'),
     tooLong(scene.where, 120, line, 'scenes', 'where', 'place'),
-    tooLong(scene.what, 400, line, 'scenes', 'what', 'action')
+    tooLong(scene.what, 4000, line, 'scenes', 'what', 'action')
   ]) if (item) errors.push(item)
   return errors.length ? { errors } : { scene }
 }
@@ -235,7 +234,6 @@ function finish(characters, places, scenes, light, mood, errors, sourceText) {
   if (!characters.length && !mentioned('characters')) errors.push(problem('Add at least one character: Name — look — outfit.', { section: 'characters', field: 'name' }))
   if (!places.length && !mentioned('places')) errors.push(problem('Add at least one place: Name — short description.', { section: 'places', field: 'name' }))
   if (!scenes.length && !mentioned('scenes')) errors.push(problem('Add at least one scene line: Scène 1 — who — where — what happens.', { section: 'scenes', field: 'what' }))
-  if (scenes.length > MAX_SCENARIO_SCENES) errors.push(problem(`A storyboard can include at most ${MAX_SCENARIO_SCENES} scenes.`, { section: 'scenes', field: 'scenes' }))
   const text = formatScenario({ characters, places, scenes, light, mood })
   const counted = String(sourceText || text)
   const duration = scenes.reduce((sum, scene) => sum + (scene.duration || 3), 0)
@@ -442,7 +440,7 @@ function parseScenarioObject(input, options = {}) {
     const description = cleanText(pick(entry, ['description', 'desc', 'd']))
     if (!name) errors.push(problem(`${path} is missing a name.`, { path: `${path}.name`, section: 'places', field: 'name', index }))
     if (!description) errors.push(problem(`${path} is missing a description.`, { path: `${path}.description`, section: 'places', field: 'description', index }))
-    if (name && description) places.push({ name, description })
+    if (name && description) places.push(entry.uncertain === true ? { name, description, uncertain: true } : { name, description })
   })
   const light = readEnum(source.light ?? source.lighting, LIGHT_VALUES, 'light', { path: 'light', section: 'style' }, errors)
   const mood = readEnum(source.mood, MOOD_VALUES, 'mood', { path: 'mood', section: 'style' }, errors)
@@ -458,16 +456,18 @@ function parseScenarioObject(input, options = {}) {
     const who = cleanText(pick(entry, ['who', 'w', 'character']))
     const where = cleanText(pick(entry, ['where', 'at', 'place']))
     const what = cleanText(pick(entry, ['what', 'do', 'action', 'beat']))
-    if (!who) errors.push(problem(`${path} is missing who.`, { path: `${path}.who`, section: 'scenes', field: 'who', index }))
-    if (!where) errors.push(problem(`${path} is missing where.`, { path: `${path}.where`, section: 'scenes', field: 'where', index }))
+    if (!who && !options.allowMissingWho) errors.push(problem(`${path} is missing who.`, { path: `${path}.who`, section: 'scenes', field: 'who', index }))
+    if (!where && !options.allowMissingWhere) errors.push(problem(`${path} is missing where.`, { path: `${path}.where`, section: 'scenes', field: 'where', index }))
     if (!what) errors.push(problem(`${path} is missing what happens.`, { path: `${path}.what`, section: 'scenes', field: 'what', index }))
     const camera = readEnum(entry.camera ?? entry.cam, CAMERA_VALUES, 'camera', { path: `${path}.camera`, section: 'scenes', index }, errors)
     const sceneLight = readEnum(entry.light ?? entry.lighting, LIGHT_VALUES, 'light', { path: `${path}.light`, section: 'scenes', index }, errors)
     const sceneMood = readEnum(entry.mood, MOOD_VALUES, 'mood', { path: `${path}.mood`, section: 'scenes', index }, errors)
     const duration = readDuration(entry.duration ?? entry.s, { path: `${path}.duration`, section: 'scenes', index }, errors)
     const prompt = typeof entry.prompt === 'string' ? entry.prompt.trim().slice(0, 16000) : ''
-    if (who && where && what) {
+    if (what && (who || options.allowMissingWho) && (where || options.allowMissingWhere)) {
       const scene = { number: index + 1, who, where, what, line: index + 1, camera, light: sceneLight, mood: sceneMood, duration, prompt }
+      if (entry.source) scene.source = cleanText(entry.source).slice(0, 500)
+      if (Array.isArray(entry.flags)) scene.flags = entry.flags
       if (entry.sceneCut === true) scene.sceneCut = true
       if (entry.cutUncertain === true) scene.cutUncertain = true
       const cue = cleanText(entry.cutCue)

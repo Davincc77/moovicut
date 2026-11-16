@@ -10,11 +10,13 @@ import { CAMERA_VALUES, LIGHT_VALUES, MOOD_VALUES, SCENARIO_MAX_CHARS } from '..
 import { studioUrl } from '../app/utils/studio-link.js'
 import { cleanText } from '../app/utils/text.js'
 import { readPromptLanguage } from '../app/utils/prompt-lang.js'
+import { isFountain, parseFountain } from '../app/utils/fountain.js'
+import { SHOT_LIMIT, SHOT_LIMIT_MESSAGE } from '../app/utils/parts.js'
+import { translate } from '../app/i18n/index.js'
 
 export const RATE_LIMIT = Object.freeze({ limit: 30, windowMs: 60_000 })
 export const STORYBOARD_BODY_LIMIT = 32 * 1024
 export const MCP_BODY_LIMIT = 128 * 1024
-export const MAX_API_SHOTS = 48
 const SITE = 'https://moovicut.studio'
 
 export function createRateLimiter({ limit = RATE_LIMIT.limit, windowMs = RATE_LIMIT.windowMs } = {}) {
@@ -89,6 +91,12 @@ function fail(message, code) {
   throw error
 }
 
+function refuseIfTooLong(project, input) {
+  if ((project?.shots?.length || 0) <= SHOT_LIMIT) return
+  const lang = optionalPromptLanguage(input) || 'en'
+  fail(translate(lang, SHOT_LIMIT_MESSAGE), 'too_many_shots')
+}
+
 function optionalPromptLanguage(input) {
   try {
     const lang = readPromptLanguage(input?.promptLanguage ?? input?.prompt_language)
@@ -146,8 +154,28 @@ function presetOptions(input, model, mode) {
 function storyboardOptions(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) fail('Send a JSON object.', 'invalid_body')
   if (input.input === 'prose' || input.type === 'prose') return { prose: true, raw: input }
+  const fountainText = typeof input.fountain === 'string' ? input.fountain : (input.input === 'fountain' || input.type === 'fountain' ? String(input.text || input.premise || '') : (isFountain(input.premise) ? input.premise : ''))
+  if (fountainText) {
+    const model = canonicalModel(input.model || 'grok')
+    if (!model) fail('The model must be grok, google, sora, chatgpt, midjourney, hailuo, seedance, pika, kling, runway, luma, wan, or generic.', 'invalid_model')
+    const sheet = parseFountain(fountainText)
+    if (!sheet.scenes.length) fail('Add a scene heading such as INT. KITCHEN - DAY and one action under it.', 'invalid_fountain')
+    const characters = sheet.characters.length ? sheet.characters : [{ name: 'Figure', look: 'unspecified', outfit: 'plain clothes' }]
+    const places = sheet.places.length ? sheet.places : [{ name: 'Unspecified', description: 'unspecified' }]
+    return {
+      scenario: { characters, places, scenes: sheet.scenes.map(scene => ({ ...scene, who: scene.who || characters[0].name })), light: sheet.light },
+      sequenceMode: 'scenario',
+      allowIncompleteCast: true,
+      model,
+      duration: optionalDuration(input),
+      aspectRatio: input.aspectRatio,
+      promptStyle: input.prompt_style ?? input.promptStyle,
+      promptLanguage: optionalPromptLanguage(input),
+      overwritePrompt: input.overwritePrompt === true
+    }
+  }
   const model = canonicalModel(input.model || 'grok')
-  if (!model) fail('The model must be grok, google, sora, kling, runway, luma, wan, or generic.', 'invalid_model')
+  if (!model) fail('The model must be grok, google, sora, chatgpt, midjourney, hailuo, seedance, pika, kling, runway, luma, wan, or generic.', 'invalid_model')
   const explicit = String(input.mode || input.sequenceMode || '')
   if (explicit === 'ad' || input.ad || (!explicit && input.product && input.benefit)) return presetOptions(input, model, 'ad')
   if (explicit === 'series' || input.series) return presetOptions(input, model, 'series')
@@ -178,11 +206,10 @@ function storyboardOptions(input) {
   if (premise.length < 8) fail('The premise must be at least 8 characters.', 'invalid_premise')
   if (premise.length > 6000) fail('Keep the premise under 6,000 characters.', 'invalid_premise')
   const scenes = Array.isArray(input.scenes) ? input.scenes : null
-  if (scenes && scenes.length > MAX_API_SHOTS) fail(`A storyboard can include at most ${MAX_API_SHOTS} scenes.`, 'invalid_scenes')
   if (scenes && scenes.some(scene => !scene || typeof scene !== 'object' || Array.isArray(scene))) fail('Each scene must be an object.', 'invalid_scenes')
   const requested = input.shots ?? input.count
   const count = scenes?.length ? scenes.length : (requested == null || requested === '' ? 5 : Math.floor(Number(requested)))
-  if (!Number.isFinite(count) || count < 1 || count > MAX_API_SHOTS) fail(`Shots must be a whole number from 1 to ${MAX_API_SHOTS}.`, 'invalid_shots')
+  if (!Number.isFinite(count) || count < 1) fail('Shots must be a whole number of at least 1.', 'invalid_shots')
   const sequenceMode = input.sequenceMode || input.mode || 'continuous'
   if (sequenceMode !== 'continuous' && sequenceMode !== 'varied') fail('Mode must be "continuous", "varied", "scenario", "ad", "series", or "explainer".', 'invalid_mode')
   const continuity = input.continuity || input.continuityStrength
@@ -223,7 +250,15 @@ export function compactStoryboard(project, link) {
     if (project.scenarioBudget) body.budget = { length: project.scenarioBudget.length, suggested: project.scenarioBudget.suggested, status: project.scenarioBudget.status }
     if (project.preset) body.preset = { style: project.preset.family, genre: project.preset.genre }
   }
+  if (project.parts?.length > 1) body.parts = project.parts.map(part => ({ index: part.index, from: part.from, to: part.to, place: part.place, time: part.time }))
   return body
+}
+
+function stripSceneKeys(project) {
+  ;(project?.shots || []).forEach(shot => {
+    if (shot && Object.prototype.hasOwnProperty.call(shot, 'sceneKey')) delete shot.sceneKey
+  })
+  return project
 }
 
 function boardLink(origin, project, options) {
@@ -266,33 +301,25 @@ function splitRequested(input) {
 }
 
 function scenesForPlan(detected) {
-  const scenes = (detected.scenes || []).map((scene, index) => {
+  return (detected.scenes || []).map((scene, index) => {
     const row = detected.scenario?.scenes?.[index] || {}
     return {
-      who: scene.who || row.who,
-      where: scene.where || row.where,
-      what: scene.what || row.what,
+      who: scene.who || row.who || '',
+      where: scene.where || row.where || '',
+      what: scene.what || row.what || scene.action || '',
       duration: scene.duration || row.duration || 3,
-      light: scene.light || '',
+      light: scene.light || row.light || '',
       timeLabel: scene.timeLabel || '',
       sceneId: scene.sceneId || index + 1,
       sceneCut: scene.sceneCut === true,
       cutCue: scene.cutCue || '',
       cutReason: scene.cutReason || '',
       cutUncertain: scene.cutUncertain === true,
-      cutKind: scene.cutKind || ''
+      cutKind: scene.cutKind || '',
+      source: scene.source || scene.what || row.what || '',
+      flags: Array.isArray(scene.flags) ? scene.flags : (Array.isArray(row.flags) ? row.flags : [])
     }
-  })
-  if (scenes.length <= 48) return scenes
-  const required = []
-  const optional = []
-  scenes.forEach((scene, index) => {
-    if (index === 0 || scene.sceneCut) required.push(scene)
-    else optional.push(scene)
-  })
-  const room = Math.max(0, 48 - required.length)
-  const keep = new Set([...required, ...optional.slice(0, room)])
-  return scenes.filter(scene => keep.has(scene)).slice(0, 48)
+  }).filter(scene => scene.what)
 }
 
 function planProse(input, { origin, compact }) {
@@ -302,7 +329,8 @@ function planProse(input, { origin, compact }) {
   const splitScenes = splitRequested(input)
   const detected = detectProse(text, { splitScenes })
   const scenario = { ...detected.scenario, scenes: scenesForPlan(detected) }
-  const parsed = parseScenario(scenario, { allowIncompleteCast: true })
+  const cast = detected.characters || []
+  const parsed = parseScenario(scenario, { allowIncompleteCast: true, allowMissingWhere: true, allowMissingWho: cast.length > 0 })
   const promptLanguage = optionalPromptLanguage(input) || 'en'
   const detection = {
     input: 'prose',
@@ -314,7 +342,8 @@ function planProse(input, { origin, compact }) {
     cuts: splitScenes ? (detected.cuts || []) : []
   }
   if (!parsed.ok) {
-    const error = new Error(describeScenarioErrors(parsed.errors))
+    const lang = detected.language || promptLanguage
+    const error = new Error(parsed.errors.map(item => translate(lang, item.message)).filter(Boolean).join(' ') || describeScenarioErrors(parsed.errors))
     error.status = 400
     error.code = 'invalid_scenario'
     error.errors = parsed.errors
@@ -323,6 +352,8 @@ function planProse(input, { origin, compact }) {
   const project = withActionSplits(createStoryboard({
     scenario,
     allowIncompleteCast: true,
+    allowMissingWhere: true,
+    allowMissingWho: cast.length > 0,
     model: input.model,
     aspectRatio: input.aspectRatio,
     style: input.style,
@@ -334,6 +365,7 @@ function planProse(input, { origin, compact }) {
   }), input)
   project.sceneSplit = splitScenes
   project.cuts = detection.cuts
+  refuseIfTooLong(project, input)
   const link = boardLink(origin, project, { style: input.style })
   const board = compact ? compactStoryboard(project, link) : { ...project, studioUrl: link }
   const body = { ...board, ...detection }
@@ -341,6 +373,7 @@ function planProse(input, { origin, compact }) {
   const warnings = [...(detection.warnings || []), ...risks]
   if (warnings.length) body.warnings = warnings
   else delete body.warnings
+  stripSceneKeys(project)
   return body
 }
 
@@ -353,7 +386,7 @@ function withActionSplits(project, input) {
   if (!splitEnabled(input) || !project?.shots?.length) return project
   let current = project
   let guard = 0
-  while (guard < 64) {
+  while (guard < 2000) {
     guard += 1
     const index = current.shots.findIndex(shot => !shot.promptEdited && splitActionText(shot.what || shot.action || '').length >= 2)
     if (index < 0) break
@@ -380,6 +413,7 @@ function planRegenerate(input, { origin, compact }) {
   const project = validateProject(source).project
   const shotId = input.regenerateShot || input.shotId
   if (!shotId) fail('Send regenerateShot with the shot id to rebuild.', 'invalid_shot')
+  refuseIfTooLong(project, input)
   const result = regenerateOneShot(project, shotId, {
     overwrite: input.overwritePrompt === true,
     prompt: typeof input.prompt === 'string' ? input.prompt : undefined
@@ -388,7 +422,9 @@ function planRegenerate(input, { origin, compact }) {
   const body = compact ? compactStoryboard(result.project, link) : { ...result.project, studioUrl: link }
   body.regenerated = result.skipped ? null : result.shotId
   if (result.skipped) body.kept = true
-  return attachWarnings(body, result.project)
+  const warned = attachWarnings(body, result.project)
+  stripSceneKeys(result.project)
+  return warned
 }
 
 function agentBody(project, link) {
@@ -397,6 +433,7 @@ function agentBody(project, link) {
 export function planFromInput(input, { origin = SITE, compact = false } = {}) {
   if (input && typeof input === 'object' && !Array.isArray(input) && input.schema === AGENT_BOARD_SCHEMA) {
     const project = importAgentBoard(input, { overwritePrompt: input.overwritePrompt === true })
+    refuseIfTooLong(project, input)
     const link = boardLink(origin, project, {})
     if (input.regenerateShot || input.shotId) return planRegenerate({ ...input, project }, { origin, compact })
     return agentBody(project, link)
@@ -407,10 +444,17 @@ export function planFromInput(input, { origin = SITE, compact = false } = {}) {
   const options = storyboardOptions(input)
   if (options.prose) return planProse(options.raw, { origin, compact })
   const project = withActionSplits(createStoryboard(options), input)
+  refuseIfTooLong(project, input)
   const link = boardLink(origin, project, options)
-  if (input?.format === 'agent') return agentBody(project, link)
+  if (input?.format === 'agent') {
+    const body = agentBody(project, link)
+    stripSceneKeys(project)
+    return body
+  }
   const body = compact ? compactStoryboard(project, link) : fullStoryboard(project, link)
-  return attachWarnings(body, project)
+  const warned = attachWarnings(body, project)
+  stripSceneKeys(project)
+  return warned
 }
 
 function wantsCompact(input, searchParams) {
@@ -515,16 +559,16 @@ const STORYBOARD_SCHEMA = {
   ],
   properties: {
     premise: { type: 'string', minLength: 8, maxLength: 6000, description: 'Story idea, 8 to 6,000 characters. Optional when scenario is sent. If it is omitted, the idea line is the character and place names only, not the first scene’s action.' },
-    model: { type: 'string', enum: ['grok', 'google', 'sora', 'kling', 'runway', 'luma', 'wan', 'generic'], default: 'grok', description: 'Target video model. Shot length, aspect, prompt form, and risk warnings follow that model’s documented profile. grok and google keep their existing labeled prompts. veo is accepted as google.' },
-    shots: { type: 'integer', minimum: 1, maximum: MAX_API_SHOTS, default: 5, description: 'Scene count. Ignored when scenes is a non-empty array. Default 5.' },
+    model: { type: 'string', enum: ['grok', 'google', 'sora', 'chatgpt', 'midjourney', 'hailuo', 'seedance', 'pika', 'kling', 'runway', 'luma', 'wan', 'generic'], default: 'grok', description: 'Target video model. Shot length, aspect, prompt form, and risk warnings follow that model’s documented profile. grok and google keep their existing labeled prompts. veo is accepted as google.' },
+    shots: { type: 'integer', minimum: 1, maximum: 40, default: 5, description: 'Scene count. Ignored when scenes is a non-empty array. Default 5. At most 40 shots. A longer board is refused.' },
     mode: { type: 'string', enum: ['continuous', 'varied', 'scenario', 'ad', 'series', 'explainer'], description: 'Alias of sequenceMode. scenario reads the scenario field or a structured premise. ad, series, and explainer are light presets on the same film sheet. A prompt marked promptEdited is kept.' },
     sequenceMode: { type: 'string', enum: ['continuous', 'varied', 'scenario', 'ad', 'series', 'explainer'] },
     continuity: { type: 'string', enum: ['standard', 'strict'], default: 'standard' },
     density: { type: 'string', enum: ['standard', 'concise'], default: 'standard', description: 'Used by the detailed prompt. Concise keeps one short continuity line. Standard includes the shared sheet once. Strict still repeats the sheet verbatim.' },
     prompt_style: { type: 'string', enum: ['short', 'detailed'], default: 'short', description: 'short is the default video prompt: framing, the named action, the lock lines, the full place, one light, and the style with locked-off camera unless a movement was set. It stays under about 700 characters and never shortens the action or the lock line. detailed keeps the full film sheet and continuity text in every shot. A hand-edited prompt is kept either way unless overwritePrompt is true.' },
     promptStyle: { type: 'string', enum: ['short', 'detailed'], description: 'Alias of prompt_style.' },
-    promptLanguage: { type: 'string', enum: ['en', 'zh-Hans', 'pt', 'ja', 'fr', 'de', 'lb', 'it'], default: 'en', description: 'Language of the fixed lines the planner writes: framing, light, mood, style preset, camera line, lock-line labels, and shot structure. Default en, so a client that omits the field gets the English prompt. prompt_language is an alias. The user\'s own idea, names, places, and actions stay as written. Field names in the JSON stay English.' },
-    prompt_language: { type: 'string', enum: ['en', 'zh-Hans', 'pt', 'ja', 'fr', 'de', 'lb', 'it'], description: 'Alias of promptLanguage.' },
+    promptLanguage: { type: 'string', enum: ['en', 'zh-Hans', 'pt', 'ja', 'fr', 'it'], default: 'en', description: 'Language of the fixed lines the planner writes: framing, light, mood, style preset, camera line, lock-line labels, and shot structure. Default en, so a client that omits the field gets the English prompt. prompt_language is an alias. The user\'s own idea, names, places, and actions stay as written. Field names in the JSON stay English.' },
+    prompt_language: { type: 'string', enum: ['en', 'zh-Hans', 'pt', 'ja', 'fr', 'it'], description: 'Alias of promptLanguage.' },
     aspectRatio: { type: 'string', enum: ['9:16', '1:1', '4:5', '16:9'], default: '16:9' },
     genre: { type: 'string', description: `Story genre, or a style-preset genre. Preset families: ${listPresets().map(family => `${family.id} (${family.genres.map(genre => genre.id).join(', ')})`).join('; ')}. Default preset when a scenario omits both is cinema / drama.` },
     style: { type: 'string', description: 'Fun, Normal, Spicy, a visual style id such as cinematic or illustrative, or a preset family: anime, cinema, documentary. manga is an alias of anime. An unknown family is 400. A named family locks that preset into every mode, including a plain premise.' },
@@ -565,8 +609,7 @@ const STORYBOARD_SCHEMA = {
     compact: { type: 'boolean', default: false, description: 'Return title, premise, model, aspectRatio, studioUrl, and shots of order, duration, and prompt.' },
     scenes: {
       type: 'array',
-      maxItems: MAX_API_SHOTS,
-      description: 'Optional per-scene overrides. When present, the board length is scenes.length instead of the default 5.',
+      description: 'Optional per-scene overrides. When present, the board length is scenes.length instead of the default 5. More than 40 shots is refused.',
       items: SCENE_SCHEMA
     }
   }
@@ -579,7 +622,7 @@ export function openApiDocument() {
       title: 'Moovicut',
       version: '1.0.0',
       summary: 'Free deterministic storyboard planning. No API key, no account, no stored premises.',
-      description: 'Moovicut plans editable storyboards. It does not render video and it does not save the premise. The default board is 5 scenes × 3 seconds (15 seconds total). The default video prompt is short (prompt_style short): framing, the named action, the lock lines, the full place, one light, and locked-off camera unless a movement was set, capped near 700 characters. prompt_style detailed keeps the full film sheet in every shot. Pass shots and duration, or a scenes array, for a custom scene-by-scene board. Humans can do the same in /studio Step-by-step mode. mode ad, series, and explainer are light presets on the same film sheet. A shot marked promptEdited is kept unless overwritePrompt is true. Duration snaps to the selected model profile. studioUrl is a /studio#board= link the browser can open without a server lookup.'
+      description: 'Moovicut plans editable storyboards. It does not render video and it does not save the premise. The default board is 5 scenes × 3 seconds (15 seconds total). The default video prompt is short (prompt_style short): framing, the named action, the lock lines, the full place, one light, and locked-off camera unless a movement was set, capped near 700 characters. prompt_style detailed keeps the full film sheet in every shot. Pass shots and duration, or a scenes array, for a custom scene-by-scene board. A request of more than 40 shots is refused with too_many_shots. Split the story into chapters and send them one by one, reusing the exported character sheet so faces stay consistent. Humans can do the same in /studio Step-by-step mode. mode ad, series, and explainer are light presets on the same film sheet. A shot marked promptEdited is kept unless overwritePrompt is true. Duration snaps to the selected model profile. studioUrl is a /studio#board= link the browser can open without a server lookup.'
     },
     servers: [{ url: SITE }],
     paths: {
@@ -654,7 +697,7 @@ export function openApiDocument() {
             model: { type: 'string' },
             aspectRatio: { type: 'string' },
             studioUrl: { type: 'string', description: 'Hash link to /studio. The board is in the fragment and is not sent to the server on open.' },
-            shots: { type: 'array', items: { $ref: '#/components/schemas/CompactShot' } },
+            shots: { type: 'array', items: { $ref: '#/components/schemas/CompactShot' }, maxItems: 40 },
             warnings: { type: 'array', description: 'Present only when a shot has a pre-generation risk. Warnings never block the board.', items: { type: 'object', additionalProperties: true } },
             regenerated: { type: 'string', description: 'Shot id rebuilt by regenerateShot. Null when an edited prompt was kept.' }
           }
@@ -676,7 +719,7 @@ export function openApiDocument() {
 const TOOLS = [
   {
     name: 'plan_storyboard',
-    description: 'Plan a deterministic storyboard. Default is 5 scenes × 3s (15s total) and a short per-shot video prompt: framing, the named action, the lock line, the place, one light, and locked-off camera unless a movement was set. Each character lock line is copied unchanged into every shot they appear in. Pass prompt_style "detailed" for the full sheet in every shot. Pass shots/duration, a scenes array, a scenario, mode ad, series, or explainer, input "prose", format "agent", or a model: grok, google, sora, kling, runway, luma, wan, or generic. Free prose splits on place and time cues unless splitScenes is false. The cuts array gives each cue and reason. A character with no look is a warning, not a 400. A prompt marked promptEdited is kept. Returns a compact payload and a /studio# link. Nothing is stored.',
+    description: 'Plan a deterministic storyboard. Default is 5 scenes × 3s (15s total) and a short per-shot video prompt: framing, the named action, the lock line, the place, one light, and locked-off camera unless a movement was set. Each character lock line is copied unchanged into every shot they appear in. Pass prompt_style "detailed" for the full sheet in every shot. Pass shots/duration, a scenes array, a scenario, mode ad, series, or explainer, input "prose", format "agent", or a model: grok, google, sora, chatgpt, midjourney, hailuo, seedance, pika, kling, runway, luma, wan, or generic. Free prose splits on place and time cues unless splitScenes is false. The cuts array gives each cue and reason. A character with no look is a warning, not a 400. A request of more than 40 shots is refused with too_many_shots. Split the story into chapters and send them one by one. A prompt marked promptEdited is kept. Returns a compact payload and a /studio# link. Nothing is stored.',
     inputSchema: STORYBOARD_SCHEMA
   },
   {
@@ -687,20 +730,20 @@ const TOOLS = [
       additionalProperties: false,
       properties: {
         premise: { type: 'string' },
-        model: { type: 'string', enum: ['grok', 'google', 'sora', 'kling', 'runway', 'luma', 'wan', 'generic'], default: 'grok' },
-        shots: { type: 'integer', minimum: 1, maximum: MAX_API_SHOTS, default: 5 },
+        model: { type: 'string', enum: ['grok', 'google', 'sora', 'chatgpt', 'midjourney', 'hailuo', 'seedance', 'pika', 'kling', 'runway', 'luma', 'wan', 'generic'], default: 'grok' },
+        shots: { type: 'integer', minimum: 1, default: 5 },
         duration: { type: 'integer', minimum: 2, maximum: 15, default: 3 },
         mode: { type: 'string', enum: ['continuous', 'varied', 'scenario', 'ad', 'series', 'explainer'] },
         sequenceMode: { type: 'string', enum: ['continuous', 'varied', 'scenario', 'ad', 'series', 'explainer'] },
         continuity: { type: 'string', enum: ['standard', 'strict'] },
         density: { type: 'string', enum: ['standard', 'concise'] },
         prompt_style: { type: 'string', enum: ['short', 'detailed'], default: 'short' },
-        promptLanguage: { type: 'string', enum: ['en', 'zh-Hans', 'pt', 'ja', 'fr', 'de', 'lb', 'it'], default: 'en', description: 'Alias of the storyboard field. Omitted means English.' },
+        promptLanguage: { type: 'string', enum: ['en', 'zh-Hans', 'pt', 'ja', 'fr', 'it'], default: 'en', description: 'Alias of the storyboard field. Omitted means English.' },
         prompt_language: { type: 'string', description: 'Alias of promptLanguage.' },
         aspectRatio: { type: 'string' },
         genre: { type: 'string' },
         style: { type: 'string' },
-        scenes: { type: 'array', maxItems: MAX_API_SHOTS, items: SCENE_SCHEMA },
+        scenes: { type: 'array', items: SCENE_SCHEMA },
         storyboard: { type: 'object', description: 'Optional shotboard.v1 document. When shots exist, their prompts are returned as-is.' }
       }
     }

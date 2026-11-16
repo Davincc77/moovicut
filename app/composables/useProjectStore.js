@@ -144,7 +144,9 @@ export function useProjectStore() {
   function createNew(premise, model = project.value.model, options = {}) {
     const guided = ['scenario', 'ad', 'series', 'explainer'].includes(options.sequenceMode) || options.scenario || options.ad || options.series || options.explainer || options.steps
     if (!premise?.trim() && !guided) throw new Error('Start with a short premise for your story.')
-    const next = createStoryboard({ ...options, premise: premise || '', model }); commit(next, 'Your storyboard is ready. Make it yours.'); return next
+    const next = createStoryboard({ ...options, premise: premise || '', model })
+    if (next.shots.length > 40) throw new Error('Moovicut is built for up to 40 shots (a short or medium film, or one chapter). Split the story into chapters and send them one by one, reusing the exported character sheet so faces stay consistent.')
+    commit(next, 'Your storyboard is ready. Make it yours.'); return next
   }
   function selectModel(model) { const next = canonicalModel(model); if (!next || next === project.value.model) return; commit(applyModelProfile(project.value, next), `Prompts adapted for ${profileFor(next).label}. Prompts you edited stay as you left them.`) }
   function applyPromptSettings(patch = {}) {

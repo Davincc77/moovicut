@@ -3,6 +3,7 @@ import { findByName, foldName, nameParts } from './scenario.js'
 import { cleanText } from './text.js'
 import { allowedDurations, profileFor, snapAspect } from './model-profiles.js'
 import { continuityWarnings } from './continuity-check.js'
+import { partJoinWarnings, partitionShots } from './parts.js'
 import { splitActionText } from './action-split.js'
 
 const ACTION_VERBS = /\b(pours|pour|spills|spill|laughs|laugh|runs|run|opens|open|walks|walk|enters|enter|leaves|leave|rides|ride|turns|turn|verse|renverse|rit|court|entre|sort|marche|revient|ouvre)\b/gi
@@ -115,11 +116,13 @@ export function assessShot(shot, project = {}) {
   }
   ;(profile?.weakSpots || []).forEach(item => {
     if (item.when === 'duration>=8' && duration >= 8) warnings.push(warning(shot, item.code, item.message, item.fix))
-    if (!item.when && item.code !== 'veo_people_region' && item.code !== 'wan_prompt_extend') warnings.push(warning(shot, item.code, item.message, item.fix))
+    if (!item.when && item.code !== 'veo_people_region' && item.code !== 'wan_prompt_extend' && item.code !== 'hailuo_prompt_optimizer') warnings.push(warning(shot, item.code, item.message, item.fix))
   })
-  if (profile?.id === 'wan' && shot.order === 1) {
-    const extend = profile.weakSpots.find(item => item.code === 'wan_prompt_extend')
-    if (extend) warnings.push(warning(shot, extend.code, extend.message, extend.fix))
+  if (profile && shot.order === 1) {
+    for (const code of ['wan_prompt_extend', 'hailuo_prompt_optimizer']) {
+      const item = profile.weakSpots.find(spot => spot.code === code)
+      if (item) warnings.push(warning(shot, item.code, item.message, item.fix))
+    }
   }
   if (profile && Number.isFinite(profile.maxPromptLength) && String(shot.prompt || '').length > profile.maxPromptLength) {
     warnings.push(warning(shot, 'prompt_too_long', `This prompt is longer than the ${profile.maxPromptLength} characters ${profile.label} documents.`, 'Shorten the prompt before you paste it.'))
@@ -161,7 +164,10 @@ export function assessShot(shot, project = {}) {
 }
 
 export function assessProject(project) {
-  const warnings = (project?.shots || []).flatMap(shot => assessShot(shot, project))
+  const shots = project?.shots || []
+  const ranges = shots.length ? partitionShots(shots) : []
+  const warnings = ranges.flatMap(range => shots.slice(range.start, range.end).flatMap(shot => assessShot(shot, project)))
+  warnings.push(...partJoinWarnings(project))
   const seen = new Set()
   return warnings.filter(item => {
     if (item.code !== 'sora_long_clip') return true

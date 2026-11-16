@@ -235,7 +235,6 @@ export function parseExplainer(input = {}) {
   const errors = []
   if (topic.length < 8) errors.push(problem('Name the topic in at least 8 characters.', { field: 'topic', section: 'explainer' }))
   if (!list.length) errors.push(problem('Add a numbered list. Each line becomes one shot.', { field: 'steps', section: 'explainer' }))
-  if (list.length > 48) errors.push(problem('An explainer can include at most 48 steps.', { field: 'steps', section: 'explainer' }))
   for (const item of [
     tooLong(topic, 200, 'topic', 'explainer', 'topic'),
     tooLong(audience, 200, 'audience', 'explainer', 'audience')

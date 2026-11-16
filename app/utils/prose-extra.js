@@ -1,7 +1,8 @@
 /** Rule-based prose detection beyond English and French. No model call. */
 import { cleanText } from './text.js'
 import { foldName, scenarioBudget, scenarioPremise, scenarioToFields } from './scenario.js'
-import { findPlaceCue, inNamedVenue, isFunctionWord, isNumberWord, isQuotedOrRemembered, isVenueType, namedVenues } from './scene-split.js'
+import { cueLight, findPlaceCue, inNamedVenue, isFunctionWord, isNumberWord, isQuotedOrRemembered, isVenueType, mentionMovesScene, namedVenues } from './scene-split.js'
+import { libraryHits, locativeHeads } from './place-lexicon.js'
 
 const LEX = {
   pt: {
@@ -29,31 +30,6 @@ const LEX = {
     light: [[/\b(amanhecer|aurora)\b/i, 'dawn'], [/\b(crepúsculo|anoitecer|entardecer)\b/i, 'dusk'], [/\b(noite|meia-noite)\b/i, 'night'], [/\b(dia|manhã|tarde)\b/i, 'day']],
     mood: [[/\b(sorri|rir|riso)\b/i, 'playful'], [/\b(medo|ansioso)\b/i, 'uneasy'], [/\b(calmo|silêncio|triste)\b/i, 'quiet']]
   },
-  de: {
-    stop: ['der', 'die', 'das', 'den', 'dem', 'des', 'ein', 'eine', 'einen', 'einem', 'einer', 'und', 'mit', 'auf', 'in', 'im', 'am', 'an', 'zu', 'vom', 'von', 'ist', 'nicht', 'sie', 'er', 'ihm', 'ihr', 'anfang', 'brief', 'mantel', 'haar', 'tür', 'tuer', 'stoppeln'],
-    verbs: ['gibt', 'geben', 'liest', 'lesen', 'geht', 'gehen', 'sieht', 'sehen', 'läuft', 'kommt', 'öffnet', 'lacht', 'reicht', 'legt', 'nimmt', 'wartet'],
-    places: [
-      ['kai', 'Kai', 'ein Kai'],
-      ['café', 'Café', 'ein Café'],
-      ['cafe', 'Café', 'ein Café'],
-      ['straße', 'Straße', 'eine Straße'],
-      ['strasse', 'Straße', 'eine Straße'],
-      ['strand', 'Strand', 'ein Strand'],
-      ['wald', 'Wald', 'ein Wald'],
-      ['haus', 'Haus', 'ein Haus'],
-      ['park', 'Park', 'ein Park'],
-      ['bahnhof', 'Bahnhof', 'ein Bahnhof'],
-      ['küche', 'Küche', 'eine Küche'],
-      ['brücke', 'Brücke', 'eine Brücke']
-    ],
-    look: /(?:anfang \d+|\d+|kurzes [\p{L} -]{0,24}haar|graue stoppeln|stoppeln)/giu,
-    outfit: /(?:[\p{L}-]+ )?[\p{L}-]*mantel\b/giu,
-    feminine: ['sie'],
-    masculine: ['er'],
-    meet: /\btrifft\b/i,
-    light: [[/\b(morgendämmerung|morgenrot)\b/i, 'dawn'], [/\b(abenddämmerung|dämmerung)\b/i, 'dusk'], [/\b(nacht|mitternacht)\b/i, 'night'], [/\b(tag|morgen|vormittag)\b/i, 'day']],
-    mood: [[/\b(lacht|lachen)\b/i, 'playful'], [/\b(angst|unruhig)\b/i, 'uneasy'], [/\b(still|traurig|ruhe)\b/i, 'quiet']]
-  },
   it: {
     stop: ['il', 'lo', 'la', 'i', 'gli', 'le', 'un', 'una', 'uno', 'di', 'del', 'della', 'dei', 'in', 'nel', 'nella', 'sul', 'sulla', 'e', 'che', 'con', 'per', 'non', 'lei', 'lui', 'si', 'da', 'dalla'],
     verbs: ['porge', 'porgere', 'legge', 'leggere', 'allontana', 'allontanarsi', 'guarda', 'guardare', 'entra', 'esce', 'cammina', 'corre', 'sorride', 'dà', 'da', 'apre', 'aspetta', 'prende'],
@@ -77,30 +53,6 @@ const LEX = {
     meet: /\bincontra\b/i,
     light: [[/\b(alba|aurora)\b/i, 'dawn'], [/\b(crepuscolo|tramonto)\b/i, 'dusk'], [/\b(notte|mezzanotte)\b/i, 'night'], [/\b(giorno|mattina|pomeriggio)\b/i, 'day']],
     mood: [[/\b(sorride|ride)\b/i, 'playful'], [/\b(paura|ansioso)\b/i, 'uneasy'], [/\b(calmo|silenzio|triste)\b/i, 'quiet']]
-  },
-  lb: {
-    stop: ['de', 'den', 'dem', 'd', 'en', 'eng', 'een', 'an', 'am', 'op', 'mat', 'fir', 'vun', 'vum', 'net', 'ass', 'och', 'si', 'hien', 'hie', 'him', 'um', 'der', 'déi', 'dat', 'ech'],
-    verbs: ['gëtt', 'ginn', 'liest', 'liesen', 'geet', 'goen', 'kuckt', 'kucken', 'leeft', 'kënnt', 'laacht', 'hëlt', 'weit', 'dréit'],
-    places: [
-      ['quai', 'Quai', 'e Quai'],
-      ['café', 'Café', 'e Café'],
-      ['cafe', 'Café', 'e Café'],
-      ['strooss', 'Strooss', 'eng Strooss'],
-      ['strand', 'Strand', 'e Strand'],
-      ['bësch', 'Bësch', 'e Bësch'],
-      ['haus', 'Haus', 'en Haus'],
-      ['park', 'Park', 'e Park'],
-      ['gare', 'Gare', 'eng Gare'],
-      ['kichen', 'Kichen', 'eng Kichen'],
-      ['bréck', 'Bréck', 'eng Bréck']
-    ],
-    look: /(?:\d+|kuerzt [\p{L} -]{0,24}hoer|groe stoppeln|stoppeln)/giu,
-    outfit: /(?:[\p{L}-]+ )?[\p{L}-]*mantel\b/giu,
-    feminine: ['si'],
-    masculine: ['hien', 'hie'],
-    meet: /\bbegéint\b/i,
-    light: [[/\b(mueren|mueresgrauen)\b/i, 'dawn'], [/\b(owesdämmerung|dämmerung|owend)\b/i, 'dusk'], [/\b(nuecht|mëtternuecht)\b/i, 'night'], [/\b(dag|mueren)\b/i, 'day']],
-    mood: [[/\b(laacht|laachen)\b/i, 'playful'], [/\b(angst|onroueg)\b/i, 'uneasy'], [/\b(roueg|trauereg)\b/i, 'quiet']]
   }
 }
 
@@ -110,11 +62,6 @@ function tokens(text) {
 
 function sentences(text) {
   return String(text || '').split(/(?<=[.!?。！？])\s*/).map(item => item.trim()).filter(Boolean)
-}
-
-function hasVerb(text, verbs) {
-  const folded = foldName(text)
-  return verbs.some(verb => new RegExp(`(?:^|[^\\p{L}])${foldName(verb)}(?=[^\\p{L}]|$)`, 'u').test(folded))
 }
 
 function unique(values) {
@@ -135,8 +82,7 @@ function harvest(text, pattern) {
   return unique(found)
 }
 
-function nameOf(token, language) {
-  if (language === 'lb') return token.replace(/^d'/i, '')
+function nameOf(token) {
   return token
 }
 
@@ -152,6 +98,15 @@ function findPlaces(text, lex, language) {
     if (places.some(place => foldName(place.name) === foldName(venue.name))) return
     places.push({ name: venue.name, description: venue.description, confidence: 'high' })
   })
+  libraryHits(text, language).forEach(hit => {
+    const right = foldName(hit.name)
+    if (places.some(place => foldName(place.name) === right)) return
+    if (places.some(place => {
+      const left = foldName(place.name)
+      return left && (right.startsWith(`${left} `) || right.endsWith(` ${left}`))
+    })) return
+    places.push({ name: hit.name, description: hit.name, confidence: hit.tag === 's' ? 'high' : hit.tag === 'unlisted' ? 'low' : 'medium', ...(hit.tag === 'unlisted' ? { unlisted: true } : {}) })
+  })
   return places
 }
 
@@ -161,31 +116,31 @@ function findCharacters(text, lex, places, language) {
   const stop = new Set(lex.stop)
   const counts = new Map()
   const starts = new Set(sentences(text).map(sentence => foldName(tokens(sentence)[0] || '')))
-  if (language === 'lb') {
-    for (const match of String(text).matchAll(/(?:d'|D'|De |Den |Dem )([\p{Lu}][\p{L}'’-]+)/gu)) {
-      const name = match[1]
-      const key = foldName(name)
-      if (key.length < 2 || stop.has(key) || reserved.has(key)) continue
-      const entry = counts.get(key) || { forms: new Map(), count: 0, mid: 0 }
-      entry.count += 1
-      entry.mid += 1
-      entry.forms.set(name, (entry.forms.get(name) || 0) + 1)
-      counts.set(key, entry)
-    }
-  }
-  for (const match of String(text).matchAll(/[\p{L}][\p{L}'’-]+/gu)) {
-    if (language === 'lb') break
-    let token = nameOf(match[0], language)
+  const words = [...String(text).matchAll(/[\p{L}][\p{L}'’-]+/gu)]
+  for (let index = 0; index < words.length; index += 1) {
+    const token = nameOf(words[index][0])
     if (!/^\p{Lu}/u.test(token)) continue
-    if (isQuotedOrRemembered(text, match.index, language) || isFunctionWord(token, language) || isNumberWord(token, language) || isVenueType(token, language) || inNamedVenue(text, match.index, language)) continue
-    const key = foldName(token)
-    if (key.length < 2 || stop.has(key) || reserved.has(key)) continue
-    if (harvest(token, lex.outfit).length || harvest(token, lex.look).length) continue
+    if (isQuotedOrRemembered(text, words[index].index, language) || isFunctionWord(token, language) || isNumberWord(token, language) || isVenueType(token, language) || inNamedVenue(text, words[index].index, language)) continue
+    const parts = [token]
+    let cursor = index
+    while (parts.length < 3 && cursor + 1 < words.length) {
+      const gap = text.slice(words[cursor].index + words[cursor][0].length, words[cursor + 1].index)
+      const next = words[cursor + 1][0]
+      if (!/^\s+$/u.test(gap) || !/^\p{Lu}/u.test(next) || isFunctionWord(next, language) || isNumberWord(next, language)) break
+      parts.push(next)
+      cursor += 1
+    }
+    const name = parts.join(' ')
+    const key = foldName(name)
+    const introduced = new RegExp(`(?<![\\p{L}])${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}])\\s*,\\s*(?:\\d|Anfang)`, 'iu').test(text)
+    if (key.length < 2 || stop.has(key) || (reserved.has(key) && !introduced)) continue
+    if (harvest(name, lex.outfit).length || harvest(name, lex.look).length) continue
     const entry = counts.get(key) || { forms: new Map(), count: 0, mid: 0 }
     entry.count += 1
     if (!starts.has(key)) entry.mid += 1
-    entry.forms.set(token, (entry.forms.get(token) || 0) + 1)
+    entry.forms.set(name, (entry.forms.get(name) || 0) + 1)
     counts.set(key, entry)
+    index = cursor
   }
   const characters = []
   const warnings = []
@@ -202,6 +157,10 @@ function findCharacters(text, lex, places, language) {
     if (!look.length) warnings.push({ code: 'missing_look', message: `No look found for ${name}.`, target: 'characters', name })
     if (!outfit.length) warnings.push({ code: 'missing_outfit', message: `No outfit found for ${name}.`, target: 'characters', name })
     characters.push({ name, look: look.join(', '), outfit: outfit.join(', '), confidence })
+  }
+  for (let index = characters.length - 1; index >= 0; index -= 1) {
+    const name = characters[index].name
+    if (characters.some(item => item.name !== name && item.name.split(/\s+/).includes(name))) characters.splice(index, 1)
   }
   if (!characters.length) warnings.push({ code: 'missing_character', message: 'No character name found.', target: 'characters' })
   return { characters, warnings }
@@ -236,33 +195,59 @@ function nameInText(text, name) {
   return new RegExp(`(?<![\\p{L}])${needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}])`, 'iu').test(foldName(text))
 }
 
-function whoFromPronoun(sentence, characters, lex) {
+function whoFromPronoun(sentence, center) {
   const first = foldName(tokens(sentence)[0] || '')
-  if (lex.feminine.includes(first) && characters[0]) return characters[0].name
-  if (lex.masculine.includes(first) && characters[1]) return characters[1].name
-  if (lex.masculine.includes(first) && characters[0]) return characters[0].name
-  return ''
+  if (!/^(?:she|he|sie|er|ela|ele|lei|lui|ella)$/u.test(first)) return { who: '', flag: 'who_missing' }
+  if (!center) return { who: '', flag: 'who_unresolved' }
+  return { who: center, flag: 'who_pronoun' }
 }
 
 function findScenes(text, lex, characters, places, language) {
   const warnings = []
   const scenes = []
-  let lastWho = characters[0]?.name || ''
-  let lastWhere = places[0]?.name || ''
+  let center = ''
+  let lastWhere = ''
+  let light = ''
   sentences(text).forEach(sentence => {
-    if (lex.meet.test(sentence) && (sentence.match(/,/g) || []).length >= 1 && !hasVerb(sentence.replace(lex.meet, ''), lex.verbs)) return
-    if (!hasVerb(sentence, lex.verbs)) return
+    if (/^[\p{Lu}][\p{L}'’-]+/u.test(sentence) && /(?:\d+\s*(?:Jahre|anni|anos|years)|cerca de\s+\d+|Anfang\s+\d+|poco più)/iu.test(sentence) && !/(?:^|[^\p{L}])(?:in|im|am|auf|bei|ins|zum|zur|dans|au|aux|nel|nella|nello|alla|al|sul|no|na|em|dentro|betritt|betrat|entra|entro|arriva|chega)\b/iu.test(sentence)) return
     const action = cleanText(sentence).replace(/[.!?。！？]+$/, '')
     const foundNames = characters.filter(character => nameInText(action, character.name))
-    const who = foundNames.length ? foundNames.slice(0, 2).map(item => item.name).join(' and ') : (whoFromPronoun(action, characters, lex) || lastWho)
-    if (who) lastWho = who.split(/\s+and\s+/)[0]
+    let who = ''
+    let whoFlag = ''
+    if (foundNames.length === 1) {
+      who = foundNames[0].name
+      center = who
+    } else if (foundNames.length > 1) {
+      who = foundNames.slice(0, 2).map(item => item.name).join(' and ')
+      center = ''
+    } else {
+      const pronoun = whoFromPronoun(action, center)
+      who = pronoun.who
+      whoFlag = pronoun.flag
+    }
     const records = places.map(place => ({
       name: place.name,
-      keys: lex.places.filter(([, name]) => name === place.name).map(([key]) => key).concat(place.name)
+      keys: lex.places.filter(([, name]) => name === place.name).map(([key]) => key).concat(place.name),
+      unlisted: place.unlisted === true
     }))
-    const cue = findPlaceCue(action, language, records)
-    const where = cue?.name || lastWhere
+    const headed = locativeHeads(action, language).find(item => item.moves !== false && mentionMovesScene(action, item.index, language))
+    const cue = headed
+      ? { name: headed.name, key: headed.lemma, uncertain: false, unlisted: headed.tag === 'unlisted' }
+      : findPlaceCue(action, language, records)
+    const owned = cue && characters.some(item => foldName(item.name) === foldName(cue.name) || item.name.split(/\s+/).some(part => foldName(part) === foldName(cue.name)))
+    const flags = []
+    if (whoFlag) flags.push({ field: 'who', code: whoFlag })
+    let where = lastWhere
+    let whereFlag = where ? 'place_carried' : 'place_missing'
+    if (cue?.name && !cue.uncertain && !owned) {
+      where = cue.name
+      whereFlag = cue.unlisted ? 'place_unlisted' : ''
+    }
+    if (whereFlag) flags.push({ field: 'where', code: whereFlag })
     if (where) lastWhere = where
+    const nextLight = cueLight(sentence, language)
+    if (nextLight) light = nextLight
+    else if (light) flags.push({ field: 'light', code: 'light_carried' })
     let confidence = foundNames.length && cue ? 'high' : 'medium'
     if (!where) {
       confidence = 'low'
@@ -272,7 +257,7 @@ function findScenes(text, lex, characters, places, language) {
       confidence = 'low'
       warnings.push({ code: 'missing_character', message: `No character found for scene ${scenes.length + 1}.`, target: 'scenes', index: scenes.length, options: characters.map(character => character.name) })
     }
-    scenes.push({ number: scenes.length + 1, who: who || '', where: where || '', what: action, duration: 3, confidence })
+    scenes.push({ number: scenes.length + 1, who: who || '', where: where || '', what: action, source: action, flags, duration: 3, confidence, ...(light ? { light } : {}) })
   })
   return { scenes, warnings }
 }
@@ -284,14 +269,31 @@ function overall(parts) {
   return values.length ? 'high' : 'low'
 }
 
+function unnamedPlace(language) {
+  const table = {
+    pt: ['O lugar', 'um lugar que o texto não nomeia'],
+    it: ['Il luogo', 'un luogo che il testo non nomina'],
+    ja: ['場所', '文が名を挙げない場所'],
+    'zh-Hans': ['场景', '文中没有点名的地点']
+  }
+  const pair = table[language] || ['The setting', 'a place the text does not name']
+  return { name: pair[0], description: pair[1], confidence: 'low', uncertain: true }
+}
+
 function pack(text, language, found) {
+  const firstLight = found.scenes.scenes.find(scene => scene.light)?.light || ''
+  if (firstLight) found.ambience.light = firstLight
   const warnings = [...found.characters.warnings, ...found.places.warnings || [], ...found.scenes.warnings]
+  if (!found.places.length && found.characters.characters?.length && found.scenes.scenes?.length) {
+    found.places.push(unnamedPlace(language))
+    warnings.push({ code: 'uncertain_place', message: `No place name found. Using ${found.places.at(-1).name}.`, target: 'places', name: found.places.at(-1).name, uncertain: true })
+  }
   const scenario = {
     characters: found.characters.characters.map(({ name, look, outfit }) => ({ name, look, outfit })),
-    places: found.places.map(({ name, description }) => ({ name, description })),
+    places: found.places.map(({ name, description, uncertain }) => ({ name, description, ...(uncertain ? { uncertain: true } : {}) })),
     light: found.ambience.light,
     mood: found.ambience.mood,
-    scenes: found.scenes.scenes.map(({ number, who, where, what, duration }) => ({ number, who, where, what, duration }))
+    scenes: found.scenes.scenes.map(({ number, who, where, what, duration, light, source, flags }) => ({ number, who, where, what, duration, ...(light ? { light } : {}), ...(source ? { source } : {}), ...(flags?.length ? { flags } : {}) }))
   }
   const canonical = scenarioToFields(scenario)
   const budget = scenarioBudget([canonical.characters, canonical.places, canonical.scenes].join('\n'), found.scenes.scenes.length * 3)
@@ -334,9 +336,11 @@ function detectSpaced(text, language) {
   }
   const places = findPlaces(text, lex, language)
   const characters = findCharacters(text, lex, places, language)
+  const nameTokens = new Set(characters.characters.flatMap(item => [foldName(item.name), ...String(item.name).split(/\s+/).map(foldName)]))
+  const keptPlaces = places.filter(place => !nameTokens.has(foldName(place.name)))
   const ambience = findAmbience(text, lex)
-  const scenes = findScenes(text, lex, characters.characters, places, language)
-  return pack(text, language, { characters, places, scenes, ambience })
+  const scenes = findScenes(text, lex, characters.characters, keptPlaces, language)
+  return pack(text, language, { characters, places: keptPlaces, scenes, ambience })
 }
 
 const CJK = {
@@ -354,8 +358,26 @@ const CJK = {
   }
 }
 
-function cjkSentences(text) {
-  return String(text || '').split(/(?<=[。！？])/).map(item => item.trim()).filter(Boolean)
+function looksVerbal(part) {
+  if (/出头|出頭|岁|歲/u.test(part) && !/[了着过]/u.test(part)) return false
+  return /[了着过]|(?:走|看|说|笑|拿|打|站|坐|开|关|读|写|等|到|来|去|买|卖|吃|喝|睡|跑|进|出|上|下|给|送|放|找|听|问|答|想|做|干|洗|切|煮|烧|修|装|搬|抬|推|拉|摇|点|挥|望|倒|填|吹|交)/u.test(part)
+}
+
+function cjkSentences(text, language) {
+  const sentences = String(text || '').split(/(?<=[。！？；;])/).map(item => item.trim()).filter(Boolean)
+  if (language !== 'zh-Hans') return sentences
+  const clauses = []
+  for (const sentence of sentences) {
+    if (/岁|歲|出头|出頭/u.test(sentence) && !looksVerbal(sentence)) {
+      clauses.push(sentence)
+      continue
+    }
+    const parts = sentence.split(/[，,]/).map(item => item.trim()).filter(Boolean)
+    const verbal = parts.filter(looksVerbal)
+    if (verbal.length >= 2) clauses.push(...verbal)
+    else clauses.push(sentence)
+  }
+  return clauses
 }
 
 function detectCjk(text, language) {
@@ -374,18 +396,33 @@ function detectCjk(text, language) {
     if (!outfit.length) warnings.push({ code: 'missing_outfit', message: `No outfit found for ${name}.`, target: 'characters', name })
     characters.push({ name, look: look.join('，'), outfit: outfit.join('，'), confidence })
   })
-  if (!characters.length) {
+  const cjkReject = name => !name || ['雨', '小', '在', '信', '二人', '人', '两人', '他们', '她们', '我们', '大家', '彼', '彼ら', '彼女', '三十', '四十', '五十', '六十', '七十', '八十'].includes(name) || /^[一二三四五六七八九十百千万零\d]+$/u.test(name) || /^在/.test(name) || /[里上边中内]$/.test(name) || /[了着过说给]/.test(name)
+  if (!characters.length || language === 'ja' || language === 'zh-Hans') {
     const particle = language === 'ja'
-      ? [...String(text).matchAll(/([\p{Script=Han}]{1,4})(?:は|が)/gu)]
-      : [...String(text).matchAll(/([\p{Script=Han}]{1,3})(?:把|是)/gu)]
+      ? [...String(text).matchAll(/(?:姪|甥|兄|姉|弟|妹|父|母|息子|娘|祖父|祖母)の([\p{Script=Han}]{1,8}[\p{Script=Hiragana}\p{Script=Katakana}]{0,8})は|([\p{Script=Han}]{2,8}[\p{Script=Hiragana}\p{Script=Katakana}]{0,8})は/gu)]
+      : [...String(text).matchAll(/(?:表哥|表妹|表弟|表姐|侄子|侄女|哥哥|姐姐|弟弟|妹妹|父亲|母亲|叔叔|阿姨)?([\p{Script=Han}]{2,4}?)(?=[一二三四五六七八九十百千万零\d]{1,6}岁)/gu)]
     particle.forEach(match => {
-      const name = match[1]
-      if (['雨', '小', '在', '信'].includes(name) || isNumberWord(name, language)) return
+      const name = match[1] || match[2]
+      if (cjkReject(name) || isNumberWord(name, language)) return
+      if (language === 'zh-Hans' && name.length < 2) return
       if (characters.some(item => item.name === name)) return
       characters.push({ name, look: '', outfit: '', confidence: 'low' })
       warnings.push({ code: 'missing_look', message: `No look found for ${name}.`, target: 'characters', name })
       warnings.push({ code: 'missing_outfit', message: `No outfit found for ${name}.`, target: 'characters', name })
     })
+  }
+  const clauseNames = language === 'zh-Hans'
+    ? [...String(text).matchAll(/(?:^|[。！？，,])([\p{Script=Han}]{2,3})(?=[\p{Script=Han}]{0,4}(?:拿|走|看|说|笑|等|打|站|坐|把|是|读|写|开|关|倒))/gu)]
+    : []
+  clauseNames.forEach(match => {
+    const name = match[1]
+    if (cjkReject(name) || /[拿走看说笑等打站坐读写开关给那处在把的了从向对]$/u.test(name)) return
+    if (characters.some(item => item.name === name || item.name.endsWith(name) || name.endsWith(item.name))) return
+    characters.push({ name, look: '', outfit: '', confidence: 'low' })
+  })
+  for (let index = characters.length - 1; index >= 0; index -= 1) {
+    const name = characters[index].name
+    if (characters.some(item => item.name !== name && item.name.length > name.length && item.name.endsWith(name))) characters.splice(index, 1)
   }
   if (!characters.length) warnings.push({ code: 'missing_character', message: 'No character name found.', target: 'characters' })
   const places = []
@@ -395,13 +432,27 @@ function detectCjk(text, language) {
   namedVenues(text, language).forEach(venue => {
     if (!places.some(place => place.name === venue.name)) places.push({ name: venue.name, description: venue.description, confidence: 'high' })
   })
+  libraryHits(text, language).forEach(hit => {
+    if (characters.some(item => hit.lemma.includes(item.name) || item.name.includes(hit.lemma))) return
+    if (!places.some(place => place.name === hit.name)) places.push({ name: hit.name, description: hit.name, confidence: hit.tag === 's' ? 'high' : hit.tag === 'unlisted' ? 'low' : 'medium', ...(hit.tag === 'unlisted' ? { unlisted: true } : {}) })
+  })
   const scenes = []
   const sceneWarnings = []
   let lastWho = characters[0]?.name || ''
-  let lastWhere = places[0]?.name || ''
-  cjkSentences(text).forEach(sentence => {
-    if (!lex.verbs.some(verb => sentence.includes(verb))) return
-    const foundNames = characters.filter(character => sentence.includes(character.name))
+  let lastWhere = ''
+  let light = ''
+  cjkSentences(text, language).forEach(sentence => {
+    if (language !== 'zh-Hans' && /は[^。]{0,48}で、/u.test(sentence) && !lex.verbs.some(verb => sentence.includes(verb))) return
+    if (language === 'zh-Hans' && /岁|歲|出头|出頭/u.test(sentence) && !looksVerbal(sentence)) return
+    const named = characters.some(item => sentence.includes(item.name))
+    if (language !== 'zh-Hans' && !named && !lex.verbs.some(verb => sentence.includes(verb)) && !/[るたます]$/u.test(sentence.replace(/[。！？；]+$/u, ''))) return
+    if (language === 'zh-Hans' && !named && !looksVerbal(sentence) && !lex.verbs.some(verb => sentence.includes(verb))) return
+    const foundNames = characters.filter(character => {
+      if (sentence.includes(character.name)) return true
+      const kana = character.name.match(/[\p{Script=Hiragana}\p{Script=Katakana}]{2,}$/u)
+      if (kana && sentence.includes(kana[0])) return true
+      return character.name.length >= 4 && new RegExp(`${character.name.slice(-2)}(?:は|が|を|に|と|も)`).test(sentence)
+    })
     const who = foundNames.length ? foundNames.slice(0, 2).map(item => item.name).join(' and ') : lastWho
     if (who) lastWho = who.split(/\s+and\s+/)[0]
     const records = places.map(place => ({
@@ -409,26 +460,37 @@ function detectCjk(text, language) {
       keys: lex.places.filter(([, name]) => name === place.name).map(([key]) => key).concat(place.name)
     }))
     const cue = findPlaceCue(sentence, language, records)
-    const where = cue?.name || lastWhere
+    const owned = cue && characters.some(item => item.name === cue.name || item.name === cue.key)
+    let where = lastWhere
+    if (cue?.name && !cue.uncertain && !owned) where = cue.name
     if (where) lastWhere = where
     let confidence = foundNames.length && cue ? 'high' : 'medium'
     if (!where) {
       confidence = 'low'
       sceneWarnings.push({ code: 'missing_place', message: `No place found for scene ${scenes.length + 1}.`, target: 'scenes', index: scenes.length })
     }
-    scenes.push({ number: scenes.length + 1, who: who || '', where: where || '', what: cleanText(sentence).replace(/[。！？]+$/, ''), duration: 3, confidence })
+    let shotLight = ''
+    if (/黎明|夜明け|晨|朝|日出|日の出/.test(sentence) && !/夕方|傍晚/.test(sentence)) shotLight = 'dawn'
+    else if (/黄昏|夕暮れ|夕方|傍晚/.test(sentence)) shotLight = 'dusk'
+    else if (/夜|晚上/.test(sentence)) shotLight = 'night'
+    if (shotLight) light = shotLight
+    else shotLight = light
+    const cjkFlags = []
+    if (!foundNames.length && who) cjkFlags.push({ field: 'who', code: 'who_carried' })
+    if (!foundNames.length && !who) cjkFlags.push({ field: 'who', code: 'who_missing' })
+    if (where && !(cue?.name && foldName(cue.name) === foldName(where))) cjkFlags.push({ field: 'where', code: 'place_carried' })
+    if (!where) cjkFlags.push({ field: 'where', code: 'place_missing' })
+    const cjkWhat = cleanText(sentence).replace(/[。！？]+$/, '')
+    scenes.push({ number: scenes.length + 1, who: who || '', where: where || '', what: cjkWhat, source: cjkWhat, flags: cjkFlags, duration: 3, confidence, light: shotLight })
   })
-  let light = ''
-  if (/黎明|夜明け|晨/.test(text)) light = 'dawn'
-  else if (/黄昏|夕暮れ|黄昏/.test(text)) light = 'dusk'
-  else if (/夜|晚上/.test(text)) light = 'night'
+  const sheetLight = scenes.find(scene => scene.light)?.light || ''
   let mood = ''
   if (/笑/.test(text)) mood = 'playful'
   return pack(text, language, {
     characters: { characters, warnings },
     places,
     scenes: { scenes, warnings: sceneWarnings },
-    ambience: { light, mood, confidence: light || mood ? 'medium' : 'low' }
+    ambience: { light: sheetLight, mood, confidence: sheetLight || mood ? 'medium' : 'low' }
   })
 }
 

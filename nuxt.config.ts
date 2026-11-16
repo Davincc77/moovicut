@@ -79,7 +79,7 @@ export default defineNuxtConfig({
     prerender: {
       crawlLinks: true,
       routes: [
-        ...['/', '/faq', '/studio', '/agents', '/privacy', '/terms', '/content-policy']
+        ...['/', '/faq', '/studio', '/agents', '/privacy', '/terms', '/content-policy', '/credits', '/readme']
       ].map(route => joinAppPath(baseURL, route))
     }
   },

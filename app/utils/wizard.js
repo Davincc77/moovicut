@@ -67,8 +67,8 @@ export const BLOCKING_CODES = Object.freeze(new Set([
 ]))
 
 const COLOR_WORDS = ['black', 'brown', 'blonde', 'blond', 'red', 'ginger', 'auburn', 'silver', 'white', 'grey', 'gray', 'blue', 'green', 'pink', 'purple', 'navy', 'charcoal', 'oatmeal', 'rust', 'gold', 'amber', 'ash']
-const AGE_PATTERN = /\b((?:early|mid|late)\s+\d{1,2}s|\d{1,2}s)\b/i
-const HAIR_PATTERN = /\b(?:(?:short|long|curly|wavy|straight|black|brown|blonde|blond|red|grey|gray|silver|white|dark)\s+){0,3}(?:pixie cut|bob|bangs|braid|undercut|hair)\b/i
+const AGE_PATTERN = /\b((?:early|mid|late)\s+\d{1,2}s|\d{1,2}s|\d{1,3}|(?:twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)(?:-[a-z]+)?)\b/i
+const HAIR_PATTERN = /\b(?:(?:short|long|curly|wavy|straight|black|brown|blonde|blond|red|grey|gray|silver|white|dark|auburn|copper)\s+){0,4}(?:pixie cut|bob|bangs|braid|braids|undercut|hair|curls|bun)\b/i
 const FACE_PATTERN = /\b(?:(?:grey|gray|white|black|red|dark)\s+)?(?:stubble|beard|moustache|mustache)\b|\b(?:blue|green|brown|amber|hazel)\s+eyes\b/i
 const MARK_PATTERN = /\b(?:[\p{L}'’-]+\s+){0,3}(?:glasses|earrings?|scar|mole|tattoo|freckles|birthmark)\b/iu
 const ACCESSORY_PATTERN = /\b(?:[\p{L}'’-]+\s+){0,4}(?:scarf|scarves|glasses|earrings?|hat|cap|necklace|watch|gloves)\b/iu
@@ -319,7 +319,10 @@ function traitsFromDetection(character) {
   const age = (look.match(AGE_PATTERN) || [''])[0]
   const hair = (look.match(HAIR_PATTERN) || [''])[0]
   const face = (look.match(FACE_PATTERN) || [''])[0]
-  const mark = (look.match(MARK_PATTERN) || outfit.match(ACCESSORY_PATTERN) || [''])[0]
+  const marked = (look.match(MARK_PATTERN) || outfit.match(ACCESSORY_PATTERN) || [''])[0]
+  const used = [age, hair, face, marked].filter(Boolean)
+  const leftover = look.split(/\s*,\s*/).map(part => part.trim()).filter(part => part && !used.some(item => item === part || item.includes(part) || part.includes(item)))
+  const mark = [marked, ...leftover].filter(Boolean).join(', ')
   const level = character.confidence === 'high' || character.confidence === 'low' ? character.confidence : 'medium'
   const confidence = blankConfidence()
   const values = {
@@ -462,7 +465,7 @@ function applyShots(state, detected) {
   const incoming = detected.scenes || []
   if (!incoming.length) return
   if (state.shots.some(userTouchedShot)) return
-  state.shots = incoming.slice(0, 48).map((scene, index) => shotFromScene(state, scene, `shot-${index + 1}`))
+  state.shots = incoming.map((scene, index) => shotFromScene(state, scene, `shot-${index + 1}`))
   state.shotIndex = 0
 }
 
@@ -680,7 +683,6 @@ export function openShot(state, index) {
 
 export function addWizardShot(state) {
   const next = clone(state)
-  if (next.shots.length >= 48) return state
   next.shots.push(blankShot(nextId('shot', next.shots)))
   next.shotIndex = next.shots.length - 1
   return next
@@ -700,7 +702,7 @@ export function acceptSplit(state, id) {
   if (index < 0) return state
   const shot = next.shots[index]
   const parts = splitOffer(shot.action)
-  if (!parts || next.shots.length + parts.length - 1 > 48) return state
+  if (!parts) return state
   const pool = next.shots.slice()
   const made = parts.map((action, partIndex) => {
     if (partIndex === 0) {
@@ -832,6 +834,7 @@ export function projectFromWizard(state, { id, promptLanguage = 'en' } = {}) {
   })
   const next = { ...project, shots }
   next.shots = shots.map((shot, index) => refreshShotPrompt(shot, next, index))
+  if (next.shots.length > 40) throw new Error('Moovicut is built for up to 40 shots (a short or medium film, or one chapter). Split the story into chapters and send them one by one, reusing the exported character sheet so faces stay consistent.')
   return next
 }
 
@@ -883,7 +886,7 @@ function restoreCharacter(value, index) {
     character.confidence[field] = confidence === 'high' || confidence === 'medium' || confidence === 'low' ? confidence : ''
   })
   character.states = Array.isArray(source.states) ? source.states.slice(0, 12).map(item => ({
-    fromOrder: Math.max(1, Math.min(48, Math.round(Number(item?.fromOrder) || 1))),
+    fromOrder: Math.max(1, Math.min(999, Math.round(Number(item?.fromOrder) || 1))),
     change: cleanText(item?.change).slice(0, 160)
   })).filter(item => item.change) : []
   return character
@@ -945,7 +948,7 @@ export function normalizeWizard(value) {
   next.genreOrigin = value.genreOrigin === 'user' ? 'user' : 'default'
   if (value.detection && typeof value.detection === 'object') {
     next.detection = {
-      language: ['en', 'fr', 'pt', 'de', 'it', 'lb', 'ja', 'zh-Hans'].includes(value.detection.language) ? value.detection.language : 'en',
+      language: ['en', 'fr', 'pt', 'it', 'ja', 'zh-Hans'].includes(value.detection.language) ? value.detection.language : 'en',
       confidence: ['high', 'medium', 'low'].includes(value.detection.confidence) ? value.detection.confidence : 'low',
       uncertain: value.detection.uncertain === true,
       warnings: asArray(value.detection.warnings)?.filter(item => typeof item === 'string').slice(0, 24) || []
@@ -953,7 +956,7 @@ export function normalizeWizard(value) {
   }
   const characters = asArray(value.characters)?.slice(0, 24).map(restoreCharacter) || []
   const places = asArray(value.places)?.slice(0, 24).map(restorePlace) || []
-  const shots = asArray(value.shots)?.slice(0, 48).map(restoreShot) || []
+  const shots = asArray(value.shots)?.map(restoreShot) || []
   if (characters.length) next.characters = characters
   if (places.length) next.places = places
   if (shots.length) next.shots = shots

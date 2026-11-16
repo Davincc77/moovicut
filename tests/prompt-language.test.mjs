@@ -25,7 +25,7 @@ import {
 } from '../app/utils/wizard.js'
 
 const lighthouse = 'A lighthouse keeper races the dusk to repair a failing beacon before a fishing boat reaches the rocks.'
-const ENGLISH_SHOT = 'Wide shot: A wide view of Lighthouse at dusk, with Lighthouse keeper entering the frame.\nLighthouse keeper — wool jacket, knit cap, weathered boots.\nLighthouse.\nDusk, warm amber light, deep shadows and muted gold.\nrealistic photographic cinema, natural skin, muted earth tones and soft contrast, locked-off camera.'
+const ENGLISH_SHOT = 'SHOT: Wide shot: A wide view of Lighthouse at dusk, with Lighthouse keeper entering the frame.\nLighthouse keeper — wool jacket, knit cap, weathered boots.\nPLACE: Lighthouse.\nLIGHT: Dusk, warm amber light, deep shadows and muted gold.\nCAMERA: locked-off camera.\nSTYLE: realistic photographic cinema, natural skin, muted earth tones and soft contrast.'
 
 function fillCharacter(state, id, fields) {
   return Object.entries(fields).reduce((next, [field, value]) => setCharacterField(next, id, field, value), state)
@@ -152,6 +152,10 @@ test('the API keeps English output unless promptLanguage is set', () => {
   assert.equal(plainBody.shots[0].prompt, englishBody.shots[0].prompt)
   assert.equal(plainBody.shots[0].prompt, ENGLISH_SHOT)
   const rejected = dispatchAgentRequest({ method: 'POST', pathname: '/api/v1/storyboard', body: JSON.stringify({ ...base, promptLanguage: 'es' }) })
+  const german = dispatchAgentRequest({ method: 'POST', pathname: '/api/v1/storyboard', body: JSON.stringify({ ...base, promptLanguage: 'de' }) })
+  assert.equal(german.status, 400)
+  assert.match(JSON.parse(german.body).message, /promptLanguage must be one of/)
+  assert.doesNotMatch(JSON.parse(german.body).message, /\bde\b/)
   assert.equal(rejected.status, 400)
   assert.match(JSON.parse(rejected.body).message, /promptLanguage must be one of/)
   const french = dispatchAgentRequest({ method: 'POST', pathname: '/api/v1/storyboard', body: JSON.stringify({ premise: lighthouse, promptLanguage: 'fr', format: 'agent', style: 'cinema', genre: 'drama', sequenceMode: 'continuous' }) })
@@ -163,9 +167,7 @@ test('the API keeps English output unless promptLanguage is set', () => {
 
 const SAMPLES = {
   pt: 'Maya tem cerca de 30 anos, cabelo preto curto e um casaco de lã cinza. Rui tem 50 anos, barba por fazer e um casaco azul-marinho. No cais chuvoso, Maya entrega uma carta a Rui. Rui lê a carta. Rui afasta-se pelo cais. No café pequeno, Maya observa Rui da porta.',
-  de: 'Maya, Anfang 30, kurzes schwarzes Haar, anthrazitfarbener Wollmantel, trifft Rui, 50, graue Stoppeln, marineblauer Mantel. Am regennassen Kai gibt Maya Rui einen Brief. Rui liest den Brief. Rui geht weg. Im kleinen Café sieht Maya Rui von der Tür.',
   it: 'Maya ha poco più di trent’anni, un caschetto nero e un cappotto di lana antracite. Rui ha 50 anni, la barba incolta e un cappotto blu. Sul molo sotto la pioggia, Maya porge una lettera a Rui. Rui legge la lettera. Rui si allontana. Nel piccolo caffè, Maya guarda Rui dalla porta.',
-  lb: "D'Maya huet kuerzt schwaarzt Hoer an e kuelgroe Wollemantel. De Rui huet groe Stoppeln an e marinebloe Mantel. Um reenegen Quai gëtt d'Maya dem Rui e Bréif. De Rui liest de Bréif. De Rui geet fort. An der klenger Café kuckt d'Maya de Rui vun der Dier.",
   ja: '「麻耶」は三十代前半で、短い黒髪、チャコールグレーのウールコート。「ルイ」は五十代で、白い無精ひげ、ネイビーのピーコート。雨の埠頭で麻耶はルイに手紙を渡す。ルイは手紙を読む。ルイは歩き去る。小さなカフェで麻耶は扉からルイを見る。',
   'zh-Hans': '「玛雅」三十出头，黑色短发，炭灰色羊毛大衣。「睿」五十多岁，灰白胡茬，海军蓝大衣。在雨中的码头，玛雅把信交给睿。睿读了信。睿走开了。在小咖啡馆，玛雅在门口看着睿。'
 }

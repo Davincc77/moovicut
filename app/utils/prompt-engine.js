@@ -1,6 +1,6 @@
 /** A deterministic local story planner. No remote AI or video generation. */
 import { canonicalModel, modelRegistry } from '../integrations/models/model-registry.js'
-import { profileFor, snapAspect, snapDuration } from './model-profiles.js'
+import { plannedAspect, plannedLengthBudget, plannedShotSeconds, profileFor, snapAspect, snapDuration } from './model-profiles.js'
 import { LIGHTS, MOODS, describeCast, describePlace, describeScenarioErrors, findByName, foldName, looksLikeScenario, nameParts, parseScenario, resolveUserCamera, scenarioFromProject, scenarioPremise, sequencePacks } from './scenario.js'
 import { episodePacks, isPresetMode, parseAd, parseExplainer, parseSeries } from './preset-modes.js'
 import { detectProse, isNamedTraitPremise, premiseShotPlan } from './prose-detect.js'
@@ -9,6 +9,7 @@ import { shotInvolvesHands } from './shot-risk.js'
 import { charactersInShot, lockLinesForShot, mergeCharacterExtras } from './character-lock.js'
 import { promptFraming, suggestFraming } from './framing.js'
 import { splitActionText } from './action-split.js'
+import { finalizeParts } from './parts.js'
 import { cleanText, sentence } from './text.js'
 import { localizeLight, phrase, promptLanguageOf, readPromptLanguage, stampPromptLanguage, translateBeat, translateDetailedPrompt } from './prompt-lang.js'
 export { canonicalStyleFamily, formatPresetBlock, listPresets, presetFamilies, presetGenres, resolvePreset } from './presets/index.js'
@@ -74,11 +75,19 @@ export const DURATION_PRESETS = Object.freeze([
 export function durationPlans(modelId) {
   const profile = profileFor(modelId)
   return DURATION_PRESETS.map(preset => {
-    const duration = snapDuration(preset.duration, profile)
+    const duration = snapDuration(plannedShotSeconds(profile), profile)
     const count = Math.min(48, Math.max(1, Math.floor(preset.total / duration)))
     const total = count * duration
     return { id: preset.id, label: `${total}s`, total, count, duration }
   })
+}
+function requestedDuration(value, profile) {
+  if (value == null || value === '') return plannedShotSeconds(profile)
+  return canonicalDuration(value)
+}
+function requestedAspect(value, profile) {
+  if (value) return canonicalAspect(value)
+  return plannedAspect(profile)
 }
 export function canonicalDuration(value) {
   const number = Number(value)
@@ -92,10 +101,10 @@ export function canonicalShotCount(value) {
 }
 export const FAQS = [
   { q: 'What is Moovicut?', a: 'Moovicut is a free, local-first storyboard and shot list. You edit the shots in the browser and copy prompts for Grok Imagine, Google, or any other AI image or video model.' },
-  { q: 'Can an AI agent build a storyboard?', a: 'Yes. The default board is 5 scenes of 3 seconds (15s total). Humans can use Step-by-step mode in /studio, and agents can pass shots, a scenes array, a scenario, input prose, or format agent to POST /api/v1/storyboard, /mcp, or a /studio# share link. A premise shaped as Name, trait, trait keeps those people and the real actions. Prose that cannot be planned returns 400 and lists what is missing. splitActions false keeps a multi-action line in one shot. format agent includes warnings when a shot looks risky. Open /agents for the endpoints. No API key and no account. Every mode shares one film sheet. model can be grok, google, sora, kling, runway, luma, wan, or generic. The video prompt is short by default (prompt_style short or detailed). Each character has one lock line, copied unchanged into every shot they are in. A prompt edited by hand is kept unless overwrite is explicit.' },
+  { q: 'Can an AI agent build a storyboard?', a: 'Yes. The default board is 5 scenes of 3 seconds (15s total). Humans can use Step-by-step mode in /studio, and agents can pass shots, a scenes array, a scenario, input prose, or format agent to POST /api/v1/storyboard, /mcp, or a /studio# share link. A premise shaped as Name, trait, trait keeps those people and the real actions. Prose that cannot be planned returns 400 and lists what is missing. splitActions false keeps a multi-action line in one shot. format agent includes warnings when a shot looks risky. Open /agents for the endpoints. No API key and no account. Every mode shares one film sheet. model can be grok, google, sora, chatgpt, midjourney, hailuo, seedance, pika, kling, runway, luma, wan, or generic. The video prompt is short by default (prompt_style short or detailed). Each character has one lock line, copied unchanged into every shot they are in. A prompt edited by hand is kept unless overwrite is explicit.' },
   { q: 'How does Moovicut work?', a: 'A premise becomes an ordered shot list on this device, with camera, action, lighting, sound, and continuity you can edit. Paste a prompt into the model you already use. Moovicut does not call that model.' },
   { q: 'Does Moovicut render video?', a: 'No. It writes prompts. Nothing is rendered inside Moovicut.' },
-  { q: 'Which models does it support?', a: 'The home page and the studio list eight prompt targets: Grok Imagine, Google (Veo / Gemini), Sora, Kling, Runway, Luma, Wan, and a generic profile. These names are prompt targets, not included accounts or rendering.' },
+  { q: 'Which models does it support?', a: 'The home page and the studio list thirteen prompt targets: Grok Imagine, Google (Veo / Gemini), Sora, ChatGPT video, Midjourney video, MiniMax Hailuo, ByteDance Seedance, Pika, Kling, Runway, Luma, Wan, and a generic profile. These names are prompt targets, not included accounts or rendering.' },
   { q: 'Is an account required?', a: 'No. The storyboard stays in this browser. There is no sign-in.' },
   { q: 'Can I import or export work?', a: 'Yes. Projects use the shotboard.v1 JSON format. The studio can export a project or a local library backup, and it can import a compatible file. Files stay on your device.' },
   { q: 'Is Moovicut free?', a: 'Yes. Planning, editing, and JSON export are free. There is no subscription. Optional tips open Buy Me a Coffee in a new tab. Moovicut does not take payment itself.' },
@@ -414,7 +423,7 @@ function applyVariedShot(shot, premise, index) {
 }
 function sceneOverrides(value) {
   if (!Array.isArray(value)) return []
-  return value.slice(0, MAX_SCENE_OVERRIDES).map(raw => {
+  return value.map(raw => {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
     const text = (field, max) => typeof raw[field] === 'string' ? cleanText(raw[field]).slice(0, max) : ''
     const duration = raw.duration == null || raw.duration === '' ? null : canonicalDuration(raw.duration)
@@ -490,7 +499,7 @@ export function createStoryboard(options = {}) {
   const premise = cleanText(options.premise)
   if (premise.length < 8) throw new Error('Add a little more detail to your story premise (at least 8 characters).')
   if (premise.length > 6000) throw new Error('Keep your premise under 6,000 characters.')
-  const model = canonicalModel(options.model || 'grok'); if (!model) throw new Error('Choose a target model: grok, google, sora, kling, runway, luma, wan, or generic.')
+  const model = canonicalModel(options.model || 'grok'); if (!model) throw new Error('Choose a target model: grok, google, sora, chatgpt, midjourney, hailuo, seedance, pika, kling, runway, luma, wan, or generic.')
   const sequenceMode = options.sequenceMode === 'varied' || options.sequenceMode === 'continuous' ? options.sequenceMode : undefined
   const shotStyle = SHOT_STYLE_PROFILES[options.style] ? options.style : ''
   const genre = detectGenre(premise, options.genre)
@@ -498,7 +507,8 @@ export function createStoryboard(options = {}) {
   const scenes = sceneOverrides(options.scenes)
   const count = scenes.length ? scenes.length : canonicalShotCount(options.count)
   const density = options.promptDensity === 'concise' || options.density === 'concise' ? 'concise' : 'standard'
-  const project = { schema: 'shotboard.v1', id: options.id || newId('story'), title: titleFromPremise(premise), premise, model, target_model: model, genre, style: shotStyle || (STYLES.some(item => item.id === options.style) ? options.style : 'cinematic'), lockedStyle, promptDensity: density, promptStyle, aspectRatio: canonicalAspect(options.aspectRatio), duration: canonicalDuration(options.duration), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), generationMode: 'local', shots: [] }
+  const profile = profileFor(model)
+  const project = { schema: 'shotboard.v1', id: options.id || newId('story'), title: titleFromPremise(premise), premise, model, target_model: model, genre, style: shotStyle || (STYLES.some(item => item.id === options.style) ? options.style : 'cinematic'), lockedStyle, promptDensity: density, promptStyle, aspectRatio: requestedAspect(options.aspectRatio, profile), duration: requestedDuration(options.duration, profile), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), generationMode: 'local', shots: [] }
   if (sequenceMode) project.sequenceMode = sequenceMode
   if (sequenceMode === 'continuous') {
     const sheet = { ...(options.continuitySheet || buildContinuitySheet(premise)) }
@@ -540,7 +550,7 @@ export function createStoryboard(options = {}) {
   fitBoard(project)
   if (options.overwritePrompt) project.shots = project.shots.map(shot => { const next = { ...shot }; delete next.prompt; delete next.promptEdited; return next })
   project.shots = project.shots.map((shot, index) => refreshShotPrompt(shot, project, index, { overwrite: options.overwritePrompt === true }))
-  return project
+  return finalizeParts(project)
 }
 const PLACEHOLDER_OUTFIT = /^(?:the same clothes, hair, and face from the first shot|the same wool jacket, knit cap, and weathered boots|the same flour-dusted apron, rolled sleeves, and worn shoes|the same worn flight suit and scuffed boots)\.?$/i
 function outfitIsPlaceholder(value) {
@@ -671,7 +681,7 @@ function createPresetStoryboard(options, mode) {
   const parsed = mode === 'ad' ? parseAd(options) : mode === 'series' ? parseSeries(options) : parseExplainer(options)
   if (!parsed.ok) throw presetFailure(parsed, `invalid_${mode}`)
   const model = canonicalModel(options.model || 'grok')
-  if (!model) throw new Error('Choose a target model: grok, google, sora, kling, runway, luma, wan, or generic.')
+  if (!model) throw new Error('Choose a target model: grok, google, sora, chatgpt, midjourney, hailuo, seedance, pika, kling, runway, luma, wan, or generic.')
   const explicit = cleanText(options.premise)
   const premise = explicit.length >= 8 && explicit.length <= 6000 && !looksLikeScenario(explicit) ? explicit : parsed.premise
   if (premise.length < 8) throw new Error('Add a little more detail to your story premise (at least 8 characters).')
@@ -679,7 +689,7 @@ function createPresetStoryboard(options, mode) {
   const preset = resolveScenarioPreset(options)
   const shotStyle = SHOT_STYLE_PROFILES[options.style] ? options.style : ''
   const density = options.promptDensity === 'concise' || options.density === 'concise' ? 'concise' : 'standard'
-  const defaultDuration = canonicalDuration(options.duration)
+  const defaultDuration = requestedDuration(options.duration, profileFor(model))
   const aspectRatio = options.aspectRatio ? canonicalAspect(options.aspectRatio) : parsed.aspectRatio
   const filmSheet = { ...parsed.filmSheet, style: preset.visual, preset }
   const shots = parsed.shots.map((draft, index) => {
@@ -688,6 +698,7 @@ function createPresetStoryboard(options, mode) {
     const shot = {
       id: `shot-${String(index + 1).padStart(2, '0')}`,
       shot_id: `shot-${String(index + 1).padStart(2, '0')}`,
+      sceneKey: draft.episode ? `episode-${draft.episode}` : `scene-${index + 1}`,
       order: index + 1,
       stage: draft.stage,
       title: draft.title,
@@ -739,7 +750,7 @@ function createPresetStoryboard(options, mode) {
   stampPromptLanguage(project, readPromptLanguage(options.promptLanguage ?? options.prompt_language))
   fitBoard(project)
   project.shots = project.shots.map((shot, index) => refreshShotPrompt(shot, project, index, { overwrite: options.overwritePrompt === true }))
-  return syncSequences(project)
+  return finalizeParts(syncSequences(project))
 }
 function scenarioFailure(parsed) {
   const message = describeScenarioErrors(parsed.errors)
@@ -752,10 +763,14 @@ function scenarioFailure(parsed) {
 function createScenarioStoryboard(options) {
   const promptStyle = readPromptStyle(options.promptStyle ?? options.prompt_style)
   const source = options.scenario != null ? options.scenario : options.premise
-  const parsed = parseScenario(source, { allowIncompleteCast: options.allowIncompleteCast === true })
+  const parsed = parseScenario(source, {
+    allowIncompleteCast: options.allowIncompleteCast === true,
+    allowMissingWhere: options.allowMissingWhere === true,
+    allowMissingWho: options.allowMissingWho === true
+  })
   if (!parsed.ok) throw scenarioFailure(parsed)
   const model = canonicalModel(options.model || 'grok')
-  if (!model) throw new Error('Choose a target model: grok, google, sora, kling, runway, luma, wan, or generic.')
+  if (!model) throw new Error('Choose a target model: grok, google, sora, chatgpt, midjourney, hailuo, seedance, pika, kling, runway, luma, wan, or generic.')
   const explicit = cleanText(options.premise)
   const premise = explicit.length >= 8 && explicit.length <= 6000 && !looksLikeScenario(explicit) ? explicit : parsed.premise
   if (premise.length < 8) throw new Error('Add a little more detail to your story premise (at least 8 characters).')
@@ -764,16 +779,18 @@ function createScenarioStoryboard(options) {
   const shotStyle = SHOT_STYLE_PROFILES[options.style] ? options.style : ''
   const lockedStyle = preset.visual
   const density = options.promptDensity === 'concise' || options.density === 'concise' ? 'concise' : 'standard'
-  const defaultDuration = canonicalDuration(options.duration)
+  const profile = profileFor(model)
+  const defaultDuration = requestedDuration(options.duration, profile)
   const filmSheet = { characters: mergeCharacterExtras(parsed.characters, options.scenario), places: parsed.places, light: parsed.light || '', mood: parsed.mood || '', style: preset.visual, preset }
   const shots = parsed.scenes.map((scene, index) => {
     const choice = resolveUserCamera(scene.camera)
-    const lightId = scene.light || parsed.light || ''
+    const lightId = scene.light || ''
     const moodId = scene.mood || parsed.mood || ''
     const duration = scene.duration || defaultDuration
     const shot = {
       id: `shot-${String(index + 1).padStart(2, '0')}`,
       shot_id: `shot-${String(index + 1).padStart(2, '0')}`,
+      sceneKey: `scene-${index + 1}`,
       order: index + 1,
       stage: `Scene ${scene.number || index + 1}`,
       title: sentence(scene.what).slice(0, 80) || `Scene ${index + 1}`,
@@ -802,7 +819,9 @@ function createScenarioStoryboard(options) {
       cutUncertain: scene.cutUncertain === true,
       cutKind: scene.cutKind || '',
       timeLabel: scene.timeLabel || '',
-      sceneId: scene.sceneId || index + 1
+      sceneId: scene.sceneId || index + 1,
+      source: scene.source || scene.what || '',
+      flags: Array.isArray(scene.flags) ? scene.flags : []
     }
     if (!shot.cutCue) delete shot.cutCue
     if (!shot.cutReason) delete shot.cutReason
@@ -826,7 +845,7 @@ function createScenarioStoryboard(options) {
     preset,
     promptDensity: density,
     promptStyle,
-    aspectRatio: canonicalAspect(options.aspectRatio),
+    aspectRatio: requestedAspect(options.aspectRatio, profile),
     duration: defaultDuration,
     sequenceMode: 'scenario',
     filmSheet,
@@ -840,7 +859,7 @@ function createScenarioStoryboard(options) {
   fitBoard(project)
   project.shots = project.shots.map((shot, index) => refreshShotPrompt(shot, project, index, { overwrite: options.overwritePrompt === true }))
   project.sequences = sequencePacks(project)
-  return project
+  return finalizeParts(project)
 }
 function scenarioShotForPrompt(shot, project) {
   const sheet = project.filmSheet
@@ -877,6 +896,7 @@ function shotFromPremiseAction(text, item, index, total) {
     lighting: index === 0 ? 'soft environmental light with cinematic shadow detail' : 'consistent with the established scene',
     id: `shot-${String(index + 1).padStart(2, '0')}`,
     shot_id: `shot-${String(index + 1).padStart(2, '0')}`,
+    sceneKey: `scene-${index + 1}`,
     order: index + 1,
     story_has_night: weather.night,
     story_has_rain: weather.rain,
@@ -901,7 +921,7 @@ export function breakdownPremise(premise, count = DEFAULT_SHOT_COUNT, usePremise
   const total = canonicalShotCount(count)
   const stages = shotStages(total)
   const weather = premiseWeather(text)
-  return Array.from({length:total},(_,index)=>{const template=TEMPLATES[index%TEMPLATES.length];return { ...template, sound: template.cue, lighting: index === 0 ? 'soft environmental light with cinematic shadow detail' : 'consistent with the established scene', id: `shot-${String(index + 1).padStart(2, '0')}`, shot_id: `shot-${String(index + 1).padStart(2, '0')}`, order: index + 1, story_has_night: weather.night, story_has_rain: weather.rain, story_has_snow: weather.snow, genre, stage: stages[index], action: actionForBeat(text, index, stages[index]) } })
+  return Array.from({length:total},(_,index)=>{const template=TEMPLATES[index%TEMPLATES.length];return { ...template, sound: template.cue, lighting: index === 0 ? 'soft environmental light with cinematic shadow detail' : 'consistent with the established scene', id: `shot-${String(index + 1).padStart(2, '0')}`, shot_id: `shot-${String(index + 1).padStart(2, '0')}`, sceneKey: `scene-${index + 1}`, order: index + 1, story_has_night: weather.night, story_has_rain: weather.rain, story_has_snow: weather.snow, genre, stage: stages[index], action: actionForBeat(text, index, stages[index]) } })
 }
 function styleLockFor(project) {
   if (project.sequenceMode === 'continuous' && project.continuitySheet?.style) return project.continuitySheet.style
@@ -1083,7 +1103,7 @@ function cutAtClause(text, limit) {
   return clean.slice(0, at).replace(/[\s,;.—–-]+$/g, '')
 }
 
-function fitShortPrompt(parts) {
+function fitShortPrompt(parts, max = SHORT_PROMPT_MAX) {
   const opening = parts.opening
   const locks = parts.locks.filter(Boolean)
   let place = parts.place
@@ -1093,17 +1113,17 @@ function fitShortPrompt(parts) {
   let stability = parts.stability
   const closing = () => endPeriod([style, camera].filter(Boolean).join(', '))
   const assemble = () => [opening, ...locks, place, light, closing(), stability].filter(Boolean).join('\n')
-  const over = () => assemble().length > SHORT_PROMPT_MAX
+  const over = () => assemble().length > max
   const shrinkLine = (value, setter) => {
     if (!over() || !value) return
-    const room = SHORT_PROMPT_MAX - (assemble().length - value.length)
+    const room = max - (assemble().length - value.length)
     const next = room > 12 ? cutAtClause(value, room) : ''
     setter(next ? endPeriod(next) : '')
   }
   if (!over()) return assemble()
   if (style) {
     const closingText = closing()
-    const room = SHORT_PROMPT_MAX - (assemble().length - closingText.length)
+    const room = max - (assemble().length - closingText.length)
     const cameraTail = camera ? `, ${camera}` : ''
     const styleRoom = room - cameraTail.length - 1
     style = styleRoom > 12 ? cutAtClause(style, styleRoom) : ''
@@ -1121,6 +1141,24 @@ function fitShortPrompt(parts) {
   if (!over()) return assemble()
   stability = ''
   return assemble()
+}
+
+/** Labeled short prompt for Grok and Veo. Prose models keep createShortPrompt. */
+export function createStructuredShort(shot, project, index = 0) {
+  const lang = promptLanguageOf(project)
+  const action = namedAction(shot, project, lang)
+  const opening = endPeriod(`${phrase(lang, framingLabel(shot))}: ${action}`.replace(/:\s*\./, '.'))
+  const locks = lockLinesForShot(shot, project, index).filter(Boolean)
+  const place = placePhrase(shot, project)
+  const light = localizeLight(lang, oneLight(shot, project))
+  const style = stylePhrase(project)
+  const camera = cameraPhrase(shot, lang)
+  const stability = shotInvolvesHands(shot) ? phrase(lang, STABILITY_CUE) : ''
+  const id = profileFor(project.model || project.target_model)?.id
+  const lines = id === 'google'
+    ? [`SCENE: ${opening}`, ...locks.map(line => `SUBJECT: ${line}`), place ? `PLACE: ${endPeriod(place)}` : '', light ? `LIGHTING: ${endPeriod(sentence(light))}` : '', `CAMERA: ${camera}.`, style ? `STYLE: ${endPeriod(style)}` : '', stability]
+    : [`SHOT: ${opening}`, ...locks, place ? `PLACE: ${endPeriod(place)}` : '', light ? `LIGHT: ${endPeriod(sentence(light))}` : '', `CAMERA: ${camera}.`, style ? `STYLE: ${endPeriod(style)}` : '', stability]
+  return fitShortPrompt({ opening: lines.filter(Boolean).join('\n'), locks: [], place: '', light: '', style: '', camera: '', stability: '' }, plannedLengthBudget(profileFor(project.model || project.target_model)))
 }
 
 /** The video-model prompt: framing and the named action, then locks, place, one light, style, camera. */
@@ -1141,7 +1179,7 @@ export function createShortPrompt(shot, project, index = 0) {
     style,
     camera: cameraPhrase(shot, lang),
     stability
-  })
+  }, plannedLengthBudget(profileFor(project.model || project.target_model)))
 }
 
 function promptHeader(project) {
@@ -1152,7 +1190,10 @@ function promptHeader(project) {
   return lines.join('\n')
 }
 export function createPrompt(shot, project, index = 0) {
-  if (canonicalPromptStyle(project?.promptStyle) !== 'detailed') return createShortPrompt(shot, project, index)
+  const form = profileFor(project?.model || project?.target_model)?.promptForm
+  if (canonicalPromptStyle(project?.promptStyle) !== 'detailed') {
+    return form === 'structured' ? createStructuredShort(shot, project, index) : createShortPrompt(shot, project, index)
+  }
   const genre = GENRES[project.genre] || GENRES.cinematic; const style = SHOT_STYLE_PROFILES[project.style] || STYLES.find(item => item.id === project.style) || STYLES[0]
   const premise = project.premise || 'a visual story'; const aspect = canonicalAspect(project.aspectRatio); const duration = shot.duration_seconds || shot.duration || project.duration || DEFAULT_SHOT_DURATION
   const lockedStyle = styleLockFor(project)
@@ -1206,10 +1247,11 @@ export function splitShotByAction(project, shotId) {
   const source = shots[index]
   const parts = splitActionText(source.what || source.action || '')
   if (parts.length < 2) return null
-  if (shots.length + parts.length - 1 > MAX_SCENE_OVERRIDES) return null
+  const sceneKey = source.sceneKey || `scene-${source.id || source.shot_id || index + 1}`
   const made = parts.map((action, partIndex) => {
     const base = {
       ...source,
+      sceneKey,
       action,
       what: source.what ? action : source.what,
       title: partIndex === 0 ? source.title : sentence(action).slice(0, 80),
@@ -1219,7 +1261,7 @@ export function splitShotByAction(project, shotId) {
     delete base.promptEdited
     if (partIndex === 0) return base
     const id = newId('shot')
-    const next = { ...base, id, shot_id: id }
+    const next = { ...base, id, shot_id: id, sceneKey }
     delete next.sceneCut
     delete next.cutCue
     delete next.cutReason
@@ -1232,7 +1274,7 @@ export function splitShotByAction(project, shotId) {
   shots.forEach((shot, itemIndex) => { shot.order = itemIndex + 1 })
   const next = { ...project, shots }
   next.shots = shots.map((shot, itemIndex) => refreshShotPrompt(shot, next, itemIndex, { overwrite: true }))
-  return syncSequences(next)
+  return finalizeParts(syncSequences(next))
 }
 export function syncSequences(project) {
   if (!project) return project
@@ -1285,7 +1327,7 @@ function fitBoard(project) {
 }
 export function applyModelProfile(project, modelId) {
   const model = canonicalModel(modelId)
-  if (!model) throw new Error('Choose a target model: grok, google, sora, kling, runway, luma, wan, or generic.')
+  if (!model) throw new Error('Choose a target model: grok, google, sora, chatgpt, midjourney, hailuo, seedance, pika, kling, runway, luma, wan, or generic.')
   const next = { ...project, model, target_model: model, shots: (project.shots || []).map(shot => ({ ...shot })) }
   fitBoard(next)
   return refreshProjectPrompts(next)
@@ -1325,28 +1367,31 @@ export function regenerateOneShot(project, shotId, { overwrite = false, prompt }
 export function addShot(project, index = project.shots.length) {
   const next = JSON.parse(JSON.stringify(project)); const at = Math.max(0, Math.min(index, next.shots.length))
   const shot = { id: newId('shot'), shot_id: newId('shot'), stage: 'Additional', title: `New shot ${at + 1}`, framing: 'Medium shot', lens: '', camera: null, action: next.premise, directions: 'Introduce a deliberate moment that advances the story. Keep the action motivated and the camera intentional.', continuity: 'Match established character appearance, props, geography, light and time of day.', cue: 'consistent ambience and restrained score', sound: 'natural ambience consistent with the previous shot', lighting: 'consistent with the previous shot', duration: project.duration, duration_seconds: project.duration || DEFAULT_SHOT_DURATION, story_has_night: false, story_has_rain: false, story_has_snow: false, order: at + 1 }
-  shot.id = shot.shot_id; shot.prompt = createPrompt(shot, next, at)
-  next.shots.splice(at, 0, shot); assignShotStages(next.shots); next.shots.forEach((item, index) => { item.order = index + 1; next.shots[index] = refreshShotPrompt(item, next, index) }); return next
+  shot.id = shot.shot_id
+  shot.sceneKey = `scene-${shot.id}`
+  shot.prompt = createPrompt(shot, next, at)
+  next.shots.splice(at, 0, shot); assignShotStages(next.shots); next.shots.forEach((item, index) => { item.order = index + 1; next.shots[index] = refreshShotPrompt(item, next, index) }); return finalizeParts(next)
 }
 export function normalizeProject(project) {
   if (!project || typeof project !== 'object' || Array.isArray(project)) throw new Error('A saved project must be an object.')
   if (project.schema != null && project.schema !== 'shotboard.v1') throw new Error('This project schema is not supported.')
   const shots = Array.isArray(project.shots) ? project.shots.filter(shot => shot && typeof shot === 'object' && !Array.isArray(shot)) : []
   const model = canonicalModel(project.model || project.target_model) || project.model || project.target_model
-  return { ...project, model, target_model: model, shots: shots.map((shot, index) => {
+  const normalized = { ...project, model, target_model: model, shots: shots.map((shot, index) => {
     const id = shot.id || shot.shot_id || `shot-${String(index + 1).padStart(2, '0')}`
     const duration = canonicalDuration(shot.duration_seconds ?? shot.duration)
-    const normalized = { ...shot, id, shot_id: shot.shot_id || id, order: index + 1, duration_seconds: duration, duration, prompt: shot.prompt || createPrompt(shot, project, index) }
-    if (shot.promptEdited === true) normalized.promptEdited = true
-    else delete normalized.promptEdited
-    return normalized
+    const next = { ...shot, id, shot_id: shot.shot_id || id, order: index + 1, duration_seconds: duration, duration, prompt: shot.prompt || createPrompt(shot, project, index) }
+    if (shot.promptEdited === true) next.promptEdited = true
+    else delete next.promptEdited
+    return next
   }) }
+  return finalizeParts(normalized)
 }
 export function validateProject(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('The document must be a JSON object.')
   const project = input.project && typeof input.project === 'object' && !Array.isArray(input.project) ? input.project : input
   const premise = cleanText(project.premise); if (premise.length < 8) throw new Error('The story premise must be at least 8 characters.'); if (premise.length > 6000) throw new Error('The story premise exceeds the 6,000-character limit.')
-  const model = canonicalModel(project.model || project.target_model); if (!model) throw new Error('Choose a target model: grok, google, sora, kling, runway, luma, wan, or generic.')
+  const model = canonicalModel(project.model || project.target_model); if (!model) throw new Error('Choose a target model: grok, google, sora, chatgpt, midjourney, hailuo, seedance, pika, kling, runway, luma, wan, or generic.')
   const schema = input.schema || input.schema_version || input.version || project.schema_version; if (schema != null && schema !== 'shotboard.v1') throw new Error('This project schema is not supported. Expected shotboard.v1.')
   if (!Array.isArray(project.shots) || project.shots.length < 1) throw new Error('The storyboard must contain at least one shot.')
   const ids = new Set()
@@ -1364,7 +1409,7 @@ export function validateProject(input) {
     else delete normalized.promptEdited
     return normalized
   })
-  return { version: 'shotboard.v1', project: { ...project, premise: premise.slice(0, 6000), model, target_model: model, shots } }
+  return { version: 'shotboard.v1', project: finalizeParts({ ...project, premise: premise.slice(0, 6000), model, target_model: model, shots }) }
 }
 export function serializeProject(project) {
   const canonical = validateProject(project).project

@@ -54,7 +54,7 @@ const STUDIO_PATHS = new Set([
   '/auth/callback',
   '/desktop'
 ])
-const KEPT_PAGES = new Set(['privacy', 'terms', 'content-policy', 'faq', 'studio', 'agents'])
+const KEPT_PAGES = new Set(['privacy', 'terms', 'content-policy', 'faq', 'studio', 'agents', 'credits', 'readme'])
 
 function withoutTrailingSlash(pathname) {
   if (pathname.length > 1 && pathname.endsWith('/')) return pathname.slice(0, -1)
