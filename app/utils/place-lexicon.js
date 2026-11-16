@@ -15,6 +15,21 @@ let active = FULL
 const POSITIONAL = new Set(['bottom', 'top', 'side', 'edge', 'middle', 'front', 'back', 'left', 'right', 'end', 'line', 'part', 'kind', 'sort', 'type', 'fond', 'bas', 'haut', 'côté', 'cote', 'seite', 'fondo', 'lato', 'fundo', 'lado', 'gauche', 'droite', 'down', 'up', 'cut', 'dessus', 'dessous'])
 const NEVER_PLACE = new Set(['son', 'sa', 'ses', 'sein', 'seine', 'seinem', 'seinen', 'seiner', 'suo', 'sua', 'suoi', 'sue', 'seu', 'seus', 'minha', 'meu', 'mon', 'ma', 'mes', 'my', 'his', 'her', 'their', 'the', 'le', 'la', 'les', 'il', 'lo', 'der', 'die', 'das', 'dem', 'den', 'des', 'ein', 'eine', 'lever', 'soleil', 'matin', 'soir', 'aube', 'morning', 'evening', 'sunrise', 'sunset', 'morgen', 'nacht', 'notte', 'mattina', 'alba', 'manha', 'noite'])
 const UNUSABLE = new Set(['a:object', 'a:adjective', 'a:garment', 'a:determiner'])
+/** Body parts, garments, and other nouns that are not settings. A one-character prefix such as 右 still counts. */
+const NON_PLACE_NOUN = new Set([
+  '眉', '眉尻', '眉毛', '目', '眼', '目尻', '腕', '手', '顔', '脸', '髪', '头发', '发髻', '頭', '头', '足', '脚', '口', '嘴', '耳', '鼻', '肩', '指', '背', '背中', '颊', '脸颊', '手腕', '胳膊',
+  '前掛け', '手ぬぐい', 'エプロン', '作業着', 'カバー', '腕カバー', '袖', '袖子', '围裙', '衣服', '腕带', '圆脸', '眼睛'
+])
+
+/** A body part, a garment, or the same noun after の or a one-character prefix. Not a place. */
+export function isNonPlaceNoun(lemma) {
+  const text = String(lemma || '').trim()
+  if (!text) return false
+  if (NON_PLACE_NOUN.has(text) || NEVER_PLACE.has(keyOf(text))) return true
+  const bits = text.split('の').map(bit => bit.trim()).filter(Boolean)
+  if (bits.length > 1 && bits.some(bit => NON_PLACE_NOUN.has(bit) || NEVER_PLACE.has(keyOf(bit)))) return true
+  return [...NON_PLACE_NOUN].some(word => word.length >= 2 && text.endsWith(word) && text.length === word.length + 1)
+}
 
 function keyOf(word) {
   return String(word || '').trim().toLowerCase().replace(/’/g, "'")
@@ -93,6 +108,7 @@ const HOLD = /(?:holds?|holding|carries|carrying|wears?|wearing|uses?|using|take
 export function heldPlaceNoun(sentence, index) {
   const raw = String(sentence || '').slice(Math.max(0, index - 48), index)
   const before = raw.split(/[。！？.!?]/).at(-1) || raw
+  if (/(?:で|に|へ|在)$/u.test(before)) return false
   if (/(?:in|at|on|inside|into|to|reaches|reach|dans|au|aux|à|sur|em|no|na|nos|nas|num|numa|im|am|ins|zum|zur|beim|auf|bei|nel|nello|nella|alla|al|allo|sul|sullo|sulla|で|に|在)\s+(?:the\s+|a\s+|an\s+|le\s+|la\s+|les\s+|l['’]|der\s+|die\s+|das\s+|dem\s+|o\s+|os\s+|il\s+|lo\s+)?$/iu.test(before)) return false
   const tail = before.split(/\b(?:in|at|on|inside|dans|au|aux|sur|em|no|na|im|auf|bei|nel|nella|sul)\b/iu).at(-1) || before
   return HOLD.test(tail)
@@ -211,7 +227,7 @@ export function libraryHits(text, language) {
   if (!table || !source) return []
   const hits = []
   const push = (lemma, tag, index, locative) => {
-    if (!tag || UNUSABLE.has(tag)) return
+    if (!tag || UNUSABLE.has(tag) || isNonPlaceNoun(lemma)) return
     if (tag === 'a:material' && !locative) return
     if (lang === 'zh-Hans' && (lemma === '门口' || ((lemma.startsWith('小') || lemma.startsWith('大')) && [...table.keys()].some(key => key !== lemma && lemma.endsWith(key))))) return
     if (tag !== 's' && tag !== 'unlisted' && !locative) return
@@ -240,6 +256,10 @@ export function libraryHits(text, language) {
         const insideName = (/\p{Script=Han}/u.test(next) && !/^[里上中内的]/.test(next) && !/[在去到]/.test(source.slice(Math.max(0, index - 6), index)))
           || (/\p{Script=Han}/u.test(prev) && !/[在去到の]/.test(prev))
         if (insideName) {
+          from = index + 1
+          continue
+        }
+        if (lang === 'ja' && /^[\p{Script=Katakana}ー]+$/u.test(lemma) && (/\p{Script=Katakana}/u.test(prev) || /\p{Script=Katakana}/u.test(next))) {
           from = index + 1
           continue
         }

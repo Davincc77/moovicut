@@ -2,7 +2,8 @@
 import { cleanText } from './text.js'
 import { foldName, scenarioBudget, scenarioPremise, scenarioToFields } from './scenario.js'
 import { cueLight, findPlaceCue, inNamedVenue, isFunctionWord, isNumberWord, isQuotedOrRemembered, isVenueType, mentionMovesScene, namedVenues } from './scene-split.js'
-import { libraryHits, locativeHeads } from './place-lexicon.js'
+import { isNonPlaceNoun, libraryHits, locativeHeads } from './place-lexicon.js'
+import { isNeverPlace } from './scene-split.js'
 
 const LEX = {
   pt: {
@@ -433,9 +434,13 @@ function detectCjk(text, language) {
     if (!places.some(place => place.name === venue.name)) places.push({ name: venue.name, description: venue.description, confidence: 'high' })
   })
   libraryHits(text, language).forEach(hit => {
+    if (isNonPlaceNoun(hit.lemma) || isNeverPlace(hit.name)) return
     if (characters.some(item => hit.lemma.includes(item.name) || item.name.includes(hit.lemma))) return
     if (!places.some(place => place.name === hit.name)) places.push({ name: hit.name, description: hit.name, confidence: hit.tag === 's' ? 'high' : hit.tag === 'unlisted' ? 'low' : 'medium', ...(hit.tag === 'unlisted' ? { unlisted: true } : {}) })
   })
+  for (let index = places.length - 1; index >= 0; index -= 1) {
+    if (isNonPlaceNoun(places[index].name) || isNeverPlace(places[index].name)) places.splice(index, 1)
+  }
   const scenes = []
   const sceneWarnings = []
   let lastWho = characters[0]?.name || ''

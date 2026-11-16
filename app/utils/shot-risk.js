@@ -163,10 +163,30 @@ export function assessShot(shot, project = {}) {
   return warnings
 }
 
+function emptyCastWarnings(project) {
+  const sheet = project?.filmSheet
+  if (!sheet) return []
+  const shots = project.shots || []
+  const anchor = shots[0] || { id: project.id || 'board', order: 1 }
+  const warnings = []
+  const people = (sheet.characters || []).filter(item => cleanText(item?.name))
+  const places = (sheet.places || []).filter(item => cleanText(item?.name))
+  if (!people.length) warnings.push(warning(anchor, 'empty_characters', 'This board has no character.', 'Send characters with name, look, and outfit.'))
+  if (!places.length) warnings.push(warning(anchor, 'empty_places', 'This board has no place.', 'Send places with name and description.'))
+  if (project.sequenceMode === 'scenario') {
+    shots.forEach(shot => {
+      if (!cleanText(shot.who)) warnings.push(warning(shot, 'empty_who', 'This shot has no character.', 'Set who to a name, or to a list of names, from the cast.'))
+      if (!cleanText(shot.where)) warnings.push(warning(shot, 'empty_where', 'This shot has no place.', 'Set where to a place from the sheet.'))
+    })
+  }
+  return warnings
+}
+
 export function assessProject(project) {
   const shots = project?.shots || []
   const ranges = shots.length ? partitionShots(shots) : []
   const warnings = ranges.flatMap(range => shots.slice(range.start, range.end).flatMap(shot => assessShot(shot, project)))
+  warnings.push(...emptyCastWarnings(project))
   warnings.push(...partJoinWarnings(project))
   const seen = new Set()
   return warnings.filter(item => {

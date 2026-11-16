@@ -7,7 +7,8 @@ import { detectProse, isNamedTraitPremise, premiseShotPlan } from './prose-detec
 import { canonicalStyleFamily, formatPresetBlock, listPresets, presetFamilies, presetGenres, resolvePreset } from './presets/index.js'
 import { shotInvolvesHands } from './shot-risk.js'
 import { charactersInShot, lockLinesForShot, mergeCharacterExtras } from './character-lock.js'
-import { promptFraming, suggestFraming } from './framing.js'
+import { canonicalFramingLabel, promptFraming, suggestFraming } from './framing.js'
+import { isNonPlaceNoun } from './place-lexicon.js'
 import { splitActionText } from './action-split.js'
 import { finalizeParts } from './parts.js'
 import { cleanText, sentence } from './text.js'
@@ -121,7 +122,7 @@ export function detectGenre(premise, preferred = 'cinematic') {
   if (/\b(cat|dog|funny|comedy|awkward|chaos|llama)\b/.test(text)) return 'comedy'
   if (/\b(documentary|interview|real life|documentaire|documental)\b/.test(text)) return 'documentary'
   if (/love|family|mother|father|daughter|son|friend|memory|grief|home|wedding|relationship|famille|familia|семья/.test(text)) return 'drama'
-  if (/[宇宙ロボット]|espacio|vaisseau|космос|космонавт|宇宙船/.test(text)) return 'scifi'
+  if (/(?:宇宙船|宇宙|ロボット|宇航员|航天)|espacio|vaisseau|космос|космонавт/.test(text)) return 'scifi'
   if (/détective|детектив|刑事/.test(text)) return 'noir'
   if (/montaña|montagne|гора|登山/.test(text)) return 'adventure'
   if (/fantasma|fantôme|幽霊|призрак/.test(text)) return 'horror'
@@ -191,8 +192,9 @@ export function parsePlace(text) {
   const known = PLACE_WORDS.find(word => new RegExp(`\\b${word}\\b`, 'i').test(lower))
   if (known) return sentence(known)
   const afterSubject = source.replace(/^[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}ー]{1,16}(?:が|は)/u, '')
-  const cjkPlace = afterSubject.match(/([\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}ー]{1,18}?)(?:で|に)/u)
-  if (cjkPlace) return cjkPlace[1]
+  for (const match of afterSubject.matchAll(/([\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}ー]{1,18}?)(?:で|に)/gu)) {
+    if (!isNonPlaceNoun(match[1])) return match[1]
+  }
   const pattern = /\b(?:in|at|inside|through|across|along|under|over|on|à|en|dans|sur|im|auf)\s+(?:a|an|the|un|une|el|la|der|die|das\s+)?([\p{L}][\p{L}'’-]*(?:\s+[\p{L}][\p{L}'’-]*){0,4})/giu
   let match
   while ((match = pattern.exec(source))) {
@@ -784,6 +786,7 @@ function createScenarioStoryboard(options) {
   const filmSheet = { characters: mergeCharacterExtras(parsed.characters, options.scenario), places: parsed.places, light: parsed.light || '', mood: parsed.mood || '', style: preset.visual, preset }
   const shots = parsed.scenes.map((scene, index) => {
     const choice = resolveUserCamera(scene.camera)
+    const chosenFrame = canonicalFramingLabel(scene.framingText) || choice.framing
     const lightId = scene.light || ''
     const moodId = scene.mood || parsed.mood || ''
     const duration = scene.duration || defaultDuration
@@ -794,7 +797,7 @@ function createScenarioStoryboard(options) {
       order: index + 1,
       stage: `Scene ${scene.number || index + 1}`,
       title: sentence(scene.what).slice(0, 80) || `Scene ${index + 1}`,
-      framing: choice.framing,
+      framing: chosenFrame,
       camera: choice.chosen ? choice.move : null,
       cameraChosen: choice.chosen,
       cam: choice.cam,
@@ -979,6 +982,38 @@ function joinNames(names, lang = 'en') {
 
 const LEAD_PRONOUN = /^(she|he|they|elle|il|ils|elles|ela|ele|eles|elas|sie|er|lei|lui|si|hien|hatt)\b/i
 const CJK_PRONOUN = /^(彼女|彼|她|他)/u
+const GENERIC_PLACE = /^(?:the setting|le lieu|o lugar|il luogo|場所|场景)$/i
+
+function shotPlaceName(shot, project) {
+  const where = cleanText(shot?.where || '').split(/\s+and\s+/i)[0]
+  if (where && !GENERIC_PLACE.test(where)) return where
+  const named = cleanText(project?.filmSheet?.places?.[0]?.name || project?.continuitySheet?.place || '')
+  if (!named || GENERIC_PLACE.test(named)) return ''
+  return named
+}
+
+/** Chinese opening line: subject, then 在 and the place, then the verb. No full stop between the name and the action. */
+function tightenChineseAction(text, names, place) {
+  if (!/\p{Script=Han}/u.test(text)) return ''
+  let action = cleanText(text).replace(/[。．.]+$/u, '')
+  const hanNames = names.filter(name => /\p{Script=Han}/u.test(name))
+  const subject = hanNames.length <= 1 ? (hanNames[0] || '') : hanNames.join('和')
+  if (subject && hanNames.every(name => !action.includes(name))) {
+    if (/^(?:她|他|他们|她们)/u.test(action)) action = action.replace(/^(?:她|他|他们|她们)/u, subject)
+    else action = `${subject}${action}`
+  } else {
+    hanNames.filter(name => !action.includes(name)).forEach(name => { action = `${name}和${action}` })
+  }
+  const placeName = cleanText(place).split(/[，,]/)[0]
+  if (placeName && /\p{Script=Han}/u.test(placeName) && !action.includes(placeName)) {
+    const lead = subject && action.startsWith(subject) ? subject : (hanNames.find(name => action.startsWith(name)) || '')
+    if (lead) {
+      const rest = action.slice(lead.length)
+      action = rest.startsWith('在') ? `${lead}在${placeName}${rest.slice(1)}` : `${lead}在${placeName}${rest}`
+    } else action = `${action}，在${placeName}`
+  }
+  return action
+}
 
 /** The action, unchanged except a missing subject is named. Prop nouns stay verbatim. */
 function namedAction(shot, project, lang = 'en') {
@@ -988,6 +1023,10 @@ function namedAction(shot, project, lang = 'en') {
     if (beat) text = beat
   }
   const names = charactersInShot(shot, project).map(person => person.name).filter(Boolean)
+  if (lang === 'zh-Hans' && /\p{Script=Han}/u.test(text)) {
+    const tightened = tightenChineseAction(text, names, shotPlaceName(shot, project))
+    if (tightened) return tightened
+  }
   if (!text || !names.length) return text
   if (names.every(name => mentionsName(text, name))) return text
   const pronoun = text.match(LEAD_PRONOUN)

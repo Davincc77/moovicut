@@ -404,6 +404,58 @@ function pick(object, keys) {
   return ''
 }
 
+const CAMERA_ALIAS = Object.freeze({
+  'close-up': 'close',
+  'close up': 'close',
+  closeup: 'close',
+  'extreme close-up': 'insert',
+  'extreme close up': 'insert',
+  'wide shot': 'wide',
+  'medium shot': 'medium',
+  'tracking shot': 'tracking',
+  'static shot': 'static',
+  'crane shot': 'crane',
+  '特写': 'close',
+  '近景': 'close',
+  '大特写': 'insert',
+  '中景': 'medium',
+  '远景': 'wide',
+  'gros plan': 'close',
+  'plan moyen': 'medium',
+  "plan d'ensemble": 'wide'
+})
+
+function valueKind(value) {
+  if (Array.isArray(value)) return 'an array'
+  if (value === null) return 'null'
+  if (typeof value === 'object') return 'an object'
+  return `a ${typeof value}`
+}
+
+/** A string, or a list of name strings when `list` is set. A present value of another shape is an error, not a missing field. */
+function readNamedField(entry, keys, path, { list = false } = {}) {
+  for (const key of keys) {
+    if (!entry || !Object.prototype.hasOwnProperty.call(entry, key)) continue
+    const value = entry[key]
+    if (value == null || value === '') continue
+    if (typeof value === 'string' && value.trim()) return { value: value.trim() }
+    if (list && Array.isArray(value)) {
+      if (!value.length) return { error: `${path} must be a string or a list of names.` }
+      if (value.every(item => typeof item === 'string' && item.trim())) return { value: value.map(item => item.trim()).join(' and ') }
+      return { error: `${path} must be a string or a list of names, not ${valueKind(value.find(item => typeof item !== 'string' || !String(item).trim()))}.` }
+    }
+    return { error: list ? `${path} must be a string or a list of names, not ${valueKind(value)}.` : `${path} must be a string, not ${valueKind(value)}.` }
+  }
+  return { value: '' }
+}
+
+function readCameraToken(value) {
+  const token = cleanText(value).toLowerCase()
+  if (!token) return ''
+  if (CAMERA_VALUES.includes(token)) return token
+  return CAMERA_ALIAS[token] || CAMERA_ALIAS[cleanText(value)] || ''
+}
+
 function parseScenarioObject(input, options = {}) {
   const errors = []
   const source = input && typeof input === 'object' && !Array.isArray(input) ? input : null
@@ -453,19 +505,30 @@ function parseScenarioObject(input, options = {}) {
       errors.push(problem(`${path} must be an object with who, where, and what.`, { path, section: 'scenes', field: 'what', index }))
       return
     }
-    const who = cleanText(pick(entry, ['who', 'w', 'character']))
-    const where = cleanText(pick(entry, ['where', 'at', 'place']))
-    const what = cleanText(pick(entry, ['what', 'do', 'action', 'beat']))
-    if (!who && !options.allowMissingWho) errors.push(problem(`${path} is missing who.`, { path: `${path}.who`, section: 'scenes', field: 'who', index }))
-    if (!where && !options.allowMissingWhere) errors.push(problem(`${path} is missing where.`, { path: `${path}.where`, section: 'scenes', field: 'where', index }))
-    if (!what) errors.push(problem(`${path} is missing what happens.`, { path: `${path}.what`, section: 'scenes', field: 'what', index }))
-    const camera = readEnum(entry.camera ?? entry.cam, CAMERA_VALUES, 'camera', { path: `${path}.camera`, section: 'scenes', index }, errors)
+    const whoField = readNamedField(entry, ['who', 'w', 'character'], `${path}.who`, { list: true })
+    const whereField = readNamedField(entry, ['where', 'at', 'place'], `${path}.where`)
+    const whatField = readNamedField(entry, ['what', 'do', 'action', 'beat'], `${path}.what`)
+    if (whoField.error) errors.push(problem(whoField.error, { path: `${path}.who`, section: 'scenes', field: 'who', index }))
+    if (whereField.error) errors.push(problem(whereField.error, { path: `${path}.where`, section: 'scenes', field: 'where', index }))
+    if (whatField.error) errors.push(problem(whatField.error, { path: `${path}.what`, section: 'scenes', field: 'what', index }))
+    const who = cleanText(whoField.value)
+    const where = cleanText(whereField.value)
+    const what = cleanText(whatField.value)
+    if (!who && !whoField.error && !options.allowMissingWho) errors.push(problem(`${path} is missing who.`, { path: `${path}.who`, section: 'scenes', field: 'who', index }))
+    if (!where && !whereField.error && !options.allowMissingWhere) errors.push(problem(`${path} is missing where.`, { path: `${path}.where`, section: 'scenes', field: 'where', index }))
+    if (!what && !whatField.error) errors.push(problem(`${path} is missing what happens.`, { path: `${path}.what`, section: 'scenes', field: 'what', index }))
+    const cameraToken = readCameraToken(entry.camera ?? entry.cam)
+    const cameraRaw = entry.camera ?? entry.cam
+    if (cameraRaw != null && cameraRaw !== '' && !cameraToken) errors.push(problem(`camera must be one of: ${CAMERA_VALUES.join(', ')}.`, { path: `${path}.camera`, section: 'scenes', field: 'camera', index, value: cleanText(cameraRaw).toLowerCase() }))
+    const camera = cameraToken
     const sceneLight = readEnum(entry.light ?? entry.lighting, LIGHT_VALUES, 'light', { path: `${path}.light`, section: 'scenes', index }, errors)
     const sceneMood = readEnum(entry.mood, MOOD_VALUES, 'mood', { path: `${path}.mood`, section: 'scenes', index }, errors)
     const duration = readDuration(entry.duration ?? entry.s, { path: `${path}.duration`, section: 'scenes', index }, errors)
     const prompt = typeof entry.prompt === 'string' ? entry.prompt.trim().slice(0, 16000) : ''
     if (what && (who || options.allowMissingWho) && (where || options.allowMissingWhere)) {
       const scene = { number: index + 1, who, where, what, line: index + 1, camera, light: sceneLight, mood: sceneMood, duration, prompt }
+      const framingText = cleanText(typeof entry.framing === 'string' ? entry.framing : (typeof entry.frame === 'string' ? entry.frame : ''))
+      if (framingText) scene.framingText = framingText
       if (entry.source) scene.source = cleanText(entry.source).slice(0, 500)
       if (Array.isArray(entry.flags)) scene.flags = entry.flags
       if (entry.sceneCut === true) scene.sceneCut = true
