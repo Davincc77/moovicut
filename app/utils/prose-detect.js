@@ -51,16 +51,7 @@ function markCount(text, pattern) {
   return (String(text).match(pattern) || []).length
 }
 
-function cjkLanguage(text) {
-  const han = (String(text).match(/\p{Script=Han}/gu) || []).length
-  const kana = (String(text).match(/[\u3040-\u30ff]/gu) || []).length
-  if (han >= 8 && kana === 0) return 'zh-Hans'
-  return ''
-}
-
 function languageScores(text) {
-  const cjk = cjkLanguage(text)
-  if (cjk) return { language: cjk, score: (text.match(/\p{Script=Han}/gu) || []).length, second: 0 }
   const pt = markCount(text, PT_MARK)
   const en = markCount(text, EN_MARK)
   if (pt >= 2 && pt > en) return { language: 'pt', score: pt, second: en }
@@ -74,8 +65,7 @@ function languageOf(text) {
 export function detectTextLanguage(text) {
   const found = languageScores(String(text || ''))
   let confidence = 'low'
-  if (found.language === 'zh-Hans') confidence = found.score >= 12 ? 'high' : 'medium'
-  else if (found.score >= 4 && found.score > found.second) confidence = 'high'
+  if (found.score >= 4 && found.score > found.second) confidence = 'high'
   else if (found.score >= 2) confidence = 'medium'
   return { language: found.language, confidence }
 }
@@ -307,7 +297,7 @@ function castTraits(text, name, names) {
 
 const STREET_WORD = new Set(['rue', 'street', 'road', 'avenue', 'lane', 'boulevard', 'way', 'via', 'strasse', 'straße', 'strada', 'rua', 'calle', 'gasse'])
 const GARMENT_WORD = /\b(?:raincoats?|coats?|jackets?|aprons?|caps?|hats?|scarves?|scarf|dresses?|shirts?|boots?|peacoats?|sweaters?|cloaks?|robes?|hoodies?|hakama|vests?|uniforms?|shawls?)\b/i
-const CARRIED_ITEM = /\b(?:cord|chain|strap|string|ribbon|neck|wrist|belt|shoulder|locket|compass|watch|pendant|tongs|hammer|brush|lantern)\b/i
+const CARRIED_ITEM = /\b(?:cord|chain|strap|string|ribbon|neck|wrist|belt|shoulder|locket|compass|watch|pendant|tongs|hammer|brush|lantern|whistle|key|keys|camera|letter|map|cup|mug|basket|notebook|pen|knife|sword|staff|cane|umbrella|book|bag|purse|wallet|flower|rose|tray|plate|bottle|torch|flashlight|flute|bell|compass)\b/i
 
 function isNameNoise(token, language) {
   const key = foldName(token)
@@ -619,8 +609,7 @@ function unique(values) {
 
 function pushPlace(places, name, description, confidence, trusted = false) {
   const clean = cleanText(name)
-  if (!clean || NOT_A_PLACE.has(foldName(clean))) return
-  if (!trusted && isNeverPlace(clean)) return
+  if (!clean || NOT_A_PLACE.has(foldName(clean)) || isNeverPlace(clean)) return
   const existing = places.find(place => foldName(place.name) === foldName(clean))
   if (existing) {
     if (trusted) existing.trusted = true
@@ -838,8 +827,7 @@ function genericPlace(language) {
     fr: ['Le lieu', 'un lieu que le texte ne nomme pas'],
     pt: ['O lugar', 'um lugar que o texto não nomeia'],
     it: ['Il luogo', 'un luogo che il testo non nomina'],
-    ja: ['場所', '文が名を挙げない場所'],
-    'zh-Hans': ['场景', '文中没有点名的地点']
+    ja: ['場所', '文が名を挙げない場所']
   }
   const pair = table[language] || ['The setting', 'a place the text does not name']
   return { name: pair[0], description: pair[1], uncertain: true }

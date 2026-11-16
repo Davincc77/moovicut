@@ -1,10 +1,10 @@
 /** Deterministic scene cuts. Closed word lists only. No model call. */
 import { cleanText } from './text.js'
-import { heldPlaceNoun, isNonPlaceNoun, placeTag } from './place-lexicon.js'
+import { heldPlaceNoun, isNonPlaceNoun } from './place-lexicon.js'
 import { foldName } from './scenario.js'
 import { splitActionText } from './action-split.js'
 
-const LOCALES = ['en', 'fr', 'pt', 'it', 'ja', 'zh-Hans']
+const LOCALES = ['en', 'fr', 'pt', 'it', 'ja']
 
 /** Connectors, pronouns, and time or sequence words. Never a character name. */
 const FUNCTION = Object.freeze({
@@ -45,7 +45,8 @@ const NOT_A_PLACE = new Set([
   'fenster', 'tur', 'tisch', 'glas', 'tasse', 'theke', 'kuehlschrank', 'lampe', 'schublade',
   'finestra', 'porta', 'tavolo', 'bicchiere', 'bancone', 'frigo', 'lampada', 'cassetto',
   'fënster', 'dir', 'dësch', 'glas', 'taass', 'frigo', 'lamp',
-  '目', '眼', '眼睛', '沈黙', '沉默', '光'
+  '目', '眼', '眼睛', '沈黙', '沉默', '光',
+  'place', 'circle', 'circulo', 'lugar', 'speaker', 'speakers', 'altifalante', 'altifalantes', 'van', 'carrinha', 'furgao', 'wheel', 'wheels', 'roda', 'rodas', 'engine', 'motor', 'dashboard', 'radio', 'headlight', 'headlights', 'bumper', 'tyre', 'tire', 'microphone', 'laptop', 'monitor', 'amplifier', 'horn', 'brake', 'brakes', 'exhaust', 'steering', 'seatbelt'
 ].map(word => foldName(word)))
 
 const MEMORY = Object.freeze({
@@ -588,23 +589,6 @@ export function isCastLine(sentence) {
   return false
 }
 
-function mentionedPlace(sentence, places) {
-  for (const place of places || []) {
-    if (place?.uncertain) continue
-    const labels = [place.name, ...(place.keys || [])].filter(Boolean)
-    for (const label of labels) {
-      if (/[\u3040-\u30ff\u4e00-\u9fff]/.test(label) && String(sentence || '').includes(label)) return place
-      const pattern = new RegExp(`(?<![\\p{L}])${String(label).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}])`, 'giu')
-      for (const match of String(sentence || '').matchAll(pattern)) {
-        const after = sentence.slice(match.index + match[0].length)
-        if (/^(?:\s+\p{L}[\p{L}'’-]*){0,3}\s+(?:window|door|table|wall|sill|pane|glass|frame|ledge|counter|desk|shutter|fenêtre|fenetre|porte|fenster|finestra|fënster|窗户|窗|窓)/iu.test(after)) continue
-        return place
-      }
-    }
-  }
-  return null
-}
-
 function samePlace(a, b) {
   if (!a || !b) return false
   const left = foldName(a)
@@ -612,13 +596,23 @@ function samePlace(a, b) {
   return left === right || left.includes(right) || right.includes(left)
 }
 
+/** Light in effect after this sentence. A new time cue replaces the old light, and a cue with no light clears it. */
+export function lightAfterCue(sentence, language = 'en', current = '') {
+  const cues = timeCues(sentence, language)
+  if (!cues.length) return current || ''
+  const lit = cues.filter(item => item.light)
+  return lit.length ? lit[lit.length - 1].light : ''
+}
+
 function applyTime(cues, state) {
   let changed = false
+  if (cues.length) {
+    const lit = cues.filter(item => item.light)
+    const next = lit.length ? lit[lit.length - 1].light : ''
+    if (next && !state.firstLight && !state.started) state.firstLight = next
+    state.light = next
+  }
   for (const cue of cues) {
-    if (cue.light) {
-      state.light = cue.light
-      if (!state.firstLight && !state.started) state.firstLight = cue.light
-    }
     state.timeLabel = cue.cue
     if (cue.jump === 'clock') {
       const close = state.minutes != null && Math.abs(cue.minutes - state.minutes) <= 15
@@ -698,7 +692,11 @@ export function splitNarrative(text, options = {}) {
     const cast = isCastLine(sentence)
     const portrait = isPortraitSentence(sentence)
     const action = hasAction(sentence, language, extraVerbs) && !cast && !portrait
-    const firmPlace = place && !place.uncertain ? place : null
+    let firmPlace = place && !place.uncertain ? place : null
+    if (!firmPlace) {
+      const venue = namedVenues(sentence, language).find(item => String(item.name || '').split(/\s+/).length > 1)
+      if (venue) firmPlace = { name: venue.name, key: venue.name, cue: venue.name, uncertain: false }
+    }
     const words = verbTokens(sentence).length
     const cueOnly = !action && !cast && !firmPlace && (times.length > 0 || Boolean(sequence)) && words <= 5
     if (cast || portrait) {
@@ -741,13 +739,6 @@ export function splitNarrative(text, options = {}) {
         sceneCut = true
         reasons.push(`Time cue: ${bundledTimes.map(item => item.cue).join(', ')}`)
       }
-    }
-    if (!state.place) {
-      const mentioned = mentionedPlace(sentence, places)
-      const blocked = mentioned && String(placeTag(language, mentioned.name)).startsWith('a:')
-      const passing = place?.uncertain && foldName(place.name) === foldName(mentioned?.name)
-      if (mentioned && !personOwns(mentioned.name) && !blocked && !passing) state.place = mentioned.name
-      else if (places[0]?.uncertain) state.place = places[0].name
     }
     if (!state.started) {
       state.started = true

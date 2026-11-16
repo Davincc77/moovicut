@@ -53,11 +53,9 @@ test('R5 Italian action sentences stay shots when the verb is not on a short lis
   assert.ok(wheres(result.body).length >= 4, wheres(result.body).join(' | '))
 })
 
-test('R7 Chinese places are library nouns, not a six-character slice', () => {
-  const body = plan('林国栋五十八岁，花白的平头，穿一件灰色毛背心，腰间别着一支竹笛。\n\n中午，林国栋去镇上的银行。林国栋在柜台前填了一张表。林国栋坐在长椅上轻轻吹着竹笛。').body
-  const found = places(body)
-  assert.equal(found.some(name => name.includes('填') || name.includes('吹')), false, found.join(', '))
-  assert.equal(found.includes('银行'), true, found.join(', '))
+test('R7 Chinese prose is not planned as Chinese', () => {
+  const result = plan('林国栋五十八岁，花白的平头，穿一件灰色毛背心，腰间别着一支竹笛。\n\n中午，林国栋去镇上的银行。林国栋在柜台前填了一张表。林国栋坐在长椅上轻轻吹着竹笛。')
+  assert.notEqual(result.body.language, 'zh-Hans')
 })
 
 test('R8 a later night does not light the morning shots', () => {
@@ -111,7 +109,7 @@ test('an Italian portrait is not answered as Italian', () => {
     body: JSON.stringify({ premise: 'A lighthouse keeper races the dusk to repair a failing beacon.', promptLanguage: 'it' })
   })
   assert.equal(rejected.status, 400)
-  assert.match(JSON.parse(rejected.body).message, /promptLanguage must be one of: en, zh-Hans, pt/)
+  assert.match(JSON.parse(rejected.body).message, /promptLanguage must be one of: en, pt/)
 })
 
 test('Luxembourgish cue tables are gone from the detectors', () => {

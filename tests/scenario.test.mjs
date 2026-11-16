@@ -120,7 +120,7 @@ Later, Lea walks on the beach. The next morning she returns to the cafe.`
 test('French prose is not detected as French', () => {
   const detected = detectProse(french)
   assert.notEqual(detected.language, 'fr')
-  assert.ok(['en', 'pt', 'zh-Hans'].includes(detected.language))
+  assert.ok(['en', 'pt'].includes(detected.language))
 })
 
 test('English prose keeps The and Morning out of the cast', () => {

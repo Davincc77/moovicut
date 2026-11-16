@@ -1,11 +1,10 @@
 /** Planner phrases. English keys stay the prompt text when the language is English. */
 import { MORE_PHRASES } from './prompt-phrase-more.js'
 
-const LANGS = ['zh-Hans', 'pt']
+const LANGS = ['pt']
 
 function row(en, values) {
-  const entry = {}
-  LANGS.forEach((code, index) => { entry[code] = values[index] })
+  const entry = { pt: values.length > 1 ? values[1] : values[0] }
   return [en, entry]
 }
 

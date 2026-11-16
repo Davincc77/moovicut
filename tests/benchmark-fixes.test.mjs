@@ -94,13 +94,12 @@ test('invalid_plan counts names and actions given in scene what', () => {
 test('a negative physical constraint stays in the short and detailed prompts in every language', () => {
   const lines = [
     ['en', 'They walk to the end of the dock. They stand face to face. Without touching.', /without touching/i],
-    ['pt', 'Eles caminham até o fim do cais. Ficam frente a frente. Sem se tocar.', /sem se tocar/i],
-    ['zh-Hans', '两人走到码头尽头。面对面站着。不接触。', /不接触/]
+    ['pt', 'Eles caminham até o fim do cais. Ficam frente a frente. Sem se tocar.', /sem se tocar/i]
   ]
-  for (const code of ['fr', 'ja', 'it']) {
+  for (const code of ['zh-Hans', 'fr', 'ja', 'it']) {
     const removed = post({ model: 'generic', promptLanguage: code, scenario: { characters: [{ name: 'Nils', look: 'weathered face', outfit: 'oilskin coat' }], places: dock, scenes: [{ who: 'Nils', where: 'Dock', what: 'He waits' }] } })
     assert.equal(removed.status, 400, code)
-    assert.match(removed.body.message, /en, zh-Hans, pt/)
+    assert.match(removed.body.message, /en, pt/)
   }
   for (const [promptLanguage, what, pattern] of lines) {
     for (const prompt_style of ['short', 'detailed']) {
@@ -134,7 +133,7 @@ test('the lock line keeps age and role in every prompt language', () => {
   assert.match(nils.look, /weathered face/)
   assert.match(lia.look, /early thirties/)
   assert.match(lia.look, /teacher/)
-  for (const promptLanguage of ['en', 'zh-Hans', 'pt']) {
+  for (const promptLanguage of ['en', 'pt']) {
     const planned = post({
       model: 'generic',
       promptLanguage,
@@ -162,8 +161,7 @@ test('the lock line keeps age and role in every prompt language', () => {
 test('a shot size written in the action is not repeated', () => {
   const samples = [
     ['en', 'Close-up, day, calm: Lea sets the cup down', /close-up/i, /medium shot/i],
-    ['pt', 'Grande plano, dia, calmo: Lia pousa a chávena', /grande plano/i, /plano médio/i],
-    ['zh-Hans', '特写，白天，平静：莉亚放下杯子', /特写/, /中景/]
+    ['pt', 'Grande plano, dia, calmo: Lia pousa a chávena', /grande plano/i, /plano médio/i]
   ]
   for (const [promptLanguage, what, kept, dropped] of samples) {
     const planned = post({

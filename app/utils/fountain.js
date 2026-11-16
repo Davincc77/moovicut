@@ -104,6 +104,5 @@ export function isFountain(text) {
 /** Paste this into the model you already use. Moovicut does not call that model. */
 export const FOUNTAIN_PROMPTS = Object.freeze({
   en: 'Turn the story below into a storyboard sheet. Use a CHARACTERS block, one person per line: Name — look — outfit. Then one scene heading per place or time change, written INT. or EXT. PLACE - TIME. Under each heading, one action per line. Do not add shots I did not imply. Keep my names and actions as written.\n\nSTORY\n',
-  pt: 'Transforma a história abaixo numa folha de storyboard. Bloco CHARACTERS, uma pessoa por linha: Nome — aspeto — roupa. Depois um cabeçalho por mudança de lugar ou de hora: INT. ou EXT. LUGAR - HORA. Sob cada cabeçalho, uma ação por linha. Não acrescentes planos que eu não tenha sugerido. Mantém os nomes e as ações como estão.\n\nHISTÓRIA\n',
-  'zh-Hans': '把下面的故事写成分镜表。CHARACTERS 块里每人一行：名字 — 外形 — 服装。地点或时间一变就写一行标题：INT. 或 EXT. 地点 - 时间。每个标题下面，一个动作占一行。不要添加我没有写出的镜头。名字和动作保持原样。\n\n故事\n'
+  pt: 'Transforma a história abaixo numa folha de storyboard. Bloco CHARACTERS, uma pessoa por linha: Nome — aspeto — roupa. Depois um cabeçalho por mudança de lugar ou de hora: INT. ou EXT. LUGAR - HORA. Sob cada cabeçalho, uma ação por linha. Não acrescentes planos que eu não tenha sugerido. Mantém os nomes e as ações como estão.\n\nHISTÓRIA\n'
 })

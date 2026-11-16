@@ -150,9 +150,6 @@
   "Characters": "Personagens",
   "Characters, places, and styles stay in this browser. Export the file if you want a copy.": "Personagens, lugares e estilos ficam neste navegador. Exporte o ficheiro se quiser uma cópia.",
   "Check": "Verificar",
-  "Chinese": "chinês",
-  "Chinese Open Wordnet": "Chinese Open Wordnet",
-  "Chinese lemmas come from the Chinese Open Wordnet. The licence is WordNet-style.": "Os lemas chineses vêm do Chinese Open Wordnet. A licença é do tipo WordNet.",
   "Choose": "Escolher",
   "Choose Grok Imagine or Google.": "Escolha Grok Imagine ou Google.",
   "Choose a PNG, JPEG, WebP, GIF, AVIF or SVG image.": "Escolha uma imagem PNG, JPEG, WebP, GIF, AVIF ou SVG.",
@@ -600,7 +597,6 @@
   "Playful": "Brincalhão",
   "Portrait": "Retrato",
   "Portuguese": "português",
-  "Portuguese and Chinese place names are lemmas from Open Multilingual Wordnet 1.4, the compilation of Francis Bond and Kyonghee Paik.": "Os nomes de lugares em português e em chinês são lemas do Open Multilingual Wordnet 1.4, a compilação de Francis Bond e Kyonghee Paik.",
   "Portuguese lemmas come from OpenWN-PT. Licence: Creative Commons Attribution-ShareAlike.": "Os lemas portugueses vêm do OpenWN-PT. Licença: Creative Commons Atribuição-CompartilhaIgual.",
   "Practical": "Prática",
   "Prefer a 4 second clip, or cut the beat into two 4 second clips.": "Prefira um clipe de 4 segundos, ou corte o tempo em dois clipes de 4 segundos.",
@@ -975,5 +971,6 @@
   "{path} must be an object with who, where, and what.": "{path} tem de ser um objeto com who, where e what.",
   "{title} storyboard study": "Estudo de storyboard {title}",
   "{title} — Moovicut": "{title} — Moovicut",
-  "“{trait}” is repeated in the same line.": "“{trait}” está repetido na mesma linha."
+  "“{trait}” is repeated in the same line.": "“{trait}” está repetido na mesma linha.",
+  "Portuguese place names are lemmas from Open Multilingual Wordnet 1.4, the compilation of Francis Bond and Kyonghee Paik.": "Os nomes de lugares em português são lemas do Open Multilingual Wordnet 1.4, a compilação de Francis Bond e Kyonghee Paik."
 }

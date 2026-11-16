@@ -1,9 +1,8 @@
 /** Style-preset lines that the short prompt and the preset block paste in. */
-const LANGS = ['zh-Hans', 'pt']
+const LANGS = ['pt']
 
 function row(en, values) {
-  const entry = {}
-  LANGS.forEach((code, index) => { entry[code] = values[index] })
+  const entry = { pt: values.length > 1 ? values[1] : values[0] }
   return [en, entry]
 }
 

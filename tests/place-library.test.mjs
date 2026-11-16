@@ -12,7 +12,8 @@ function fold(value) {
 }
 
 test('the place library covers the three site languages and records its sources', () => {
-  assert.deepEqual(placeLibraryLanguages().sort(), ['en', 'pt', 'zh-Hans'])
+  assert.deepEqual(placeLibraryLanguages().sort(), ['en', 'pt'])
+  assert.equal(placeLibraryLanguages().includes('zh-Hans'), false)
   assert.equal(placeLibraryLanguages().includes('fr'), false)
   assert.equal(placeLibraryLanguages().includes('ja'), false)
   assert.equal(placeLibraryLanguages().includes('it'), false)
@@ -96,8 +97,7 @@ test('a person name wins over a place word', () => {
 test('a body part or a garment is not a place in any site language', () => {
   const cases = [
     ['en', 'Nia touches her eyebrow in the kitchen. Nia waits.', /eyebrow|arm|sleeve/i, /kitchen/i],
-    ['pt', 'Rui espera na cozinha. Ele não toca a sobrancelha. Rui lê uma carta.', /sobrancelha|braço|manga/i, /cozinha/i],
-    ['zh-Hans', '赵明远摸了摸眉毛，穿着围裙，在厨房等待。赵明远拿着一封信。', /眉|围裙|头发|眼睛|腕/, /厨房/]
+    ['pt', 'Rui espera na cozinha. Ele não toca a sobrancelha. Rui lê uma carta.', /sobrancelha|braço|manga/i, /cozinha/i]
   ]
   for (const [language, text, banned, place] of cases) {
     const found = detectProse(text)
@@ -112,8 +112,7 @@ test('a body part or a garment is not a place in any site language', () => {
 test('each site language reads a locative place from the library', () => {
   const cases = [
     ['en', 'Nia waits in the greenhouse. Nia reads.', /greenhouse/i],
-    ['pt', 'Rui, 40, barba grisalha, casaco azul, espera na cozinha. Ele lê uma carta.', /cozinha/i],
-    ['zh-Hans', '赵明远在厨房等待。赵明远拿着一封信。', /厨房/]
+    ['pt', 'Rui, 40, barba grisalha, casaco azul, espera na cozinha. Ele lê uma carta.', /cozinha/i]
   ]
   for (const [language, text, place] of cases) {
     const found = detectProse(text)

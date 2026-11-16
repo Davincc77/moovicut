@@ -4,7 +4,6 @@ export const STORAGE_KEY = 'moovicut.language'
 
 export const LOCALES = Object.freeze([
   { code: 'en', htmlLang: 'en', native: 'English' },
-  { code: 'zh-Hans', htmlLang: 'zh-Hans', native: '中文' },
   { code: 'pt', htmlLang: 'pt', native: 'Português' }
 ])
 
@@ -18,11 +17,10 @@ export function htmlLang(code) {
   return LOCALES.find(item => item.code === code)?.htmlLang || 'en'
 }
 
-/** Best catalog for a BCP 47 tag. Traditional Chinese is not offered, so it does not match. */
+/** Best catalog for a BCP 47 tag. Chinese, French, Japanese, Italian, and German do not match. */
 export function matchLanguageTag(tag) {
   const value = String(tag || '').trim().toLowerCase().replace(/_/g, '-')
   if (!value) return ''
-  if (value === 'zh-hans' || value.startsWith('zh-hans-') || value === 'zh-cn' || value.startsWith('zh-cn-') || value === 'zh-sg' || value.startsWith('zh-sg-') || value === 'zh') return 'zh-Hans'
   if (value.startsWith('pt')) return 'pt'
   if (value.startsWith('en')) return 'en'
   return ''

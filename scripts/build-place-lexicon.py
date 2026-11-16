@@ -4,7 +4,7 @@
 Sources, fetched only when this script runs:
 - Princeton WordNet 3.0 (WORDNET_TAR, default /tmp/wn.tar.gz)
 - Open Multilingual Wordnet 1.4 (OMW_ZIP, default /tmp/omw.zip): por, cmn
-German, French, Italian, and Japanese are not site languages, so OdeNet, WOLF, MultiWordNet, and the Japanese Wordnet are not read.
+German, French, Italian, Japanese, and Chinese are not site languages, so OdeNet, WOLF, MultiWordNet, the Japanese Wordnet, and Chinese Open Wordnet are not read.
 
 Ambiguous tags come from app/data/place-audit.json and from a lemma that also
 belongs to a non-place synset.
@@ -42,7 +42,6 @@ EXCLUDE_ROOTS.discard('artifact')
 
 OMW = {
     'pt': 'omw-1.4/por/wn-data-por.tab',
-    'zh-Hans': 'omw-1.4/cow/wn-data-cmn.tab',
 }
 DE_SEEDS = [
     'Gebäude', 'Haus', 'Zimmer', 'Küche', 'Straße', 'Weg', 'Brücke', 'Park',
@@ -54,9 +53,8 @@ DE_EXCLUDE = ['Person', 'Tier', 'Pflanze', 'Nahrung', 'Gefühl', 'Farbe', 'Zeit'
 # Gap-fillers the walk missed before any blind-test report. Report vocabulary stays out;
 # tests/supplement-vocab.test.mjs fails if one of those words is added back.
 SUPPLEMENT = {
-    'en': ['quay', 'pier', 'wharf', 'cafe', 'rink', 'boathouse', 'car wash', 'pawnshop', 'fire escape', 'sawmill', 'mine', 'hayloft', 'embankment', 'gym', 'bowling alley'],
-    'pt': ['estufa', 'cais', 'piscina'],
-    'zh-Hans': ['厨房', '温室', '码头', '咖啡馆', '车站'],
+    'en': ['quay', 'pier', 'wharf', 'cafe', 'rink', 'boathouse', 'car wash', 'pawnshop', 'fire escape', 'sawmill', 'mine', 'hayloft', 'embankment', 'gym', 'bowling alley', 'boxing gym', 'bothy', 'moor'],
+    'pt': ['estufa', 'cais', 'piscina', 'cozinha', 'parque', 'estacao', 'estação'],
 }
 
 
@@ -248,9 +246,9 @@ def main():
         counts[language] = {'sure': sure, 'ambiguous': ambiguous, 'total': sure + ambiguous}
     payload = {
         'name': 'moovicut-place-lexicon',
-        'builtFrom': 'Princeton WordNet 3.0 place-type hyponyms; Open Multilingual Wordnet 1.4 lemmas for Portuguese and Chinese on those synsets. A lemma that also belongs to a non-place synset, or to the audit list of names, objects, or materials, is tagged ambiguous. French, Italian, and Japanese are not site languages, so those OMW wordnets are not read.',
-        'license': 'CC BY-SA 4.0 for this compilation, because it includes OpenWN-PT (CC BY-SA). ShareAlike: if you share this file or an adaptation, credit the sources and use CC BY-SA 4.0. English: WordNet licence https://wordnet.princeton.edu/license-and-commercial-use . Portuguese OpenWN-PT: CC BY-SA. Chinese Open Wordnet: WordNet-style licence. See docs/place-library.md.',
-        'attribution': 'Princeton University WordNet; Francis Bond and Kyonghee Paik, Open Multilingual Wordnet; OpenWN-PT; Chinese Open Wordnet.',
+        'builtFrom': 'Princeton WordNet 3.0 place-type hyponyms; Open Multilingual Wordnet 1.4 lemmas for Portuguese on those synsets. A lemma that also belongs to a non-place synset, or to the audit list of names, objects, or materials, is tagged ambiguous. French, Italian, Japanese, and Chinese are not site languages, so those wordnets are not read.',
+        'license': 'CC BY-SA 4.0 for this compilation, because it includes OpenWN-PT (CC BY-SA). ShareAlike: if you share this file or an adaptation, credit the sources and use CC BY-SA 4.0. English: WordNet licence https://wordnet.princeton.edu/license-and-commercial-use . Portuguese OpenWN-PT: CC BY-SA. See docs/place-library.md.',
+        'attribution': 'Princeton University WordNet; Francis Bond and Kyonghee Paik, Open Multilingual Wordnet; OpenWN-PT.',
         'counts': counts,
         'lemmas': sorted(tags.get('en', {})),
         'tags': tags,

@@ -22,17 +22,9 @@ test('a quoted place and a garment are not the setting', () => {
   assert.equal(locativeHeads('Nia folds the coat on the mantel.', 'en').some(head => /mantel/i.test(head.name)), false)
 })
 
-test('Chinese comma clauses stay separate actions', () => {
-  const found = detectProse('早上，林夏打开门，林夏坐下，林夏倒了一杯茶。')
-  assert.equal(found.language, 'zh-Hans')
-  assert.ok(found.scenes.length >= 3, found.scenes.map(scene => scene.what).join(' | '))
-  assert.ok(found.scenes.some(scene => /打开/.test(scene.what)))
-  assert.ok(found.scenes.some(scene => /坐下/.test(scene.what)))
-  assert.ok(found.scenes.some(scene => /倒了/.test(scene.what)))
-})
-
-test('a Chinese semicolon is its own sentence', () => {
-  const found = detectProse('林夏打开门；林夏坐下。')
-  assert.equal(found.language, 'zh-Hans')
-  assert.ok(found.scenes.length >= 2)
+test('Chinese prose is not planned as Chinese', () => {
+  const commas = detectProse('早上，林夏打开门，林夏坐下，林夏倒了一杯茶。')
+  const semicolon = detectProse('林夏打开门；林夏坐下。')
+  assert.notEqual(commas.language, 'zh-Hans')
+  assert.notEqual(semicolon.language, 'zh-Hans')
 })

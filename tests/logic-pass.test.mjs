@@ -44,7 +44,7 @@ test('Italian and Japanese prose are not planned as those languages', () => {
       body: JSON.stringify({ premise: 'A lighthouse keeper races the dusk to repair a failing beacon.', promptLanguage: code })
     })
     assert.equal(rejected.status, 400, code)
-    assert.match(JSON.parse(rejected.body).message, /en, zh-Hans, pt/)
+    assert.match(JSON.parse(rejected.body).message, /en, pt/)
   }
 })
 

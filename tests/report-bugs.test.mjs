@@ -47,31 +47,24 @@ test('D2 a verb after the age is not part of the look and parking is not Park', 
 test('D3 French prose is not detected as French', () => {
   const found = detectProse('Apolline, 40, cheveux courts, canne en bois, marche dans la rue. Apolline attend.')
   assert.notEqual(found.language, 'fr')
-  assert.ok(['en', 'pt', 'zh-Hans'].includes(found.language))
+  assert.ok(['en', 'pt'].includes(found.language))
 })
 
 test('D5 Japanese prose is not detected as Japanese', () => {
   const text = '佐伯美咲は台所で待つ。美咲は手紙を読む。二人は座る。'
   const found = detectProse(text)
   assert.notEqual(found.language, 'ja')
-  assert.ok(['en', 'pt', 'zh-Hans'].includes(found.language))
+  assert.ok(['en', 'pt'].includes(found.language))
 })
 
-test('D6 a Chinese name stays and a holding fragment does not, and night is not dawn', () => {
+test('D6 Chinese prose is not detected as Chinese', () => {
   const text = '赵明远拿着一封信。赵明远在咖啡馆等待。黎明时赵明远出门。夜里赵明远回来。'
   const found = detectProse(text)
-  assert.equal(found.language, 'zh-Hans')
-  assert.ok(names(found).includes('赵明远'), names(found).join(', '))
-  assert.equal(names(found).some(name => name.includes('拿') || name.includes('着')), false)
-  assert.equal(found.places.some(place => place.name.includes('等待')), false)
-  const night = found.scenes.find(scene => /夜/.test(scene.what))
-  const dawn = found.scenes.find(scene => /黎明/.test(scene.what))
-  assert.equal(dawn?.light, 'dawn')
-  assert.equal(night?.light, 'night')
+  assert.notEqual(found.language, 'zh-Hans')
+  assert.ok(['en', 'pt'].includes(found.language))
   const planned = plan({ input: 'prose', prose: text, model: 'grok', promptLanguage: 'zh-Hans', compact: true })
-  assert.equal(planned.status, 200, planned.body.message)
-  assert.match(planned.body.shots.find(shot => /夜/.test(shot.prompt)).prompt, /夜/)
-  assert.doesNotMatch(planned.body.shots.find(shot => /夜/.test(shot.prompt)).prompt, /黎明|日出/)
+  assert.equal(planned.status, 400)
+  assert.equal(planned.body.error, 'invalid_prompt_language')
 })
 
 test('D7 evening and sunrise set the light from that sentence on', () => {
@@ -127,7 +120,7 @@ test('D11 the public guide lists three languages and does not mention the remove
     assert.doesNotMatch(text, /Luxembourgish|\blb\b|verifier|roberta-ner|MOOVICUT_NER|zero AI/i)
   }
   assert.doesNotMatch(full, /English and French only/i)
-  assert.match(full, /English, Simplified Chinese \(zh-Hans\), and Portuguese/)
-  assert.match(full, /French, Japanese, and Italian are not site languages/)
+  assert.match(full, /English and Portuguese/)
+  assert.match(full, /Chinese, French, Japanese, and Italian are not site languages/)
   assert.match(full, /40 shots/)
 })

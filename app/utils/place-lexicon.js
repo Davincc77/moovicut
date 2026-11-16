@@ -21,13 +21,29 @@ const NON_PLACE_NOUN = new Set([
   '前掛け', '手ぬぐい', 'エプロン', '作業着', 'カバー', '腕カバー', '袖', '袖子', '围裙', '衣服', '腕带', '圆脸', '眼睛'
 ])
 
-/** A body part, a garment, or the same noun after の or a one-character prefix. Not a place. */
+/**
+ * Explicit non-places. A lexicon tag does not override this list.
+ * Abstracts and false locatives, then vehicle parts and devices.
+ */
+const EXPLICIT_NON_PLACES = new Set([
+  'place', 'circle', 'circulo', 'círculo', 'lugar',
+  'van', 'speaker', 'speakers', 'altifalante', 'altifalantes', 'carrinha', 'furgao', 'furgão',
+  'wheel', 'wheels', 'roda', 'rodas', 'engine', 'motor', 'dashboard', 'radio', 'rádio',
+  'headlight', 'headlights', 'bumper', 'tyre', 'tire', 'pneu', 'microphone', 'microfone',
+  'laptop', 'monitor', 'amplifier', 'amplificador', 'horn', 'brake', 'brakes', 'travão', 'travao',
+  'exhaust', 'steering', 'seatbelt', 'cinto', 'volante', 'farol', 'para-choque',
+  'hand', 'hands', 'eye', 'eyes', 'face', 'hair', 'head', 'arm', 'arms', 'leg', 'legs', 'foot', 'feet',
+  'mão', 'mao', 'olho', 'olhos', 'rosto', 'cabelo', 'cabeça', 'cabeca', 'braço', 'braco', 'perna'
+].map(word => word.toLowerCase().replace(/’/g, "'")))
+
+/** A body part, a garment, a vehicle part, an abstract, or the same noun inside a phrase. Not a place. */
 export function isNonPlaceNoun(lemma) {
   const text = String(lemma || '').trim()
   if (!text) return false
-  if (NON_PLACE_NOUN.has(text) || NEVER_PLACE.has(keyOf(text))) return true
-  const bits = text.split('の').map(bit => bit.trim()).filter(Boolean)
-  if (bits.length > 1 && bits.some(bit => NON_PLACE_NOUN.has(bit) || NEVER_PLACE.has(keyOf(bit)))) return true
+  const key = keyOf(text)
+  if (NON_PLACE_NOUN.has(text) || NEVER_PLACE.has(key) || EXPLICIT_NON_PLACES.has(key)) return true
+  const bits = text.split(/[\sの]+/).map(bit => bit.trim()).filter(Boolean)
+  if (bits.length > 1 && bits.some(bit => NON_PLACE_NOUN.has(bit) || NEVER_PLACE.has(keyOf(bit)) || EXPLICIT_NON_PLACES.has(keyOf(bit)))) return true
   return [...NON_PLACE_NOUN].some(word => word.length >= 2 && text.endsWith(word) && text.length === word.length + 1)
 }
 
@@ -196,11 +212,13 @@ export function locativeHeads(text, language) {
       words.push({ word, at: tokens[look].index })
     }
     if (!words.length || possessive) continue
+    if (words.some(item => isNonPlaceNoun(item.word))) continue
     if (words.some(item => {
       const folded = item.word.toLowerCase()
       return PRONOUN.has(folded) || TIME_WORD.has(folded) || isVerbHead(item.word)
     })) continue
     const lemma = words.map(item => item.word).join(' ')
+    if (isNonPlaceNoun(lemma)) continue
     let tag = placeTag(lang, lemma)
     if ((!tag || UNUSABLE.has(tag)) && words.length > 1) tag = placeTag(lang, words.at(-1).word)
     if (tag && UNUSABLE.has(tag)) continue
