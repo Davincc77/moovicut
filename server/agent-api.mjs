@@ -468,7 +468,7 @@ function refuseUnplannedPremise(project, input) {
     errors.push({ section: 'premise', field: 'characters', name, message: `${name} was not planned into a shot. Add ${name} with name, look, and outfit.` })
   }
   for (const action of droppedActions) {
-    errors.push({ section: 'premise', field: 'scenes', action, message: `This action was not planned: ${action}` })
+    errors.push({ section: 'premise', field: 'scenes', action, message: `This action was not planned: "${action}".` })
   }
   errors.push({ section: 'premise', field: 'scenario', message: 'Send a scenario. who may be a string or a list of names. A plain premise that cannot keep those names and actions is not returned as a template board.' })
   const error = new Error(errors.map(item => item.message).join(' '))

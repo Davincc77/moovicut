@@ -54,8 +54,9 @@ test('invalid_plan names every dropped person and quotes every dropped action', 
     assert.ok(planned.body.errors.some(item => item.name === name && item.field === 'characters'), name)
   }
   for (const action of actions) {
-    assert.match(planned.body.message, new RegExp(`This action was not planned: ${action.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`))
-    assert.ok(planned.body.errors.some(item => item.action === action && item.field === 'scenes'), action)
+    const line = `This action was not planned: "${action}".`
+    assert.ok(planned.body.message.includes(line), planned.body.message)
+    assert.ok(planned.body.errors.some(item => item.action === action && item.message === line), action)
   }
   assert.equal(planned.body.errors.filter(item => item.field === 'characters').length, people.length)
   assert.equal(planned.body.errors.filter(item => item.field === 'scenes').length, actions.length)
