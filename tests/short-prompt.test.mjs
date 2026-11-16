@@ -26,7 +26,7 @@ function storeFixture() {
 }
 
 test('the default video prompt is short, ordered, and capped', () => {
-  const board = createStoryboard({ premise: lighthouse, style: 'cinema', genre: 'drama', sequenceMode: 'continuous' })
+  const board = createStoryboard({ premise: lighthouse, model: 'sora', style: 'cinema', genre: 'drama', sequenceMode: 'continuous' })
   const detailed = createStoryboard({ premise: lighthouse, style: 'cinema', genre: 'drama', sequenceMode: 'continuous', promptStyle: 'detailed' })
   assert.equal(board.promptStyle, 'short')
   assert.equal(board.filmSheet.characters[0].name, 'Lighthouse keeper')
@@ -51,9 +51,9 @@ test('the default video prompt is short, ordered, and capped', () => {
 })
 
 test('the three studio starters stay in the short range', () => {
-  const lastLight = createStoryboard({ premise: lighthouse, style: 'cinema', genre: 'drama', sequenceMode: 'continuous' })
-  const loaf = createStoryboard({ premise: lastLoaf, style: 'cinema', genre: 'drama', sequenceMode: 'continuous' })
-  const orbit = createStoryboard({ premise: starMap, style: 'cinema', genre: 'drama', sequenceMode: 'continuous' })
+  const lastLight = createStoryboard({ premise: lighthouse, model: 'sora', style: 'cinema', genre: 'drama', sequenceMode: 'continuous' })
+  const loaf = createStoryboard({ premise: lastLoaf, model: 'sora', style: 'cinema', genre: 'drama', sequenceMode: 'continuous' })
+  const orbit = createStoryboard({ premise: starMap, model: 'sora', style: 'cinema', genre: 'drama', sequenceMode: 'continuous' })
   for (const board of [lastLight, loaf, orbit]) {
     board.shots.forEach(shot => assert.ok(shot.prompt.length <= SHORT_PROMPT_MAX))
     assert.match(board.shots[0].prompt, /locked-off camera/)
@@ -65,6 +65,7 @@ test('the three studio starters stay in the short range', () => {
 
 test('a short prompt names only the people in that shot', () => {
   const board = createStoryboard({
+    model: 'sora',
     style: 'cinema',
     genre: 'drama',
     scenario: {
@@ -146,6 +147,7 @@ test('hands and a hand-off add one stability line and a risk note', () => {
 test('short prompts name the subject, keep props, use one light, and add a move only when set', () => {
   const place = 'wooden bench, coils of rope, a bronze propeller, morning light through open doors, and a mixing bowl of brass screws'
   const board = createStoryboard({
+    model: 'sora',
     style: 'cinema',
     genre: 'drama',
     scenario: {
@@ -179,6 +181,7 @@ test('short prompts name the subject, keep props, use one light, and add a move 
   assert.equal(board.shots[1].prompt.split('\n').find(line => line.startsWith('Tomas —')), lock)
   assert.equal(board.shots[1].prompt.split(/soft window light/i).length - 1, 1)
   const moved = createStoryboard({
+    model: 'sora',
     style: 'cinema',
     genre: 'drama',
     scenario: {
@@ -193,6 +196,7 @@ test('short prompts name the subject, keep props, use one light, and add a move 
   const packed = `Tomas — ${'fixed identity mark, '.repeat(28)}`.trim()
   const longPlace = Array.from({ length: 12 }, (_, index) => `coil ${index} of rope`).join(', ')
   const tight = createStoryboard({
+    model: 'sora',
     style: 'cinema',
     genre: 'drama',
     scenario: {
@@ -273,7 +277,7 @@ test('prompt_style is accepted on the API and an unknown value is 400', () => {
   const short = dispatchAgentRequest({
     method: 'POST',
     pathname: '/api/v1/storyboard',
-    body: JSON.stringify({ premise, prompt_style: 'short', compact: true })
+    body: JSON.stringify({ premise, model: 'sora', prompt_style: 'short', compact: true })
   })
   assert.equal(short.status, 200)
   const shortBody = JSON.parse(short.body)

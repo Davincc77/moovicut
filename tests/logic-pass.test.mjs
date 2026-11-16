@@ -19,9 +19,11 @@ test('an opening scene keeps its own noun instead of a later place', () => {
   const result = plan('Wilhelmina Quarrie, 50, grey bob, yellow oilskin jacket, carries a tin whistle. At dawn Wilhelmina walks up to the old bothy on the moor. At noon Wilhelmina reaches the lighthouse.')
   assert.equal(result.status, 200, result.body.message)
   const where = result.body.shots.map(shot => shot.where)
-  assert.match(where[1] || '', /bothy/i)
+  assert.equal(result.body.shots.some(shot => /tin whistle|oilskin/i.test(shot.what || '')), false)
+  const bothy = result.body.shots.find(shot => /bothy/i.test(shot.source || shot.what || ''))
+  assert.match(bothy?.where || '', /bothy/i)
   assert.match(where.at(-1) || '', /lighthouse/i)
-  assert.equal(where.slice(0, 2).some(name => /lighthouse/i.test(name || '')), false)
+  assert.equal(where.slice(0, 1).some(name => /lighthouse/i.test(name || '')), false)
 })
 
 test('the first noun after at is the place, not a later below-phrase', () => {

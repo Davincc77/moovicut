@@ -35,18 +35,18 @@ const PLACES = [
   { keys: ['quai', 'quay', 'harbour', 'harbor'], fr: 'Quai', en: 'Quay', frDesc: 'un quai', enDesc: 'a quay' }
 ]
 
-const TIME_BLOCK = new Set(['matin', 'morning', 'soir', 'evening', 'nuit', 'night', 'jour', 'day', 'aube', 'dawn', 'dusk', 'soleil', 'sun', 'pluie', 'rain', 'tard', 'lendemain', 'petit', 'late', 'inside', 'outside', 'suddenly', 'finally', 'soon', 'meanwhile', 'tonight', 'yesterday', 'tomorrow', 'across', 'behind', 'above', 'below', 'under', 'near', 'around', 'during', 'upon', 'within', 'along', 'toward', 'towards', 'soudain', 'ensuite', 'dedans', 'dehors', 'hier', 'demain', 'alors', 'enfin', 'pendant', 'derriere', 'dessus', 'dessous', 'dentro', 'fora', 'ontem', 'amanha', 'entao', 'depois', 'plotzlich', 'drinnen', 'draussen', 'gestern', 'heute', 'spater', 'wahrend', 'improvvisamente', 'infine', 'stasera', 'bannen', 'baussen', 'geschter', 'muer'])
+const TIME_BLOCK = new Set(['matin', 'morning', 'soir', 'evening', 'nuit', 'night', 'jour', 'day', 'aube', 'dawn', 'dusk', 'soleil', 'sun', 'pluie', 'rain', 'tard', 'lendemain', 'petit', 'late', 'inside', 'outside', 'suddenly', 'finally', 'soon', 'meanwhile', 'tonight', 'yesterday', 'tomorrow', 'across', 'behind', 'above', 'below', 'under', 'near', 'around', 'during', 'upon', 'within', 'along', 'toward', 'towards', 'soudain', 'ensuite', 'dedans', 'dehors', 'hier', 'demain', 'alors', 'enfin', 'pendant', 'derriere', 'dessus', 'dessous', 'dentro', 'fora', 'ontem', 'amanha', 'entao', 'depois', 'plotzlich', 'drinnen', 'draussen', 'gestern', 'heute', 'spater', 'wahrend', 'improvvisamente', 'infine', 'stasera', 'bannen', 'baussen', 'geschter', 'muer', 'noon', 'afternoon', 'midnight', 'sundown', 'sunrise', 'sunset', 'nightfall', 'pomeriggio', 'mattina', 'mattino', 'serata', 'tramonto', 'mezzogiorno', 'coucher', 'midi', 'morgens', 'mittags', 'nachmittags', 'vormittags', 'abends', 'nachts', 'meio', 'fim', 'manha', 'tarde'])
 const CALENDAR_WORD = new Set(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche', 'montag', 'dienstag', 'mittwoch', 'donnerstag', 'freitag', 'samstag', 'sonntag', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo', 'lunedi', 'martedi', 'mercoledi', 'giovedi', 'venerdi', 'sabato', 'january', 'february', 'march', 'april', 'june', 'july', 'august', 'september', 'october', 'november', 'december', 'janvier', 'fevrier', 'mars', 'avril', 'juin', 'juillet', 'aout', 'septembre', 'octobre', 'novembre', 'decembre', 'januar', 'februar', 'marz', 'juni', 'juli', 'oktober', 'dezember', 'gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre', 'janeiro', 'fevereiro', 'marco', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'])
-const NOT_A_PERSON = new Set(['together', 'early', 'late', 'suddenly', 'finally', 'meanwhile', 'soon', 'inside', 'outside', 'later', 'yesterday', 'tomorrow', 'tonight', 'across', 'behind', 'above', 'below', 'under', 'near', 'today', 'once', 'still', 'already', 'sawdust', 'steam', 'water', 'smoke', 'dust', 'fire', 'rain', 'snow', 'wind', 'mud', 'ash', 'oil', 'flour', 'sand', 'fog', 'mist', 'frost', 'flame', 'flames', 'flamingo', 'flamingos', 'seagull', 'seagulls', 'pigeon', 'pigeons', 'sparrow', 'sparrows', 'horse', 'horses', 'dog', 'dogs', 'cat', 'cats', 'bird', 'birds', 'fish', 'gull', 'gulls', 'fox', 'foxes', 'wolf', 'wolves', 'sheep', 'goat', 'goats', 'cow', 'cows', 't-shirt', 'shirt', 'apron', 'jacket', 'dress', 'hat', 'cap', 'boots', 'scarf', 'sweater', 'saint', 'sainte'])
+const NOT_A_PERSON = new Set(['together', 'early', 'late', 'suddenly', 'finally', 'meanwhile', 'soon', 'inside', 'outside', 'later', 'yesterday', 'tomorrow', 'tonight', 'across', 'behind', 'above', 'below', 'under', 'near', 'today', 'once', 'still', 'already', 'sawdust', 'steam', 'water', 'smoke', 'dust', 'fire', 'rain', 'snow', 'wind', 'mud', 'ash', 'oil', 'flour', 'sand', 'fog', 'mist', 'frost', 'flame', 'flames', 'flamingo', 'flamingos', 'seagull', 'seagulls', 'pigeon', 'pigeons', 'sparrow', 'sparrows', 'horse', 'horses', 'dog', 'dogs', 'cat', 'cats', 'bird', 'birds', 'fish', 'gull', 'gulls', 'fox', 'foxes', 'wolf', 'wolves', 'sheep', 'goat', 'goats', 'cow', 'cows', 't-shirt', 'shirt', 'apron', 'jacket', 'dress', 'hat', 'cap', 'boots', 'scarf', 'sweater', 'saint', 'sainte', 'ao', 'morgens', 'mittags', 'nachmittags', 'vormittags', 'abends', 'nachts', 'pomeriggio', 'tramonto', 'mezzogiorno', 'coucher', 'nephew', 'niece', 'neffe', 'nichte', 'enkel', 'enkelin', 'bruder', 'schwester', 'sohn', 'tochter', 'onkel', 'tante', 'vetter', 'cousin', 'schwager', 'brother', 'sister', 'uncle', 'aunt', 'grandson', 'granddaughter', 'nipote', 'neto', 'sobrinho', 'sobrinha', 'neveu'])
 const JUMP = /\b(plus tard|le lendemain|au lendemain|le matin suivant|the next morning|next morning|the next day|later)\b/i
 const VERBS = new Set(['entre', 'sort', 'verse', 'renverse', 'rit', 'rire', 'marche', 'court', 'revient', 'ouvre', 'ferme', 'regarde', 'sourit', 'prend', 'donne', 'boit', 'parle', 'dit', 'va', 'vient', 'arrive', 'part', 'tourne', 'tend', 'attrape', 'pose', 'voit', 'pleure', 'crie', 'attend', 'sert', 'quitte', 'traverse', 'monte', 'descend', 'pousse', 'tombe', 'lance', 'vole', 'porte', 'opens', 'open', 'pours', 'pour', 'laughs', 'laugh', 'walks', 'walk', 'returns', 'return', 'rides', 'ride', 'stops', 'stop', 'enters', 'enter', 'leaves', 'leave', 'sits', 'sit', 'stands', 'stand', 'looks', 'look', 'turns', 'turn', 'smiles', 'smile', 'spills', 'spill', 'runs', 'run', 'flies', 'fly', 'hits', 'hit', 'watches', 'watch', 'finds', 'find', 'follows', 'follow', 'crosses', 'cross', 'drinks', 'drink', 'waits', 'wait', 'closes', 'close', 'unlocks', 'unlock', 'meets', 'meet', 'boards', 'board', 'knocks', 'knock', 'hands', 'hand', 'gives', 'give', 'opens', 'reads', 'read'])
 const NOT_A_PLACE = new Set(['window', 'door', 'table', 'glass', 'cup', 'bottle', 'hand', 'hands', 'umbrella', 'pastry', 'apron', 'hair', 'face', 'eye', 'eyes'])
 const ROLE_WORDS = /\b(baker|boulanger|boulangère|keeper|gardien|neighbour|neighbor|courier|detective|astronaut|painter|explorer)\b/iu
 
 const FR_MARK = /\b(le|la|les|un|une|des|dans|elle|il|avec|sur|au|aux|et|est|son|sa)\b/gi
-const EN_MARK = /\b(the|and|she|he|with|on|in|at|her|his|is|a)\b/gi
+const EN_MARK = /\b(the|and|she|he|with|on|in|at|her|his|is)\b/gi
 const OTHER_MARKS = Object.freeze({
-  pt: /\b(ela|ele|eles|elas|uma|não|nao|com|seu|sua|num|numa|pelo|pela|está|esta|encontra|entrega|dele|dela|cais|lê|le|tem|anos|entra|na)\b/gi,
+  pt: /\b(ela|ele|eles|elas|uma|não|nao|com|seu|sua|num|numa|pelo|pela|está|esta|encontra|entrega|dele|dela|cais|lê|le|tem|anos|entra|na|ao|à|do|da|dos|das)\b/gi,
   de: /\b(und|sie|der|die|das|ein|eine|mit|ist|nicht|ihm|einen|dem|den|am|im|vom|trifft|gibt|liest)\b/gi,
   it: /\b(lei|lui|una|uno|con|nel|nella|sul|sulla|che|non|gli|alla|allo|alle|dello|della|degli|delle|del|di|ha|anni|per|sono|incontra|porge|legge|cappotto|molo|lettera|più|piu|questo|questa)\b/gi
 })
@@ -343,7 +343,11 @@ function properNames(text, language) {
     if ((introduced || !isNameNoise(parts[0], language)) && !STREET_WORD.has(foldName(parts[0])) && !/^(?:l|d|j|n|qu)['’]/i.test(parts[0])) {
       const usable = []
       for (const part of parts) {
-        if (/^(?:l|d|j|n|qu)['’]/i.test(part) || (!introduced && isNameNoise(part, language))) break
+        if (/^(?:l|d|j|n|qu)['’]/i.test(part)) break
+        if (!introduced && isNameNoise(part, language)) {
+          if (!usable.length) continue
+          break
+        }
         usable.push(part.replace(/['’]s$/i, ''))
       }
       if (usable.length) names.push({ name: usable.join(' '), index: first.index })
@@ -784,7 +788,8 @@ function detectPlaces(text, language, people = new Set()) {
       const start = source.lastIndexOf('.', Math.max(0, hit.index - 1))
       if (locativeSentences.has(start)) return
     }
-    pushPlace(places, hit.name, hit.name, hit.tag === 's' ? 'high' : 'medium', true)
+    const described = placeDescription(source, hit.lemma, language, '')
+    pushPlace(places, hit.name, described || hit.name, hit.tag === 's' ? 'high' : 'medium', true)
     if (hit.tag === 'unlisted') {
       const saved = places.find(place => foldName(place.name) === foldName(hit.name))
       if (saved) saved.unlisted = true
@@ -1008,6 +1013,7 @@ function detectScenes(text, characters, places, language, flagged, options = {})
     splitScenes: options.splitScenes !== false,
     skip: sentence => isMeetIntro(sentence)
   })
+  let carriedWhere = ''
   const scenes = narrative.shots.map((shot, index) => {
     const foundNames = namesIn(shot.what, characters)
     const pronounWho = whoFromPronoun(shot.what, characters, genders, language)
@@ -1028,7 +1034,21 @@ function detectScenes(text, characters, places, language, flagged, options = {})
     return {
       number: index + 1,
       who: who || '',
-      where: head && (!shot.where || genericWhere) ? head.name : (shot.where || ''),
+      where: (() => {
+        const venue = namedVenues(shot.what, language).find(item => item.name.split(/\s+/).length > 1 && item.spans?.some(([start]) => !isQuotedOrRemembered(shot.what, start, language)))
+        const current = carriedWhere || shot.where || ''
+        let where = venue?.name || current
+        if (!head && !venue) where = shot.cutReason ? (shot.where || carriedWhere) : (carriedWhere || shot.where || '')
+        if (head && !venue) {
+          const left = foldName(current)
+          const right = foldName(head.name)
+          if (!left || left === right) where = head.name
+          else if (left.endsWith(` ${right}`) || right.endsWith(` ${left}`)) where = left.length >= right.length ? current : head.name
+          else where = head.name
+        }
+        if (where) carriedWhere = where
+        return where
+      })(),
       what: shot.what,
       source: shot.source || shot.what,
       flags: Array.isArray(shot.flags) ? shot.flags : [],
@@ -1066,8 +1086,14 @@ export function detectProse(input, options = {}) {
   const ambience = detectAmbience(text)
   const foundScenes = detectScenes(text, foundCharacters.characters, foundPlaces.places, language, flagged, options)
   foundScenes.scenes.forEach(scene => {
-    if (!scene.where || foundPlaces.places.some(place => foldName(place.name) === foldName(scene.where))) return
-    foundPlaces.places.push({ name: scene.where, description: scene.where, unlisted: true, confidence: 'low', trusted: true })
+    if (!scene.where) return
+    const richer = placeDescription(text, scene.where, language, '') || (scene.where.split(/\s+/).length > 1 ? `a ${scene.where.toLowerCase()}` : '')
+    const existing = foundPlaces.places.find(place => foldName(place.name) === foldName(scene.where))
+    if (existing) {
+      if (richer && foldName(existing.description) === foldName(existing.name)) existing.description = richer
+      return
+    }
+    foundPlaces.places.push({ name: scene.where, description: richer || scene.where, unlisted: true, confidence: 'low', trusted: true })
   })
   if (foundPlaces.places.some(place => place.unlisted || (place.confidence === 'high' || place.confidence === 'medium'))) {
     foundPlaces.places = foundPlaces.places.filter(place => !place.uncertain)

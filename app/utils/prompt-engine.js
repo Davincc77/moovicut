@@ -1143,6 +1143,24 @@ function fitShortPrompt(parts, max = SHORT_PROMPT_MAX) {
   return assemble()
 }
 
+/** Labeled short prompt for Grok and Veo. Prose models keep createShortPrompt. */
+export function createStructuredShort(shot, project, index = 0) {
+  const lang = promptLanguageOf(project)
+  const action = namedAction(shot, project, lang)
+  const opening = endPeriod(`${phrase(lang, framingLabel(shot))}: ${action}`.replace(/:\s*\./, '.'))
+  const locks = lockLinesForShot(shot, project, index).filter(Boolean)
+  const place = placePhrase(shot, project)
+  const light = localizeLight(lang, oneLight(shot, project))
+  const style = stylePhrase(project)
+  const camera = cameraPhrase(shot, lang)
+  const stability = shotInvolvesHands(shot) ? phrase(lang, STABILITY_CUE) : ''
+  const id = profileFor(project.model || project.target_model)?.id
+  const lines = id === 'google'
+    ? [`SCENE: ${opening}`, ...locks.map(line => `SUBJECT: ${line}`), place ? `PLACE: ${endPeriod(place)}` : '', light ? `LIGHTING: ${endPeriod(sentence(light))}` : '', `CAMERA: ${camera}.`, style ? `STYLE: ${endPeriod(style)}` : '', stability]
+    : [`SHOT: ${opening}`, ...locks, place ? `PLACE: ${endPeriod(place)}` : '', light ? `LIGHT: ${endPeriod(sentence(light))}` : '', `CAMERA: ${camera}.`, style ? `STYLE: ${endPeriod(style)}` : '', stability]
+  return fitShortPrompt({ opening: lines.filter(Boolean).join('\n'), locks: [], place: '', light: '', style: '', camera: '', stability: '' }, plannedLengthBudget(profileFor(project.model || project.target_model)))
+}
+
 /** The video-model prompt: framing and the named action, then locks, place, one light, style, camera. */
 export function createShortPrompt(shot, project, index = 0) {
   const lang = promptLanguageOf(project)
@@ -1172,7 +1190,10 @@ function promptHeader(project) {
   return lines.join('\n')
 }
 export function createPrompt(shot, project, index = 0) {
-  if (canonicalPromptStyle(project?.promptStyle) !== 'detailed') return createShortPrompt(shot, project, index)
+  const form = profileFor(project?.model || project?.target_model)?.promptForm
+  if (canonicalPromptStyle(project?.promptStyle) !== 'detailed') {
+    return form === 'structured' ? createStructuredShort(shot, project, index) : createShortPrompt(shot, project, index)
+  }
   const genre = GENRES[project.genre] || GENRES.cinematic; const style = SHOT_STYLE_PROFILES[project.style] || STYLES.find(item => item.id === project.style) || STYLES[0]
   const premise = project.premise || 'a visual story'; const aspect = canonicalAspect(project.aspectRatio); const duration = shot.duration_seconds || shot.duration || project.duration || DEFAULT_SHOT_DURATION
   const lockedStyle = styleLockFor(project)

@@ -4,7 +4,7 @@ Checked 2026-11-14 for the first profiles, and 2026-11-16 for ChatGPT video, Mid
 
 `shotSeconds` is the length planned for one action: the shortest documented length that still fits one action. Two seconds is inside some ranges and is treated as shorter than one action, so the next documented integer is used. When the page states no lengths, the generic default is 3 seconds. `durations.default` stays the provider default, or the documented minimum when the page names none. A request that names a duration still uses that duration, snapped into the documented set.
 
-The prompt form is `structured` for Grok Imagine and Veo, and `prose` for every other target. The short-prompt budget is 700 characters. Where a page states a maximum, 700 stays inside it and no shorter ideal is invented. Where a page states no length, 700 is the generic budget and is marked unverified.
+The prompt form is `structured` for Grok Imagine and Veo, and `prose` for every other target. A short Grok prompt is labeled `SHOT` / `PLACE` / `LIGHT` / `CAMERA` / `STYLE`. A short Veo prompt is labeled `SCENE` / `SUBJECT` / `PLACE` / `LIGHTING` / `CAMERA` / `STYLE`. A prose target keeps the unlabeled short prompt. The short-prompt budget is 700 characters. Where a page states a maximum, 700 stays inside it and no shorter ideal is invented. Where a page states no length, 700 is the generic budget and is marked unverified.
 
 | Model | Allowed durations | Chosen seconds | Why |
 |---|---|---:|---|

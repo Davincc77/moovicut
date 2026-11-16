@@ -404,14 +404,14 @@ function detectCjk(text, language) {
     if (!outfit.length) warnings.push({ code: 'missing_outfit', message: `No outfit found for ${name}.`, target: 'characters', name })
     characters.push({ name, look: look.join('，'), outfit: outfit.join('，'), confidence })
   })
-  if (!characters.length) {
+  const cjkReject = name => !name || ['雨', '小', '在', '信', '二人', '人', '两人', '他们', '她们', '我们', '大家', '彼', '彼ら', '彼女', '三十', '四十', '五十', '六十', '七十', '八十'].includes(name) || /^[一二三四五六七八九十百千万零\d]+$/u.test(name) || /^在/.test(name) || /[里上边中内]$/.test(name) || /[了着过说给]/.test(name)
+  if (!characters.length || language === 'ja' || language === 'zh-Hans') {
     const particle = language === 'ja'
-      ? [...String(text).matchAll(/([\p{Script=Han}]{2,12})は/gu)]
-      : [...String(text).matchAll(/([\p{Script=Han}]{1,3})(?:把|是)/gu)]
+      ? [...String(text).matchAll(/(?:姪|甥|兄|姉|弟|妹|父|母|息子|娘|祖父|祖母)の([\p{Script=Han}]{1,8}[\p{Script=Hiragana}\p{Script=Katakana}]{0,8})は|([\p{Script=Han}]{2,8}[\p{Script=Hiragana}\p{Script=Katakana}]{0,8})は/gu)]
+      : [...String(text).matchAll(/(?:表哥|表妹|表弟|表姐|侄子|侄女|哥哥|姐姐|弟弟|妹妹|父亲|母亲|叔叔|阿姨)?([\p{Script=Han}]{2,4}?)(?=[一二三四五六七八九十百千万零\d]{1,6}岁)/gu)]
     particle.forEach(match => {
-      const name = match[1]
-      const particleNoise = language === 'ja' ? /[着的了是把和]/u : /[着的一了是把和]/u
-      if (['雨', '小', '在', '信', '二人', '人', '彼', '彼ら', '彼女'].includes(name) || particleNoise.test(name) || isNumberWord(name, language)) return
+      const name = match[1] || match[2]
+      if (cjkReject(name) || isNumberWord(name, language)) return
       if (language === 'zh-Hans' && name.length < 2) return
       if (characters.some(item => item.name === name)) return
       characters.push({ name, look: '', outfit: '', confidence: 'low' })
@@ -420,11 +420,11 @@ function detectCjk(text, language) {
     })
   }
   const clauseNames = language === 'zh-Hans'
-    ? [...String(text).matchAll(/(?:^|[。！？])([\p{Script=Han}]{2,3})(?=[\p{Script=Han}]{0,4}(?:拿|走|看|说|笑|等|打|站|坐|在|把|是|读|写|开|关))/gu)]
+    ? [...String(text).matchAll(/(?:^|[。！？])([\p{Script=Han}]{2,3})(?=[\p{Script=Han}]{0,4}(?:拿|走|看|说|笑|等|打|站|坐|把|是|读|写|开|关))/gu)]
     : []
   clauseNames.forEach(match => {
     const name = match[1]
-    if (['二人', '人', '雨', '小'].includes(name) || /[着的一了是把和在]/u.test(name) || /[拿走看说笑等打站坐读写开关]$/u.test(name)) return
+    if (cjkReject(name) || /[拿走看说笑等打站坐读写开关给那处]$/u.test(name)) return
     if (characters.some(item => item.name === name || item.name.endsWith(name) || name.endsWith(item.name))) return
     characters.push({ name, look: '', outfit: '', confidence: 'low' })
   })
@@ -454,7 +454,12 @@ function detectCjk(text, language) {
     if (language === 'zh-Hans' && /岁|歲|出头|出頭/u.test(sentence) && /[，、]/u.test(sentence) && !/[去到走拿说开坐站读吹填把交]/u.test(sentence)) return
     const named = characters.some(item => sentence.includes(item.name))
     if (!named && !lex.verbs.some(verb => sentence.includes(verb)) && !/[るたます]$/u.test(sentence.replace(/[。！？]+$/u, ''))) return
-    const foundNames = characters.filter(character => sentence.includes(character.name))
+    const foundNames = characters.filter(character => {
+      if (sentence.includes(character.name)) return true
+      const kana = character.name.match(/[\p{Script=Hiragana}\p{Script=Katakana}]{2,}$/u)
+      if (kana && sentence.includes(kana[0])) return true
+      return character.name.length >= 4 && new RegExp(`${character.name.slice(-2)}(?:は|が|を|に|と|も)`).test(sentence)
+    })
     const who = foundNames.length ? foundNames.slice(0, 2).map(item => item.name).join(' and ') : lastWho
     if (who) lastWho = who.split(/\s+and\s+/)[0]
     const records = places.map(place => ({

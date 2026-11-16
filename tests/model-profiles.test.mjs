@@ -39,6 +39,24 @@ test('Veo accepts only 4, 6, and 8 seconds in 16:9 or 9:16', () => {
   assert.equal(snapAspect('1:1', veo), '9:16')
 })
 
+test('Grok and Veo short prompts are labeled, and prose targets are not', () => {
+  const grok = createStoryboard({ premise, model: 'grok' })
+  const google = createStoryboard({ premise, model: 'google' })
+  const sora = createStoryboard({ premise, model: 'sora' })
+  const pika = createStoryboard({ premise, model: 'pika' })
+  assert.match(grok.shots[0].prompt, /^SHOT:/)
+  assert.match(grok.shots[0].prompt, /^CAMERA:/m)
+  assert.match(google.shots[0].prompt, /^SCENE:/)
+  assert.match(google.shots[0].prompt, /^LIGHTING:/m)
+  assert.match(google.shots[0].prompt, /^SUBJECT:/m)
+  assert.doesNotMatch(sora.shots[0].prompt, /^SHOT:|^SCENE:/m)
+  assert.doesNotMatch(pika.shots[0].prompt, /^SHOT:|^SCENE:/m)
+  assert.notEqual(grok.shots[0].prompt, google.shots[0].prompt)
+  assert.notEqual(grok.shots[0].prompt, sora.shots[0].prompt)
+  assert.equal(pika.shots[0].prompt.startsWith('SHOT:'), false)
+  assert.equal(pika.shots[0].prompt.startsWith('SCENE:'), false)
+})
+
 test('a grok board stays 5 × 3s and a hand-edited prompt survives a model change', () => {
   const board = createStoryboard({ premise, model: 'grok', aspectRatio: '16:9', promptStyle: 'detailed' })
   assert.equal(board.shots.length, 5)

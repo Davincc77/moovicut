@@ -25,7 +25,7 @@ import {
 } from '../app/utils/wizard.js'
 
 const lighthouse = 'A lighthouse keeper races the dusk to repair a failing beacon before a fishing boat reaches the rocks.'
-const ENGLISH_SHOT = 'Wide shot: A wide view of Lighthouse at dusk, with Lighthouse keeper entering the frame.\nLighthouse keeper — wool jacket, knit cap, weathered boots.\nLighthouse.\nDusk, warm amber light, deep shadows and muted gold.\nrealistic photographic cinema, natural skin, muted earth tones and soft contrast, locked-off camera.'
+const ENGLISH_SHOT = 'SHOT: Wide shot: A wide view of Lighthouse at dusk, with Lighthouse keeper entering the frame.\nLighthouse keeper — wool jacket, knit cap, weathered boots.\nPLACE: Lighthouse.\nLIGHT: Dusk, warm amber light, deep shadows and muted gold.\nCAMERA: locked-off camera.\nSTYLE: realistic photographic cinema, natural skin, muted earth tones and soft contrast.'
 
 function fillCharacter(state, id, fields) {
   return Object.entries(fields).reduce((next, [field, value]) => setCharacterField(next, id, field, value), state)

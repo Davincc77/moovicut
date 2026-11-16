@@ -10,8 +10,8 @@ const LOCALES = ['en', 'fr', 'pt', 'de', 'it', 'ja', 'zh-Hans']
 const FUNCTION = Object.freeze({
   en: ['the', 'a', 'an', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them', 'my', 'your', 'his', 'our', 'their', 'this', 'that', 'these', 'those', 'then', 'than', 'so', 'and', 'but', 'or', 'if', 'when', 'while', 'after', 'before', 'later', 'next', 'once', 'only', 'just', 'still', 'already', 'now', 'today', 'tomorrow', 'yesterday', 'suddenly', 'finally', 'in', 'on', 'at', 'to', 'from', 'into', 'over', 'with', 'without', 'of', 'for', 'by', 'as', 'there', 'here', 'its', 'suddenly'],
   fr: ['le', 'la', 'les', 'un', 'une', 'des', 'je', 'tu', 'il', 'elle', 'on', 'nous', 'vous', 'ils', 'elles', 'lui', 'leur', 'moi', 'toi', 'ce', 'cette', 'ces', 'son', 'sa', 'ses', 'mon', 'ma', 'mes', 'et', 'mais', 'ou', 'donc', 'or', 'ni', 'car', 'puis', 'ensuite', 'alors', 'soudain', 'enfin', 'donc', 'hier', 'demain', 'aujourd', 'hui', 'apres', 'avant', 'plus', 'tard', 'lendemain', 'dans', 'sur', 'sous', 'avec', 'sans', 'pour', 'par', 'chez', 'au', 'aux', 'du', 'en', 'vers', 'pendant', 'toujours', 'jamais', 'ici', 'quand', 'comme', 'si'],
-  pt: ['o', 'a', 'os', 'as', 'um', 'uma', 'eu', 'tu', 'ele', 'ela', 'nos', 'voce', 'eles', 'elas', 'meu', 'minha', 'seu', 'sua', 'e', 'mas', 'ou', 'depois', 'entao', 'de', 'repente', 'subitamente', 'enfim', 'ontem', 'amanha', 'hoje', 'mais', 'tarde', 'no', 'na', 'nos', 'nas', 'em', 'por', 'para', 'com', 'sem', 'so', 'apenas', 'ainda', 'ja', 'agora', 'quando', 'se'],
-  de: ['der', 'die', 'das', 'den', 'dem', 'des', 'ein', 'eine', 'einen', 'ich', 'du', 'er', 'sie', 'es', 'wir', 'ihr', 'mich', 'ihn', 'uns', 'mein', 'dein', 'sein', 'und', 'aber', 'oder', 'dann', 'danach', 'plotzlich', 'endlich', 'so', 'gestern', 'morgen', 'heute', 'spater', 'nach', 'vor', 'in', 'im', 'am', 'an', 'auf', 'ins', 'zum', 'zur', 'mit', 'ohne', 'von', 'zu', 'nur', 'noch', 'schon', 'wenn', 'als', 'abend', 'abends', 'nacht', 'mittag', 'vormittag', 'nachmittag', 'sonnenaufgang', 'sohn', 'tochter', 'mutter', 'vater'],
+  pt: ['o', 'a', 'os', 'as', 'um', 'uma', 'eu', 'tu', 'ele', 'ela', 'nos', 'voce', 'eles', 'elas', 'meu', 'minha', 'seu', 'sua', 'e', 'mas', 'ou', 'depois', 'entao', 'de', 'repente', 'subitamente', 'enfim', 'ontem', 'amanha', 'hoje', 'mais', 'tarde', 'no', 'na', 'nos', 'nas', 'em', 'por', 'para', 'com', 'sem', 'so', 'apenas', 'ainda', 'ja', 'agora', 'quando', 'se', 'ao', 'aos', 'à', 'às', 'pela', 'pelo', 'do', 'da', 'dos', 'das'],
+  de: ['der', 'die', 'das', 'den', 'dem', 'des', 'ein', 'eine', 'einen', 'ich', 'du', 'er', 'sie', 'es', 'wir', 'ihr', 'mich', 'ihn', 'uns', 'mein', 'dein', 'sein', 'und', 'aber', 'oder', 'dann', 'danach', 'plotzlich', 'endlich', 'so', 'gestern', 'morgen', 'heute', 'spater', 'nach', 'vor', 'in', 'im', 'am', 'an', 'auf', 'ins', 'zum', 'zur', 'mit', 'ohne', 'von', 'zu', 'nur', 'noch', 'schon', 'wenn', 'als', 'abend', 'abends', 'nacht', 'mittag', 'vormittag', 'nachmittag', 'morgens', 'mittags', 'nachmittags', 'vormittags', 'nachts', 'sonnenaufgang', 'sohn', 'tochter', 'mutter', 'vater', 'neffe', 'nichte', 'enkel', 'enkelin', 'bruder', 'schwester', 'onkel', 'tante'],
   it: ['il', 'lo', 'la', 'i', 'gli', 'le', 'un', 'una', 'uno', 'io', 'tu', 'lui', 'lei', 'noi', 'voi', 'loro', 'mio', 'tuo', 'suo', 'e', 'ma', 'o', 'poi', 'quindi', 'allora', 'improvvisamente', 'infine', 'ieri', 'domani', 'oggi', 'dopo', 'prima', 'piu', 'tardi', 'nel', 'nella', 'in', 'su', 'sul', 'con', 'senza', 'per', 'da', 'solo', 'ancora', 'gia', 'adesso', 'quando', 'se'],
   ja: ['それから', 'そして', 'その後', 'すると', '突然', 'ついに', '次の日', '翌日', 'あとで', '今朝', '今夜'],
   'zh-Hans': ['然后', '接着', '随后', '于是', '突然', '终于', '后来', '第二天', '次日', '之后', '今晚', '今早']
@@ -428,7 +428,7 @@ function collectPlaceCues(sentence, language, places) {
         if (clauseLooks(before, language, GLANCE)) continue
         if (/\b(?:across|d['’]en face)\s+(?:the\s+|la\s+|le\s+)?$/i.test(before)) continue
         const afterKey = sentence.slice(index + key.length)
-        const locative = clauseLooks(before, language, LOCATIVE) || (language === 'ja' && /^(?:で|に|へ|の中)/.test(afterKey)) || (language === 'zh-Hans' && (/^(?:里|上|中|内)/.test(afterKey) || /[在去到]/.test(before)))
+        const locative = clauseLooks(before, language, LOCATIVE) || (language === 'ja' && /^(?:で|に|へ|の中|を)/.test(afterKey)) || (language === 'zh-Hans' && (/^(?:里|上|中|内|边|旁)/.test(afterKey) || /(?:在|去|到|来到)/.test(before)))
         if (heldPlaceNoun(sentence, index)) continue
         const opener = clauseLooks(before, language, OPEN_PLACE)
         const weak = clauseLooks(before, language, WEAK_PLACE)
@@ -553,6 +553,8 @@ const STRONG_ACTION = /\b(walks?|runs?|enters?|leaves?|opens?|pours?|sits?|stand
 export function isPortraitSentence(sentence) {
   const raw = String(sentence || '').trim()
   if (!raw || STRONG_ACTION.test(raw)) return false
+  if (/^\p{Lu}[\p{L}'’.-]+(?:\s+\p{Lu}[\p{L}'’.-]+){0,3}\s*,\s*\d{1,3}\b/u.test(raw)) return true
+  if (/\b(?:\d{1,3}\s*(?:Jahre|anni|anos|ans|years)|岁|歲)\b/u.test(raw) && /[，,]/u.test(raw)) return true
   if (isLookIntro(raw)) return true
   if (/^\p{Lu}[\p{L}'’-]{1,40}(?:\s+\p{Lu}[\p{L}'’-]{1,40}){0,2}\s+is\s+/u.test(raw)) return true
   if (/^(?:she|he|they|elle|il)\s+(?:has|have|had|wears?|wore|is wearing|a|porte)\b/iu.test(raw)) return true
