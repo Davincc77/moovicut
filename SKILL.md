@@ -133,7 +133,7 @@ A 400 body has error, message, and an errors array that lists every problem. Fix
 - `invalid_body`: the JSON is not an object.
 - `invalid_premise`: under 8 characters or over 6,000. Lengthen or shorten `premise`.
 - `invalid_scenario`: the scenario is over 8,000 characters, or a character, place, or scene is missing `look`, `outfit`, `description`, or the action. Add the named field. A present `who` with the wrong shape is this code too, and the message says `who` must be a string or a list of names.
-- `invalid_plan`: a premise names people or several actions, but those shots cannot be planned. The response is 400, not a generic board, a placeholder line such as someone entering the frame, or an invented style. Send a scenario: characters with `name`, `look`, and `outfit`; places with `name` and `description`; scenes with `who` (a string or a list of names), `where`, and `what`.
+- `invalid_plan`: a premise names people or several actions, but those shots cannot be planned. The response is 400, not a generic board, a placeholder line such as someone entering the frame, or an invented style. The message names every dropped person and quotes every dropped action, each action ending in a period: `This action was not planned: "Maya hands Rui a letter on the quay".` Send a scenario: characters with `name`, `look`, and `outfit`; places with `name` and `description`; scenes with `who` (a string or a list of names), `where`, and `what`.
 - `invalid_prompt_language`: `promptLanguage` is not one of the six codes. Omit it, or send `en`, `zh-Hans`, `pt`, `ja`, `fr`, or `it`.
 - `invalid_model`: `model` is not in the model enum.
 - `invalid_mode`: `mode` is not in the mode enum.

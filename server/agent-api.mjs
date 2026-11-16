@@ -1,5 +1,5 @@
 import { createStoryboard, validateProject, canonicalModel, listPresets, regenerateOneShot, splitShotByAction } from '../app/utils/prompt-engine.js'
-import { describeScenarioErrors, looksLikeScenario, parseScenario } from '../app/utils/scenario.js'
+import { describeScenarioErrors, foldName, looksLikeScenario, parseScenario } from '../app/utils/scenario.js'
 import { splitActionText } from '../app/utils/action-split.js'
 import { assessProject } from '../app/utils/shot-risk.js'
 import { AGENT_BOARD_SCHEMA, exportAgentBoard, importAgentBoard } from '../app/utils/agent-board.js'
@@ -437,6 +437,12 @@ function shotIsTemplate(shot) {
     || /standalone .+ frame of/i.test(action)
 }
 
+function plannedCharacter(name, project) {
+  const key = foldName(name)
+  if (!key) return false
+  return (project?.filmSheet?.characters || []).some(person => foldName(person?.name) === key)
+}
+
 /** A named premise that would come back as the generic template is a failed plan, not a board. */
 function refuseUnplannedPremise(project, input) {
   const mode = project?.sequenceMode || ''
@@ -452,20 +458,17 @@ function refuseUnplannedPremise(project, input) {
   const templates = shots.filter(shotIsTemplate).length
   if (!shots.length || templates < Math.ceil(shots.length / 2)) return
   const blob = shots.map(shot => `${shot.who || ''}\n${shot.what || ''}\n${shot.action || ''}`).join('\n')
-  const droppedNames = names.filter(name => name && !blob.includes(name))
-  const droppedActions = actions.filter(action => action && !blob.includes(action.slice(0, Math.min(action.length, 18))))
+  const droppedNames = names.filter(name => !plannedCharacter(name, project))
+  const droppedActions = actions.filter(action => !blob.includes(action))
   const namesDropped = names.length > 0 && droppedNames.length > 0
   const actionsDropped = actions.length >= 2 && droppedActions.length >= Math.ceil(actions.length / 2)
   if (!namesDropped && !actionsDropped) return
   const errors = []
-  if (names.length) {
-    const listedNames = droppedNames.length ? droppedNames : names
-    const nameWord = listedNames.length === 1 ? 'name' : 'names'
-    const nameVerb = listedNames.length === 1 ? 'was' : 'were'
-    errors.push({ section: 'premise', field: 'characters', message: `The ${nameWord} ${listedNames.join(', ')} ${nameVerb} not planned into shots. Add each person with name, look, and outfit.` })
+  for (const name of droppedNames) {
+    errors.push({ section: 'premise', field: 'characters', name, message: `${name} was not planned into a shot. Add ${name} with name, look, and outfit.` })
   }
-  if (actions.length >= 2) {
-    errors.push({ section: 'premise', field: 'scenes', message: `The premise has ${actions.length} actions and they were not planned as shots. Give each action its own scene with who, where, and what.` })
+  for (const action of droppedActions) {
+    errors.push({ section: 'premise', field: 'scenes', action, message: `This action was not planned: "${action}".` })
   }
   errors.push({ section: 'premise', field: 'scenario', message: 'Send a scenario. who may be a string or a list of names. A plain premise that cannot keep those names and actions is not returned as a template board.' })
   const error = new Error(errors.map(item => item.message).join(' '))

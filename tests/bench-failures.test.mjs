@@ -38,6 +38,31 @@ test('a named Japanese or Chinese premise that cannot be planned is 400, not a t
   assert.equal(lighthouse.body.shots.length, 5)
 })
 
+test('invalid_plan names every dropped person and quotes every dropped action', () => {
+  const people = ['Maya', 'Rui', 'Nia']
+  const actions = [
+    'Maya hands Rui a letter on the quay',
+    'Rui reads the letter',
+    'Rui walks away',
+    'Nia opens the door'
+  ]
+  const planned = post({ premise: `${actions.join('. ')}.`, model: 'generic', format: 'agent' })
+  assert.equal(planned.status, 400, planned.body.message)
+  assert.equal(planned.body.error, 'invalid_plan')
+  for (const name of people) {
+    assert.match(planned.body.message, new RegExp(`${name} was not planned into a shot`))
+    assert.ok(planned.body.errors.some(item => item.name === name && item.field === 'characters'), name)
+  }
+  for (const action of actions) {
+    const line = `This action was not planned: "${action}".`
+    assert.ok(planned.body.message.includes(line), planned.body.message)
+    assert.ok(planned.body.errors.some(item => item.action === action && item.message === line), action)
+  }
+  assert.equal(planned.body.errors.filter(item => item.field === 'characters').length, people.length)
+  assert.equal(planned.body.errors.filter(item => item.field === 'scenes').length, actions.length)
+  assert.doesNotMatch(planned.body.message, /The premise has \d+ actions/)
+})
+
 test('a Japanese loanword does not select the science-fiction style', () => {
   assert.notEqual(detectGenre('文子は藍のエプロンをつけている。'), 'scifi')
   assert.equal(detectGenre('ロボットが宇宙船を修理する。'), 'scifi')
