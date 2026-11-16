@@ -24,7 +24,7 @@ Use `POST /mcp` when the client speaks MCP (Cursor, Claude, and other JSON-RPC t
 - `export_prompts` — return shot prompts only.
 - `validate_storyboard` — check a `shotboard.v1` document.
 
-Use `POST /api/v1/storyboard` for a plain JSON request. Send `compact: true` or `?compact=1` when you want only `title`, `premise`, `model`, `aspectRatio`, `studioUrl`, and `shots` of `{ order, duration, prompt }`. A request of more than 40 shots is HTTP 400 `too_many_shots`. The payload has no `parts` field.
+The agent skill is `SKILL.md`, served at `/skill` and `/SKILL.md`. Use `POST /api/v1/storyboard` for a plain JSON request. Send `compact: true` or `?compact=1` when you want only `title`, `premise`, `model`, `aspectRatio`, `studioUrl`, and `shots` of `{ order, duration, prompt }`. A request of more than 40 shots is HTTP 400 `too_many_shots`. The payload has no `parts` field.
 
 Use `GET /openapi.json` for an OpenAPI 3.1 document. `GET /.well-known/mcp.json` is the discovery file. `GET /mcp` describes the endpoint.
 

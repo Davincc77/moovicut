@@ -980,5 +980,9 @@
   "This page is the repository README. The raw Markdown file is served at /README.md.": "Esta página é o README do repositório. O ficheiro Markdown em bruto está em /README.md.",
   "The project README is a page at /readme and raw Markdown at /README.md.": "O README do projeto é uma página em /readme e Markdown em bruto em /README.md.",
   "Video prompt profiles": "Perfis de prompt de vídeo",
-  "Shot length, aspect, and prompt form for ChatGPT video, Midjourney video, MiniMax Hailuo, ByteDance Seedance, and Pika are cited in docs/model-profiles.md. A limit the provider page does not state uses the generic profile. Sora stays a separate profile.": "A duração, a proporção e a forma do prompt de ChatGPT video, Midjourney video, MiniMax Hailuo, ByteDance Seedance e Pika estão citadas em docs/model-profiles.md. Um limite que a página do fornecedor não declara usa o perfil genérico. O Sora continua num perfil separado."
+  "Shot length, aspect, and prompt form for ChatGPT video, Midjourney video, MiniMax Hailuo, ByteDance Seedance, and Pika are cited in docs/model-profiles.md. A limit the provider page does not state uses the generic profile. Sora stays a separate profile.": "A duração, a proporção e a forma do prompt de ChatGPT video, Midjourney video, MiniMax Hailuo, ByteDance Seedance e Pika estão citadas em docs/model-profiles.md. Um limite que a página do fornecedor não declara usa o perfil genérico. O Sora continua num perfil separado.",
+  "Agent skill — Moovicut": "Competência de agente — Moovicut",
+  "This page is the agent skill. The raw Markdown file is served at /SKILL.md.": "Esta página é a competência de agente. O ficheiro Markdown em bruto está em /SKILL.md.",
+  "Raw skill": "Competência em bruto",
+  "The agent skill is a page at /skill and raw Markdown at /SKILL.md.": "A competência de agente é uma página em /skill e o Markdown em bruto em /SKILL.md."
 }

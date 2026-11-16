@@ -980,5 +980,9 @@
   "This page is the repository README. The raw Markdown file is served at /README.md.": "这一页就是仓库的 README。原始 Markdown 文件在 /README.md。",
   "The project README is a page at /readme and raw Markdown at /README.md.": "项目 README 是页面 /readme，原始 Markdown 在 /README.md。",
   "Video prompt profiles": "视频提示词配置",
-  "Shot length, aspect, and prompt form for ChatGPT video, Midjourney video, MiniMax Hailuo, ByteDance Seedance, and Pika are cited in docs/model-profiles.md. A limit the provider page does not state uses the generic profile. Sora stays a separate profile.": "ChatGPT 视频、Midjourney 视频、MiniMax Hailuo、字节跳动 Seedance 和 Pika 的时长、画幅和提示词形式写在 docs/model-profiles.md。供应商页面没有写明的限制使用通用配置。Sora 仍是单独的配置。"
+  "Shot length, aspect, and prompt form for ChatGPT video, Midjourney video, MiniMax Hailuo, ByteDance Seedance, and Pika are cited in docs/model-profiles.md. A limit the provider page does not state uses the generic profile. Sora stays a separate profile.": "ChatGPT 视频、Midjourney 视频、MiniMax Hailuo、字节跳动 Seedance 和 Pika 的时长、画幅和提示词形式写在 docs/model-profiles.md。供应商页面没有写明的限制使用通用配置。Sora 仍是单独的配置。",
+  "Agent skill — Moovicut": "智能体技能 — Moovicut",
+  "This page is the agent skill. The raw Markdown file is served at /SKILL.md.": "本页是智能体技能。原始 Markdown 文件位于 /SKILL.md。",
+  "Raw skill": "原始技能",
+  "The agent skill is a page at /skill and raw Markdown at /SKILL.md.": "智能体技能是 /skill 页面，原始 Markdown 在 /SKILL.md。"
 }

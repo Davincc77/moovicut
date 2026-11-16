@@ -980,5 +980,9 @@
   "This page is the repository README. The raw Markdown file is served at /README.md.": "このページはリポジトリの README です。生の Markdown は /README.md で配信します。",
   "The project README is a page at /readme and raw Markdown at /README.md.": "プロジェクトの README は /readme のページで、生の Markdown は /README.md です。",
   "Video prompt profiles": "動画プロンプトのプロファイル",
-  "Shot length, aspect, and prompt form for ChatGPT video, Midjourney video, MiniMax Hailuo, ByteDance Seedance, and Pika are cited in docs/model-profiles.md. A limit the provider page does not state uses the generic profile. Sora stays a separate profile.": "ChatGPT 動画、Midjourney 動画、MiniMax Hailuo、ByteDance Seedance、Pika の長さ、比率、プロンプトの形は docs/model-profiles.md に出典があります。提供者のページにない制限は汎用プロファイルを使います。Sora は別のプロファイルのままです。"
+  "Shot length, aspect, and prompt form for ChatGPT video, Midjourney video, MiniMax Hailuo, ByteDance Seedance, and Pika are cited in docs/model-profiles.md. A limit the provider page does not state uses the generic profile. Sora stays a separate profile.": "ChatGPT 動画、Midjourney 動画、MiniMax Hailuo、ByteDance Seedance、Pika の長さ、比率、プロンプトの形は docs/model-profiles.md に出典があります。提供者のページにない制限は汎用プロファイルを使います。Sora は別のプロファイルのままです。",
+  "Agent skill — Moovicut": "エージェントスキル — Moovicut",
+  "This page is the agent skill. The raw Markdown file is served at /SKILL.md.": "このページはエージェントスキルです。生の Markdown は /SKILL.md で配信します。",
+  "Raw skill": "生のスキル",
+  "The agent skill is a page at /skill and raw Markdown at /SKILL.md.": "エージェントスキルは /skill のページと /SKILL.md の生 Markdown です。"
 }

@@ -4,7 +4,7 @@ PURPOSE
 Moovicut prepares an editable storyboard and shot list. It does not generate video. The website UI is in English, Simplified Chinese (zh-Hans), Portuguese, Japanese, French, and Italian. The header stores the choice as moovicut.language. ?lang= is the shareable form, and English omits it. Fixed prompt lines follow the site language. Optional promptLanguage defaults to en on the API, and JSON field names stay English. Detection is rule-based and does not call a model. Nothing is sent to an external AI.
 
 README
-The project README is a page at /readme and raw Markdown at /README.md. Credits and the CC BY-SA 4.0 compilation licence for the place library are at /credits.
+The project README is a page at /readme and raw Markdown at /README.md. The agent skill is a page at /skill and raw Markdown at /SKILL.md. Credits and the CC BY-SA 4.0 compilation licence for the place library are at /credits.
 
 PLACE LIBRARY
 Places come from the static file app/data/place-lexicon.json. A sure place can name the setting when it appears. An ambiguous word counts only in a locative. A scene keeps its place until a new locative sentence, or a sentence where someone enters, replaces it. The place is the first noun after that preposition, kept even when it is not in the library, and the shot is flagged. A passing mention does not. An adjective, a garment, and a possessive are never the place. A held, worn, or used noun is never the place, and a person's name wins over a place word. The file is CC BY-SA 4.0 because it includes OpenWN-PT. Sources: Princeton WordNet, Open Multilingual Wordnet, WOLF (CeCILL-C), OpenWN-PT (CC BY-SA), MultiWordNet (CC BY 3.0), NICT Japanese Wordnet, Chinese Open Wordnet.

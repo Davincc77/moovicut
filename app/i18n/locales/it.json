@@ -980,5 +980,9 @@
   "This page is the repository README. The raw Markdown file is served at /README.md.": "Questa pagina è il README del repository. Il file Markdown grezzo è servito a /README.md.",
   "The project README is a page at /readme and raw Markdown at /README.md.": "Il README del progetto è una pagina su /readme e Markdown grezzo su /README.md.",
   "Video prompt profiles": "Profili di prompt video",
-  "Shot length, aspect, and prompt form for ChatGPT video, Midjourney video, MiniMax Hailuo, ByteDance Seedance, and Pika are cited in docs/model-profiles.md. A limit the provider page does not state uses the generic profile. Sora stays a separate profile.": "Durata, proporzioni e forma del prompt per ChatGPT video, Midjourney video, MiniMax Hailuo, ByteDance Seedance e Pika sono citate in docs/model-profiles.md. Un limite che la pagina del fornitore non indica usa il profilo generico. Sora resta un profilo a parte."
+  "Shot length, aspect, and prompt form for ChatGPT video, Midjourney video, MiniMax Hailuo, ByteDance Seedance, and Pika are cited in docs/model-profiles.md. A limit the provider page does not state uses the generic profile. Sora stays a separate profile.": "Durata, proporzioni e forma del prompt per ChatGPT video, Midjourney video, MiniMax Hailuo, ByteDance Seedance e Pika sono citate in docs/model-profiles.md. Un limite che la pagina del fornitore non indica usa il profilo generico. Sora resta un profilo a parte.",
+  "Agent skill — Moovicut": "Competenza agente — Moovicut",
+  "This page is the agent skill. The raw Markdown file is served at /SKILL.md.": "Questa pagina è la competenza agente. Il file Markdown grezzo è servito a /SKILL.md.",
+  "Raw skill": "Competenza grezza",
+  "The agent skill is a page at /skill and raw Markdown at /SKILL.md.": "La competenza agente è una pagina a /skill e il Markdown grezzo a /SKILL.md."
 }
