@@ -7,7 +7,8 @@ import {
   blankWizard,
   loadWizard,
   saveWizard,
-  gateGaps,
+  gapsFor,
+  firstIncompleteStep,
   gapFieldId,
   revealGap,
   splitOffer,
@@ -113,7 +114,18 @@ const stepName = computed(() => t(stepMeta.value.label))
 const headingText = computed(() => `${stepNumber.value}. ${stepName.value}`)
 function numberedStep(step, index) { return `${index + 1}. ${t(step.label)}` }
 const gateNotice = ref(false)
-const gaps = computed(() => gateGaps(state.value, state.value.step))
+const gaps = computed(() => gapsFor(state.value, state.value.step))
+function gapKey(targetId, field) {
+  const match = gaps.value.find(item => item.field === field && (!targetId || item.targetId === targetId))
+  return match?.key || ''
+}
+function actionDescribed(shot) {
+  const key = gapKey(shot.id, 'action')
+  if (key === 'missing.action') return `${shot.id}-action-error`
+  if (key === 'split.pending') return `${shot.id}-split`
+  if (shot.origin?.action === 'detected' && String(shot.action || '').trim()) return `${shot.id}-action-hint`
+  return undefined
+}
 const showIdeaError = computed(() => state.value.step === 'idea' && (ideaFeedback.value || gateNotice.value) && gaps.value.some(item => item.field === 'idea'))
 const visibleGaps = computed(() => gateNotice.value ? gaps.value.filter(item => item.field !== 'idea') : [])
 watch(() => state.value.step, () => { gateNotice.value = false })
@@ -125,6 +137,11 @@ const nextStepMeta = computed(() => WIZARD_STEPS[stepNumber.value] || null)
 const nextLabel = computed(() => nextStepMeta.value ? t('action.nextStep', { step: t(nextStepMeta.value.label) }) : t('action.next'))
 const compactStep = computed(() => t('progress.compact', { current: stepNumber.value, total: WIZARD_STEPS.length, label: stepName.value }))
 const report = computed(() => state.value.step === 'check' || state.value.step === 'generate' ? review(state.value) : null)
+const incompleteStepId = computed(() => firstIncompleteStep(state.value))
+const incompleteStepLabel = computed(() => {
+  const step = WIZARD_STEPS.find(item => item.id === incompleteStepId.value)
+  return step ? t(step.label) : ''
+})
 const proseCuts = computed(() => {
   if (state.value.step !== 'check') return []
   const idea = String(state.value.idea || '').trim()
@@ -173,6 +190,7 @@ function describedBy(owner, field, empty, detected) {
 }
 
 function gapText(item) {
+  if (item.field === 'who' && item.name) return t('missing.whoShot', { number: item.name })
   const message = t(item.key)
   return item.name ? t('summary.named', { name: translate(item.name), message }) : message
 }
@@ -233,7 +251,7 @@ function onSubmit() {
     state.value = continueStep(state.value)
     return
   }
-  const blocking = gateGaps(state.value, state.value.step)
+  const blocking = gapsFor(state.value, state.value.step)
   if (blocking.length) {
     showBlocked(blocking)
     return
@@ -396,15 +414,15 @@ function copyAgent() {
           <p>{{ t('place.count', { current: state.placeIndex + 1, total: state.places.length }) }}</p>
           <div class="wizard-field">
             <label :for="`${place.id}-name`">{{ t('field.placeName') }}</label>
-            <input :id="`${place.id}-name`" name="place-name" type="text" required maxlength="80" autocomplete="off" :value="place.name" :aria-invalid="!place.name.trim()" :aria-describedby="describedBy(place.id, 'name', !place.name.trim(), place.origin.name === 'detected' && place.name.trim())" @input="state = setPlaceField(state, place.id, 'name', $event.target.value)" />
-            <p v-if="place.origin.name === 'detected' && place.name.trim()" :id="`${place.id}-name-hint`" class="wizard-hint">{{ t('hint.detected', { confidence: confidenceLabel(place.confidence.name) }) }}</p>
-            <p v-else-if="!place.name.trim()" :id="`${place.id}-name-error`" class="wizard-error">{{ t('missing.placeName') }}</p>
+            <input :id="`${place.id}-name`" name="place-name" type="text" required maxlength="80" autocomplete="off" :value="place.name" :aria-invalid="gapKey(place.id, 'name') ? 'true' : 'false'" :aria-describedby="gapKey(place.id, 'name') ? `${place.id}-name-error` : (place.origin.name === 'detected' && place.name.trim() ? `${place.id}-name-hint` : undefined)" @input="state = setPlaceField(state, place.id, 'name', $event.target.value)" />
+            <p v-if="gapKey(place.id, 'name')" :id="`${place.id}-name-error`" class="wizard-error">{{ t('missing.placeName') }}</p>
+            <p v-else-if="place.origin.name === 'detected' && place.name.trim()" :id="`${place.id}-name-hint`" class="wizard-hint">{{ t('hint.detected', { confidence: confidenceLabel(place.confidence.name) }) }}</p>
           </div>
           <div class="wizard-field">
             <label :for="`${place.id}-description`">{{ t('field.placeDescription') }}</label>
-            <textarea :id="`${place.id}-description`" name="place-description" rows="3" required maxlength="300" :value="place.description" :aria-invalid="!place.description.trim()" :aria-describedby="describedBy(place.id, 'description', !place.description.trim(), place.origin.description === 'detected' && place.description.trim())" @input="state = setPlaceField(state, place.id, 'description', $event.target.value)"></textarea>
-            <p v-if="place.origin.description === 'detected' && place.description.trim()" :id="`${place.id}-description-hint`" class="wizard-hint">{{ t('hint.detected', { confidence: confidenceLabel(place.confidence.description) }) }}</p>
-            <p v-else-if="!place.description.trim()" :id="`${place.id}-description-error`" class="wizard-error">{{ t('missing.placeDescription') }}</p>
+            <textarea :id="`${place.id}-description`" name="place-description" rows="3" required maxlength="300" :value="place.description" :aria-invalid="gapKey(place.id, 'description') ? 'true' : 'false'" :aria-describedby="gapKey(place.id, 'description') ? `${place.id}-description-error` : (place.origin.description === 'detected' && place.description.trim() ? `${place.id}-description-hint` : undefined)" @input="state = setPlaceField(state, place.id, 'description', $event.target.value)"></textarea>
+            <p v-if="gapKey(place.id, 'description')" :id="`${place.id}-description-error`" class="wizard-error">{{ t('missing.placeDescription') }}</p>
+            <p v-else-if="place.origin.description === 'detected' && place.description.trim()" :id="`${place.id}-description-hint`" class="wizard-hint">{{ t('hint.detected', { confidence: confidenceLabel(place.confidence.description) }) }}</p>
           </div>
           <button v-if="state.places.length > 1" class="button button-secondary" type="button" @click="state = removePlace(state, place.id)">{{ t('action.removePlace', { name: place.name.trim() || t('place.new') }) }}</button>
         </div>
@@ -462,7 +480,7 @@ function copyAgent() {
         <button id="wizard-add-shot" class="button button-secondary" type="button" @click="state = addWizardShot(state)">{{ t('action.addShot') }}</button>
         <div :id="`wizard-shot-panel-${shot.id}`" role="tabpanel" :aria-labelledby="`wizard-shot-${shot.id}`" class="wizard-sheet">
           <p>{{ t('shot.count', { current: state.shotIndex + 1, total: state.shots.length }) }}</p>
-          <fieldset :id="`${shot.id}-who`">
+          <fieldset :id="`${shot.id}-who`" tabindex="-1" :aria-invalid="gapKey(shot.id, 'who') ? 'true' : 'false'" :aria-describedby="gapKey(shot.id, 'who') ? `${shot.id}-who-error` : undefined">
             <legend>{{ t('field.who') }}</legend>
             <div class="wizard-checks">
               <label>
@@ -478,7 +496,7 @@ function copyAgent() {
                   <span>{{ person.name.trim() || t('character.new') }}</span>
                 </label>
               </div>
-              <p v-if="!shot.whoIds.length" class="wizard-error">{{ t('missing.who') }}</p>
+              <p v-if="gapKey(shot.id, 'who')" :id="`${shot.id}-who-error`" class="wizard-error">{{ t('missing.who') }}</p>
             </template>
           </fieldset>
           <div class="wizard-field">
@@ -491,9 +509,9 @@ function copyAgent() {
           </div>
           <div class="wizard-field">
             <label :for="`${shot.id}-action`">{{ t('field.action') }}</label>
-            <textarea :id="`${shot.id}-action`" :name="`action-${shot.id}`" rows="3" required maxlength="2000" :value="shot.action" :aria-invalid="!shot.action.trim() || !!offer" :aria-describedby="offer ? `${shot.id}-split` : (!shot.action.trim() ? `${shot.id}-action-error` : (shot.origin.action === 'detected' ? `${shot.id}-action-hint` : undefined))" @input="state = setShotField(state, shot.id, 'action', $event.target.value)"></textarea>
-            <p v-if="shot.origin.action === 'detected' && shot.action.trim() && !offer" :id="`${shot.id}-action-hint`" class="wizard-hint">{{ t('hint.detected', { confidence: confidenceLabel(shot.confidence.action) }) }}</p>
-            <p v-else-if="!shot.action.trim()" :id="`${shot.id}-action-error`" class="wizard-error">{{ t('missing.action') }}</p>
+            <textarea :id="`${shot.id}-action`" :name="`action-${shot.id}`" rows="3" required maxlength="2000" :value="shot.action" :aria-invalid="gapKey(shot.id, 'action') ? 'true' : 'false'" :aria-describedby="actionDescribed(shot)" @input="state = setShotField(state, shot.id, 'action', $event.target.value)"></textarea>
+            <p v-if="gapKey(shot.id, 'action') === 'missing.action'" :id="`${shot.id}-action-error`" class="wizard-error">{{ t('missing.action') }}</p>
+            <p v-else-if="shot.origin.action === 'detected' && shot.action.trim() && !offer" :id="`${shot.id}-action-hint`" class="wizard-hint">{{ t('hint.detected', { confidence: confidenceLabel(shot.confidence.action) }) }}</p>
             <div v-if="offer" :id="`${shot.id}-split`" class="wizard-offer" role="status">
               <p>{{ t('split.prompt', { count: offer.length }) }}</p>
               <ol>
@@ -522,7 +540,10 @@ function copyAgent() {
       <section v-else-if="state.step === 'check'" class="wizard-panel" :aria-label="t('check.heading')">
         <h3>{{ t('check.heading') }}</h3>
         <p role="status">{{ t('check.sheet', { characters: state.noCharacter ? t('character.none') : state.characters.map(item => item.name).filter(Boolean).join(', '), places: state.places.map(item => item.name).filter(Boolean).join(', '), light: state.light }) }}</p>
-        <p v-if="report && report.gaps.length" role="status">{{ t('check.needSteps') }}</p>
+        <div v-if="report && report.gaps.length" class="wizard-check-gap" role="status">
+          <p id="wizard-check-gap">{{ t('check.needSteps', { step: incompleteStepLabel }) }}</p>
+          <button v-if="incompleteStepId" id="wizard-check-jump" class="button button-secondary" type="button" @click="state = openStep(state, incompleteStepId)">{{ t('check.goStep', { step: incompleteStepLabel }) }}</button>
+        </div>
         <template v-else-if="report">
           <p v-if="!report.blocking.length" role="status">{{ t('check.clear') }}</p>
           <template v-else>
