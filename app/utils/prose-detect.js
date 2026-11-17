@@ -113,7 +113,7 @@ function placeLexicon() {
 const PLACE_KEYS = placeLexicon()
 const NAME_STOP = new Set(['the', 'a', 'an', 'she', 'he', 'they', 'une', 'le', 'la', 'les', 'il', 'elle', 'un'])
 const LOOK_TRAIT = /\b(?:(?:early|mid|late)\s+)?\d{1,2}s\b|\b(?:short|long|curly|wavy|straight|black|brown|blonde|blond|red|grey|gray|silver|white|dark)\s+(?:black\s+|brown\s+|red\s+|grey\s+|gray\s+)?(?:pixie cut|bob|bangs|braid|hair)\b|\b(?:grey|gray|white|black|red|dark)\s+stubble\b|\bstubble\b|\bbeard\b|\bmoustache\b|\bmustache\b|\b(?:round\s+)?glasses\b|\b(?:blue|green|brown|amber|hazel)\s+eyes\b/giu
-const OUTFIT_TRAIT = /\b(?:[\p{L}'’-]+\s+){0,3}(?:peacoats?|overcoats?|coats?|jackets?|scarves|scarf|aprons?|sweaters?|boots?|dresses|dress|shirts?|suits?|hoodies?|cloaks?|robes?|uniforms?|jeans|skirts?|caps?|hats?|hakama|cardigans?|waistcoats?|vests?|blouses?|trousers|pants)\b/giu
+const OUTFIT_TRAIT = /\b(?:[\p{L}'’-]+\s+){0,3}(?:peacoats?|overcoats?|coats?|jackets?|scarves|scarf|aprons?|sweaters?|boots?|dresses|dress|shirts?|suits?|hoodies?|cloaks?|robes?|uniforms?|jeans|skirts?|caps?|hats?|hakama|cardigans?|waistcoats?|vests?|blouses?|trousers|pants|jumpers?|pullovers?|overalls|dungarees|gloves)\b/giu
 const TRAIT_STOP = /\b(?:meets|sees|finds|wears|opens|walks|runs|enters|leaves|pours|hands|gives|sits|stands|laughs|reads|turns|crosses|follows|carries|holds|watches)\b/i
 
 function traitHits(clause) {
@@ -267,7 +267,7 @@ function traitWindow(text, name, names) {
   return bounded || text.slice(start, Math.min(text.length, after + 48)).split(/[.!?。！？]/)[0]
 }
 
-const OUTFIT_WORD = /(?<![\p{L}])(?:coats?|peacoats?|sweaters?|shirts?|dresses?|scarves?|scarf|aprons?|jackets?|boots?|bags?|rings?|manteaux?|manteau|pulls?|pull|tabliers?|tablier|casquettes?|vestes?|cirés?|ciré|cire|bottes|sacs?|sac|bagues?|bague|raincoats?|sleeves?|manches?|manche|cardigans?|waistcoats?|vests?|blouses?|trousers|pants)(?![\p{L}])/iu
+const OUTFIT_WORD = /(?<![\p{L}])(?:coats?|peacoats?|sweaters?|shirts?|dresses?|scarves?|scarf|aprons?|jackets?|boots?|bags?|rings?|manteaux?|manteau|pulls?|pull|tabliers?|tablier|casquettes?|vestes?|cirés?|ciré|cire|bottes|sacs?|sac|bagues?|bague|raincoats?|sleeves?|manches?|manche|cardigans?|waistcoats?|vests?|blouses?|trousers|pants|jumpers?|pullovers?|overalls|dungarees|gloves)(?![\p{L}])/iu
 const LOOK_WORD = /(?<![\p{L}])(?:hair|cheveux|beards?|barbe|braids?|scars?|cicatrice|glasses|lunettes|eyes|yeux|stubble|pixie|thirties|forties|fifties|trentaine|quarantaine|cinquantaine|\d{1,2}s|\d+\s+ans|years|young|old|jeune)(?![\p{L}])/iu
 
 function traitsInClause(clause) {
@@ -312,7 +312,7 @@ function castTraits(text, name, names) {
 }
 
 const STREET_WORD = new Set(['rue', 'street', 'road', 'avenue', 'lane', 'boulevard', 'way', 'via', 'strasse', 'straße', 'strada', 'rua', 'calle', 'gasse'])
-const GARMENT_WORD = /\b(?:raincoats?|coats?|jackets?|aprons?|caps?|hats?|scarves?|scarf|dress(?:es)?|shirts?|boots?|peacoats?|sweaters?|cloaks?|robes?|hoodies?|hakama|vests?|uniforms?|shawls?|cardigans?|waistcoats?|blouses?|trousers|pants|skirts?)\b/i
+const GARMENT_WORD = /\b(?:raincoats?|coats?|jackets?|aprons?|caps?|hats?|scarves?|scarf|dress(?:es)?|shirts?|boots?|peacoats?|sweaters?|cloaks?|robes?|hoodies?|hakama|vests?|uniforms?|shawls?|cardigans?|waistcoats?|blouses?|trousers|pants|skirts?|jumpers?|pullovers?|overalls|dungarees|gloves)\b/i
 const CARRIED_ITEM = /\b(?:cord|chain|strap|string|ribbon|neck|wrist|belt|shoulder|locket|compass|watch|pendant|tongs|hammer|brush|lantern|whistle|key|keys|camera|letter|map|cup|mug|basket|notebook|pen|knife|sword|staff|cane|umbrella|book|bag|purse|wallet|flower|rose|tray|plate|bottle|torch|flashlight|flute|bell|ticket punch|walkie-talkie|walkie|paper fan|hand fan|fan|binoculars|radio|backpack|rucksack|satchel)\b/i
 
 function isNameNoise(token, language) {
@@ -616,9 +616,10 @@ function detectCharacters(text, places = [], language = 'en') {
     const messy = value => /^(?:de|do|da)\s/iu.test(value) || /\b(?:e|and)\s+(?:uma|um|a|an)\b/iu.test(value) || foldName(value) === foldName(person.name)
     const merge = (list, item) => {
       if (!item || foldName(item) === foldName(person.name)) return
+      if (/\b(?:fecha|abre|espera|lifts?|sets?|puts?|opens?|closes?|waits?|walks?|waves?|carrega|holds?|carries)\b/iu.test(item)) return
       const index = list.findIndex(bit => foldName(bit).includes(foldName(item)) || foldName(item).includes(foldName(bit)))
       if (index < 0) list.push(item)
-      else if (messy(list[index]) || item.length > list[index].length) list[index] = item
+      else if (messy(list[index]) || (item.length > list[index].length && foldName(item).includes(foldName(list[index])))) list[index] = item
     }
     found.looks.forEach(item => merge(looks, item))
     found.outfits.forEach(item => merge(outfits, item))

@@ -1,6 +1,6 @@
 /** Deterministic scene cuts. Closed word lists only. No model call. */
 import { cleanText } from './text.js'
-import { heldPlaceNoun, isNonPlaceNoun, isRejectedPlace, locativeHeads, placeTag, tidyPlaceLemma } from './place-lexicon.js'
+import { extendsPlace, heldPlaceNoun, isNonPlaceNoun, isRejectedPlace, locativeHeads, movementPlace, placeTag, settingName, tidyPlaceLemma } from './place-lexicon.js'
 import { foldName } from './scenario.js'
 import { splitActionText } from './action-split.js'
 
@@ -40,7 +40,7 @@ const NOT_A_PLACE = new Set([
   'stille', 'licht', 'dunkelheit', 'ferne', 'zeichnung', 'brief', 'umschlag', 'name', 'stimme', 'traum',
   'silenzio', 'luce', 'buio', 'distanza', 'disegno', 'lettera', 'busta', 'nome', 'voce', 'sogno',
   'rou', 'liicht', 'donkel', 'distanz', 'zeechnung', 'bréif', 'numm', 'stëmm',
-  'window', 'door', 'table', 'glass', 'cup', 'bottle', 'counter', 'fridge', 'lamp', 'drawer', 'clock', 'ticket', 'fenetre', 'porte', 'table', 'verre', 'tasse', 'bouteille', 'comptoir', 'frigo', 'lampe', 'tiroir', 'horloge', 'billet',
+  'window', 'door', 'table', 'glass', 'cup', 'bottle', 'counter', 'fridge', 'lamp', 'drawer', 'clock', 'watch', 'watches', 'ticket', 'fenetre', 'porte', 'table', 'verre', 'tasse', 'bouteille', 'comptoir', 'frigo', 'lampe', 'tiroir', 'horloge', 'billet', 'relogio',
   'janela', 'porta', 'mesa', 'copo', 'balcao', 'geladeira', 'lampada', 'gaveta',
   'fenster', 'tur', 'tisch', 'glas', 'tasse', 'theke', 'kuehlschrank', 'lampe', 'schublade',
   'finestra', 'porta', 'tavolo', 'bicchiere', 'bancone', 'frigo', 'lampada', 'cassetto',
@@ -569,8 +569,9 @@ export function isPortraitSentence(sentence) {
   if (/\b(?:\d{1,3}\s*(?:Jahre|anni|anos|ans|years)|岁|歲)\b/u.test(raw) && /[，,]/u.test(raw)) return true
   if (isLookIntro(raw)) return true
   if (/^\p{Lu}[\p{L}'’-]{1,40}(?:\s+\p{Lu}[\p{L}'’-]{1,40}){0,2}\s+is\s+/u.test(raw)) return true
-  if (/^(?:she|he|they|elle|il|ela|ele)\s+(?:has|have|had|wears?|wore|is wearing|carries|carrying|holds?|holding|veste|usa|traz|tem)\b/iu.test(raw)) return true
-  if (/^\p{Lu}[\p{L}'’-]{1,40}(?:\s+\p{Lu}[\p{L}'’-]{1,40}){0,2}\s+(?:tem|têm|veste|vestem|usa|usam|carrega|carregam|leva|levam|traz|has|have|wears?|wore|carries|carrying|holds?|holding)\b/iu.test(raw)) return true
+  if (STORY_ACT.test(raw)) return false
+  if (/^(?:she|he|they|elle|il|ela|ele)\s+(?:has|have|had|wears?|wore|is wearing|veste|usa|tem|têm)\b/iu.test(raw)) return true
+  if (/^\p{Lu}[\p{L}'’-]{1,40}(?:\s+\p{Lu}[\p{L}'’-]{1,40}){0,2}\s+(?:tem|têm|veste|vestem|usa|usam|has|have|wears?|wore)\b/iu.test(raw)) return true
   if (/\b(?:nephew|niece|brother|sister|cousin|son|daughter|mother|father|uncle|aunt|neveu|nièce|niece|cousine|frère|soeur|sœur)\s+(?:\p{Lu}[\p{L}'’-]+\s+){1,3}is\b/iu.test(raw)) return true
   return false
 }
@@ -621,18 +622,24 @@ function samePlace(a, b) {
 
 const GENERIC_SUBJECT = new Set(['room', 'place', 'space', 'area', 'air', 'light', 'scene', 'sala', 'lugar', 'quarto', 'espaco', 'espaço', 'ar', 'luz', 'cena', 'setting'])
 
-/** The place a description sentence names as its subject. "The kitchen is quiet" keeps the kitchen. A bare "room" does not replace a place already set. */
+/** The place a sentence names as its subject. "The dining car rattles" is the dining car. A bare "room" does not replace a place already set. */
 export function subjectPlace(sentence, language = 'en', places = []) {
-  const match = String(sentence || '').match(/^(?:the|a|an|o|os|as|um|uma)\s+(.+?)\s+(?:is|are|was|were|está|esta|estão|estao|fica|ficam)(?![\p{L}])/iu)
-  if (!match) return ''
-  const raw = tidyPlaceLemma(match[1])
-  if (!raw || isRejectedPlace(raw) || isNeverPlace(raw) || GENERIC_SUBJECT.has(foldName(raw))) return ''
-  const key = foldName(raw)
-  const known = (places || []).find(place => [place?.name, ...(place?.keys || [])].some(item => foldName(item) === key))
-  if (known?.name && !isRejectedPlace(known.name)) return known.name
-  const tag = placeTag(language, raw) || placeTag(language === 'pt' ? 'pt' : 'en', raw)
-  if (tag !== 's') return ''
-  return raw.replace(/^\p{Ll}/u, char => char.toUpperCase())
+  const lead = String(sentence || '').match(/^(?:the|a|an|o|os|as|um|uma)\s+(.+)$/iu)
+  if (!lead) return ''
+  const words = lead[1].replace(/[.,;:!?].*$/u, '').split(/\s+/).filter(Boolean)
+  if (words.length < 2) return ''
+  for (let size = Math.min(4, words.length - 1); size >= 1; size -= 1) {
+    const raw = tidyPlaceLemma(words.slice(0, size).join(' '))
+    const next = words[size]
+    if (!raw || isRejectedPlace(raw) || isNeverPlace(raw) || GENERIC_SUBJECT.has(foldName(raw))) continue
+    if (next && extendsPlace(next, language)) continue
+    const key = foldName(raw)
+    const known = (places || []).find(place => [place?.name, ...(place?.keys || [])].some(item => foldName(item) === key))
+    if (known?.name && !isRejectedPlace(known.name) && !GENERIC_SUBJECT.has(foldName(known.name))) return known.name
+    const named = settingName(raw, language)
+    if (named) return named
+  }
+  return ''
 }
 
 /** Light in effect after this sentence. A new time cue replaces the old light, and a cue with no light clears it. */
@@ -749,6 +756,17 @@ export function splitNarrative(text, options = {}) {
       else if (subject && times.length) state.place = subject
       if (times.length) applyTime(times, state)
       return
+    }
+    if (!firmPlace) {
+      const subject = subjectPlace(sentence, language, places)
+      if (subject && !isRejectedPlace(subject)) firmPlace = { name: subject, key: subject, cue: subject, uncertain: false }
+    }
+    if (!firmPlace) {
+      const moved = movementPlace(sentence, language)
+      const at = moved ? String(sentence).toLowerCase().indexOf(moved.toLowerCase()) : -1
+      if (moved && !isRejectedPlace(moved) && (at < 0 || mentionMovesScene(sentence, at, language))) {
+        firmPlace = { name: moved, key: moved, cue: moved, uncertain: false }
+      }
     }
     if (cueOnly) {
       const headed = locativeHeads(sentence, language).find(item => item.moves !== false && !isRejectedPlace(item.lemma) && mentionMovesScene(sentence, item.index, language))

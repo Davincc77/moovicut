@@ -1,9 +1,8 @@
 /** Rule-based prose detection for Portuguese. No model call. */
 import { cleanText } from './text.js'
 import { foldName, scenarioBudget, scenarioPremise, scenarioToFields } from './scenario.js'
-import { cueLight, findPlaceCue, inNamedVenue, isDescriptionSentence, isFunctionWord, isNumberWord, isQuotedOrRemembered, isVenueType, lightAfterCue, mentionMovesScene, namedVenues } from './scene-split.js'
-import { isNonPlaceNoun, isRejectedPlace, libraryHits, locativeHeads, tidyPlaceLemma } from './place-lexicon.js'
-import { subjectPlace } from './scene-split.js'
+import { cueLight, findPlaceCue, inNamedVenue, isDescriptionSentence, isFunctionWord, isNumberWord, isQuotedOrRemembered, isVenueType, lightAfterCue, mentionMovesScene, namedVenues, subjectPlace } from './scene-split.js'
+import { isNonPlaceNoun, isRejectedPlace, libraryHits, locativeHeads, movementPlace, tidyPlaceLemma } from './place-lexicon.js'
 
 const LEX = {
   pt: {
@@ -144,10 +143,10 @@ function findCharacters(text, lex, places, language) {
     const outfits = String(person.outfit || '').split(/,\s*/).filter(usable)
     const messy = value => /^(?:de|do|da)\s/iu.test(value) || /\b(?:e|and)\s+(?:uma|um|a|an)\b/iu.test(value) || foldName(value) === foldName(person.name)
     const merge = (list, item) => {
-      if (!item || foldName(item) === foldName(person.name)) return
+      if (!item || foldName(item) === foldName(person.name) || TRAIT_VERB.test(item)) return
       const index = list.findIndex(bit => foldName(bit).includes(foldName(item)) || foldName(item).includes(foldName(bit)))
       if (index < 0) list.push(item)
-      else if (messy(list[index]) || item.length > list[index].length) list[index] = item
+      else if (messy(list[index]) || (item.length > list[index].length && foldName(item).includes(foldName(list[index])))) list[index] = item
     }
     found.looks.forEach(item => merge(looks, item))
     found.outfits.forEach(item => merge(outfits, item))
@@ -185,10 +184,10 @@ function traitWindow(text, name, names) {
 }
 
 const PT_AGE = /^(?:cerca de\s+)?\d{1,3}(?:\s+anos)?$|^(?:nos seus\s+[\p{L}'’-]+(?:\s+[\p{L}'’-]+)?)|(?:vinte|trinta|quarenta|cinquenta|sessenta|setenta|oitenta|noventa)(?:\s+e\s+[\p{L}'’-]+)?(?:\s+anos)?$/iu
-const PT_ROLE = /(?<![\p{L}])(pescadora|pescador|padeira|padeiro|professora|professor|cozinheira|cozinheiro|enfermeira|enfermeiro|agricultora|agricultor|marinheira|marinheiro|guarda)(?![\p{L}])/iu
-const PT_LOOK = /(?<![\p{L}])(cabelo|barba|bigode|olhos|rosto|pele|coque|binóculos|binoculos|óculos|oculos)(?![\p{L}])/iu
-const PT_WEAR = /(?<![\p{L}])(casaco|avental|vestido|camisa|jaqueta|blusa|saia|calças|calcas|chapéu|chapeu|botas|lenço|lenco|xaile|uniforme)(?![\p{L}])/iu
-const PT_PROP = /(?<![\p{L}])((?:um|uma)\s+(?:apito|lanterna|chave|carta|bússola|bussola|martelo|câmara|camera|leque)|binóculos(?:\s+ao\s+pescoço)?|binoculos(?:\s+ao\s+pescoco)?|lanterna|apito|câmara|camera|leque)(?![\p{L}])/iu
+const PT_ROLE = /(?<![\p{L}])(pescadora|pescador|padeira|padeiro|professora|professor|cozinheira|cozinheiro|enfermeira|enfermeiro|agricultora|agricultor|marinheira|marinheiro|guarda|aprendiz|arquivista|aluna|aluno|estudante|pintora|pintor)(?![\p{L}])/iu
+const PT_LOOK = /(?<![\p{L}])(cabelo|cabelos|barba|bigode|olhos|rosto|pele|coque|caracóis|caracois|tranças|trancas|franja|madeixas|binóculos|binoculos|óculos|oculos)(?![\p{L}])/iu
+const PT_WEAR = /(?<![\p{L}])(casaco|avental|vestido|camisa|jaqueta|blusa|saia|calças|calcas|chapéu|chapeu|botas|lenço|lenco|xaile|uniforme|jardineira|jardineiras|luvas|luva|camisola|colete|macacão|macacao|pulôver|pullover|fato-macaco)(?![\p{L}])/iu
+const PT_PROP = /(?<![\p{L}])((?:um|uma)\s+(?:apito|lanterna|chave|carta|bússola|bussola|martelo|câmara|camera|leque|flauta|pincel|caderno|mochila)|binóculos(?:\s+ao\s+pescoço)?|binoculos(?:\s+ao\s+pescoco)?|lanterna|apito|câmara|camera|leque|flauta|pincel|caderno|mochila|violino|giz)(?![\p{L}])/iu
 const PT_DANGLING = /(?:\s+(?:de|do|da|dos|das|em|no|na|nos|nas|num|numa|com|por|para|ao|à|aos|às|pelo|pela|preso|presa|um|uma|o|a))+$/iu
 const PT_FEMININE = new Map([
   ['pescador', 'pescadora'],
@@ -232,17 +231,19 @@ function traitsFromWindow(window) {
     if (role) looks.push(roleForm(role[1], source))
     if (PT_LOOK.test(bit)) looks.push(bit)
     if (PT_WEAR.test(bit)) outfits.push(bit)
-    const prop = raw.match(PT_PROP)
-    if (prop) outfits.push(tidyPortuguese(prop[1]))
+    else if (PT_PROP.test(bit) || PT_PROP.test(raw)) outfits.push(bit)
   })
   return { looks: unique(looks), outfits: unique(outfits) }
 }
 
 const AGE_BIT = /(?:\b(?:cerca de|com|de|tem|têm|has|is|aged)\s+)?(?:\b(?:early|mid|late)\s+)?(?:\d{1,3}\s+(?:anos|years old|years)|\b(?:doze|vinte|trinta|quarenta|cinquenta|sessenta|setenta|oitenta|noventa|twelve|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)(?:\s*-\s*[\p{L}]+|\s+e\s+[\p{L}]+)?(?:\s+(?:anos|years old|years))?|\b\d{1,2}s\b)/giu
-const HAIR_BIT = /(?:(?:short|long|curly|wavy|straight|auburn|brown|black|blonde|blond|gray|grey|salt|frozen|white|silver|red|dark|fine|thin|castanh[oa]s?|grisalh[oa]|pret[oa]|ruiv[oa]|loir[oa])\s+){1,3}(?:hair|braids?|beard|cabelo|tranças|trancas|barba|coque|bun|curls|locs)|(?:tranças|trancas|cabelo|barba|braids?|coque)\s+[\p{L}'’-]+(?:\s+[\p{L}'’-]+){0,3}/giu
-const GARMENT_BIT = /(?:[\p{L}'’-]+\s+){0,3}(?:cardigan|waistcoat|colete|vestido|casaco|jaqueta|blusa|saia|calças|calcas|camisa|apron|coat|jacket|dress|shirt|sweater|peacoat|cloak|robe|uniform|skirt|blouse|trousers|pants|hat|cap|scarf|avental|jaqueta)(?:\s+(?:de|do|da|[\p{L}'’-]+)){0,3}/giu
-const ITEM_BIT = /(?:uma|um|a|an)\s+((?:[\p{L}'’-]+\s+){0,2}(?:mochila|backpack|rucksack|locket|whistle|apito|key|chave|compass|bússola|bussola|lanterna|câmara|camera|leque|fan|binóculos|binoculos|punch|radio)(?:\s+[\p{L}'’-]+){0,2})/giu
+const HAIR_BIT = /(?<![\p{L}])(?:(?:short|long|curly|wavy|straight|auburn|copper|brown|black|blonde|blond|gray|grey|salt|frozen|white|silver|red|dark|fine|thin|castanh[oa]s?|grisalh[oa]|pret[oa]|ruiv[oa]|loir[oa]s?)\s+){1,3}(?:hair|braids?|beard|cabelo|caracóis|caracois|tranças|trancas|barba|coque|bun|curls|locs|franja|madeixas)|(?<![\p{L}])(?:tranças|trancas|cabelo|caracóis|caracois|barba|braids?|coque|curls|franja|madeixas)\s+[\p{L}'’-]+(?:\s+[\p{L}'’-]+){0,2}/giu
+const GARMENT_BIT = /(?<![\p{L}])(?:[\p{L}'’-]+\s+){0,3}(?:cardigan|waistcoat|jumper|pullover|overalls|dungarees|gloves|colete|vestido|casaco|jaqueta|blusa|saia|calças|calcas|camisa|apron|coat|jacket|dress|shirt|sweater|peacoat|cloak|robe|uniform|skirt|blouse|trousers|pants|hat|cap|scarf|avental|jardineira|luvas|camisola|macacão|macacao)(?:\s+(?:de|do|da|of|[\p{L}'’-]+)){0,3}/giu
+const ITEM_BIT = /(?<![\p{L}])(?:uma|um|a|an)(?![\p{L}])\s+((?:[\p{L}'’-]+\s+){0,2}(?:mochila|backpack|rucksack|locket|whistle|apito|key|chave|compass|bússola|bussola|lanterna|câmara|camera|leque|fan|binóculos|binoculos|punch|radio|flauta|flute|pincel|brush|caderno|notebook|violino)(?:\s+(?:de|do|da|of)\s+[\p{L}'’-]+|\s+[\p{L}'’-]+){0,2})/giu
+const BARE_ITEM = /(?<![\p{L}])((?:[\p{L}'’-]+\s+){0,2}(?:flauta|flute|pincel|brush|caderno|notebook|mochila|backpack|lanterna|apito|whistle|bússola|bussola|leque|fan|violino|giz|binóculos|binoculos)(?:\s+(?:de|do|da|of)\s+[\p{L}'’-]+|\s+[\p{L}'’-]+){0,2})(?![\p{L}])/giu
 const ROLE_BIT = /(?:^|[^\p{L}])(?:é|e|is)\s+(?:um|uma|a|an|the|o|a)?\s*(aprendiz|arquivista|archivist|apprentice|pescadora|pescador|aluna|aluno|estudante|student|guarda|padeira|padeiro|professora|professor)/giu
+const BARE_ROLE = /(?<![\p{L}])(aprendiz|arquivista|archivist|apprentice|aluna|aluno|estudante|student)(?![\p{L}])/giu
+const TRAIT_VERB = /(?<![\p{L}])(?:fecha|abre|espera|pinta|pousa|rega|acena|corre|caminha|levanta|larga|apanha|pega|lifts?|sets?|puts?|opens?|closes?|waits?|walks?|waves?|sits?|reads?|checks?|holds?|carries|carrega|veste|calls?|chama|nada)(?![\p{L}])/iu
 const WEAR_LEAD = /(?:veste|vestem|usa|usam|wears?|wore)\s+(?:um|uma|uns|umas|a|an|the|o|de\s+)?([^.,;]+)/giu
 const CARRY_LEAD = /(?:carrega|carregam|leva|levam|traz|carries|carrying|holds?|holding)\s+(?:um|uma|a|an|the|o)?\s*([^.,;]+)/giu
 
@@ -250,9 +251,13 @@ function tidyAttribute(value) {
   let bit = cleanText(value).replace(/[.,;]+$/g, '')
   bit = bit.replace(/^(?:in|at|on|inside|into|em|no|na|nos|nas|dans|sur|ao|à)\s+/iu, '')
   bit = bit.replace(/^(?:wears?|wore|veste|vestem|usa|usam|carrega|carregam|leva|levam|traz|carries|carrying|holds?|holding|has|have|tem|têm)\s+/iu, '')
-  bit = bit.replace(/^(?:é|e|is|de|do|da|um|uma|uns|umas|a|an|the|o|os|as)\s+/iu, '')
-  bit = bit.split(/\s+\b(?:e|and)\b\s+/i)[0]
-  bit = bit.split(/\s+\b(?:in|at|on|inside|into|em|no|na|nos|nas|dans|sur|ao|à)\b\s+/i)[0]
+  let previous = ''
+  while (bit !== previous) {
+    previous = bit
+    bit = bit.replace(/^(?:é|e|is|de|do|da|um|uma|uns|umas|a|an|the|o|os|as)\s+/iu, '')
+  }
+  bit = bit.split(/\s+(?<![\p{L}])(?:e|and)(?![\p{L}])\s+/iu)[0]
+  bit = bit.split(/\s+(?<![\p{L}])(?:in|at|on|inside|into|onto|down|up|to|toward|towards|em|no|na|nos|nas|dans|sur|ao|à|até|ate|para)(?![\p{L}])\s+/iu)[0]
   const words = []
   for (const word of bit.split(/\s+/).filter(Boolean)) {
     if (words.length && (/^\p{Lu}/u.test(word) || /^(?:veste|vestem|wears?|wore|waits?|espera|abre|opens?|carrega|carregam|carries|holds?|holding|walks?|sits?)$/iu.test(word))) break
@@ -266,11 +271,16 @@ function tidyAttribute(value) {
 function pushUnique(list, value) {
   const bit = tidyAttribute(value)
   if (!bit || bit.length > 80 || bit.split(/\s+/).length > 8) return
-  if (/\b(?:espera|abre|walks?|opens?|sits?|stands?|reads?|acena|corre)\b/iu.test(bit)) return
+  if (TRAIT_VERB.test(bit)) return
   const key = foldName(bit)
-  if (list.some(item => foldName(item) === key || foldName(item).includes(key) || key.includes(foldName(item)))) {
-    const index = list.findIndex(item => foldName(item) === key || foldName(item).includes(key) || key.includes(foldName(item)))
-    if (index >= 0 && bit.length > list[index].length) list[index] = bit
+  const index = list.findIndex(item => {
+    const have = foldName(item)
+    return have === key || have.includes(key) || key.includes(have)
+  })
+  if (index >= 0) {
+    const have = list[index]
+    const verbier = TRAIT_VERB.test(bit) && !TRAIT_VERB.test(have)
+    if (!verbier && bit.length > have.length && foldName(bit).includes(foldName(have))) list[index] = bit
     return
   }
   list.push(bit)
@@ -299,8 +309,10 @@ export function identityTraits(text, name) {
   for (const match of source.matchAll(new RegExp(AGE_BIT.source, 'giu'))) pushUnique(looks, match[0])
   for (const match of source.matchAll(new RegExp(HAIR_BIT.source, 'giu'))) pushUnique(looks, match[0])
   for (const match of source.matchAll(new RegExp(ROLE_BIT.source, 'giu'))) pushUnique(looks, match[1])
+  for (const match of source.matchAll(new RegExp(BARE_ROLE.source, 'giu'))) pushUnique(looks, match[1])
   for (const match of source.matchAll(new RegExp(GARMENT_BIT.source, 'giu'))) pushUnique(outfits, match[0])
   for (const match of source.matchAll(new RegExp(ITEM_BIT.source, 'giu'))) pushUnique(outfits, match[1] || match[0])
+  for (const match of source.matchAll(new RegExp(BARE_ITEM.source, 'giu'))) pushUnique(outfits, match[1] || match[0])
   for (const match of source.matchAll(new RegExp(WEAR_LEAD.source, 'giu'))) {
     String(match[1] || '').split(/\s+\b(?:e|and)\b\s+/i).forEach(part => {
       if (GARMENT_BIT.test(part) || /(?:vestido|casaco|coat|dress|cardigan|waistcoat|avental|apron|jaqueta|camisa)/iu.test(part)) pushUnique(outfits, part)
@@ -392,6 +404,17 @@ function findScenes(text, lex, characters, places, language) {
     if (cued && !cue.uncertain && !owned && !isNonPlaceNoun(cued) && !isRejectedPlace(cued)) {
       where = cued
       whereFlag = cue.unlisted ? 'place_unlisted' : ''
+    }
+    if (foldName(where) === foldName(lastWhere)) {
+      const moved = movementPlace(action, language)
+      const at = moved ? action.toLowerCase().indexOf(moved.toLowerCase()) : -1
+      const subject = subjectPlace(action, language, places)
+      const reached = moved && !isRejectedPlace(moved) && (at < 0 || mentionMovesScene(action, at, language)) ? moved : ''
+      const named = reached || (subject && !isRejectedPlace(subject) ? subject : '')
+      if (named && foldName(named) !== foldName(where)) {
+        where = named
+        whereFlag = ''
+      }
     }
     if (whereFlag) flags.push({ field: 'where', code: whereFlag })
     if (where) lastWhere = where
