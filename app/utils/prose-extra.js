@@ -258,7 +258,7 @@ const ACTION_HOLD = /(?:both hands|duas mãos|duas maos|ambas as mãos|ambas as 
 function tidyAttribute(value) {
   let bit = cleanText(value).replace(/[.,;]+$/g, '')
   bit = bit.replace(/^(?:in|at|on|inside|into|beside|near|by|em|no|na|nos|nas|dans|sur|ao|à)\s+/iu, '')
-  bit = bit.replace(/^(?:wears?|wore|pulls?\s+on|puts?\s+on|veste|vestem|usa|usam|carrega|carregam|leva|levam|traz|carries|carrying|has|have|tem|têm)\s+/iu, '')
+  bit = bit.replace(/^(?:wears?|wore|pulls?\s+on|puts?\s+on|veste|vestem|usa|usam|carrega|carregam|leva|levam|traz|carries|carrying|has|have|tem|têm|takes?\s+off|take\s+off|removes?|tira|tiram|despe|despem)\s+/iu, '')
   let previous = ''
   while (bit !== previous) {
     previous = bit
