@@ -68,17 +68,23 @@ async function clickButtons(page) {
   page.on('filechooser', chooser => { chooser.setFiles([]).catch(() => {}) })
   const buttons = page.locator('button')
   const count = await buttons.count()
+  // Indexes belong to this document. A client navigation (Create storyboard) reuses the
+  // same index for a control on the next page, including the desktop-hidden workspace button.
+  const pageUrl = page.url()
   for (let index = 0; index < count; index += 1) {
+    if (page.url() !== pageUrl) break
     const button = buttons.nth(index)
     if (!(await button.isVisible().catch(() => false))) continue
+    if (page.url() !== pageUrl) break
     const label = ((await button.getAttribute('aria-label')) || (await button.innerText()) || `button ${index}`).replace(/\s+/g, ' ').trim()
+    if (page.url() !== pageUrl) break
+    if (!(await button.isVisible().catch(() => false))) continue
     if (await button.isDisabled().catch(() => false)) {
       const cursor = await button.evaluate(element => getComputedStyle(element).cursor)
       assert.notEqual(cursor, 'wait', `disabled "${label}" still uses cursor wait`)
       assert.equal(cursor, 'not-allowed', `disabled "${label}" cursor is ${cursor}`)
       continue
     }
-    const urlBefore = page.url()
     try {
       await button.click({ timeout: 1500 })
     } catch (error) {
@@ -86,11 +92,11 @@ async function clickButtons(page) {
         await page.keyboard.press('Escape')
         continue
       }
-      // A control that opened another page is gone; that page is checked on its own visit.
-      if (page.url() !== urlBefore) continue
+      if (page.url() !== pageUrl) break
+      if (!(await button.isVisible().catch(() => false))) continue
       throw new Error(`"${label}" did not respond: ${error.message.split('\n')[0]}`)
     }
-    if (page.url() !== urlBefore) await page.waitForSelector('#main-content').catch(() => {})
+    if (page.url() !== pageUrl) break
     if (await page.locator('.modal-panel').count()) {
       const background = await page.locator('.modal-panel').first().evaluate(element => getComputedStyle(element).backgroundColor)
       assert.notEqual(background, 'rgba(0, 0, 0, 0)', `${label} opened a transparent modal`)
