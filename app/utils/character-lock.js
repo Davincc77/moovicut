@@ -4,6 +4,7 @@ import { findByName, foldName, nameParts } from './scenario.js'
 import { phrase } from './prompt-lang.js'
 import { keptTrait, namedWornAndCarried } from './prose-extra.js'
 import { placeIsSure, settingName } from './place-lexicon.js'
+import { interactionPossessive, isHonorificStop } from './scene-split.js'
 
 export const SHEET_KEYS = Object.freeze(['front', 'side', 'back', 'expressions', 'palette', 'outfit', 'props'])
 const REF_SLOTS = Object.freeze(['front', 'side', 'back'])
@@ -203,8 +204,8 @@ function nameMentioned(text, name) {
   const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const re = new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, 'giu')
   for (const match of source.matchAll(re)) {
-    const before = source.slice(Math.max(0, match.index - 12), match.index)
-    if (/(?:de|do|da|dos|das|of)\s+$/iu.test(before)) continue
+    const before = source.slice(Math.max(0, match.index - 32), match.index)
+    if (/(?:de|do|da|dos|das|of)\s+$/iu.test(before) && !interactionPossessive(before)) continue
     return true
   }
   return false
@@ -276,6 +277,10 @@ function pickedExtras(entry) {
   if (age) next.age = age.slice(0, 160)
   if (role) next.role = role.slice(0, 160)
   if (items) next.items = items.slice(0, 240)
+  if (entry.declaredItems != null || items) {
+    const declared = entry.declaredItems != null ? cleanText(entry.declaredItems) : items
+    next.declaredItems = declared.slice(0, 240)
+  }
   if (typeof entry.lockLine === 'string' && entry.lockLine.trim()) next.lockLine = entry.lockLine.trim().slice(0, 700)
   if (entry.lockEdited === true) next.lockEdited = true
   if (Array.isArray(entry.states) && entry.states.length) next.states = normalizeStates(entry.states)
@@ -537,12 +542,18 @@ function shotPlain(shot) {
 function sentencesOf(text) {
   const source = String(text || '')
   const parts = []
-  const re = /[^.!?。！？]+[.!?。！？]?/gu
-  let match
-  while ((match = re.exec(source))) {
-    if (cleanText(match[0])) parts.push({ text: match[0], index: match.index })
-    if (match.index === re.lastIndex) re.lastIndex += 1
+  let start = 0
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index]
+    if (!/[.!?。！？]/.test(char) || isHonorificStop(source, index)) continue
+    const next = source[index + 1] || ''
+    if (next && !/\s/.test(next) && next !== '\n') continue
+    const piece = source.slice(start, index + 1)
+    if (cleanText(piece)) parts.push({ text: piece, index: start })
+    start = index + 1
   }
+  const tail = source.slice(start)
+  if (cleanText(tail)) parts.push({ text: tail, index: start })
   if (!parts.length && cleanText(source)) parts.push({ text: source, index: 0 })
   return parts
 }
@@ -865,7 +876,9 @@ function demoteLaterTraits(current, shots, events, person, story = '') {
       const plain = shot ? shotPlain(shot) : ''
       const gained = LATER_GAIN.test(plain)
       const lost = LATER_LOSS.test(plain) && !gained
-      const introducedLater = order > 1 && !mentionedBeforeFirstShot(story, shots, clause) && (gained || lost)
+      const declared = fieldClauses(person.declaredItems || '')
+      const declaredKept = field === 'items' && person.declaredItems != null && declared.some(part => related(part, clause) || related(clause, part))
+      const introducedLater = !declaredKept && order > 1 && !mentionedBeforeFirstShot(story, shots, clause) && (gained || lost)
       if (!introducedLater) {
         kept.push(clause)
         continue

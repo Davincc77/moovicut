@@ -87,7 +87,7 @@ const TIME_CUES = Object.freeze([
   [/in the afternoon|this afternoon|that afternoon|à tarde|a tarde|de tarde|pela tarde|\bafternoon\b/iu, 'afternoon'],
   [/at dusk|ao crepúsculo|ao crepusculo|ao entardecer|no entardecer|\bentardecer\b|\bdusk\b|ao pôr do sol|ao por do sol|pôr do sol|por do sol|at sunset|\bsunset\b/iu, 'dusk'],
   [/in the evening|this evening|that evening|early evening|\bevening\b/iu, 'evening'],
-  [/at night|in the night|by night|\btonight\b|à noite|a noite|de noite|pela noite|na noite|meia-noite|meia noite|\bmadrugada\b|ao anoitecer|ao luar|\bnight\b|\bnoite\b/iu, 'night'],
+  [/at night|in the night|by night|\btonight\b|around midnight|at midnight|near midnight|\bmidnight\b|à noite|a noite|de noite|pela noite|na noite|meia-noite|meia noite|\bmadrugada\b|ao anoitecer|ao luar|\bnight\b|\bnoite\b/iu, 'night'],
   [/\bmorning\b|\bmanh[ãa]\b/iu, 'morning']
 ])
 

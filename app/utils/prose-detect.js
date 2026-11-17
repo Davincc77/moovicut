@@ -4,8 +4,8 @@ import { foldName, scenarioBudget, scenarioPremise, scenarioToFields } from './s
 import { flaggedNameKeys } from './shot-risk.js'
 import { splitActionText } from './action-split.js'
 import { detectLocalized, groupSubject, identityTraits, keptTrait, kinshipSubject } from './prose-extra.js'
-import { inNamedVenue, inSpans, isCueStopword, isFunctionWord, isNeverPlace, isNumberWord, isQuotedOrRemembered, isVenueType, mentionMovesScene, namedVenues, placeMentionIsReal, quoteSpans, splitNarrative } from './scene-split.js'
-import { aircraftPlace, enteredPlace, finishCarriedPlace, isNonPlaceNoun, isRejectedPlace, libraryHits, locativeHeads, movementPlace, normalizePlaceName, placeLexiconHas, placeTag, preferPlaceHead, settingName, tidyPlaceLemma } from './place-lexicon.js'
+import { inNamedVenue, inSpans, interactionPossessive, isCueStopword, isFunctionWord, isHonorificStop, isNeverPlace, isNumberWord, isQuotedOrRemembered, isVenueType, mentionMovesScene, namedVenues, opensParagraph, placeMentionIsReal, quoteSpans, sentenceHasTimeCue, splitNarrative } from './scene-split.js'
+import { aircraftPlace, enteredPlace, finishCarriedPlace, inspectedPlace, isNonPlaceNoun, isRejectedPlace, libraryHits, locativeHeads, movementPlace, normalizePlaceName, placeLexiconHas, placeTag, possessivePlace, preferPlaceHead, settingName, tidyPlaceLemma } from './place-lexicon.js'
 
 const STOP = new Set(['the', 'a', 'an', 'he', 'she', 'they', 'it', 'his', 'her', 'their', 'then', 'when', 'after', 'before', 'later', 'next', 'once', 'this', 'that', 'there', 'here', 'un', 'une', 'le', 'la', 'les', 'il', 'elle', 'ils', 'elles', 'lui', 'leur', 'puis', 'quand', 'apres', 'avant', 'dans', 'sur', 'sous', 'avec', 'pour', 'par', 'chez', 'au', 'aux', 'du', 'des', 'en', 'et', 'mais', 'ou', 'ce', 'cette', 'ces', 'son', 'sa', 'ses', 'mon', 'ma', 'mes', 'je', 'tu', 'nous', 'vous', 'on', 'plus', 'tout', 'toute', 'tous', 'morning', 'evening', 'night', 'day', 'matin', 'soir', 'nuit', 'jour', 'aube', 'tard', 'lendemain', 'and', 'with', 'from', 'into', 'over', 'while', 'its', 'our', 'your'])
 
@@ -93,7 +93,21 @@ function hasVerb(text) {
 }
 
 function sentencesOf(text) {
-  return String(text || '').split(/(?<=[.!?])\s+/).map(item => item.trim()).filter(Boolean)
+  const source = String(text || '')
+  const parts = []
+  let start = 0
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index]
+    if (!/[.!?]/.test(char) || isHonorificStop(source, index)) continue
+    const next = source[index + 1] || ''
+    if (next && !/\s/.test(next)) continue
+    const piece = source.slice(start, index + 1).trim()
+    if (piece) parts.push(piece)
+    start = index + 1
+  }
+  const tail = source.slice(start).trim()
+  if (tail) parts.push(tail)
+  return parts
 }
 
 function sentenceStarts(text) {
@@ -338,7 +352,7 @@ const CARRIED_ITEM = /\b(?:cord|chain|strap|string|ribbon|neck|wrist|belt|should
 
 function isNameNoise(token, language) {
   const key = foldName(token)
-  return !key || key.length < 2 || STOP.has(key) || TIME_BLOCK.has(key) || CALENDAR_WORD.has(key) || NOT_A_PERSON.has(key) || STREET_WORD.has(key) || PLACE_KEYS.has(key) || NOT_A_PLACE.has(key) || isFunctionWord(token, language) || isNumberWord(token, language) || isNeverPlace(token) || isVenueType(token, language) || (/-/.test(String(token)) && GARMENT_WORD.test(token))
+  return !key || key.length < 2 || STOP.has(key) || TIME_BLOCK.has(key) || CALENDAR_WORD.has(key) || NOT_A_PERSON.has(key) || STREET_WORD.has(key) || PLACE_KEYS.has(key) || NOT_A_PLACE.has(key) || /^(?:dr|mr|mrs|ms|prof|sr|sra|dra|st|x-ray|xray)$/i.test(key) || isFunctionWord(token, language) || isNumberWord(token, language) || isNeverPlace(token) || isVenueType(token, language) || (/-/.test(String(token)) && GARMENT_WORD.test(token))
 }
 
 function properNames(text, language) {
@@ -872,7 +886,7 @@ function placeDescription(source, key, language, fallback = '') {
     for (let index = raw.length - 1; index >= 0; index -= 1) {
       const word = raw[index]
       const token = foldName(word)
-      if (!token || PREPOSITION.has(token) || /^(?:steps?|tests?|arrives?|walks?|waits?|skates?|enters?|opens?|sits?|stands?|comes?|goes?|runs?|reaches?|climbs?|boards?|onto|upon)$/i.test(word)) break
+      if (!token || PREPOSITION.has(token) || /^(?:steps?|tests?|testa|verifica|checks?|examines?|searches|arrives?|walks?|waits?|skates?|enters?|opens?|sits?|stands?|comes?|goes?|runs?|reaches?|climbs?|boards?|onto|upon)$/i.test(word)) break
       if (token.length < 3 || DESC_SKIP.has(token) || STOP.has(token) || TIME_BLOCK.has(token) || VERBS.has(token) || CALENDAR_WORD.has(token) || PLACE_KEYS.has(token)) {
         if (words.length) break
         continue
@@ -929,7 +943,9 @@ function splitBlocks(text) {
 }
 
 function possessiveAt(text, index) {
-  return /(?:de|do|da|dos|das|of)\s+$/iu.test(String(text || '').slice(Math.max(0, index - 12), index))
+  const before = String(text || '').slice(Math.max(0, index - 32), index)
+  if (interactionPossessive(before)) return false
+  return /(?:de|do|da|dos|das|of)\s+$/iu.test(before)
 }
 
 function namesIn(text, characters) {
@@ -1127,6 +1143,12 @@ function detectScenes(text, characters, places, language, flagged, options = {})
         const entered = enteredPlace(shot.what, language)
         if (nestedPlace && !isRejectedPlace(nestedPlace)) where = nestedPlace
         else if (entered && !isRejectedPlace(entered)) where = entered
+        const inspected = inspectedPlace(shot.what, language)
+        const sourceSentence = shot.source || shot.what
+        const timed = sentenceHasTimeCue(shot.what, language) || sentenceHasTimeCue(sourceSentence, language) || opensParagraph(text, sourceSentence)
+        const owned = timed ? (possessivePlace(shot.what, language) || possessivePlace(sourceSentence, language)) : ''
+        if (inspected && !isRejectedPlace(inspected)) where = inspected
+        else if (owned && !isRejectedPlace(owned)) where = owned
         if (where && isRejectedPlace(where)) where = carriedWhere && !isRejectedPlace(carriedWhere) ? carriedWhere : ''
         if (where) {
           const named = normalizePlaceName(where, language)
