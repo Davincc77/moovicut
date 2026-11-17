@@ -5,7 +5,7 @@ import { flaggedNameKeys } from './shot-risk.js'
 import { splitActionText } from './action-split.js'
 import { detectLocalized } from './prose-extra.js'
 import { inNamedVenue, inSpans, isCueStopword, isFunctionWord, isNeverPlace, isNumberWord, isQuotedOrRemembered, isVenueType, mentionMovesScene, namedVenues, placeMentionIsReal, quoteSpans, splitNarrative } from './scene-split.js'
-import { libraryHits, locativeHeads, placeLexiconHas, placeTag } from './place-lexicon.js'
+import { isNonPlaceNoun, libraryHits, locativeHeads, placeLexiconHas, placeTag } from './place-lexicon.js'
 
 const STOP = new Set(['the', 'a', 'an', 'he', 'she', 'they', 'it', 'his', 'her', 'their', 'then', 'when', 'after', 'before', 'later', 'next', 'once', 'this', 'that', 'there', 'here', 'un', 'une', 'le', 'la', 'les', 'il', 'elle', 'ils', 'elles', 'lui', 'leur', 'puis', 'quand', 'apres', 'avant', 'dans', 'sur', 'sous', 'avec', 'pour', 'par', 'chez', 'au', 'aux', 'du', 'des', 'en', 'et', 'mais', 'ou', 'ce', 'cette', 'ces', 'son', 'sa', 'ses', 'mon', 'ma', 'mes', 'je', 'tu', 'nous', 'vous', 'on', 'plus', 'tout', 'toute', 'tous', 'morning', 'evening', 'night', 'day', 'matin', 'soir', 'nuit', 'jour', 'aube', 'tard', 'lendemain', 'and', 'with', 'from', 'into', 'over', 'while', 'its', 'our', 'your'])
 
@@ -35,7 +35,7 @@ const PLACES = [
   { keys: ['quai', 'quay', 'harbour', 'harbor'], fr: 'Quai', en: 'Quay', frDesc: 'un quai', enDesc: 'a quay' }
 ]
 
-const TIME_BLOCK = new Set(['matin', 'morning', 'soir', 'evening', 'nuit', 'night', 'jour', 'day', 'aube', 'dawn', 'dusk', 'soleil', 'sun', 'pluie', 'rain', 'tard', 'lendemain', 'petit', 'late', 'inside', 'outside', 'suddenly', 'finally', 'soon', 'meanwhile', 'tonight', 'yesterday', 'tomorrow', 'across', 'behind', 'above', 'below', 'under', 'near', 'around', 'during', 'upon', 'within', 'along', 'toward', 'towards', 'soudain', 'ensuite', 'dedans', 'dehors', 'hier', 'demain', 'alors', 'enfin', 'pendant', 'derriere', 'dessus', 'dessous', 'dentro', 'fora', 'ontem', 'amanha', 'entao', 'depois', 'plotzlich', 'drinnen', 'draussen', 'gestern', 'heute', 'spater', 'wahrend', 'improvvisamente', 'infine', 'stasera', 'bannen', 'baussen', 'geschter', 'muer', 'noon', 'afternoon', 'midnight', 'sundown', 'sunrise', 'sunset', 'nightfall', 'pomeriggio', 'mattina', 'mattino', 'serata', 'tramonto', 'mezzogiorno', 'coucher', 'midi', 'morgens', 'mittags', 'nachmittags', 'vormittags', 'abends', 'nachts', 'meio', 'fim', 'manha', 'tarde'])
+const TIME_BLOCK = new Set(['matin', 'morning', 'soir', 'evening', 'nuit', 'night', 'jour', 'day', 'aube', 'dawn', 'dusk', 'soleil', 'sun', 'pluie', 'rain', 'tard', 'lendemain', 'petit', 'late', 'inside', 'outside', 'suddenly', 'finally', 'soon', 'meanwhile', 'tonight', 'yesterday', 'tomorrow', 'across', 'behind', 'above', 'below', 'under', 'near', 'around', 'during', 'upon', 'within', 'along', 'toward', 'towards', 'soudain', 'ensuite', 'dedans', 'dehors', 'hier', 'demain', 'alors', 'enfin', 'pendant', 'derriere', 'dessus', 'dessous', 'dentro', 'fora', 'ontem', 'amanha', 'entao', 'depois', 'plotzlich', 'drinnen', 'draussen', 'gestern', 'heute', 'spater', 'wahrend', 'improvvisamente', 'infine', 'stasera', 'bannen', 'baussen', 'geschter', 'muer', 'noon', 'afternoon', 'midnight', 'sundown', 'sunrise', 'sunset', 'nightfall', 'pomeriggio', 'mattina', 'mattino', 'serata', 'tramonto', 'mezzogiorno', 'coucher', 'midi', 'morgens', 'mittags', 'nachmittags', 'vormittags', 'abends', 'nachts', 'meio', 'fim', 'manha', 'tarde', 'noite', 'madrugada', 'luar', 'anoitecer', 'entardecer', 'crepusculo', 'noitinha'])
 const CALENDAR_WORD = new Set(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche', 'montag', 'dienstag', 'mittwoch', 'donnerstag', 'freitag', 'samstag', 'sonntag', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo', 'lunedi', 'martedi', 'mercoledi', 'giovedi', 'venerdi', 'sabato', 'january', 'february', 'march', 'april', 'june', 'july', 'august', 'september', 'october', 'november', 'december', 'janvier', 'fevrier', 'mars', 'avril', 'juin', 'juillet', 'aout', 'septembre', 'octobre', 'novembre', 'decembre', 'januar', 'februar', 'marz', 'juni', 'juli', 'oktober', 'dezember', 'gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre', 'janeiro', 'fevereiro', 'marco', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'])
 const NOT_A_PERSON = new Set(['together', 'early', 'late', 'suddenly', 'finally', 'meanwhile', 'soon', 'inside', 'outside', 'later', 'yesterday', 'tomorrow', 'tonight', 'across', 'behind', 'above', 'below', 'under', 'near', 'today', 'once', 'still', 'already', 'sawdust', 'steam', 'water', 'smoke', 'dust', 'fire', 'rain', 'snow', 'wind', 'mud', 'ash', 'oil', 'flour', 'sand', 'fog', 'mist', 'frost', 'flame', 'flames', 'flamingo', 'flamingos', 'seagull', 'seagulls', 'pigeon', 'pigeons', 'sparrow', 'sparrows', 'horse', 'horses', 'dog', 'dogs', 'cat', 'cats', 'bird', 'birds', 'fish', 'gull', 'gulls', 'fox', 'foxes', 'wolf', 'wolves', 'sheep', 'goat', 'goats', 'cow', 'cows', 't-shirt', 'shirt', 'apron', 'jacket', 'dress', 'hat', 'cap', 'boots', 'scarf', 'sweater', 'saint', 'sainte', 'ao', 'morgens', 'mittags', 'nachmittags', 'vormittags', 'abends', 'nachts', 'pomeriggio', 'tramonto', 'mezzogiorno', 'coucher', 'nephew', 'niece', 'neffe', 'nichte', 'enkel', 'enkelin', 'bruder', 'schwester', 'sohn', 'tochter', 'onkel', 'tante', 'vetter', 'cousin', 'schwager', 'brother', 'sister', 'uncle', 'aunt', 'grandson', 'granddaughter', 'nipote', 'neto', 'sobrinho', 'sobrinha', 'neveu'])
 const JUMP = /\b(plus tard|le lendemain|au lendemain|le matin suivant|the next morning|next morning|the next day|later)\b/i
@@ -43,8 +43,8 @@ const VERBS = new Set(['entre', 'sort', 'verse', 'renverse', 'rit', 'rire', 'mar
 const NOT_A_PLACE = new Set(['window', 'door', 'table', 'glass', 'cup', 'bottle', 'hand', 'hands', 'umbrella', 'pastry', 'apron', 'hair', 'face', 'eye', 'eyes'])
 const ROLE_WORDS = /\b(baker|boulanger|boulangère|keeper|gardien|neighbour|neighbor|courier|detective|astronaut|painter|explorer)\b/iu
 
-const EN_MARK = /\b(the|and|she|he|with|on|in|at|her|his|is)\b/gi
-const PT_MARK = /\b(ela|ele|eles|elas|uma|não|nao|com|seu|sua|num|numa|pelo|pela|está|esta|encontra|entrega|dele|dela|cais|lê|le|tem|anos|entra|na|ao|à|do|da|dos|das)\b/gi
+const EN_MARK = /(?<![\p{L}\p{N}])(the|and|she|he|with|on|in|at|her|his|is)(?![\p{L}\p{N}])/giu
+const PT_MARK = /(?<![\p{L}\p{N}])(ela|ele|eles|elas|uma|não|nao|com|seu|sua|num|numa|pelo|pela|está|esta|encontra|entrega|dele|dela|cais|lê|le|tem|anos|entra|na|ao|à|do|da|dos|das|noite|madrugada|farol|mercado|casaco|cabelo|barba|avental|espera|cozinha|praia|chega|camisa|vestido|binóculos|binoculos|grisalho|pescadora|pescador|xaile|parede|chão|chao|testa|ombros|luar|crepúsculo|crepusculo|anoitecer|meia-noite)(?![\p{L}\p{N}])/giu
 
 function markCount(text, pattern) {
   pattern.lastIndex = 0
@@ -52,9 +52,11 @@ function markCount(text, pattern) {
 }
 
 function languageScores(text) {
-  const pt = markCount(text, PT_MARK)
-  const en = markCount(text, EN_MARK)
-  if (pt >= 2 && pt > en) return { language: 'pt', score: pt, second: en }
+  const source = String(text || '')
+  const pt = markCount(source, PT_MARK)
+  const en = markCount(source, EN_MARK)
+  const accent = /[àáâãéêíóôõúç]/i.test(source)
+  if ((pt >= 2 && pt > en) || (pt > en && accent && pt >= 1)) return { language: 'pt', score: pt, second: en }
   return { language: 'en', score: en, second: pt }
 }
 
@@ -125,16 +127,29 @@ function traitHits(clause) {
   return { looks, outfits }
 }
 
+function traitCovered(longer, shorter) {
+  const left = ` ${foldName(longer)} `
+  const right = ` ${foldName(shorter)} `
+  return Boolean(left.trim() && right.trim() && left.includes(right))
+}
+
 function absorbTrait(list, value) {
-  const clean = cleanText(value)
+  const clean = tidyTrait(value)
   const key = foldName(clean)
   if (!key) return
-  const index = list.findIndex(item => {
-    const other = foldName(item)
-    return other === key || other.includes(key) || key.includes(other)
-  })
+  const index = list.findIndex(item => traitCovered(item, clean) || traitCovered(clean, item))
   if (index < 0) list.push(clean)
   else if (clean.length > list[index].length) list[index] = clean
+}
+
+function tidyTrait(value) {
+  let bit = cleanText(value).replace(/[.,;]+$/g, '')
+  bit = bit.replace(/^(?:who|that|which)\s+(?:is|are|was|were)\s+/i, '')
+  bit = bit.replace(/^(?:is|are|was|were)\s+/i, '')
+  bit = bit.replace(/^(?:carries|carrying|holds?|holding|wears?|wearing|has|have|had)\s+/i, '')
+  while (/^(?:with|and|a|an|the|un|une)\s+/i.test(bit)) bit = bit.replace(/^(?:with|and|a|an|the|un|une)\s+/i, '')
+  bit = bit.replace(/(?:\s+(?:of|de|do|da|dos|das|in|on|at|with|num|numa|no|na|em|ao|à|por|para|com|pelo|pela|preso|presa))+$/iu, '')
+  return cleanText(bit)
 }
 
 function textAfterName(text, name, names) {
@@ -220,10 +235,11 @@ export function premiseShotPlan(text) {
   const detected = detectProse(text)
   if (!detected.characters.length || !detected.scenes.length) return null
   const where = detected.places[0]?.name || ''
-  return detected.scenes.map(scene => ({
+    return detected.scenes.map(scene => ({
     what: cleanText(scene.what).replace(/[.!?]+$/, ''),
     who: scene.who || '',
-    where: scene.where || where
+    where: scene.where || where,
+    light: scene.light || ''
   }))
 }
 
@@ -296,8 +312,8 @@ function castTraits(text, name, names) {
 }
 
 const STREET_WORD = new Set(['rue', 'street', 'road', 'avenue', 'lane', 'boulevard', 'way', 'via', 'strasse', 'straße', 'strada', 'rua', 'calle', 'gasse'])
-const GARMENT_WORD = /\b(?:raincoats?|coats?|jackets?|aprons?|caps?|hats?|scarves?|scarf|dresses?|shirts?|boots?|peacoats?|sweaters?|cloaks?|robes?|hoodies?|hakama|vests?|uniforms?|shawls?)\b/i
-const CARRIED_ITEM = /\b(?:cord|chain|strap|string|ribbon|neck|wrist|belt|shoulder|locket|compass|watch|pendant|tongs|hammer|brush|lantern|whistle|key|keys|camera|letter|map|cup|mug|basket|notebook|pen|knife|sword|staff|cane|umbrella|book|bag|purse|wallet|flower|rose|tray|plate|bottle|torch|flashlight|flute|bell|compass)\b/i
+const GARMENT_WORD = /\b(?:raincoats?|coats?|jackets?|aprons?|caps?|hats?|scarves?|scarf|dress(?:es)?|shirts?|boots?|peacoats?|sweaters?|cloaks?|robes?|hoodies?|hakama|vests?|uniforms?|shawls?)\b/i
+const CARRIED_ITEM = /\b(?:cord|chain|strap|string|ribbon|neck|wrist|belt|shoulder|locket|compass|watch|pendant|tongs|hammer|brush|lantern|whistle|key|keys|camera|letter|map|cup|mug|basket|notebook|pen|knife|sword|staff|cane|umbrella|book|bag|purse|wallet|flower|rose|tray|plate|bottle|torch|flashlight|flute|bell|compass|ticket punch|walkie-talkie|walkie|paper fan|hand fan|fan|binoculars|radio)\b/i
 
 function isNameNoise(token, language) {
   const key = foldName(token)
@@ -350,7 +366,7 @@ function uncoveredClauses(text, name, names, look, outfit) {
   if (!slice) return
   slice.split(',').forEach(part => {
     const raw = cleanText(part)
-    const bit = raw.replace(/^(?:and|with|a|an|the)\s+/i, '')
+    const bit = tidyTrait(raw)
     if (!isTraitBit(bit)) return
     if (/^(?:on|in|at|inside|aboard)\s+(?:a|an|the)\b/i.test(raw) && !CARRIED_ITEM.test(raw)) return
     const have = foldName([...look, ...outfit].join(' '))
@@ -394,23 +410,28 @@ function introductions(text, characters, language) {
       const name = named[1].split(/\s+/).filter(part => !isNameNoise(part, language)).join(' ')
       const looks = []
       const outfits = []
-      cutTraits(named[2]).split(/\s*,\s*|\s+\band\b\s+/i).forEach(part => {
-        const bit = cleanText(part).replace(/^(?:with|a|an|the)\s+/i, '')
-        if (!isTraitBit(bit) && !/^(?:twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)/i.test(bit)) return
-        if (GARMENT_WORD.test(bit)) outfits.push(bit)
-        else looks.push(bit)
-      })
+      cutTraits(named[2]).split(/\s*,\s*|\s+\band\b\s+/i).forEach(part => classifyTrait(part, looks, outfits))
       rememberPerson(characters, name, looks, outfits)
       if (name) lastSubject = name
     }
-    const worn = sentence.match(/^(?:she|he|they|elle|il)\s+(?:has|have|had|a)\s+(.+?)(?:\s+and\s+(?:wears|wore|porte)\s+(.+))?$/iu)
     const owner = characters.find(person => foldName(person.name) === foldName(lastSubject))
       || characters.find(person => person.name.split(/\s+/).some(bit => foldName(bit) === foldName(lastSubject)))
-    if (worn && owner) {
-      const detail = cutTraits(worn[1])
-      rememberPerson(characters, owner.name, detail ? [cleanText(detail)] : [], worn[2] ? [cleanText(cutTraits(worn[2])).replace(/^(?:a|an|the|un|une)\s+/i, '')] : [])
+    const appearance = sentence.match(/^(?:she|he|they|elle|il|ela|ele)\s+(?:has|have|had|wears?|wore|is wearing|carries|carrying|holds?|holding|veste|usa|traz|tem)\b([\s\S]+)$/iu)
+    if (appearance && owner) {
+      const looks = []
+      const outfits = []
+      appearance[1].split(/\s*,\s*|\s+\band\b\s+/i).forEach(part => classifyTrait(part, looks, outfits))
+      rememberPerson(characters, owner.name, looks, outfits)
     }
   })
+}
+
+function classifyTrait(part, looks, outfits) {
+  const bit = tidyTrait(part)
+  if (!bit) return
+  if (!isTraitBit(bit) && !/^(?:twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)/i.test(bit)) return
+  if (GARMENT_WORD.test(bit) || CARRIED_ITEM.test(bit)) outfits.push(bit)
+  else looks.push(bit)
 }
 
 function escapeName(name) {
@@ -609,7 +630,7 @@ function unique(values) {
 
 function pushPlace(places, name, description, confidence, trusted = false) {
   const clean = cleanText(name)
-  if (!clean || NOT_A_PLACE.has(foldName(clean)) || isNeverPlace(clean)) return
+  if (!clean || NOT_A_PLACE.has(foldName(clean)) || isNeverPlace(clean) || /^(?:com|with|wearing)\b/iu.test(clean)) return
   const existing = places.find(place => foldName(place.name) === foldName(clean))
   if (existing) {
     if (trusted) existing.trusted = true
@@ -998,7 +1019,7 @@ function detectScenes(text, characters, places, language, flagged, options = {})
     const foundNames = namesIn(shot.what, characters)
     const pronounWho = whoFromPronoun(shot.what, characters, genders, language)
     const who = canonicalWho(foundNames.length ? foundNames.map(item => item.name).join(' and ') : (pronounWho || shot.who), characters)
-    const head = locativeHeads(shot.what, language).find(item => item.moves !== false && mentionMovesScene(shot.what, item.index, language))
+    const head = locativeHeads(shot.what, language).find(item => item.moves !== false && !isNonPlaceNoun(item.lemma) && mentionMovesScene(shot.what, item.index, language))
     const genericWhere = /^(?:Le lieu|The setting|O lugar|Il luogo|場所|场景)$/u.test(shot.where || '')
     const flaggedOnly = riskNamesOnly(shot.what, flagged)
     let confidence = 'high'

@@ -1,7 +1,7 @@
 /** Rule-based prose detection for Portuguese. No model call. */
 import { cleanText } from './text.js'
 import { foldName, scenarioBudget, scenarioPremise, scenarioToFields } from './scenario.js'
-import { cueLight, findPlaceCue, inNamedVenue, isFunctionWord, isNumberWord, isQuotedOrRemembered, isVenueType, lightAfterCue, mentionMovesScene, namedVenues } from './scene-split.js'
+import { cueLight, findPlaceCue, inNamedVenue, isDescriptionSentence, isFunctionWord, isNumberWord, isQuotedOrRemembered, isVenueType, lightAfterCue, mentionMovesScene, namedVenues } from './scene-split.js'
 import { isNonPlaceNoun, libraryHits, locativeHeads } from './place-lexicon.js'
 import { isNeverPlace } from './scene-split.js'
 
@@ -28,7 +28,7 @@ const LEX = {
     feminine: ['ela'],
     masculine: ['ele'],
     meet: /\b(encontra|conhece)\b/i,
-    light: [[/\b(amanhecer|aurora)\b/i, 'dawn'], [/\b(crepúsculo|anoitecer|entardecer)\b/i, 'dusk'], [/\b(noite|meia-noite)\b/i, 'night'], [/\b(dia|manhã|tarde)\b/i, 'day']],
+    light: [[/\b(amanhecer|aurora)\b/iu, 'dawn'], [/\b(noite|meia-noite|madrugada|luar|anoitecer|entardecer|crepúsculo|crepusculo)\b/iu, 'night'], [/\b(dia|manhã|tarde)\b/iu, 'day']],
     mood: [[/\b(sorri|rir|riso)\b/i, 'playful'], [/\b(medo|ansioso)\b/i, 'uneasy'], [/\b(calmo|silêncio|triste)\b/i, 'quiet']]
   }
 }
@@ -123,9 +123,11 @@ function findCharacters(text, lex, places, language) {
   const warnings = []
   for (const [key, entry] of counts) {
     const name = [...entry.forms.entries()].sort((a, b) => b[1] - a[1])[0][0]
-    const window = traitWindow(text, name, [...counts.values()].map(item => [...item.forms.keys()][0]))
-    const look = harvest(window, lex.look)
-    const outfit = harvest(window, lex.outfit)
+    const names = [...counts.values()].flatMap(item => [...item.forms.keys()])
+    const window = traitWindow(text, name, names)
+    const traits = traitsFromWindow(window)
+    const look = traits.looks
+    const outfit = traits.outfits
     const keep = entry.count >= 2 || look.length || outfit.length
     if (!keep) continue
     let confidence = 'high'
@@ -144,17 +146,78 @@ function findCharacters(text, lex, places, language) {
 }
 
 function traitWindow(text, name, names) {
-  const boundary = label => new RegExp(`(?<![\\p{L}])${String(label).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}])`, 'iu')
-  const match = boundary(name).exec(text)
-  if (!match) return ''
-  const after = match.index + match[0].length
-  let nextAt = Math.min(text.length, after + 180)
-  names.forEach(other => {
-    if (foldName(other) === foldName(name)) return
-    const found = boundary(other).exec(text.slice(after))
-    if (found) nextAt = Math.min(nextAt, after + found.index)
+  const boundary = label => new RegExp(`(?<![\\p{L}])${String(label).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}])`, 'giu')
+  let best = ''
+  for (const match of String(text || '').matchAll(boundary(name))) {
+    const after = match.index + match[0].length
+    let nextAt = text.length
+    names.forEach(other => {
+      if (foldName(other) === foldName(name)) return
+      const found = boundary(other).exec(text.slice(after))
+      if (found) nextAt = Math.min(nextAt, after + found.index)
+    })
+    const sentenceEnd = text.slice(match.index, nextAt).search(/[.!?。！？]/)
+    let end = sentenceEnd >= 0 ? match.index + sentenceEnd : nextAt
+    const following = text.slice(end).match(/^\s*[.!?。！？]\s+((?:Ela|Ele|Ela|Ele)\b[^.]*)/u)
+    if (following && /(?:tem|veste|usa|traz|cabelo|casaco|anos|barba|olhos)\b/iu.test(following[1])) end += following[0].length
+    const slice = text.slice(match.index, Math.min(end, nextAt))
+    if (traitsFromWindow(slice).looks.length + traitsFromWindow(slice).outfits.length > traitsFromWindow(best).looks.length + traitsFromWindow(best).outfits.length) best = slice
+  }
+  return best
+}
+
+const PT_AGE = /^(?:cerca de\s+)?\d{1,3}(?:\s+anos)?$|^(?:nos seus\s+[\p{L}'’-]+(?:\s+[\p{L}'’-]+)?)|(?:vinte|trinta|quarenta|cinquenta|sessenta|setenta|oitenta|noventa)(?:\s+e\s+[\p{L}'’-]+)?(?:\s+anos)?$/iu
+const PT_ROLE = /(?<![\p{L}])(pescadora|pescador|padeira|padeiro|professora|professor|cozinheira|cozinheiro|enfermeira|enfermeiro|agricultora|agricultor|marinheira|marinheiro|guarda)(?![\p{L}])/iu
+const PT_LOOK = /(?<![\p{L}])(cabelo|barba|bigode|olhos|rosto|pele|coque|binóculos|binoculos|óculos|oculos)(?![\p{L}])/iu
+const PT_WEAR = /(?<![\p{L}])(casaco|avental|vestido|camisa|jaqueta|blusa|saia|calças|calcas|chapéu|chapeu|botas|lenço|lenco|xaile|uniforme)(?![\p{L}])/iu
+const PT_PROP = /(?<![\p{L}])((?:um|uma)\s+(?:apito|lanterna|chave|carta|bússola|bussola|martelo|câmara|camera|leque)|binóculos(?:\s+ao\s+pescoço)?|binoculos(?:\s+ao\s+pescoco)?|lanterna|apito|câmara|camera|leque)(?![\p{L}])/iu
+const PT_DANGLING = /(?:\s+(?:de|do|da|dos|das|em|no|na|nos|nas|num|numa|com|por|para|ao|à|aos|às|pelo|pela|preso|presa|um|uma|o|a))+$/iu
+const PT_FEMININE = new Map([
+  ['pescador', 'pescadora'],
+  ['padeiro', 'padeira'],
+  ['professor', 'professora'],
+  ['cozinheiro', 'cozinheira'],
+  ['enfermeiro', 'enfermeira'],
+  ['agricultor', 'agricultora'],
+  ['marinheiro', 'marinheira']
+])
+
+function tidyPortuguese(value) {
+  let bit = cleanText(value).replace(/^(?:é|e)\s+/iu, '')
+  bit = bit.replace(/^(?:uma|um|o|a)\s+/iu, '')
+  if (PT_DANGLING.test(bit)) bit = bit.replace(PT_DANGLING, '')
+  return cleanText(bit)
+}
+
+function roleForm(role, window) {
+  const feminine = PT_FEMININE.get(foldName(role))
+  if (!feminine) return role
+  if (new RegExp(`(?<![\\p{L}])${feminine}(?![\\p{L}])`, 'iu').test(window)) return feminine
+  if (/(?<![\p{L}])ela(?![\p{L}])/iu.test(window)) return feminine
+  return role
+}
+
+function traitsFromWindow(window) {
+  const looks = []
+  const outfits = []
+  const source = String(window || '')
+  source.split(/[,;]/).forEach(part => {
+    const raw = cleanText(part)
+    if (!raw || /(?<![\p{L}])(?:encontra|entra|abre|espera|caminha|corre|sai|pega|lê|le|diz|entrega|observa|acende)(?![\p{L}])/iu.test(raw)) return
+    const bit = tidyPortuguese(raw)
+    if (!bit) return
+    if (PT_AGE.test(bit) || PT_AGE.test(raw)) {
+      const age = bit.match(/\d{1,3}\s+anos|\d{1,3}|nos seus\s+[\p{L}'’-]+(?:\s+[\p{L}'’-]+)?|(?:vinte|trinta|quarenta|cinquenta|sessenta|setenta|oitenta|noventa)(?:\s+e\s+[\p{L}'’-]+)?(?:\s+anos)?/iu)
+      if (age) looks.push(cleanText(age[0]))
+    }
+    const role = raw.match(PT_ROLE)
+    if (role) looks.push(roleForm(role[1], source))
+    if (PT_LOOK.test(bit)) looks.push(bit)
+    if (PT_WEAR.test(bit)) outfits.push(bit)
+    const prop = raw.match(PT_PROP)
+    if (prop) outfits.push(tidyPortuguese(prop[1]))
   })
-  return text.slice(match.index, nextAt)
+  return { looks: unique(looks), outfits: unique(outfits) }
 }
 
 function findAmbience(text, lex) {
@@ -186,7 +249,22 @@ function findScenes(text, lex, characters, places, language) {
   let lastWhere = ''
   let light = ''
   sentences(text).forEach(sentence => {
-    if (/^[\p{Lu}][\p{L}'’-]+/u.test(sentence) && /(?:\d+\s*(?:Jahre|anni|anos|years)|cerca de\s+\d+|Anfang\s+\d+|poco più)/iu.test(sentence) && !/(?:^|[^\p{L}])(?:in|im|am|auf|bei|ins|zum|zur|dans|au|aux|nel|nella|nello|alla|al|sul|no|na|em|dentro|betritt|betrat|entra|entro|arriva|chega)\b/iu.test(sentence)) return
+    const described = isDescriptionSentence(sentence) || (/^[\p{Lu}][\p{L}'’-]+/u.test(sentence) && /(?:\d+\s*(?:Jahre|anni|anos|years)|cerca de\s+\d+|Anfang\s+\d+|poco più)/iu.test(sentence) && !/(?:^|[^\p{L}])(?:in|im|am|auf|bei|ins|zum|zur|dans|au|aux|nel|nella|nello|alla|al|sul|no|na|em|dentro|betritt|betrat|entra|entro|arriva|chega|espera|abre|lê|le)\b/iu.test(sentence))
+    if (described) {
+      const headed = locativeHeads(sentence, language).find(item => item.moves !== false && !isNonPlaceNoun(item.lemma) && mentionMovesScene(sentence, item.index, language))
+      const records = places.map(place => ({
+        name: place.name,
+        keys: lex.places.filter(([, name]) => name === place.name).map(([key]) => key).concat(place.name),
+        unlisted: place.unlisted === true
+      }))
+      const cue = headed
+        ? { name: headed.name, uncertain: false }
+        : findPlaceCue(sentence, language, records)
+      if (cue?.name && !cue.uncertain) lastWhere = cue.name
+      const nextLight = lightAfterCue(sentence, language, light)
+      if (nextLight) light = nextLight
+      return
+    }
     const action = cleanText(sentence).replace(/[.!?。！？]+$/, '')
     const foundNames = characters.filter(character => nameInText(action, character.name))
     let who = ''
@@ -207,7 +285,7 @@ function findScenes(text, lex, characters, places, language) {
       keys: lex.places.filter(([, name]) => name === place.name).map(([key]) => key).concat(place.name),
       unlisted: place.unlisted === true
     }))
-    const headed = locativeHeads(action, language).find(item => item.moves !== false && mentionMovesScene(action, item.index, language))
+    const headed = locativeHeads(action, language).find(item => item.moves !== false && !isNonPlaceNoun(item.lemma) && mentionMovesScene(action, item.index, language))
     const cue = headed
       ? { name: headed.name, key: headed.lemma, uncertain: false, unlisted: headed.tag === 'unlisted' }
       : findPlaceCue(action, language, records)
@@ -216,7 +294,7 @@ function findScenes(text, lex, characters, places, language) {
     if (whoFlag) flags.push({ field: 'who', code: whoFlag })
     let where = lastWhere
     let whereFlag = where ? 'place_carried' : 'place_missing'
-    if (cue?.name && !cue.uncertain && !owned) {
+    if (cue?.name && !cue.uncertain && !owned && !isNonPlaceNoun(cue.name)) {
       where = cue.name
       whereFlag = cue.unlisted ? 'place_unlisted' : ''
     }

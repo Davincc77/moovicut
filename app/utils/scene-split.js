@@ -68,7 +68,7 @@ const GLANCE = Object.freeze({
 })
 
 const LOCATIVE = Object.freeze({
-  en: /(?:^|[^\p{L}])(?:in|at|on|to|inside|through|into|within|outside|reaches|reach)\s+(?:the\s+|a\s+|an\s+|her\s+|his\s+|their\s+)?(?:(?:old|little|small|tiny|narrow|big|large|young|new|tin)\s+){0,3}$/iu,
+  en: /(?:^|[^\p{L}])(?:in|at|on|onto|upon|to|inside|through|into|within|outside|reaches|reach)\s+(?:the\s+|a\s+|an\s+|her\s+|his\s+|their\s+)?(?:(?:old|little|small|tiny|narrow|big|large|young|new|tin)\s+){0,3}$/iu,
   fr: /(?:^|[^\p{L}])(?:dans|à|a|au|aux|chez|sur)\s+(?:la\s+|le\s+|les\s+|l['’]|un\s+|une\s+|des\s+|du\s+)?(?:(?:vieux|vieille|petit|petite|grand|grande)\s+){0,2}$/iu,
   pt: /\b(?:em|no|na|nos|nas|num|numa|ao|à|aos|às|dentro|chega|entra)\s+(?:o\s+|a\s+|os\s+|as\s+|um\s+|uma\s+)?(?:(?:velho|velha|pequeno|pequena|grande|antigo)\s+){0,2}$/iu,
   it: /\b(?:in|nel|nello|nella|negli|nelle|sul|sullo|sulla|sui|sugli|sulle|al|allo|alla|ai|agli|alle|dentro|entra|entro|arriva)\s+(?:il\s+|lo\s+|la\s+|i\s+|gli\s+|le\s+|l['’]|un\s+|una\s+)?(?:(?:vecchio|vecchia|piccolo|piccola|grande|antico|antica)\s+){0,2}$/iu,
@@ -110,7 +110,13 @@ const TIME_RULES = [
   { re: /(?<![\p{L}])(en début de soirée|en debut de soiree|début de soirée|debut de soiree|in the early evening|early evening|ao início da noite|am frühen abend|in prima serata|fréi owes|夕方|傍晚)(?![\p{L}])/iu, id: 'evening', jump: 'part', light: 'dusk' },
   { re: /(?<![\p{L}])(vers midi|à midi|a midi|at noon|ao meio-dia|zu mittag|a mezzogiorno|géint mëtteg|正午ごろ|中午|正午)(?![\p{L}])/iu, id: 'noon', jump: 'part', light: 'day' },
   { re: /(?<![\p{L}])((?:two|three|four|five|six|seven|eight|nine|ten|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|\d+)\s+(?:days|jours|dias|tage|giorni|deeg)\s+(?:later|plus tard|après|apres|depois|später|spater|dopo|drop))(?![\p{L}])/iu, id: 'days-later', jump: 'day' },
-  { re: /(?<![\p{L}])(plus tard|later|mais tarde|später|spater|più tardi|piu tardi|méi spéit|mei speit|あとで|后来)(?![\p{L}])/iu, id: 'later', jump: 'later' }
+  { re: /(?<![\p{L}])(plus tard|later|mais tarde|später|spater|più tardi|piu tardi|méi spéit|mei speit|あとで|后来)(?![\p{L}])/iu, id: 'later', jump: 'later' },
+  { re: /(?<![\p{L}])(perto da meia-noite|pela meia-noite|à meia-noite|a meia-noite|de meia-noite|meia-noite|meia noite)(?![\p{L}])/iu, id: 'meia-noite', jump: 'part', light: 'night' },
+  { re: /(?<![\p{L}])(de madrugada|na madrugada|alta madrugada|pela madrugada|madrugada)(?![\p{L}])/iu, id: 'madrugada', jump: 'part', light: 'night' },
+  { re: /(?<![\p{L}])(à noite|a noite|de noite|pela noite|na noite|à noitinha|a noitinha|de noitinha)(?![\p{L}])/iu, id: 'a-noite', jump: 'part', light: 'night' },
+  { re: /(?<![\p{L}])(ao luar|à luz da lua|a luz da lua)(?![\p{L}])/iu, id: 'luar', jump: 'part', light: 'night' },
+  { re: /(?<![\p{L}])(ao anoitecer|no anoitecer|ao entardecer|no entardecer|ao crepúsculo|ao crepusculo|no crepúsculo|no crepusculo|pelo crepúsculo|pelo crepusculo|crepúsculo|crepusculo|anoitecer|entardecer)(?![\p{L}])/iu, id: 'pt-evening', jump: 'part', light: 'night' },
+  { re: /(?<![\p{L}])noite(?![\p{L}])/iu, id: 'noite', jump: 'part', light: 'night' }
 ]
 
 const CLOCK = Object.freeze({
@@ -135,7 +141,7 @@ const WEAR_VERB = /(?<![\p{L}])(porte|portent|wears?|trägt|tragt|indossa|dréit
 const DOOR_NOUN = /\b(?:la|le|une|sa|son|cette|the|a|an|der|die|das)\s+porte\b/giu
 
 const BUILTIN_VERBS = Object.freeze({
-  en: ['reads', 'read', 'sets', 'set', 'stands', 'stand', 'tidies', 'tidy', 'folds', 'fold', 'switches', 'switch', 'takes', 'take', 'opens', 'open', 'pours', 'pour', 'waits', 'wait', 'comes', 'come', 'leaves', 'leave', 'looks', 'look', 'says', 'say', 'smiles', 'smile', 'closes', 'close', 'hands', 'hand', 'finds', 'find', 'compare', 'compares', 'sits', 'sit', 'puts', 'put', 'walks', 'walk', 'stops', 'stop', 'checks', 'check', 'answers', 'answer', 'watch', 'watches', 'steps', 'step', 'pulls', 'pull', 'stays', 'stay', 'remains', 'remain', 'pushes', 'push', 'lifts', 'lift', 'holds', 'hold', 'arrives', 'arrive', 'shuts', 'shut', 'listens', 'listen', 'unrolls', 'unroll', 'points', 'point', 'talks', 'talk', 'enters', 'enter', 'returns', 'return', 'knocks', 'knock', 'laughs', 'laugh', 'boards', 'board', 'meets', 'meet', 'gives', 'give', 'rides', 'turns', 'follows', 'crosses', 'drinks', 'writes', 'calls', 'runs', 'sits'],
+  en: ['reads', 'read', 'sets', 'set', 'stands', 'stand', 'tidies', 'tidy', 'folds', 'fold', 'switches', 'switch', 'takes', 'take', 'opens', 'open', 'pours', 'pour', 'waits', 'wait', 'comes', 'come', 'leaves', 'leave', 'looks', 'look', 'says', 'say', 'smiles', 'smile', 'closes', 'close', 'hands', 'hand', 'finds', 'find', 'compare', 'compares', 'sits', 'sit', 'puts', 'put', 'walks', 'walk', 'stops', 'stop', 'checks', 'check', 'answers', 'answer', 'watch', 'watches', 'steps', 'step', 'pulls', 'pull', 'stays', 'stay', 'remains', 'remain', 'pushes', 'push', 'lifts', 'lift', 'holds', 'hold', 'arrives', 'arrive', 'shuts', 'shut', 'listens', 'listen', 'unrolls', 'unroll', 'points', 'point', 'talks', 'talk', 'enters', 'enter', 'returns', 'return', 'knocks', 'knock', 'laughs', 'laugh', 'boards', 'board', 'meets', 'meet', 'gives', 'give', 'rides', 'turns', 'follows', 'crosses', 'drinks', 'writes', 'calls', 'runs', 'sits', 'waves', 'wave', 'mends', 'mend'],
   fr: ['lit', 'pose', 'leve', 'range', 'eteint', 'ouvre', 'verse', 'attend', 'entre', 'laisse', 'cherche', 'dit', 'sourit', 'referme', 'tend', 'boit', 'repose', 'retrouve', 'comparent', 'glisse', 'restent', 'ajuste', 'assoient', "s'assoient", 'assied', 'assoit', 'sort', 'regarde', 'apporte', 'pousse', 'releve', 'allume', 'arrive', 'ferme', 'ecoute', 'deroule', 'montre', 'parlent', 'enfilent', 'marche', 'marchent', 'arrete', 'relit', 'reste', 'repondent', 'reprennent', 'regardent', 'approche', 'serre', 'pense', 'sont', 'arrose', 'achete'],
   pt: ['entrega', 'lê', 'le', 'afasta', 'observa', 'abre', 'entra', 'poe', 'diz', 'sorri', 'fecha', 'anda', 'espera', 'pega'],
   it: ['porge', 'legge', 'allontana', 'guarda', 'entra', 'esce', 'apre', 'dice', 'sorride', 'chiude', 'cammina', 'aspetta'],
@@ -575,6 +581,20 @@ function isLookIntro(sentence) {
   return verbTokens(raw).filter(token => LOOK.has(token)).length >= 2
 }
 
+const COPULA_SETTING = /(?<![\p{L}])(?:is|are|was|were|está|esta|estão|estao|são|sao|fica|ficam)(?![\p{L}])/iu
+const QUIET_SETTING = /(?<![\p{L}])(?:quiet|silent|still|empty|calm|calmo|calma|vazio|vazia|silencioso|silenciosa|escuro|escura|deserto|deserta)(?![\p{L}])/iu
+const APPEARANCE_LEAD = /^(?:she|he|they|ela|ele|eles|elas)\s+(?:has|have|had|wears?|wore|is wearing|carries|carrying|holds?|holding|veste|usam|usa|traz|tem|têm|leva|levam)\b/iu
+const STORY_ACT = /(?<![\p{L}])(?:walks?|runs?|enters?|leaves?|opens?|pours?|sits?|stands?|reads?|turns?|gives?|hands?|waits?|lifts?|follows?|arrives?|meets?|boards?|checks?|calls?|smiles?|says?|abre|fecha|entra|sai|caminha|corre|espera|pega|lê|le|diz|sorri|entrega|observa|acende|sobe|desce|chama|cumprimenta|acena|senta)(?![\p{L}])/iu
+
+/** A sentence that only sets place, time, or appearance. It is context, not a shot. */
+export function isDescriptionSentence(sentence) {
+  const raw = String(sentence || '').trim()
+  if (!raw || STORY_ACT.test(raw) || STRONG_ACTION.test(raw)) return false
+  if (isPortraitSentence(raw) || isCastLine(raw)) return true
+  if (APPEARANCE_LEAD.test(raw)) return true
+  return COPULA_SETTING.test(raw) && QUIET_SETTING.test(raw)
+}
+
 /** A costume line wears clothes. "ouvre la porte" and "dans sa veste" are not costume lines. */
 export function isCastLine(sentence) {
   if ((String(sentence || '').match(/,/g) || []).length < 2) return false
@@ -691,7 +711,8 @@ export function splitNarrative(text, options = {}) {
     const sequence = sequenceCue(sentence, language)
     const cast = isCastLine(sentence)
     const portrait = isPortraitSentence(sentence)
-    const action = hasAction(sentence, language, extraVerbs) && !cast && !portrait
+    const described = isDescriptionSentence(sentence)
+    const action = hasAction(sentence, language, extraVerbs) && !cast && !portrait && !described
     let firmPlace = place && !place.uncertain ? place : null
     if (!firmPlace) {
       const venue = namedVenues(sentence, language).find(item => String(item.name || '').split(/\s+/).length > 1)
@@ -699,7 +720,7 @@ export function splitNarrative(text, options = {}) {
     }
     const words = verbTokens(sentence).length
     const cueOnly = !action && !cast && !firmPlace && (times.length > 0 || Boolean(sequence)) && words <= 5
-    if (cast || portrait) {
+    if (cast || portrait || described) {
       if (firmPlace) state.place = firmPlace.name
       if (times.length) applyTime(times, state)
       return
