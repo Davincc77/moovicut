@@ -74,6 +74,21 @@ async function clickButtons(page) {
   for (let index = 0; index < count; index += 1) {
     if (page.url() !== pageUrl) break
     const button = buttons.nth(index)
+    await button.evaluate(element => {
+      let hidden = element.closest('[hidden]')
+      while (hidden) {
+        const opener = hidden.id && document.querySelector(`[aria-controls="${CSS.escape(hidden.id)}"]`)
+        if (opener instanceof HTMLElement && opener.getAttribute('aria-expanded') !== 'true') opener.click()
+        else hidden.hidden = false
+        hidden = hidden.parentElement ? hidden.parentElement.closest('[hidden]') : null
+      }
+      let details = element.closest('details')
+      while (details) {
+        details.open = true
+        details = details.parentElement ? details.parentElement.closest('details') : null
+      }
+      element.scrollIntoView({ block: 'center', inline: 'nearest' })
+    }).catch(() => {})
     if (!(await button.isVisible().catch(() => false))) continue
     if (page.url() !== pageUrl) break
     const label = ((await button.getAttribute('aria-label')) || (await button.innerText()) || `button ${index}`).replace(/\s+/g, ' ').trim()
@@ -259,8 +274,9 @@ async function checkAdvancedNoCharacter(page, lang) {
   await page.locator('#studio-idea').fill('Fog rolls across an empty city street at dusk.')
   await page.locator('.studio-generate').click()
   await page.locator('.studio-preview-panel .shot-card-open').first().click()
-  await page.locator('dialog.side-sheet textarea[aria-label^="Prompt"]').waitFor()
-  const prompts = await page.locator('dialog.side-sheet textarea[aria-label^="Prompt"]').evaluateAll(elements => elements.map(element => element.value).join('\n'))
+  const promptField = page.locator('dialog.side-sheet textarea[aria-label^="Prompt"]')
+  await promptField.waitFor({ state: 'visible' })
+  const prompts = await promptField.evaluateAll(elements => elements.map(element => element.value).join('\n'))
   assert.ok(prompts.length > 40, 'advanced no-character prompts were empty')
   assert.doesNotMatch(prompts, / — |People:|SUBJECT:|Same character:|Same wardrobe:|frame of Fog/)
 }

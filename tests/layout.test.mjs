@@ -235,7 +235,12 @@ test('Check 38 applies measured typography, offsets and responsive layouts', () 
   assert.match(home,/v-for="example in examples"/)
   assert.match(studio,/Guided/)
   assert.match(studio,/Advanced mode/)
-  assert.match(creation,/More options/)
+  assert.match(creation,/id="studio-more-options"/)
+  assert.match(creation,/aria-expanded/)
+  const morePanel = creation.slice(creation.indexOf('id="studio-more-panel"'), creation.indexOf('id="editable-shots"'))
+  for (const setting of ['Number of shots', 'Duration in seconds', 'Upload reference image', 'Style family', 'Style genre', 'Import library', 'Step-by-step storyboard']) {
+    assert.ok(morePanel.includes(setting), setting)
+  }
   assert.doesNotMatch(css,/(?:body|html|\.site-shell|\.studio-shell|\.auth-shell|\.profile-layout)\s*\{[^}]*overflow(?:-x)?:hidden/)
 })
 

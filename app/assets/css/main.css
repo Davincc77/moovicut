@@ -1,7 +1,6 @@
 /* Moovicut: shared foundations and Check 37 measured route layouts. */
 :root { color-scheme:dark; --bg:#0a0a0a;--bg-alt:#0f0f0f;--surface:#141414;--surface-hover:#1b1b1b; --text:#eae7df;--text-secondary:#9a9486;--gold:#f0b429;--gold-hover:#f6c85a;--on-gold:#1a1408; --accent:#f0b429;--accent-hover:#f6c85a; --border:#eae7df1f;--muted-border:#eae7df0f;--error:#ef4444; --body:"IBM Plex Sans","PingFang SC","Hiragino Sans","Noto Sans CJK SC","Noto Sans CJK JP","Yu Gothic","Microsoft YaHei",Inter,Arial,sans-serif; --display:"Space Grotesk","IBM Plex Sans",Arial,sans-serif; }
 .moovicut-app { --bg:#0a0a0a;--bg-alt:#0f0f0f;--surface:#141414;--surface-hover:#1b1b1b;
- --bg:#0a0a0a;--bg-alt:#0f0f0f;--surface:#141414;--surface-hover:#1b1b1b;
  --text:#eae7df;--text-secondary:#9a9486;--accent:#f0b429;--accent-hover:#f6c85a;
  --border:#eae7df1f;--muted-border:#eae7df0f;--error:#ef4444;
  --body:"IBM Plex Sans","PingFang SC","Hiragino Sans","Noto Sans CJK SC","Noto Sans CJK JP","Yu Gothic","Microsoft YaHei",Inter,Arial,sans-serif;--display:"Space Grotesk","IBM Plex Sans",Arial,sans-serif;
@@ -768,7 +767,7 @@ button.text-link:disabled { cursor:not-allowed;opacity:.4;color:var(--text-secon
  .studio-shell .studio-board-mode > div { grid-template-columns:1fr; }
 }
 @media (max-width:767px) {
- .toast-region { position:fixed;top:5.5rem;right:12px;bottom:auto;left:auto;width:min(22rem,calc(100% - 24px));max-width:none;margin:0;justify-content:flex-end;padding:0; }
+ .toast-region { position:fixed;top:auto;right:0;bottom:0;left:0;width:auto;max-width:none;margin:0;justify-content:center;padding:12px max(16px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
  .toast,.moovicut-toast { width:min(22rem,100%);max-width:min(22rem,100%); }
 }
 .install-button { white-space:nowrap; }
@@ -1014,8 +1013,12 @@ dialog.side-sheet[open] { display:flex; flex-direction:column; }
   .studio-shell .studio-workspace { display:flex; flex-direction:column; flex:1 1 auto; min-height:0; }
   .studio-shell .studio-workspace > div { display:flex; flex-direction:column; flex:1 1 auto; min-height:0; }
   .studio-wizard { flex:1 1 auto; max-height:none; min-height:0; height:auto; margin-bottom:0; width:100%; }
-  .studio-wizard .wizard-form { flex:1 1 auto; min-height:0; }
-  .wizard-footer { position:static; z-index:6; margin-top:auto; background:var(--bg); }
+  .studio-wizard .wizard-form { flex:1 1 auto; min-height:0; overflow:hidden; }
+  .studio-wizard .wizard-panel { overflow:auto; scroll-padding-bottom:24px; }
+  .wizard-footer { position:static; z-index:6; flex:0 0 auto; margin-top:auto; background:var(--bg); }
+  .studio-shell :is(button, a, input, select, textarea),
+  .docs-page button,
+  .code-sample-header button { scroll-margin-top:96px; scroll-margin-bottom:128px; }
   .wizard-step-compact { display:flex; align-items:center; width:auto; height:auto; position:static; margin:0; padding:8px 14px; overflow:visible; clip:auto; white-space:normal; border:1px solid var(--border); border-radius:999px; background:var(--surface); }
   .studio-shell .studio-workspace :is(button, select, summary) { min-height:44px; }
   dialog.side-sheet,
