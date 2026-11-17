@@ -171,7 +171,7 @@ const STRONG = Object.freeze({
   pt: ['em', 'no', 'na', 'nos', 'nas', 'num', 'numa', 'ao', 'à', 'aos', 'às', 'dentro', 'entra', 'chega'],
   it: ['in', 'nel', 'nello', 'nella', 'negli', 'nelle', 'sul', 'sullo', 'sulla', 'sui', 'sugli', 'sulle', 'al', 'allo', 'alla', 'ai', 'agli', 'alle', 'dentro', 'entra', 'entro', 'arriva', 'apre']
 })
-const ARTICLE = new Set(['the', 'a', 'an', 'le', 'la', 'les', 'un', 'une', 'des', 'du', 'o', 'os', 'as', 'um', 'uma', 'der', 'die', 'das', 'dem', 'den', 'ein', 'eine', 'einem', 'einer', 'einen', 'il', 'lo', 'gli', 'i', 'del', 'della', 'dei', 'delle', 'his', 'her', 'their', 'son', 'sa', 'ses', 'mon', 'ma', 'mes', 'seu', 'sua', 'suo', 'mio', 'mia', 'l', 'd'])
+const ARTICLE = new Set(['the', 'a', 'an', 'le', 'la', 'les', 'un', 'une', 'des', 'du', 'o', 'os', 'as', 'um', 'uma', 'der', 'die', 'das', 'dem', 'den', 'ein', 'eine', 'einem', 'einer', 'einen', 'il', 'lo', 'gli', 'i', 'del', 'della', 'dei', 'delle', 'his', 'her', 'their', 'its', 'son', 'sa', 'ses', 'mon', 'ma', 'mes', 'seu', 'sua', 'suo', 'mio', 'mia', 'l', 'd'])
 const MODIFIER = new Set(['old', 'little', 'small', 'tiny', 'narrow', 'big', 'large', 'young', 'new', 'grand', 'petit', 'petite', 'vieux', 'vieille', 'alt', 'alte', 'alter', 'alten', 'klein', 'kleine', 'kleiner', 'kleinen', 'gross', 'große', 'grossen', 'großen', 'neu', 'neue', 'neuen', 'rot', 'rote', 'roten', 'roter', 'blau', 'blaue', 'blauen', 'vecchio', 'vecchia', 'piccolo', 'piccola', 'grande', 'velho', 'velha', 'pequeno', 'pequena', 'antico', 'antica', 'antigo', 'tin', 'early', 'late', 'same', 'other', 'next', 'meme', 'même'])
 const TIME_WORD = new Set(['dawn', 'morning', 'noon', 'night', 'evening', 'dusk', 'twilight', 'sunrise', 'sunset', 'sundown', 'afternoon', 'day', 'midnight', 'nightfall', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday', 'mattina', 'mattino', 'sera', 'serata', 'pomeriggio', 'tramonto', 'mezzogiorno', 'alba', 'giorno', 'notte', 'abend', 'morgen', 'nacht', 'morgens', 'mittags', 'nachmittags', 'vormittags', 'abends', 'nachts', 'mittag', 'dämmerung', 'dammerung', 'noite', 'manha', 'manhã', 'tarde', 'dia', 'meio', 'meio-dia', 'fim', 'aube', 'soir', 'midi', 'matin', 'coucher', 'jour', 'nuit', 'soiree', 'soirée', 'apres-midi', 'après-midi', 'crépuscule', 'crepuscule', 'crepuscolo', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche', 'early', 'late', 'madrugada', 'luar', 'anoitecer', 'entardecer', 'crepúsculo', 'noitinha', 'meia-noite'])
 const PRONOUN = new Set(['she', 'he', 'they', 'her', 'his', 'him', 'them', 'we', 'you', 'elle', 'il', 'ils', 'elles', 'nous', 'vous', 'sie', 'er', 'ihn', 'ihr', 'ihnen', 'ela', 'ele', 'lei', 'lui'])
@@ -208,7 +208,60 @@ function isVerbHead(word, next = '') {
   return PARTICLE.has(String(next || '').toLowerCase())
 }
 
-const PHRASE_STOP = new Set(['behind', 'below', 'under', 'above', 'beside', 'near', 'across', 'of', 'from', 'about', 'with', 'and', 'or', 'then', 'while', 'when', 'where', 'who', 'that', 'de', 'do', 'da', 'di', 'von', 'des', 'du', 'del', 'della', 'loin', 'toujours', 'meme', 'même', 'encore', 'aussi', 'still', 'just', 'very', 'without', 'around', 'during', 'sans', 'ohne'])
+const PHRASE_STOP = new Set(['behind', 'below', 'under', 'above', 'beside', 'near', 'across', 'of', 'from', 'about', 'with', 'and', 'or', 'then', 'while', 'when', 'where', 'who', 'that', 'de', 'do', 'da', 'di', 'von', 'des', 'du', 'del', 'della', 'loin', 'toujours', 'meme', 'même', 'encore', 'aussi', 'still', 'just', 'very', 'without', 'around', 'during', 'sans', 'ohne', 'com', 'até', 'ate', 'para', 'por', 'pelo', 'pela', 'sem', 'sobre', 'onde', 'quando', 'outside', 'fora'])
+const PLACE_PREP = new Set(['com', 'with', 'de', 'do', 'da', 'dos', 'das', 'of', 'em', 'in', 'on', 'at', 'to', 'for', 'from', 'by', 'into', 'onto', 'para', 'por', 'pelo', 'pela', 'à', 'ao', 'aos', 'às', 'a', 'na', 'no', 'nas', 'nos', 'num', 'numa', 'upon', 'dentro', 'sobre', 'sem', 'without', 'and', 'e', 'or'])
+const MANNER_PLACE = new Set(['hurry', 'rush', 'haste', 'panic', 'flash', 'moment', 'while', 'vain', 'turn', 'fact', 'silence', 'jest', 'earnest', 'secret', 'order', 'shape', 'row', 'pressa', 'silencio', 'silêncio', 'cena', 'scene', 'vista', 'view', 'sight', 'cue', 'jeito', 'modo', 'vez', 'aperto'])
+const STATE_ADJ = new Set(['empty', 'quiet', 'silent', 'still', 'calm', 'dark', 'bright', 'vazio', 'vazia', 'calmo', 'calma', 'escuro', 'escura', 'deserto', 'deserta'])
+const GARMENT_HEAD = /^(?:[\p{L}'’-]+\s+){0,3}(?:cardigans?|waistcoats?|vests?|blouses?|trousers|pants|jeans|coletes?|camisolas?|saias?|calças|calcas|vestidos?|casacos?|jaquetas?|blusas?|sweaters?|coats?|jackets?|dresses?|shirts?|aprons?|scarves?|scarfs?|hats?|caps?|boots?|cloaks?|robes?|hoodies?|uniforms?|skirts?|peacoats?|overcoats?|cardigãs?|pulôveres?|pullovers?)$/iu
+const BODY_HEAD = /^(?:[\p{L}'’-]+\s+){0,3}(?:beards?|barbas?|hair|cabelo|cabelos|braids?|tranças|trancas|trança|tranca|buns?|coques?|curls?|faces?|rostos?|hands?|mãos|maos|eyes?|olhos)$/iu
+const OBJECT_HEAD = /^(?:[\p{L}'’-]+\s+){0,3}(?:watches?|relógios?|relogios?|cases?|estojos?|notebooks?|cadernos?|caderno|newspapers?|jornais|jornal|books?|livros?|letters?|cartas?|chairs?|cadeiras?|cadeira|stools?|banquinhos?|benches?|bancos?|scales?|balanças|balancas|balança|windows?|janelas?|janela|doors?|portas?|tables?|mesas?|bags?|mochilas?|mochila|purses?|wallets?|phones?|telefones?|canes?|bengalas?|bengala|facões|facoes|facão|facao|facas?|knives?|cups?|copos?|bottles?|lamps?|candeeiros?)$/iu
+const VERB_PLACE = /^(?:correr|corre|correndo|running|runs|run|tests?|testing|stepping|arrives?|arriving|walks?|walking|waits?|waiting|hurrying|hurry)$/iu
+const LOCATION_HEAD = /(?:room|house|hall|shop|yard|barn|stable|stables|cottage|station|kitchen|deck|quay|pier|dock|warehouse|office|studio|gallery|church|caravan|vineyard|compartment|lighthouse|market|forest|beach|cafe|café|loft|attic|cellar|basement|porch|balcony|terrace|garden|courtyard|plaza|square|street|bridge|tower|museum|library|theatre|theater|cinema|hotel|hangar|garage|workshop|factory|farm|field|cliff|shore|harbour|harbor|port|marina|yacht|ship|boat|ferry|platform|lobby|corridor|hallway|gate|store|bakery|bar|pub|school|hospital|clinic|archive|cave|tunnel|cabin|hut|tent|camp|villa|apartment|flat|sala|varanda|conves|convés|cais|loja|armazem|armazém|floresta|mercado|oficina|igreja|estacao|estação|falesia|falésia|cozinha|patio|pátio|quintal|galpao|galpão|adega|biblioteca|teatro|porao|porão|sotao|sótão|praia|miradouro|vinha|estabulo|estábulo|iate|navio|barco|galeria|estalagem|estufa|celeiro|tombadilho|camarote|vagao|vagão|carruagem|doca|atelier|ateliê|porteira|portao|portão|steps|stairs)$/iu
+/** Locatives that can name an unlisted setting, not only to/into/na/no. */
+const LOOSE_LOCATIVE = new Set(['in', 'at', 'on', 'inside', 'through', 'within', 'em', 'na', 'no', 'nos', 'nas', 'num', 'numa', 'ao', 'à', 'aos', 'às', 'dentro'])
+
+function placeWords(lemma) {
+  return keyOf(lemma).split(/\s+/).filter(Boolean)
+}
+
+/** Drop a trailing tool phrase (`com facão`, `with a cane`) and a dangling preposition. */
+export function tidyPlaceLemma(lemma) {
+  let text = String(lemma || '').replace(/\s+/g, ' ').trim()
+  text = text.replace(/\s+(?:com|with)\s+.+$/iu, '')
+  let words = text.split(/\s+/).filter(Boolean)
+  while (words.length > 1 && PLACE_PREP.has(words.at(-1).toLowerCase())) words.pop()
+  while (words.length > 1 && STATE_ADJ.has(words[0].toLowerCase())) words.shift()
+  return words.join(' ')
+}
+
+function locationShaped(lemma) {
+  const text = keyOf(tidyPlaceLemma(lemma))
+  if (!text) return false
+  if (placeTag('en', text) === 's' || placeTag('pt', text) === 's') return true
+  const bits = text.split(/\s+/)
+  if (bits.length === 1 && /^(?:steps?|stairs?)$/u.test(text)) return false
+  return LOCATION_HEAD.test(bits.at(-1))
+}
+
+/**
+ * Clothing, body or hair, handheld objects, manner, idioms, verbs, and labels that
+ * end on a preposition are not settings. A lexicon tag does not override this.
+ */
+export function isRejectedPlace(lemma) {
+  const text = tidyPlaceLemma(lemma)
+  if (!text) return true
+  const bits = placeWords(text).filter(bit => !ARTICLE.has(bit) && !PLACE_PREP.has(bit))
+  const head = bits.at(-1) || ''
+  const content = bits.join(' ')
+  if (!head || !content) return true
+  if (isNonPlaceNoun(head) || isNonPlaceNoun(content)) return true
+  if (MANNER_PLACE.has(keyOf(content)) || MANNER_PLACE.has(head) || PLACE_PREP.has(head)) return true
+  if (GARMENT_HEAD.test(content) || BODY_HEAD.test(content) || OBJECT_HEAD.test(content)) return true
+  if (VERB_PLACE.test(head) || VERB_PLACE.test(keyOf(content))) return true
+  if (bits.every(bit => MODIFIER.has(bit) || STATE_ADJ.has(bit))) return true
+  if (/^(?:its|his|her|their|seu|sua|meu|minha|our|your)\b/iu.test(content) && placeTag('en', head) !== 's' && placeTag('pt', head) !== 's') return true
+  return false
+}
 
 /** The noun phrase after a strong preposition. A compound stays whole. A time word or a verb is never the place. */
 export function locativeHeads(text, language) {
@@ -216,14 +269,17 @@ export function locativeHeads(text, language) {
   const source = String(text || '')
   const preps = new Set(STRONG[lang] || [])
   if (!preps.size || !source) return []
-  const tokens = [...source.matchAll(/[\p{L}][\p{L}'’-]+/gu)]
+  const tokens = [...source.matchAll(/[\p{L}][\p{L}'’-]*/gu)]
   const heads = []
   for (let index = 0; index < tokens.length; index += 1) {
     if (!preps.has(tokens[index][0].toLowerCase())) continue
     let cursor = index + 1
     let possessive = false
+    let indefinite = false
     while (cursor < tokens.length && (ARTICLE.has(bareToken(tokens[cursor][0]).toLowerCase()) || preps.has(tokens[cursor][0].toLowerCase()))) {
-      if (/^(?:son|sa|ses|his|her|their|seu|sua|suo|mio|mia|mon|ma|mes)$/i.test(bareToken(tokens[cursor][0]))) possessive = true
+      const article = bareToken(tokens[cursor][0])
+      if (/^(?:son|sa|ses|his|her|their|its|seu|sua|suo|mio|mia|mon|ma|mes)$/i.test(article)) possessive = true
+      if (/^(?:a|an|um|uma)$/i.test(article)) indefinite = true
       cursor += 1
     }
     let modifiers = 0
@@ -243,7 +299,16 @@ export function locativeHeads(text, language) {
       const capitalName = word[0] !== word[0].toLowerCase() && word[0] === word[0].toUpperCase()
       if (!words.length && TIME_WORD.has(folded)) break
       if (!words.length && (isVerbHead(folded, upcoming) || ARTICLE.has(folded) || isModifierWord(word, lang) || capitalName)) continue
-      if (capitalName || TIME_WORD.has(folded) || isVerbHead(folded, upcoming) || ARTICLE.has(folded) || SKIP_HEAD.has(folded) || POSITIONAL.has(folded) || NEVER_PLACE.has(folded) || word.length < 3) break
+      if (POSITIONAL.has(folded)) {
+        const onlyModifiers = words.length > 0 && words.every(item => MODIFIER.has(item.word.toLowerCase()) || STATE_ADJ.has(item.word.toLowerCase()))
+        if (onlyModifiers) words.push({ word, at: tokens[look].index })
+        break
+      }
+      if (SKIP_HEAD.has(folded)) {
+        if (words.length && /^(?:steps?|stairs?)$/i.test(folded)) words.push({ word, at: tokens[look].index })
+        break
+      }
+      if (capitalName || TIME_WORD.has(folded) || isVerbHead(folded, upcoming) || ARTICLE.has(folded) || NEVER_PLACE.has(folded) || word.length < 3) break
       words.push({ word, at: tokens[look].index })
     }
     if (!words.length || possessive) continue
@@ -252,13 +317,16 @@ export function locativeHeads(text, language) {
       const folded = item.word.toLowerCase()
       return PRONOUN.has(folded) || TIME_WORD.has(folded) || isVerbHead(item.word)
     })) continue
-    const lemma = words.map(item => item.word).join(' ')
-    if (isNonPlaceNoun(lemma) || /^(?:com|with|wearing)\b/iu.test(lemma)) continue
+    const lemma = tidyPlaceLemma(words.map(item => item.word).join(' '))
+    if (!lemma || isRejectedPlace(lemma) || /^(?:com|with|wearing)\b/iu.test(lemma)) continue
     let tag = placeTag(lang, lemma)
     if ((!tag || UNUSABLE.has(tag)) && words.length > 1) tag = placeTag(lang, words.at(-1).word)
     if (tag && UNUSABLE.has(tag)) continue
     if (!tag) {
-      if (!DESTINATION.has(prep) && words.length === 1) continue
+      const adopts = DESTINATION.has(prep) || LOOSE_LOCATIVE.has(prep)
+      if (!adopts) continue
+      if (indefinite && !locationShaped(lemma)) continue
+      if (!DESTINATION.has(prep) && words.length === 1 && !locationShaped(lemma)) continue
       const namedPerson = words.every(item => item.word[0] !== item.word[0].toLowerCase())
       if (namedPerson) continue
       tag = 'unlisted'
@@ -275,7 +343,9 @@ export function locativeHeads(text, language) {
     if (!directMove.has(tokens[index][0].toLowerCase())) continue
     let cursor = index + 1
     let hops = 0
+    let indefinite = false
     while (cursor < tokens.length && hops < 3 && (stepPrep.has(tokens[cursor][0].toLowerCase()) || ARTICLE.has(bareToken(tokens[cursor][0]).toLowerCase()))) {
+      if (/^(?:a|an|um|uma)$/i.test(bareToken(tokens[cursor][0]))) indefinite = true
       cursor += 1
       hops += 1
     }
@@ -295,12 +365,22 @@ export function locativeHeads(text, language) {
       const capitalName = word[0] !== word[0].toLowerCase() && word[0] === word[0].toUpperCase()
       if (!words.length && TIME_WORD.has(folded)) break
       if (!words.length && (isVerbHead(folded, upcoming) || ARTICLE.has(folded) || isModifierWord(word, lang) || capitalName)) continue
-      if (capitalName || TIME_WORD.has(folded) || isVerbHead(folded, upcoming) || ARTICLE.has(folded) || SKIP_HEAD.has(folded) || POSITIONAL.has(folded) || NEVER_PLACE.has(folded) || word.length < 3) break
+      if (POSITIONAL.has(folded)) {
+        const onlyModifiers = words.length > 0 && words.every(item => MODIFIER.has(item.word.toLowerCase()) || STATE_ADJ.has(item.word.toLowerCase()))
+        if (onlyModifiers) words.push({ word, at: tokens[look].index })
+        break
+      }
+      if (SKIP_HEAD.has(folded)) {
+        if (words.length && /^(?:steps?|stairs?)$/i.test(folded)) words.push({ word, at: tokens[look].index })
+        break
+      }
+      if (capitalName || TIME_WORD.has(folded) || isVerbHead(folded, upcoming) || ARTICLE.has(folded) || NEVER_PLACE.has(folded) || word.length < 3) break
       words.push({ word, at: tokens[look].index })
     }
     if (!words.length || words.some(item => isNonPlaceNoun(item.word))) continue
-    const lemma = words.map(item => item.word).join(' ')
-    if (isNonPlaceNoun(lemma) || /^(?:com|with|wearing)\b/iu.test(lemma)) continue
+    const lemma = tidyPlaceLemma(words.map(item => item.word).join(' '))
+    if (!lemma || isRejectedPlace(lemma) || /^(?:com|with|wearing)\b/iu.test(lemma)) continue
+    if (indefinite && !locationShaped(lemma) && !placeTag(lang, lemma)) continue
     if (heads.some(head => head.index === words[0].at)) continue
     let tag = placeTag(lang, lemma)
     if ((!tag || UNUSABLE.has(tag)) && words.length > 1) tag = placeTag(lang, words.at(-1).word)
@@ -319,7 +399,7 @@ export function libraryHits(text, language) {
   if (!table || !source) return []
   const hits = []
   const push = (lemma, tag, index, locative) => {
-    if (!tag || UNUSABLE.has(tag) || isNonPlaceNoun(lemma)) return
+    if (!tag || UNUSABLE.has(tag) || isNonPlaceNoun(lemma) || isRejectedPlace(lemma)) return
     if (tag === 'a:material' && !locative) return
     if (lang === 'zh-Hans' && (lemma === '门口' || ((lemma.startsWith('小') || lemma.startsWith('大')) && [...table.keys()].some(key => key !== lemma && lemma.endsWith(key))))) return
     if (tag !== 's' && tag !== 'unlisted' && !locative) return

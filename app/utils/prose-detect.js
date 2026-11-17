@@ -3,9 +3,9 @@ import { cleanText } from './text.js'
 import { foldName, scenarioBudget, scenarioPremise, scenarioToFields } from './scenario.js'
 import { flaggedNameKeys } from './shot-risk.js'
 import { splitActionText } from './action-split.js'
-import { detectLocalized } from './prose-extra.js'
+import { detectLocalized, identityTraits } from './prose-extra.js'
 import { inNamedVenue, inSpans, isCueStopword, isFunctionWord, isNeverPlace, isNumberWord, isQuotedOrRemembered, isVenueType, mentionMovesScene, namedVenues, placeMentionIsReal, quoteSpans, splitNarrative } from './scene-split.js'
-import { isNonPlaceNoun, libraryHits, locativeHeads, placeLexiconHas, placeTag } from './place-lexicon.js'
+import { isNonPlaceNoun, isRejectedPlace, libraryHits, locativeHeads, placeLexiconHas, placeTag, tidyPlaceLemma } from './place-lexicon.js'
 
 const STOP = new Set(['the', 'a', 'an', 'he', 'she', 'they', 'it', 'his', 'her', 'their', 'then', 'when', 'after', 'before', 'later', 'next', 'once', 'this', 'that', 'there', 'here', 'un', 'une', 'le', 'la', 'les', 'il', 'elle', 'ils', 'elles', 'lui', 'leur', 'puis', 'quand', 'apres', 'avant', 'dans', 'sur', 'sous', 'avec', 'pour', 'par', 'chez', 'au', 'aux', 'du', 'des', 'en', 'et', 'mais', 'ou', 'ce', 'cette', 'ces', 'son', 'sa', 'ses', 'mon', 'ma', 'mes', 'je', 'tu', 'nous', 'vous', 'on', 'plus', 'tout', 'toute', 'tous', 'morning', 'evening', 'night', 'day', 'matin', 'soir', 'nuit', 'jour', 'aube', 'tard', 'lendemain', 'and', 'with', 'from', 'into', 'over', 'while', 'its', 'our', 'your'])
 
@@ -113,7 +113,7 @@ function placeLexicon() {
 const PLACE_KEYS = placeLexicon()
 const NAME_STOP = new Set(['the', 'a', 'an', 'she', 'he', 'they', 'une', 'le', 'la', 'les', 'il', 'elle', 'un'])
 const LOOK_TRAIT = /\b(?:(?:early|mid|late)\s+)?\d{1,2}s\b|\b(?:short|long|curly|wavy|straight|black|brown|blonde|blond|red|grey|gray|silver|white|dark)\s+(?:black\s+|brown\s+|red\s+|grey\s+|gray\s+)?(?:pixie cut|bob|bangs|braid|hair)\b|\b(?:grey|gray|white|black|red|dark)\s+stubble\b|\bstubble\b|\bbeard\b|\bmoustache\b|\bmustache\b|\b(?:round\s+)?glasses\b|\b(?:blue|green|brown|amber|hazel)\s+eyes\b/giu
-const OUTFIT_TRAIT = /\b(?:[\p{L}'’-]+\s+){0,3}(?:peacoats?|overcoats?|coats?|jackets?|scarves|scarf|aprons?|sweaters?|boots?|dresses|dress|shirts?|suits?|hoodies?|cloaks?|robes?|uniforms?|jeans|skirts?|caps?|hats?|hakama)\b/giu
+const OUTFIT_TRAIT = /\b(?:[\p{L}'’-]+\s+){0,3}(?:peacoats?|overcoats?|coats?|jackets?|scarves|scarf|aprons?|sweaters?|boots?|dresses|dress|shirts?|suits?|hoodies?|cloaks?|robes?|uniforms?|jeans|skirts?|caps?|hats?|hakama|cardigans?|waistcoats?|vests?|blouses?|trousers|pants)\b/giu
 const TRAIT_STOP = /\b(?:meets|sees|finds|wears|opens|walks|runs|enters|leaves|pours|hands|gives|sits|stands|laughs|reads|turns|crosses|follows|carries|holds|watches)\b/i
 
 function traitHits(clause) {
@@ -178,7 +178,7 @@ function cutTraits(slice) {
 }
 
 const AGE_PHRASE = /\b(?:in\s+(?:his|her|their)\s+)?(?:early|mid|late)\s+(?:twenties|thirties|forties|fifties|sixties|seventies|\d{1,2}s)\b|\b(?:early|mid|late)\s+\d{1,2}s\b|\b\d{1,2}s\b|\b(?:twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)(?:\s*-\s*[a-z]+|\s+years\s+old)?\b|\b(?:la\s+)?(?:vingtaine|trentaine|quarantaine|cinquantaine|soixantaine)\b|\bdébut\s+de\s+la\s+\p{L}+\b|\b\d{1,3}\s+ans\b|\bnos\s+seus\s+(?:vinte|trinta|quarenta|cinquenta|sessenta)\b|\b(?:cerca\s+de\s+)?\d{1,3}\s+anos\b|\bsulla\s+cinquantina\b|\b(?:poco\s+più\s+di\s+)?\d{1,3}\s+anni\b|五十代(?:前半|後半)?|四十代(?:前半|後半)?|三十代(?:前半|後半)?|二十代(?:前半|後半)?|五十出头|四十出头|三十出头|五十多岁|四十多岁|三十多岁/iu
-const ROLE_PHRASE = /\b(?:fisherman|fisherwoman|fishers?|baker|keeper|farmer|sailor|teacher|doctor|nurse|chef|waiter|waitress|driver|painter|carpenter|shepherd|hunter|merchant|soldier|guard|monk|priest|student|artist|cook|captain|lighthouse\s+keeper|p[eê]cheur|p[eê]cheuse|boulanger|boulangère|gardien|fermier|fermière|marin|professeur|m[eé]decin|infirmier|infirmi[eè]re|cuisinier|cuisini[eè]re|serveur|serveuse|peintre|charpentier|berger|chasseur|marchand|soldat|moine|pr[eê]tre|[eé]tudiant|[eé]tudiante|pescador|pescadora|padeiro|padeira|guarda|agricultor|marinheiro|professor|professora|m[eé]dico|enfermeiro|cozinheiro|cozinheira|pescatore|pescatrice|fornaio|fornaia|guardiano|contadino|contadina|marinaio|professore|professoressa|medico|infermiere|cuoco|cuoca)\b|漁師|渔夫|渔民|面包师|看守|农夫/iu
+const ROLE_PHRASE = /\b(?:fisherman|fisherwoman|fishers?|baker|keeper|farmer|sailor|teacher|doctor|nurse|chef|waiter|waitress|driver|painter|carpenter|shepherd|hunter|merchant|soldier|guard|monk|priest|student|artist|cook|captain|archivist|apprentice|lighthouse\s+keeper|p[eê]cheur|p[eê]cheuse|boulanger|boulangère|gardien|fermier|fermière|marin|professeur|m[eé]decin|infirmier|infirmi[eè]re|cuisinier|cuisini[eè]re|serveur|serveuse|peintre|charpentier|berger|chasseur|marchand|soldat|moine|pr[eê]tre|[eé]tudiant|[eé]tudiante|pescador|pescadora|padeiro|padeira|guarda|agricultor|marinheiro|professor|professora|m[eé]dico|enfermeiro|cozinheiro|cozinheira|aprendiz|arquivista|aluno|aluna|estudante|pescatore|pescatrice|fornaio|fornaia|guardiano|contadino|contadina|marinaio|professore|professoressa|medico|infermiere|cuoco|cuoca)\b|漁師|渔夫|渔民|面包师|看守|农夫/iu
 const IDENTITY_NOUN = /\b(?:face|faces|visage|rosto|viso|beard|barbe|barba|scar|cicatrice|wrinkles?|weathered|burin[eé]|marcado|segnato|build|stature|skin|peau|pele|pelle)\b/iu
 
 function isIdentityBit(text) {
@@ -267,8 +267,8 @@ function traitWindow(text, name, names) {
   return bounded || text.slice(start, Math.min(text.length, after + 48)).split(/[.!?。！？]/)[0]
 }
 
-const OUTFIT_WORD = /(?<![\p{L}])(?:coats?|peacoats?|sweaters?|shirts?|dresses?|scarves?|scarf|aprons?|jackets?|boots?|bags?|rings?|manteaux?|manteau|pulls?|pull|tabliers?|tablier|casquettes?|vestes?|cirés?|ciré|cire|bottes|sacs?|sac|bagues?|bague|raincoats?|sleeves?|manches?|manche)(?![\p{L}])/iu
-const LOOK_WORD = /(?<![\p{L}])(?:hair|cheveux|beards?|barbe|scars?|cicatrice|glasses|lunettes|eyes|yeux|stubble|pixie|thirties|forties|fifties|trentaine|quarantaine|cinquantaine|\d{1,2}s|\d+\s+ans|years|young|old|jeune)(?![\p{L}])/iu
+const OUTFIT_WORD = /(?<![\p{L}])(?:coats?|peacoats?|sweaters?|shirts?|dresses?|scarves?|scarf|aprons?|jackets?|boots?|bags?|rings?|manteaux?|manteau|pulls?|pull|tabliers?|tablier|casquettes?|vestes?|cirés?|ciré|cire|bottes|sacs?|sac|bagues?|bague|raincoats?|sleeves?|manches?|manche|cardigans?|waistcoats?|vests?|blouses?|trousers|pants)(?![\p{L}])/iu
+const LOOK_WORD = /(?<![\p{L}])(?:hair|cheveux|beards?|barbe|braids?|scars?|cicatrice|glasses|lunettes|eyes|yeux|stubble|pixie|thirties|forties|fifties|trentaine|quarantaine|cinquantaine|\d{1,2}s|\d+\s+ans|years|young|old|jeune)(?![\p{L}])/iu
 
 function traitsInClause(clause) {
   const looks = []
@@ -312,8 +312,8 @@ function castTraits(text, name, names) {
 }
 
 const STREET_WORD = new Set(['rue', 'street', 'road', 'avenue', 'lane', 'boulevard', 'way', 'via', 'strasse', 'straße', 'strada', 'rua', 'calle', 'gasse'])
-const GARMENT_WORD = /\b(?:raincoats?|coats?|jackets?|aprons?|caps?|hats?|scarves?|scarf|dress(?:es)?|shirts?|boots?|peacoats?|sweaters?|cloaks?|robes?|hoodies?|hakama|vests?|uniforms?|shawls?)\b/i
-const CARRIED_ITEM = /\b(?:cord|chain|strap|string|ribbon|neck|wrist|belt|shoulder|locket|compass|watch|pendant|tongs|hammer|brush|lantern|whistle|key|keys|camera|letter|map|cup|mug|basket|notebook|pen|knife|sword|staff|cane|umbrella|book|bag|purse|wallet|flower|rose|tray|plate|bottle|torch|flashlight|flute|bell|compass|ticket punch|walkie-talkie|walkie|paper fan|hand fan|fan|binoculars|radio)\b/i
+const GARMENT_WORD = /\b(?:raincoats?|coats?|jackets?|aprons?|caps?|hats?|scarves?|scarf|dress(?:es)?|shirts?|boots?|peacoats?|sweaters?|cloaks?|robes?|hoodies?|hakama|vests?|uniforms?|shawls?|cardigans?|waistcoats?|blouses?|trousers|pants|skirts?)\b/i
+const CARRIED_ITEM = /\b(?:cord|chain|strap|string|ribbon|neck|wrist|belt|shoulder|locket|compass|watch|pendant|tongs|hammer|brush|lantern|whistle|key|keys|camera|letter|map|cup|mug|basket|notebook|pen|knife|sword|staff|cane|umbrella|book|bag|purse|wallet|flower|rose|tray|plate|bottle|torch|flashlight|flute|bell|ticket punch|walkie-talkie|walkie|paper fan|hand fan|fan|binoculars|radio|backpack|rucksack|satchel)\b/i
 
 function isNameNoise(token, language) {
   const key = foldName(token)
@@ -608,6 +608,23 @@ function detectCharacters(text, places = [], language = 'en') {
     person.look = looks.join(', ')
     person.outfit = outfits.join(', ')
   })
+  characters.forEach(person => {
+    const found = identityTraits(text, person.name)
+    const usable = bit => bit && !new RegExp(`^${person.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'iu').test(bit) && !/\b(?:veste|vestem|carrega|carregam|wears?|carries|holds?)\b/iu.test(bit)
+    const looks = String(person.look || '').split(/,\s*/).filter(usable)
+    const outfits = String(person.outfit || '').split(/,\s*/).filter(usable)
+    const messy = value => /^(?:de|do|da)\s/iu.test(value) || /\b(?:e|and)\s+(?:uma|um|a|an)\b/iu.test(value) || foldName(value) === foldName(person.name)
+    const merge = (list, item) => {
+      if (!item || foldName(item) === foldName(person.name)) return
+      const index = list.findIndex(bit => foldName(bit).includes(foldName(item)) || foldName(item).includes(foldName(bit)))
+      if (index < 0) list.push(item)
+      else if (messy(list[index]) || item.length > list[index].length) list[index] = item
+    }
+    found.looks.forEach(item => merge(looks, item))
+    found.outfits.forEach(item => merge(outfits, item))
+    person.look = looks.filter(bit => bit && foldName(bit) !== foldName(person.name)).join(', ')
+    person.outfit = outfits.filter(bit => bit && foldName(bit) !== foldName(person.name)).join(', ')
+  })
   const people = mergeAliases(characters)
   if (!people.length && !skippedFlagged) warnings.push({ code: 'missing_character', message: 'No character name found.', target: 'characters' })
   return { characters: people, warnings, skippedFlagged }
@@ -629,8 +646,8 @@ function unique(values) {
 }
 
 function pushPlace(places, name, description, confidence, trusted = false) {
-  const clean = cleanText(name)
-  if (!clean || NOT_A_PLACE.has(foldName(clean)) || isNeverPlace(clean) || /^(?:com|with|wearing)\b/iu.test(clean)) return
+  const clean = tidyPlaceLemma(cleanText(name))
+  if (!clean || NOT_A_PLACE.has(foldName(clean)) || isNeverPlace(clean) || isRejectedPlace(clean) || /^(?:com|with|wearing)\b/iu.test(clean)) return
   const existing = places.find(place => foldName(place.name) === foldName(clean))
   if (existing) {
     if (trusted) existing.trusted = true
@@ -825,7 +842,7 @@ function placeDescription(source, key, language, fallback = '') {
     for (let index = raw.length - 1; index >= 0; index -= 1) {
       const word = raw[index]
       const token = foldName(word)
-      if (!token || PREPOSITION.has(token)) break
+      if (!token || PREPOSITION.has(token) || /^(?:steps?|tests?|arrives?|walks?|waits?|skates?|enters?|opens?|sits?|stands?|comes?|goes?|runs?|reaches?|climbs?|boards?|onto|upon)$/i.test(word)) break
       if (token.length < 3 || DESC_SKIP.has(token) || STOP.has(token) || TIME_BLOCK.has(token) || VERBS.has(token) || CALENDAR_WORD.has(token) || PLACE_KEYS.has(token)) {
         if (words.length) break
         continue
@@ -1019,7 +1036,7 @@ function detectScenes(text, characters, places, language, flagged, options = {})
     const foundNames = namesIn(shot.what, characters)
     const pronounWho = whoFromPronoun(shot.what, characters, genders, language)
     const who = canonicalWho(foundNames.length ? foundNames.map(item => item.name).join(' and ') : (pronounWho || shot.who), characters)
-    const head = locativeHeads(shot.what, language).find(item => item.moves !== false && !isNonPlaceNoun(item.lemma) && mentionMovesScene(shot.what, item.index, language))
+    const head = locativeHeads(shot.what, language).find(item => item.moves !== false && !isNonPlaceNoun(item.lemma) && !isRejectedPlace(item.lemma) && mentionMovesScene(shot.what, item.index, language))
     const genericWhere = /^(?:Le lieu|The setting|O lugar|Il luogo|場所|场景)$/u.test(shot.where || '')
     const flaggedOnly = riskNamesOnly(shot.what, flagged)
     let confidence = 'high'
@@ -1037,16 +1054,22 @@ function detectScenes(text, characters, places, language, flagged, options = {})
       who: who || '',
       where: (() => {
         const venue = namedVenues(shot.what, language).find(item => item.name.split(/\s+/).length > 1 && item.spans?.some(([start]) => !isQuotedOrRemembered(shot.what, start, language)))
-        const current = carriedWhere || shot.where || ''
-        let where = venue?.name || current
-        if (!head && !venue) where = shot.cutReason ? (shot.where || carriedWhere) : (carriedWhere || shot.where || '')
+        const narrated = tidyPlaceLemma(shot.where || '')
+        const narratedOk = narrated && !isRejectedPlace(narrated)
+        let where = carriedWhere || ''
+        if (narratedOk) {
+          const same = where && (foldName(where) === foldName(narrated) || foldName(where).endsWith(` ${foldName(narrated)}`) || foldName(narrated).endsWith(` ${foldName(where)}`))
+          if (!where || !same || narrated.length > where.length) where = narrated
+        }
+        if (venue?.name && !isRejectedPlace(venue.name)) where = venue.name
         if (head && !venue) {
-          const left = foldName(current)
+          const left = foldName(where)
           const right = foldName(head.name)
           if (!left || left === right) where = head.name
-          else if (left.endsWith(` ${right}`) || right.endsWith(` ${left}`)) where = left.length >= right.length ? current : head.name
+          else if (left.endsWith(` ${right}`) || right.endsWith(` ${left}`)) where = left.length >= right.length ? where : head.name
           else where = head.name
         }
+        if (where && isRejectedPlace(where)) where = carriedWhere && !isRejectedPlace(carriedWhere) ? carriedWhere : ''
         if (where) carriedWhere = where
         return where
       })(),
