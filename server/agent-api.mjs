@@ -714,6 +714,10 @@ function appendSheetValue(entry, key, value) {
 function fillThinSheets(input) {
   const scenario = input?.scenario
   if (!scenario || typeof scenario !== 'object' || Array.isArray(scenario) || !Array.isArray(scenario.characters)) return []
+  scenario.characters.forEach(entry => {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry) || entry.declaredItems != null) return
+    entry.declaredItems = cleanText(entry.items || entry.props || entry.carried)
+  })
   const gaps = characterSheetGaps(scenario.characters, storyForSheets(input, scenario))
   return gaps.map(gap => {
     const entry = scenario.characters[gap.index]

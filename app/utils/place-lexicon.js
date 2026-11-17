@@ -515,6 +515,54 @@ export function enteredPlace(sentence, language = 'en') {
   return name
 }
 
+function sureSetting(phrase, language) {
+  const other = language === 'pt' ? 'en' : 'pt'
+  const name = settingName(phrase, language) || settingName(phrase, other)
+  if (!name || isRejectedPlace(name)) return ''
+  const sure = [language, other, 'en', 'pt'].some(lang => placeIsSure(lang, phrase) || placeIsSure(lang, name))
+  return sure ? name : ''
+}
+
+/** "checks the sleeper compartment" is that place. An ambiguous object such as a gate or a compass is not. */
+export function inspectedPlace(sentence, language = 'en') {
+  const source = String(sentence || '')
+  const match = source.match(/(?<![\p{L}])(?:checks?|inspected|inspects?|examines?|examine|searches|search|testa|testam|verifica|verificam)(?![\p{L}])\s+(?:the\s+|a\s+|an\s+|o\s+|os\s+|as\s+|um\s+|uma\s+)?([\p{L}'’-]+(?:\s+[\p{L}'’-]+){0,4})/iu)
+  if (!match) return ''
+  const words = match[1].replace(/[.,;:].*$/u, '').split(/\s+/).filter(Boolean)
+  const content = []
+  for (const word of words) {
+    const folded = word.toLowerCase()
+    if (PHRASE_STOP.has(folded) || PLACE_PREP.has(folded)) break
+    content.push(word)
+    if (content.length >= 4) break
+  }
+  for (let size = content.length; size >= 1; size -= 1) {
+    const name = sureSetting(content.slice(0, size).join(' '), language)
+    if (name) return name
+  }
+  return ''
+}
+
+/** "projetores do palco" names the stage. Only a sure place after do/da/of the counts. */
+export function possessivePlace(sentence, language = 'en') {
+  const source = String(sentence || '')
+  let best = ''
+  const re = /(?<![\p{L}])(?:dos|das|do|da)\s+([\p{L}'’-]+(?:\s+[\p{L}'’-]+){0,2})|(?<![\p{L}])of\s+the\s+([\p{L}'’-]+(?:\s+[\p{L}'’-]+){0,2})/giu
+  for (const match of source.matchAll(re)) {
+    const words = String(match[1] || match[2] || '').split(/\s+/).filter(Boolean)
+    const content = []
+    for (const word of words) {
+      if (PHRASE_STOP.has(word.toLowerCase())) break
+      content.push(word)
+    }
+    for (let size = content.length; size >= 1; size -= 1) {
+      const name = sureSetting(content.slice(0, size).join(' '), language)
+      if (name) best = name
+    }
+  }
+  return best
+}
+
 /** "abre a escola de surf" keeps the compound. The head is the place; the tail is not cut off. */
 function openedCompound(raw, language) {
   const bits = String(raw || '').split(/\s+/).filter(Boolean)
@@ -551,7 +599,7 @@ function isVerbHead(word, next = '') {
   return PARTICLE.has(String(next || '').toLowerCase())
 }
 
-const PHRASE_STOP = new Set(['behind', 'below', 'under', 'above', 'beside', 'near', 'across', 'of', 'from', 'about', 'with', 'and', 'or', 'then', 'while', 'when', 'where', 'who', 'that', 'de', 'do', 'da', 'di', 'von', 'des', 'du', 'del', 'della', 'loin', 'toujours', 'meme', 'même', 'encore', 'aussi', 'still', 'just', 'very', 'without', 'around', 'during', 'sans', 'ohne', 'com', 'até', 'ate', 'para', 'por', 'pelo', 'pela', 'sem', 'sobre', 'onde', 'quando', 'outside', 'fora'])
+const PHRASE_STOP = new Set(['behind', 'below', 'under', 'above', 'beside', 'near', 'across', 'of', 'from', 'about', 'with', 'and', 'or', 'then', 'while', 'when', 'where', 'who', 'that', 'de', 'do', 'da', 'di', 'von', 'des', 'du', 'del', 'della', 'loin', 'toujours', 'meme', 'même', 'encore', 'aussi', 'still', 'just', 'very', 'without', 'around', 'during', 'sans', 'ohne', 'com', 'até', 'ate', 'para', 'por', 'pelo', 'pela', 'sem', 'sobre', 'onde', 'quando', 'outside', 'fora', 'for'])
 const PLACE_PREP = new Set(['com', 'with', 'de', 'do', 'da', 'dos', 'das', 'of', 'em', 'in', 'on', 'at', 'to', 'for', 'from', 'by', 'into', 'onto', 'para', 'por', 'pelo', 'pela', 'à', 'ao', 'aos', 'às', 'a', 'na', 'no', 'nas', 'nos', 'num', 'numa', 'upon', 'dentro', 'sobre', 'sem', 'without', 'and', 'e', 'or'])
 const MANNER_PLACE = new Set(['hurry', 'rush', 'haste', 'panic', 'flash', 'moment', 'while', 'vain', 'turn', 'fact', 'silence', 'jest', 'earnest', 'secret', 'order', 'shape', 'row', 'pressa', 'silencio', 'silêncio', 'cena', 'scene', 'vista', 'view', 'sight', 'cue', 'jeito', 'modo', 'vez', 'aperto'])
 const STATE_ADJ = new Set(['empty', 'quiet', 'silent', 'still', 'calm', 'dark', 'bright', 'vazio', 'vazia', 'calmo', 'calma', 'escuro', 'escura', 'deserto', 'deserta'])
@@ -716,6 +764,7 @@ export function isInteriorPlace(name) {
 export function leaveTarget(sentence, current, outside) {
   const source = String(sentence || '')
   if (!/(?<![\p{L}])(?:leaves?|leaving|left|exits?|exiting|sai|saem|saindo|sair)(?![\p{L}])/iu.test(source)) return null
+  if (/(?<![\p{L}])(?:train|bus|car|ship|boat|plane|comboio|autocarro|carro|barco|avião|aviao|navio)(?![\p{L}])\s+(?:leaves?|left|sai|saem)(?![\p{L}])/iu.test(source) && !/(?<![\p{L}])(?:leaves?|left|exits?|sai|saem)\s+(?:the\s+|o\s+|a\s+|os\s+|as\s+|um\s+|uma\s+)?[\p{L}]/iu.test(source)) return null
   if (/(?<![\p{L}])(?:leaves?|left|exits?|sai|saem)\s+(?:the\s+|o\s+|a\s+|os\s+|as\s+|um\s+|uma\s+)?[\p{L}'’-]+(?:\s+[\p{L}'’-]+){0,3}\s+(?:for|to|into|onto|para|até|ate|in|na|no)\s+/iu.test(source)) return null
   const object = source.match(/(?<![\p{L}])(?:leaves?|left|exits?|sai|saem)\s+(?:the\s+|o\s+|a\s+|os\s+|as\s+|um\s+|uma\s+)?([\p{L}'’-]+(?:\s+[\p{L}'’-]+){0,2})/iu)
   const left = object ? object[1] : ''

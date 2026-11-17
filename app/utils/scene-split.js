@@ -1,6 +1,6 @@
 /** Deterministic scene cuts. Closed word lists only. No model call. */
 import { cleanText } from './text.js'
-import { aircraftPlace, enteredPlace, extendsPlace, finishCarriedPlace, heldPlaceNoun, isNonPlaceNoun, isRejectedPlace, locativeHeads, movementPlace, placeTag, preferPlaceHead, settingName, tidyPlaceLemma } from './place-lexicon.js'
+import { aircraftPlace, enteredPlace, extendsPlace, finishCarriedPlace, heldPlaceNoun, inspectedPlace, isNonPlaceNoun, isRejectedPlace, locativeHeads, movementPlace, placeTag, possessivePlace, preferPlaceHead, settingName, tidyPlaceLemma } from './place-lexicon.js'
 import { foldName } from './scenario.js'
 import { splitActionText } from './action-split.js'
 
@@ -95,7 +95,7 @@ const SEQUENCE = Object.freeze({
 })
 
 const TIME_RULES = [
-  { re: /(?<![\p{L}])(late that night|later that night|that night|tonight|last night|tard cette nuit|cette nuit-là|cette nuit|esta noite|essa noite|hoje à noite|naquela noite|nessa noite|heute nacht|heute abend|stanotte|quella notte|haut an der nuecht|その夜|夜遅く|那天夜里|那天晚上|深夜)(?![\p{L}])/iu, id: 'that-night', jump: 'part', light: 'night' },
+  { re: /(?<![\p{L}])(late that night|later that night|that night|tonight|last night|around midnight|at midnight|near midnight|midnight|tard cette nuit|cette nuit-là|cette nuit|esta noite|essa noite|hoje à noite|naquela noite|nessa noite|heute nacht|heute abend|stanotte|quella notte|haut an der nuecht|その夜|夜遅く|那天夜里|那天晚上|深夜)(?![\p{L}])/iu, id: 'that-night', jump: 'part', light: 'night' },
   { re: /(?<![\p{L}])(in the morning|one morning|early morning|at sunrise|sunrise|dans la matinée|au lever du soleil|de manhã|ao nascer do sol|am morgen|bei sonnenaufgang|di mattina|all'alba|日の出|日出)(?![\p{L}])/iu, id: 'in-the-morning', jump: 'part', light: 'dawn' },
   { re: /(?<![\p{L}])(in the evening|at evening|le soir|à la tombée|am abend|di sera|di sera|夕方|傍晚)(?![\p{L}])/iu, id: 'in-the-evening', jump: 'part', light: 'dusk' },
   { re: /(?<![\p{L}])(at night|in the night|by night|la nuit|de noite|nachts|in der nacht|di notte|an der nuecht)(?![\p{L}])/iu, id: 'at-night', jump: 'part', light: 'night' },
@@ -343,6 +343,15 @@ export function mentionMovesScene(text, index, language = 'en') {
   return !clauseLooks(before, language, GLANCE)
 }
 
+const HONORIFIC = /^(?:dr|mr|mrs|ms|prof|st|sr|sra|dra)$/iu
+
+/** Dr., Mr., Mrs., Ms., Prof., St., Sr., Sra., and Dra. do not end a sentence. */
+export function isHonorificStop(source, index) {
+  if (String(source || '')[index] !== '.') return false
+  const word = String(source || '').slice(0, index).match(/[\p{L}]+$/u)
+  return Boolean(word && HONORIFIC.test(word[0]))
+}
+
 export function sentencesOf(text) {
   const source = String(text || '').replace(/\r\n/g, '\n')
   const spans = quoteSpans(source)
@@ -350,7 +359,7 @@ export function sentencesOf(text) {
   let start = 0
   for (let i = 0; i < source.length; i += 1) {
     const char = source[i]
-    if (!/[.!?。！？]/.test(char) || inSpans(i, spans)) continue
+    if (!/[.!?。！？]/.test(char) || inSpans(i, spans) || isHonorificStop(source, i)) continue
     const next = source[i + 1] || ''
     if (next && !/\s/.test(next) && next !== '\n') continue
     const piece = source.slice(start, i + 1).trim()
@@ -499,6 +508,36 @@ export function cueLight(sentence, language = 'en') {
   return cue?.light || ''
 }
 
+export function sentenceHasTimeCue(sentence, language = 'en') {
+  return timeCues(sentence, language).length > 0
+}
+
+/** A handshake or "mão de Name" names the other person. "pai de Name" does not. */
+export function interactionPossessive(before) {
+  const text = foldName(before)
+  return /(?:mao|maos|hand|hands|abraco|beijo|aperto|handshake)\s+(?:de|do|da|dos|das|of)\s*$/iu.test(text)
+}
+
+export function opensParagraph(text, sentence) {
+  const source = String(text || '').replace(/\r\n/g, '\n')
+  const needle = String(sentence || '').trim()
+  if (!needle) return false
+  const index = source.indexOf(needle)
+  if (index < 0) return false
+  return index === 0 || /\n\s*\n\s*$/.test(source.slice(0, index))
+}
+
+/** The last clause of an introduction is itself an action, as in "pesa as sardinhas". */
+export function trailingActionClause(sentence) {
+  const raw = String(sentence || '').trim().replace(/[.!?]+$/u, '')
+  const parts = raw.split(',')
+  if (parts.length < 2) return false
+  const tail = parts.at(-1).trim()
+  if (!tail || tail === raw) return false
+  if (/^(?:de|do|da|dos|das|com|and|with|e|é|tem|têm|has|have|veste|vestem|usa|usam|wears?|is|carries|carrying|holds?|holding|carrega|carregam|traz|trazem|leva|levam|keeps?)\b/iu.test(tail)) return false
+  return /^(?:\p{Lu}[\p{L}'’-]+\s+)?\p{Ll}[\p{L}'’-]+\s+(?:o|a|os|as|um|uma|uns|umas|the|an|his|her|their|se|lhe|ao|à|aos|às)\s+\p{L}/u.test(tail)
+}
+
 function timeCues(sentence, language) {
   const cues = []
   for (const rule of TIME_RULES) {
@@ -578,7 +617,7 @@ function leaveChanges(sentence) {
 /** A sentence that only introduces a person. It fills the sheet and is not a shot. */
 export function isPortraitSentence(sentence) {
   const raw = String(sentence || '').trim()
-  if (!raw || STRONG_ACTION.test(raw)) return false
+  if (!raw || STRONG_ACTION.test(raw) || trailingActionClause(raw)) return false
   if (/^\p{Lu}[\p{L}'’.-]+(?:\s+\p{Lu}[\p{L}'’.-]+){0,3}\s*,\s*\d{1,3}\b/u.test(raw)) return true
   if (/\b(?:\d{1,3}\s*(?:Jahre|anni|anos|ans|years)|岁|歲)\b/u.test(raw) && /[，,]/u.test(raw)) return true
   if (isLookIntro(raw)) return true
@@ -611,7 +650,7 @@ function isDefiniteDressing(sentence) {
 /** A sentence that only sets place, time, or appearance. It is context, not a shot. */
 export function isDescriptionSentence(sentence) {
   const raw = String(sentence || '').trim()
-  if (!raw || STORY_ACT.test(raw) || STRONG_ACTION.test(raw)) return false
+  if (!raw || STORY_ACT.test(raw) || STRONG_ACTION.test(raw) || trailingActionClause(raw)) return false
   if (isPortraitSentence(raw) || isCastLine(raw)) return true
   if (APPEARANCE_LEAD.test(raw)) return true
   return COPULA_SETTING.test(raw) && QUIET_SETTING.test(raw)
@@ -766,6 +805,14 @@ export function splitNarrative(text, options = {}) {
     if (!firmPlace) {
       const entered = enteredPlace(sentence, language)
       if (entered && !isRejectedPlace(entered)) firmPlace = { name: entered, key: entered, cue: entered, uncertain: false }
+    }
+    if (!firmPlace) {
+      const inspected = inspectedPlace(sentence, language)
+      if (inspected && !isRejectedPlace(inspected)) firmPlace = { name: inspected, key: inspected, cue: inspected, uncertain: false }
+    }
+    if (!firmPlace && (times.length || opensParagraph(text, sentence))) {
+      const owned = possessivePlace(sentence, language)
+      if (owned && !isRejectedPlace(owned)) firmPlace = { name: owned, key: owned, cue: owned, uncertain: false }
     }
     if (!firmPlace) {
       const venue = namedVenues(sentence, language).find(item => String(item.name || '').split(/\s+/).length > 1)
