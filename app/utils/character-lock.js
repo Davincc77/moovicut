@@ -419,7 +419,7 @@ const VERB_RULES = Object.freeze([
   { op: 'drop', re: /(?<![\p{L}])(?:drops?|sets?\s+down|set\s+down|larga|largam|pousa|pousam|deixa(?:m)?(?:\s+[\p{L}'’-]+){0,5}\s+cair|perde|perdem|loses?|lose|hangs?|hang)(?![\p{L}])/iu },
   { op: 'hand', re: /(?<![\p{L}])(?:hands?(?:\s+over)?|gives?|entrega|entregam)(?![\p{L}])/iu },
   { op: 'return', re: /(?<![\p{L}])(?:returns?|gives?\s+(?:[\p{L}'’-]+\s+){0,5}back|hands?\s+(?:[\p{L}'’-]+\s+){0,5}back|devolve|devolvem)(?![\p{L}])/iu },
-  { op: 'carry', re: /(?<![\p{L}])(?:carries|carrying|carrega|carregam|leva|levam|traz|trazem)(?![\p{L}])/iu }
+  { op: 'carry', re: /(?<![\p{L}])(?:carries|carrying|carrega|carregam|leva|levam|traz|trazem|holds?|holding|segura|seguram|mostra|mostram|shows?)(?![\p{L}])/iu }
 ])
 
 function versionAt(locks, order) {
@@ -485,7 +485,7 @@ function fieldClauses(text) {
     let bit = cleanText(piece).replace(/^(?:de|do|da|dos|das|of)\s+/iu, '')
     bit = bit.replace(/^(?:põe|poe|põem|poem|veste|vestem|tira|tiram|despe|despem|puts?(?:\s+on)?|takes?(?:\s+off)?|wears?|wore|drops?|loses?|hangs?)\s+/iu, '')
     bit = bit.replace(/^(?:um|uma|uns|umas)\s+/iu, '').replace(/(?:\s+(?:um|uma|uns|umas))+$/iu, '')
-    if (!bit || verbOnly.test(bit)) return ''
+    if (!bit || verbOnly.test(bit) || /^(?:com|with|e|and)$/iu.test(bit)) return ''
     return cleanText(bit)
   }
   const splitArticles = piece => {
@@ -520,7 +520,7 @@ function withClause(text, value) {
 }
 
 function namesIn(text, characters) {
-  return (characters || []).filter(person => hasToken(text, person.name))
+  return (characters || []).filter(person => characterNamedIn(text, person, characters))
 }
 
 function singleWho(who, characters) {
@@ -549,12 +549,12 @@ function sentencesOf(text) {
 
 const OBJECT_ARTICLE = new Set(['the', 'a', 'an', 'his', 'her', 'their', 'its', 'this', 'that', 'these', 'those', 'my', 'your', 'our', 'o', 'os', 'as', 'um', 'uma', 'uns', 'umas', 'seu', 'sua', 'seus', 'suas', 'meu', 'minha', 'meus', 'minhas', 'este', 'esta', 'esse', 'essa', 'aquele', 'aquela'])
 const OBJECT_PRONOUN = new Set(['him', 'her', 'them', 'it', 'me', 'you', 'lhe', 'lo', 'la', 'ele', 'ela', 'eles', 'elas', 'isso', 'isto'])
-const OBJECT_STOP = new Set(['to', 'for', 'at', 'in', 'on', 'into', 'onto', 'from', 'over', 'with', 'upon', 'down', 'up', 'off', 'back', 'again', 'para', 'em', 'no', 'na', 'nos', 'nas', 'ao', 'à', 'aos', 'às', 'com', 'por', 'pelo', 'pela', 'sobre', 'até', 'ate', 'num', 'numa', 'and', 'e', 'then', 'while', 'before', 'after', 'quando', 'when'])
+const OBJECT_STOP = new Set(['to', 'for', 'at', 'in', 'on', 'into', 'onto', 'from', 'over', 'with', 'upon', 'down', 'up', 'off', 'back', 'again', 'para', 'em', 'no', 'na', 'nos', 'nas', 'ao', 'à', 'aos', 'às', 'a', 'com', 'por', 'pelo', 'pela', 'sobre', 'até', 'ate', 'num', 'numa', 'and', 'e', 'then', 'while', 'before', 'after', 'quando', 'when'])
 const OBJECT_OF = new Set(['de', 'do', 'da', 'dos', 'das', 'of'])
 const ABSTRACT_NOUN = new Set(['hope', 'fear', 'love', 'hate', 'idea', 'thought', 'memory', 'dream', 'name', 'voice', 'courage', 'luck', 'truth', 'time', 'moment', 'chance', 'silence', 'light', 'darkness', 'distance', 'place', 'circle', 'way', 'joy', 'sorrow', 'anger', 'doubt', 'faith', 'peace', 'life', 'death', 'beauty', 'pain', 'wish', 'secret', 'reason', 'sense', 'feeling', 'meaning', 'purpose', 'pride', 'shame', 'guilt', 'trust', 'power', 'freedom', 'justice', 'soul', 'mind', 'rest', 'sleep', 'hurry', 'weather', 'fate', 'destiny', 'spirit', 'attention', 'trouble', 'help', 'honor', 'honour', 'esperanca', 'medo', 'amor', 'odio', 'ideia', 'pensamento', 'memoria', 'sonho', 'nome', 'voz', 'coragem', 'sorte', 'verdade', 'tempo', 'momento', 'silencio', 'luz', 'escuridao', 'distancia', 'lugar', 'circulo', 'caminho', 'alegria', 'tristeza', 'raiva', 'duvida', 'fe', 'paz', 'vida', 'morte', 'beleza', 'dor', 'segredo', 'razao', 'sentido', 'honra', 'orgulho', 'vergonha', 'culpa', 'confianca', 'poder', 'liberdade', 'justica', 'alma', 'mente', 'descanso', 'sono', 'pressa', 'vez', 'jeito', 'modo'])
 const BODY_NOUN = new Set(['hand', 'hands', 'head', 'arm', 'arms', 'leg', 'legs', 'foot', 'feet', 'finger', 'fingers', 'eye', 'eyes', 'face', 'hair', 'mouth', 'ear', 'ears', 'nose', 'shoulder', 'shoulders', 'mao', 'maos', 'rosto', 'cabelo', 'cabeca', 'braco', 'perna', 'olho', 'olhos', 'boca', 'nariz', 'pe', 'pes', 'dedo', 'dedos'])
 const ACTION_HEAD = new Set(['walks', 'runs', 'sits', 'waits', 'waves', 'opens', 'closes', 'reads', 'turns', 'enters', 'leaves', 'goes', 'comes', 'looks', 'stands', 'smiles', 'nods', 'bows', 'checks', 'taps', 'stacks', 'espera', 'acena', 'abre', 'fecha', 'senta', 'corre', 'caminha', 'entra', 'sai', 'le', 'olha'])
-const GARMENT_HEAD = /(?<![\p{L}])(?:cardigans?|waistcoats?|jumpers?|pullovers?|overalls|dungarees|gloves?|goggles|coletes?|vestidos?|casacos?|jaquetas?|blusas?|saias?|calças|calcas|camisas?|aprons?|coats?|jackets?|dresses?|shirts?|sweaters?|peacoats?|cloaks?|robes?|uniforms?|skirts?|blouses?|trousers|pants|hats?|caps?|scarves?|scarfs?|avental|aventais|jardineiras?|luvas?|camisolas?|macacões|macacoes|macacão|macacao|suits?|parkas?|anoraks?|fatos?|fardas?|lenços|lencos|lenço|lenco|cachecóis|cachecois|cachecol|chapéus|chapeus|chapéu|chapeu|impermeável|impermeavel|gabardinas?|hakama|hoodies?|boots?|tailleurs?|batina|batinas|pérolas|perolas|pearls|capas?)(?![\p{L}])/iu
+const GARMENT_HEAD = /(?<![\p{L}])(?:cardigans?|waistcoats?|jumpers?|pullovers?|overalls|dungarees|gloves?|goggles|coletes?|vestidos?|casacos?|jaquetas?|blusas?|saias?|calças|calcas|camisas?|aprons?|coats?|jackets?|dresses?|shirts?|sweaters?|peacoats?|cloaks?|robes?|uniforms?|skirts?|blouses?|trousers|pants|hats?|caps?|scarves?|scarfs?|avental|aventais|jardineiras?|luvas?|camisolas?|macacões|macacoes|macacão|macacao|suits?|parkas?|anoraks?|fatos?|fardas?|lenços|lencos|lenço|lenco|cachecóis|cachecois|cachecol|chapéus|chapeus|chapéu|chapeu|boné|bonés|impermeável|impermeavel|gabardinas?|hakama|hoodies?|boots?|tailleurs?|batina|batinas|bata|batas|pérolas|perolas|pearls|capas?)(?![\p{L}])/iu
 
 function isPlaceNoun(word) {
   const key = foldName(word)
@@ -650,7 +650,8 @@ function sheetHasValue(person, value) {
 function originalClause(person, value) {
   if (!person || !value) return ''
   const blob = [person.outfit, person.items, person.look, person.props, person.carried].filter(Boolean).join(', ')
-  return fieldClauses(blob).find(part => related(part, value)) || ''
+  const matches = fieldClauses(blob).filter(part => related(part, value) && !/\b(?:back|to|para)\b/iu.test(part))
+  return matches.sort((a, b) => b.length - a.length)[0] || ''
 }
 
 function storyEvents(shots, characters) {
@@ -690,8 +691,8 @@ function storyEvents(shots, characters) {
         const receiver = namesIn(after, characters).find(person => foldName(person.name) !== foldName(actor))
         const actorSheet = (characters || []).find(person => foldName(person.name) === foldName(actor))
         const push = (op, value, field, target) => {
-          const clean = cleanText(value)
-          if (!clean || !target) return
+          const clean = keptTrait(value) || ''
+          if (!clean || !target || /^(?:to|para|for)\b/iu.test(clean)) return
           if (events.some(item => item.order === order && item.op === op && foldName(item.actor) === foldName(target) && foldName(item.value) === foldName(clean))) return
           events.push({ order, op, actor: target, value: clean, field })
         }
@@ -850,7 +851,8 @@ function mentionedBeforeFirstShot(story, shots, value) {
   return shotAt < 0 || at < shotAt
 }
 
-const ACQUIRE_VERB = /(?<![\p{L}])(?:picks?\s+up|pick\s+up|opens?|checks?|finds?|grabs?|pega|abre|verifica|encontra)(?![\p{L}])/iu
+const LATER_GAIN = /(?<![\p{L}])(?:picks?\s+up|pick\s+up|opens?|checks?|finds?|grabs?|pega|abre|verifica|encontra|holds?|holding|segura|seguram|mostra|mostram|shows?)(?![\p{L}])/iu
+const LATER_LOSS = /(?<![\p{L}])(?:drops?|loses?|lose|hangs?|hang|perde|perdem|deixa(?:m)?(?:\s+[\p{L}'’-]+){0,5}\s+cair)(?![\p{L}])/iu
 
 function demoteLaterTraits(current, shots, events, person, story = '') {
   for (const field of ['outfit', 'items']) {
@@ -860,14 +862,19 @@ function demoteLaterTraits(current, shots, events, person, story = '') {
       const index = (shots || []).findIndex(shot => related(shotPlain(shot), clause))
       const shot = index >= 0 ? shots[index] : null
       const order = shot ? (shot.order || index + 1) : 1
-      const acquiredLater = order > 1 && ACQUIRE_VERB.test(shotPlain(shot)) && !mentionedBeforeFirstShot(story, shots, clause)
-      if (!acquiredLater) {
+      const plain = shot ? shotPlain(shot) : ''
+      const gained = LATER_GAIN.test(plain)
+      const lost = LATER_LOSS.test(plain) && !gained
+      const introducedLater = order > 1 && !mentionedBeforeFirstShot(story, shots, clause) && (gained || lost)
+      if (!introducedLater) {
         kept.push(clause)
         continue
       }
       changed = true
-      const scheduled = events.some(event => foldName(event.actor) === foldName(person.name) && related(event.value || event.items || event.outfit || '', clause))
-      if (!scheduled) events.push({ order, op: field === 'outfit' ? 'wear' : 'add', actor: person.name, value: clause, field })
+      const clean = keptTrait(clause, field) || keptTrait(clause)
+      if (!clean) continue
+      const scheduled = events.some(event => foldName(event.actor) === foldName(person.name) && related(event.value || event.items || event.outfit || '', clean))
+      if (!scheduled && !lost) events.push({ order, op: field === 'outfit' ? 'wear' : 'add', actor: person.name, value: clean, field })
     }
     if (changed) current[field] = writeClauses(kept)
   }
