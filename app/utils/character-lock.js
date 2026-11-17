@@ -1,7 +1,8 @@
-/** One fixed identity line per character. No model call. The line is copied, not rewritten. */
+/** Ordered lock versions per character. No model call. Each line is copied, not rewritten. */
 import { cleanText } from './text.js'
 import { findByName, foldName, nameParts } from './scenario.js'
 import { phrase } from './prompt-lang.js'
+import { namedWornAndCarried } from './prose-extra.js'
 
 export const SHEET_KEYS = Object.freeze(['front', 'side', 'back', 'expressions', 'palette', 'outfit', 'props'])
 const REF_SLOTS = Object.freeze(['front', 'side', 'back'])
@@ -22,7 +23,13 @@ const GARMENT_FAMILIES = Object.freeze([
   ['suit', /\bsuits?\b/i],
   ['hoodie', /\bhoodies?\b/i],
   ['hakama', /\bhakama\b/i],
-  ['cap', /\b(?:caps?|hats?)\b/i]
+  ['cap', /\b(?:caps?|hats?)\b/i],
+  ['cloak', /\bcloaks?\b/i],
+  ['parka', /\bparkas?\b/i],
+  ['cardigan', /\bcardigans?\b/i],
+  ['waistcoat', /\bwaistcoats?\b/i],
+  ['gloves', /\bgloves?\b/i],
+  ['anorak', /\banoraks?\b/i]
 ])
 const TRAIT_PHRASE = /\b(?:[\p{L}'’-]+\s+){1,4}(?:hair|undercut|pixie cut|bob|peacoat|overcoat|jacket|coat|scarf|apron|sweater|boots|dress|shirt|suit|hoodie|hakama|cap|hat|glasses|earrings)\b/giu
 
@@ -65,8 +72,30 @@ export function asCharacter(character = {}) {
     lockLine: typeof character.lockLine === 'string' ? character.lockLine.trim().slice(0, 700) : '',
     lockEdited: character.lockEdited === true,
     states: normalizeStates(character.states),
+    locks: Array.isArray(character.locks) ? character.locks.map(item => ({ ...item })) : [],
     sheet: normalizeSheet(character.sheet)
   }
+}
+
+function orderOf(item) {
+  const raw = item?.fromOrder ?? item?.from ?? item?.shot ?? item?.fromShot
+  const match = String(raw ?? '').match(/\d+/)
+  const order = match ? Number(match[0]) : 0
+  return Number.isInteger(order) && order > 0 ? order : 0
+}
+
+function publicLocks(locks) {
+  if (!Array.isArray(locks)) return []
+  return locks.slice(0, 12).map(item => {
+    const fromOrder = orderOf(item)
+    if (!fromOrder) return null
+    const next = { fromOrder }
+    ;['age', 'role', 'body', 'face', 'hair', 'colors', 'marks', 'look', 'outfit', 'items'].forEach(key => {
+      const value = cleanText(item?.[key])
+      if (value) next[key] = value.slice(0, 300)
+    })
+    return next
+  }).filter(Boolean)
 }
 
 function splitClauses(text) {
@@ -145,6 +174,8 @@ function lockLineEnglish(character, order = 1) {
     const base = person.lockLine.replace(/\.$/, '')
     return `${base}. State: ${note}.`
   }
+  const version = versionAt(person.locks, order)
+  if (!state && version) return lockFromVersion(person, version)
   if (!state) return derivedLockLine(person)
   const parts = dedupeParts([...identityParts(person), usable(person.items), state.change])
   if (!parts.length) return `${person.name} — ${state.change}.`
@@ -209,6 +240,7 @@ export function charactersInShot(shot, project = {}) {
 }
 
 export function lockLinesForShot(shot, project, index = 0) {
+  ensureLockVersions(project)
   const order = shot?.order || index + 1
   const lang = project?.promptLanguage || 'en'
   return charactersInShot(shot, project).map(character => lockLineFor(character, order, lang)).filter(Boolean)
@@ -230,6 +262,8 @@ function pickedExtras(entry) {
   if (typeof entry.lockLine === 'string' && entry.lockLine.trim()) next.lockLine = entry.lockLine.trim().slice(0, 700)
   if (entry.lockEdited === true) next.lockEdited = true
   if (Array.isArray(entry.states) && entry.states.length) next.states = normalizeStates(entry.states)
+  const declared = declaredLockInput(entry)
+  if (declared.length) next.locks = declared
   if (entry.sheet && typeof entry.sheet === 'object') next.sheet = normalizeSheet(entry.sheet)
   return next
 }
@@ -354,6 +388,321 @@ export function insertLockLines(prompt, lines) {
   const breakAt = text.indexOf('\n')
   if (breakAt >= 0) return `${text.slice(0, breakAt)}\n${block}\n${text.slice(breakAt + 1)}`
   return `${text.trim()}\n${block}`.trim()
+}
+
+const COMPUTED = Symbol('lockVersion')
+const userLockMap = new WeakMap()
+const appliedVersions = new WeakMap()
+const versionWarnings = new WeakMap()
+const VERB_RULES = Object.freeze([
+  { op: 'replace', re: /(?<![\p{L}])(?:changes?\s+into|troca\s+de\s+roupa)(?![\p{L}])/iu },
+  { op: 'wear', re: /(?<![\p{L}])(?:puts?\s+on|veste|vestem|põe|poe|põem|poem)(?![\p{L}])/iu },
+  { op: 'remove', re: /(?<![\p{L}])(?:takes?\s+off|take\s+off|removes?|tira|tiram|despe|despem)(?![\p{L}])/iu },
+  { op: 'pickup', re: /(?<![\p{L}])(?:picks?\s+up|pick\s+up|grabs?|pega|pegam|agarra|agarram|receives?|recebe|recebem)(?![\p{L}])/iu },
+  { op: 'drop', re: /(?<![\p{L}])(?:drops?|sets?\s+down|set\s+down|larga|largam|pousa|pousam)(?![\p{L}])/iu },
+  { op: 'hand', re: /(?<![\p{L}])(?:hands?(?:\s+over)?|entrega|entregam)(?![\p{L}])/iu }
+])
+
+function versionAt(locks, order) {
+  const current = Number(order) || 1
+  const list = (locks || []).filter(item => item && item.fromOrder <= current && item[COMPUTED] !== false)
+  if (!list.length) return null
+  return list.sort((a, b) => a.fromOrder - b.fromOrder).at(-1)
+}
+
+function lockFromVersion(person, version) {
+  const next = { ...person, states: [], lockEdited: false, lockLine: '' }
+  ;['age', 'role', 'body', 'face', 'hair', 'colors', 'marks', 'look', 'outfit', 'items'].forEach(key => {
+    if (Object.prototype.hasOwnProperty.call(version, key)) next[key] = version[key]
+  })
+  return derivedLockLine(next)
+}
+
+function snapshotOf(person) {
+  return {
+    age: person.age || '',
+    role: person.role || '',
+    body: person.body || '',
+    face: person.face || '',
+    hair: person.hair || '',
+    colors: person.colors || '',
+    marks: person.marks || '',
+    look: person.look || '',
+    outfit: person.outfit || '',
+    items: person.items || ''
+  }
+}
+
+function hasToken(text, value) {
+  const needle = foldName(value)
+  if (!needle) return false
+  const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, 'iu').test(foldName(text))
+}
+
+function garmentFamily(text) {
+  const source = String(text || '')
+  for (const [family, pattern] of GARMENT_FAMILIES) {
+    if (pattern.test(source)) return family
+  }
+  return ''
+}
+
+function related(text, value) {
+  if (!text || !value) return false
+  if (hasToken(text, value) || hasToken(value, text)) return true
+  const tail = foldName(value).split(/\s+/).filter(Boolean).at(-1) || ''
+  if (tail.length >= 3 && hasToken(text, tail)) return true
+  const left = garmentFamily(text)
+  const right = garmentFamily(value)
+  return Boolean(left && right && left === right)
+}
+
+function fieldClauses(text) {
+  return cleanText(text).split(/\s*,\s*|\s+\b(?:and|e)\b\s+/iu).map(part => part.trim()).filter(Boolean)
+}
+
+function writeClauses(parts) {
+  return parts.filter(Boolean).join(', ')
+}
+
+function withoutRelated(text, value) {
+  return writeClauses(fieldClauses(text).filter(part => !related(part, value)))
+}
+
+function withClause(text, value) {
+  const clean = cleanText(value)
+  if (!clean) return text || ''
+  const parts = fieldClauses(text)
+  if (parts.some(part => related(part, clean))) return writeClauses(parts)
+  parts.push(clean)
+  return writeClauses(parts)
+}
+
+function namesIn(text, characters) {
+  return (characters || []).filter(person => hasToken(text, person.name))
+}
+
+function singleWho(who, characters) {
+  const parts = nameParts(who)
+  if (parts.length !== 1) return ''
+  const found = (characters || []).find(person => foldName(person.name) === foldName(parts[0]))
+  return found?.name || ''
+}
+
+function shotPlain(shot) {
+  return [shot?.what, shot?.action].filter(Boolean).join('. ')
+}
+
+function sentencesOf(text) {
+  const source = String(text || '')
+  const parts = []
+  const re = /[^.!?。！？]+[.!?。！？]?/gu
+  let match
+  while ((match = re.exec(source))) {
+    if (cleanText(match[0])) parts.push({ text: match[0], index: match.index })
+    if (match.index === re.lastIndex) re.lastIndex += 1
+  }
+  if (!parts.length && cleanText(source)) parts.push({ text: source, index: 0 })
+  return parts
+}
+
+function storyEvents(shots, characters) {
+  const events = []
+  ;(shots || []).forEach((shot, index) => {
+    const order = shot?.order || index + 1
+    sentencesOf(shotPlain(shot)).forEach(sentence => {
+      const found = []
+      for (const rule of VERB_RULES) {
+        const flags = rule.re.flags.includes('g') ? rule.re.flags : `${rule.re.flags}g`
+        const re = new RegExp(rule.re.source, flags)
+        let match
+        while ((match = re.exec(sentence.text))) {
+          found.push({ op: rule.op, index: match.index, length: match[0].length })
+          if (match.index === re.lastIndex) re.lastIndex += 1
+        }
+      }
+      found.sort((a, b) => a.index - b.index)
+      found.forEach((verb, verbIndex) => {
+        const before = sentence.text.slice(0, verb.index)
+        const afterEnd = found[verbIndex + 1]?.index ?? sentence.text.length
+        const after = sentence.text.slice(verb.index + verb.length, afterEnd)
+        const named = namesIn(before, characters)
+        const who = singleWho(shot?.who, characters)
+        let actor = ''
+        if (named.length === 1) actor = named[0].name
+        else if (who && (named.length === 0 || named.some(person => foldName(person.name) === foldName(who)))) actor = who
+        if (!actor) return
+        const objects = namedWornAndCarried(after)
+        const receiver = namesIn(after, characters).find(person => foldName(person.name) !== foldName(actor))
+        const push = (op, value, field, target) => {
+          const clean = cleanText(value)
+          if (!clean || !target) return
+          if (events.some(item => item.order === order && item.op === op && foldName(item.actor) === foldName(target) && foldName(item.value) === foldName(clean))) return
+          events.push({ order, op, actor: target, value: clean, field })
+        }
+        if (verb.op === 'wear' || verb.op === 'replace') {
+          objects.garments.forEach(value => push(verb.op, value, 'outfit', actor))
+        } else if (verb.op === 'remove') {
+          objects.garments.forEach(value => push('remove', value, 'outfit', actor))
+          objects.items.forEach(value => push('remove', value, 'items', actor))
+        } else if (verb.op === 'pickup') {
+          objects.items.forEach(value => push('add', value, 'items', actor))
+          objects.garments.forEach(value => push('wear', value, 'outfit', actor))
+        } else if (verb.op === 'drop') {
+          objects.items.forEach(value => push('remove', value, 'items', actor))
+          objects.garments.forEach(value => push('remove', value, 'outfit', actor))
+        } else if (verb.op === 'hand') {
+          ;[...objects.items.map(value => ({ value, field: 'items' })), ...objects.garments.map(value => ({ value, field: 'outfit' }))].forEach(item => {
+            push('remove', item.value, item.field, actor)
+            if (receiver) push('add', item.value, item.field, receiver.name)
+          })
+        }
+      })
+    })
+  })
+  return events
+}
+
+function readDeclaredOrder(entry, shotCount) {
+  const raw = entry?.fromOrder ?? entry?.from ?? entry?.shot ?? entry?.fromShot
+  if (raw == null || raw === '') return { invalid: false, order: 0 }
+  const text = String(raw).trim()
+  const match = text.match(/\d+/)
+  const order = match ? Number(match[0]) : NaN
+  if (!Number.isInteger(order) || order < 1) return { invalid: true, value: text.slice(0, 40) }
+  if (shotCount > 0 && order > shotCount) return { invalid: true, value: String(order) }
+  return { invalid: false, order, value: String(order) }
+}
+
+export function declaredLockInput(entry) {
+  const fromLocks = Array.isArray(entry?.locks) ? entry.locks : []
+  const fromStates = Array.isArray(entry?.states) ? entry.states.filter(item => item && (item.outfit || item.items || item.props || item.carried || item.age || item.look)) : []
+  return publicLocks([...fromLocks, ...fromStates.map(item => ({
+    fromOrder: item.fromOrder ?? item.from ?? item.shot,
+    outfit: item.outfit,
+    items: item.items || item.props || item.carried,
+    age: item.age,
+    look: item.look
+  }))])
+}
+
+function userLocks(person) {
+  if (userLockMap.has(person)) return userLockMap.get(person)
+  const raw = Array.isArray(person?.locks) ? person.locks.filter(item => !item?.[COMPUTED]) : []
+  const copy = declaredLockInput({ locks: raw })
+  userLockMap.set(person, copy)
+  return copy
+}
+
+function legacyNoteOnly(person) {
+  const states = normalizeStates(person?.states)
+  return states.length > 0
+}
+
+function applyToSnapshot(snapshot, event) {
+  const next = { ...snapshot }
+  if (event.op === 'replace' && event.field === 'outfit') next.outfit = cleanText(event.value)
+  else if (event.op === 'wear' || event.op === 'add') next[event.field] = withClause(next[event.field], event.value)
+  else if (event.op === 'remove') {
+    next.outfit = withoutRelated(next.outfit, event.value)
+    next.items = withoutRelated(next.items, event.value)
+    next.look = withoutRelated(next.look, event.value)
+  } else if (event.op === 'declare') {
+    if (event.outfit) next.outfit = withClause(next.outfit, event.outfit)
+    if (event.items) next.items = withClause(next.items, event.items)
+    if (event.age) next.age = event.age
+    if (event.look) next.look = withClause(next.look, event.look)
+  }
+  return next
+}
+
+function mentionedBefore(shots, order, value) {
+  return (shots || []).some((shot, index) => (shot?.order || index + 1) < order && related(shotPlain(shot), value))
+}
+
+export function lockVersionWarnings(project) {
+  return versionWarnings.get(project) || []
+}
+
+function signature(project) {
+  const shots = (project.shots || []).map(shot => `${shot.order}|${shot.who || ''}|${shot.what || ''}|${shot.action || ''}`).join('\n')
+  const people = (project.filmSheet?.characters || []).map(person => JSON.stringify({
+    name: person.name,
+    age: person.age,
+    look: person.look,
+    outfit: person.outfit,
+    items: person.items,
+    states: person.states,
+    locks: userLocks(person)
+  })).join('\n')
+  return `${shots}\n${people}`
+}
+
+export function ensureLockVersions(project) {
+  if (!project?.filmSheet?.characters?.length || !project.shots?.length) return
+  const sign = signature(project)
+  if (appliedVersions.get(project) === sign) return
+  applyLockVersions(project)
+  appliedVersions.set(project, sign)
+}
+
+function applyLockVersions(project) {
+  const characters = project.filmSheet.characters
+  const shots = project.shots || []
+  const warnings = []
+  const events = storyEvents(shots, characters)
+  characters.forEach(person => {
+    if (!person?.name) return
+    const declared = userLocks(person)
+    if (legacyNoteOnly(person) && !declared.length) {
+      if (person.locks?.some(item => item?.[COMPUTED])) delete person.locks
+      return
+    }
+    let current = snapshotOf(asCharacter(person))
+    const additions = events.filter(event => foldName(event.actor) === foldName(person.name) && (event.op === 'wear' || event.op === 'add' || event.op === 'replace'))
+    additions.forEach(event => {
+      if (mentionedBefore(shots, event.order, event.value)) return
+      current.outfit = withoutRelated(current.outfit, event.value)
+      current.items = withoutRelated(current.items, event.value)
+      current.look = withoutRelated(current.look, event.value)
+    })
+    const planned = []
+    events.filter(event => foldName(event.actor) === foldName(person.name)).forEach(event => planned.push(event))
+    declared.forEach(entry => {
+      const parsed = readDeclaredOrder(entry, shots.length)
+      if (parsed.invalid) {
+        warnings.push({
+          character: person.name,
+          field: 'fromOrder',
+          value: parsed.value,
+          source: 'sheet',
+          code: 'lock_version',
+          message: `${person.name}: lock version from shot ${parsed.value} is outside this board.`
+        })
+        return
+      }
+      if (!parsed.order) return
+      planned.push({ order: parsed.order, op: 'declare', outfit: entry.outfit, items: entry.items, age: entry.age, look: entry.look, actor: person.name })
+    })
+    planned.sort((a, b) => a.order - b.order)
+    const versions = [{ fromOrder: 1, ...current }]
+    planned.forEach(event => {
+      current = applyToSnapshot(current, event)
+      const last = versions[versions.length - 1]
+      const next = { fromOrder: event.order, ...current }
+      if (event.order <= last.fromOrder) versions[versions.length - 1] = { ...next, fromOrder: last.fromOrder }
+      else versions.push(next)
+    })
+    const baseLine = derivedLockLine(person)
+    const lines = versions.map(version => lockFromVersion(person, version))
+    if (lines.length === 1 && lines[0] === baseLine) {
+      if (person.locks?.some(item => item?.[COMPUTED])) delete person.locks
+      return
+    }
+    person.locks = versions.map(version => ({ ...version, [COMPUTED]: true }))
+  })
+  versionWarnings.set(project, warnings)
 }
 
 const WARDROBE_CHANGE = /\b(?:takes off|take off|removes|removed|without (?:his|her|their))\s+(?:the\s+|a\s+|an\s+|his\s+|her\s+|their\s+)?(coat|jacket|scarf|hat|cap|apron|peacoat|sweater|boots|hakama)\b/i

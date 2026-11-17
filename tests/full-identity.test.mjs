@@ -151,7 +151,10 @@ test('a 45-shot Portuguese story repeats each full lock in both parts', () => {
     const prompt = shotPrompt(shot)
     if (/Rita —/.test(prompt)) {
       ritaParts.add(part.index)
-      for (const piece of [/33 anos/, /cabelo curto/, /casaco verde/, /luvas de lã/, /fato/]) assert.match(prompt, piece, prompt)
+      for (const piece of [/33 anos/, /cabelo curto/, /casaco verde/, /luvas de lã/]) assert.match(prompt, piece, prompt)
+      const dressed = planned.body.shots.find(item => /veste o fato/.test(item.prompt))
+      if (shot.order >= dressed.order) assert.match(prompt, /fato/)
+      else assert.doesNotMatch(prompt, /fato/)
       assert.doesNotMatch(prompt, /barba grisalha|jaqueta azul|bengala/i, prompt)
     }
     if (/Gil —/.test(prompt)) {
@@ -166,7 +169,7 @@ test('a 45-shot Portuguese story repeats each full lock in both parts', () => {
   assert.match(planned.body.shots.at(-1).prompt, /PLACE: Forno/i)
 })
 
-test('a thin character sheet is 400 and a complete sheet is repeated on every shot', () => {
+test('a thin character sheet is filled unless strict_sheet is set, and a complete sheet is repeated on every shot', () => {
   const premise = 'Petra is 29 and wears a saffron coat and carries a brass compass.'
   const places = [{ name: 'Kiln', description: 'a hot kiln' }]
   const scenes = [
@@ -175,6 +178,7 @@ test('a thin character sheet is 400 and a complete sheet is repeated on every sh
   ]
   const thin = plan({
     premise,
+    strict_sheet: true,
     scenario: {
       characters: [{ name: 'Petra', look: 'short hair', outfit: 'boots' }],
       places,
@@ -186,6 +190,29 @@ test('a thin character sheet is 400 and a complete sheet is repeated on every sh
   assert.match(thin.body.message, /missing age "29"/)
   assert.match(thin.body.message, /missing outfit "saffron coat"/)
   assert.match(thin.body.message, /missing items "brass compass"/)
+  const filled = plan({
+    premise,
+    model: 'grok',
+    compact: true,
+    scenario: {
+      characters: [{ name: 'Petra', look: 'short hair', outfit: 'boots' }],
+      places,
+      scenes
+    }
+  })
+  assert.equal(filled.status, 200, filled.body.message)
+  for (const warning of [
+    { character: 'Petra', field: 'age', value: '29', source: 'premise' },
+    { character: 'Petra', field: 'outfit', value: 'saffron coat', source: 'premise' },
+    { character: 'Petra', field: 'items', value: 'brass compass', source: 'premise' }
+  ]) {
+    assert.ok(filled.body.warnings.some(item => item.character === warning.character && item.field === warning.field && item.value === warning.value && item.source === warning.source), JSON.stringify(filled.body.warnings))
+  }
+  for (const shot of filled.body.shots) {
+    assert.match(shot.prompt, /29/)
+    assert.match(shot.prompt, /saffron coat/)
+    assert.match(shot.prompt, /brass compass/)
+  }
   const full = plan({
     premise,
     model: 'grok',

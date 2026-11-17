@@ -38,6 +38,15 @@ function copyCharacter(item) {
   if (line) copy.lockLine = line
   if (person.lockEdited) copy.lockEdited = true
   if (person.states.length) copy.states = person.states
+  if (person.locks.length) {
+    copy.locks = person.locks.map(item => {
+      const next = { fromOrder: item.fromOrder }
+      ;['age', 'role', 'body', 'face', 'hair', 'colors', 'marks', 'look', 'outfit', 'items'].forEach(key => {
+        if (item[key]) next[key] = item[key]
+      })
+      return next
+    })
+  }
   const sheet = publicSheet(person)
   if (Object.keys(sheet).length) copy.sheet = sheet
   return copy
