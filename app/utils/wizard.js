@@ -170,6 +170,42 @@ function filled(value) {
   return cleanText(value).length > 0
 }
 
+/** Generic place names the detector uses when the text names none. They are not a place. */
+const PLACEHOLDER_PLACE_NAMES = new Set(['the setting', 'o lugar', 'le lieu', 'il luogo', '场所', '场景', '場所'])
+/** Generic descriptions that travel with those placeholder names. */
+const PLACEHOLDER_PLACE_DESCRIPTIONS = new Set([
+  'a place the text does not name',
+  'um lugar que o texto nao nomeia',
+  'un lieu que le texte ne nomme pas',
+  'un luogo che il testo non nomina',
+  '文が名を挙げない場所'
+])
+
+function storyKey(value) {
+  return foldName(value).replace(/[.!?…]+$/u, '').trim()
+}
+
+function acceptedPlaceName(place) {
+  const name = cleanText(place?.name)
+  if (!name || PLACEHOLDER_PLACE_NAMES.has(storyKey(name))) return ''
+  return name
+}
+
+function acceptedPlaceDescription(place) {
+  const description = cleanText(place?.description)
+  if (!description || PLACEHOLDER_PLACE_DESCRIPTIONS.has(storyKey(description))) return ''
+  return description
+}
+
+/** A detected action that only repeats the idea is not an action until the person rewrites it. */
+function acceptedAction(state, shot) {
+  const action = cleanText(shot?.action)
+  if (!action) return ''
+  const idea = cleanText(state?.idea)
+  if (idea && storyKey(action) === storyKey(idea)) return ''
+  return action
+}
+
 function gap(step, extra) {
   return { step, targetId: '', field: '', key: '', name: '', ...extra }
 }
@@ -203,9 +239,9 @@ function placeGaps(state) {
   if (!state.places.length) gaps.push(gap('places', { field: 'places', key: 'missing.places' }))
   const seen = new Set()
   state.places.forEach(place => {
-    const name = cleanText(place.name)
+    const name = acceptedPlaceName(place)
     if (!name) gaps.push(gap('places', { targetId: place.id, field: 'name', key: 'missing.placeName' }))
-    if (!filled(place.description)) gaps.push(gap('places', { targetId: place.id, field: 'description', key: 'missing.placeDescription', name }))
+    if (!acceptedPlaceDescription(place)) gaps.push(gap('places', { targetId: place.id, field: 'description', key: 'missing.placeDescription', name }))
     const key = foldName(name)
     if (key && seen.has(key)) gaps.push(gap('places', { targetId: place.id, field: 'name', key: 'missing.duplicatePlace', name }))
     if (key) seen.add(key)
@@ -228,48 +264,16 @@ function shotGaps(state) {
     const skipWho = state.noCharacter || shot.noCharacter
     const who = (shot.whoIds || []).filter(id => state.characters.some(character => character.id === id && filled(character.name)))
     if (!skipWho && !who.length) gaps.push(gap('shots', { targetId: shot.id, field: 'who', key: 'missing.who', name: wizardText('shot.count', { current: index + 1, total: state.shots.length }) }))
-    const place = state.places.find(item => item.id === shot.placeId && filled(item.name))
+    const place = state.places.find(item => item.id === shot.placeId && acceptedPlaceName(item))
     if (!place) gaps.push(gap('shots', { targetId: shot.id, field: 'place', key: 'missing.place' }))
-    if (!filled(shot.action)) gaps.push(gap('shots', { targetId: shot.id, field: 'action', key: 'missing.action' }))
-    else if (splitOffer(shot.action)) gaps.push(gap('shots', { targetId: shot.id, field: 'action', key: 'split.pending' }))
+    const action = acceptedAction(state, shot)
+    if (!action) gaps.push(gap('shots', { targetId: shot.id, field: 'action', key: 'missing.action' }))
+    else if (splitOffer(action)) gaps.push(gap('shots', { targetId: shot.id, field: 'action', key: 'split.pending' }))
     if (!termById(shot.framing)) gaps.push(gap('shots', { targetId: shot.id, field: 'framing', key: 'missing.framing' }))
     const duration = Number(shot.duration)
     if (!Number.isInteger(duration) || duration < 2 || duration > 15) gaps.push(gap('shots', { targetId: shot.id, field: 'duration', key: 'missing.duration' }))
   })
   return gaps
-}
-
-const REQUIRED_CHARACTER_FIELDS = CHARACTER_FIELDS.filter(field => !OPTIONAL_CHARACTER_FIELDS.includes(field))
-
-/** The minimum that must be true before Next or a later stepper circle. */
-export function gateGaps(state, stepId) {
-  if (!state) return [gap('idea', { field: 'idea', key: 'missing.ideaShort' })]
-  if (stepId === 'idea') return gapsFor(state, 'idea')
-  if (stepId === 'characters') {
-    if (state.noCharacter) return []
-    const people = state.characters || []
-    if (!people.length) return [gap('characters', { field: 'characters', key: 'missing.characters' })]
-    const ready = people.some(character => REQUIRED_CHARACTER_FIELDS.every(field => filled(character[field])))
-    if (ready) return []
-    const character = people[state.characterIndex] || people[0]
-    const field = REQUIRED_CHARACTER_FIELDS.find(item => !filled(character[item])) || 'name'
-    return [gap('characters', { targetId: character.id, field, key: MISSING_KEY[field], name: cleanText(character.name) })]
-  }
-  if (stepId === 'places') {
-    const places = state.places || []
-    if (places.some(place => filled(place.name))) return []
-    if (!places.length) return [gap('places', { field: 'places', key: 'missing.places' })]
-    const place = places[state.placeIndex] || places[0]
-    return [gap('places', { targetId: place.id, field: 'name', key: 'missing.placeName' })]
-  }
-  if (stepId === 'shots') {
-    const shots = state.shots || []
-    if (shots.some(shot => filled(shot.action))) return []
-    if (!shots.length) return [gap('shots', { field: 'shots', key: 'missing.shots' })]
-    const shot = shots[state.shotIndex] || shots[0]
-    return [gap('shots', { targetId: shot.id, field: 'action', key: 'missing.action' })]
-  }
-  return []
 }
 
 export function gapsFor(state, stepId) {
@@ -288,6 +292,29 @@ export function gapsFor(state, stepId) {
 
 export function allGaps(state) {
   return ['idea', 'characters', 'places', 'shots'].flatMap(step => gapsFor(state, step))
+}
+
+/** Next and the stepper use the same strict list. A partial row does not pass. */
+export function gateGaps(state, stepId) {
+  return gapsFor(state, stepId)
+}
+
+/** First idea, character, place, or shot step that still has a strict gap. */
+function firstStrictGap(state) {
+  for (const step of WIZARD_STEPS) {
+    if (step.id === 'check' || step.id === 'generate') return ''
+    if (gapsFor(state, step.id).length) return step.id
+  }
+  return ''
+}
+
+function gapBefore(state, targetIndex) {
+  for (let index = 0; index < targetIndex; index += 1) {
+    const id = WIZARD_STEPS[index].id
+    if (id === 'check' || id === 'generate') continue
+    if (gapsFor(state, id).length) return true
+  }
+  return false
 }
 
 /** DOM id of the control the guide should focus for this gap. */
@@ -350,25 +377,22 @@ function move(state, stepId) {
 export function canOpenStep(state, stepId) {
   const target = stepIndex(stepId)
   const current = stepIndex(state?.step)
-  if (target < 0 || current < 0) return false
-  if (target <= current) return true
-  for (let index = 0; index < target; index += 1) {
-    if (gateGaps(state, WIZARD_STEPS[index].id).length) return false
-  }
+  if (!state || target < 0 || current < 0) return false
+  if (gapBefore(state, target)) return false
   if (stepId === 'generate') return canGenerate(state)
   return true
 }
 
 export function openStep(state, stepId) {
-  if (!canOpenStep(state, stepId) || state.step === stepId) return state
+  if (!state || state.step === stepId || !canOpenStep(state, stepId)) return state
   const next = clone(state)
   next.step = stepId
-  next.maxReached = Math.max(next.maxReached || 0, stepIndex(stepId))
+  next.maxReached = Math.max(Number(next.maxReached) || 0, stepIndex(stepId))
   return next
 }
 
 export function continueStep(state) {
-  if (gateGaps(state, state.step).length) return state
+  if (!state || gapsFor(state, state.step).length) return state
   if (state.step === 'idea') return move(applyIdeaDetection(state), 'characters')
   if (state.step === 'check') {
     if (!canGenerate(state)) return state
@@ -377,6 +401,19 @@ export function continueStep(state) {
   const index = stepIndex(state.step)
   if (index < 0 || index >= WIZARD_STEPS.length - 1) return state
   return move(state, WIZARD_STEPS[index + 1].id)
+}
+
+/** A restored guide opens on the first step that still has a strict gap. */
+export function clampWizardStep(state) {
+  if (!state) return state
+  const gapId = firstStrictGap(state)
+  if (!gapId) return state
+  const limit = stepIndex(gapId)
+  if (stepIndex(state.step) <= limit) return state
+  const next = clone(state)
+  next.step = gapId
+  next.maxReached = Math.min(Number(next.maxReached) || 0, limit)
+  return next
 }
 
 function normalizeColor(word) {
@@ -1076,7 +1113,7 @@ export function normalizeWizard(value) {
   next.shotIndex = Math.max(0, Math.min(next.shots.length - 1, Number(value.shotIndex) || 0))
   next.hasGenerated = value.hasGenerated === true
   next.generatedSignature = typeof value.generatedSignature === 'string' ? value.generatedSignature.slice(0, 200000) : ''
-  return next
+  return clampWizardStep(next)
 }
 
 export function saveWizard(storage, state) {

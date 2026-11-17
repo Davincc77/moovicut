@@ -21,3 +21,4 @@ jobs:
       - run: node tests/studio-foundation.e2e.mjs
       - run: node tests/studio-workspace.e2e.mjs
       - run: node tests/studio-disclosure.e2e.mjs
+      - run: node tests/studio-wizard-gates.e2e.mjs
