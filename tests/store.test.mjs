@@ -35,14 +35,20 @@ test('local references retain metadata without storing image bytes', () => {
   assert.equal(saved[0].reference.data, undefined)
   assert.throws(() => store.attachReference({ name:'document.txt', type:'text/plain' }), /image file/)
 })
-test('preferences survive the portable engine and reject unknown settings', () => {
+test('preferences survive the portable engine and an old darkMode value does not break load', () => {
   const data = new Map()
+  data.set('shotboard.preferences.v1', JSON.stringify({ autoSave:true, darkMode:true, notifications:false, emailUpdates:false }))
   const storage = { getItem:key => data.has(key) ? data.get(key) : null, setItem:(key,value) => data.set(key,String(value)) }
   const preferences = createPreferences(storage)
-  assert.equal(preferences.settings.darkMode, false)
-  assert.equal(preferences.setPreference('darkMode', true).darkMode, true)
-  assert.equal(JSON.parse(data.get('shotboard.preferences.v1')).darkMode, true)
-  assert.equal(createPreferences(storage).settings.darkMode, true)
+  assert.equal(preferences.settings.autoSave, true)
+  assert.equal(Object.hasOwn(preferences.settings, 'darkMode'), false)
+  assert.equal(preferences.setPreference('notifications', true).notifications, true)
+  const saved = JSON.parse(data.get('shotboard.preferences.v1'))
+  assert.equal(saved.notifications, true)
+  assert.equal(Object.hasOwn(saved, 'darkMode'), false)
+  assert.equal(createPreferences(storage).settings.notifications, true)
+  assert.equal(createPreferences(storage).settings.autoSave, true)
+  assert.throws(() => preferences.setPreference('darkMode', true), /supported local preference/)
   assert.throws(() => preferences.setPreference('unknown', true), /supported local preference/)
 })
 

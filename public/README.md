@@ -71,11 +71,11 @@ npm run dev -- --port 3001
 
 Projects stay in this browser. They are not synced to another browser or computer. Export JSON if you want a backup.
 
-## Free core, dark mode and optional support
+## Free core and optional support
 
 Planning, editing, reordering, undo and redo, local projects, JSON import and export, and the CLI are free. There is no account and no subscription.
 
-**Dark mode** in the header is saved on this device. **Install app** appears when the browser offers to install Moovicut. The service worker only exists so that offer can fire: it does not cache pages or assets, and a new deploy is still loaded through the normal HTTP cache. **Support the project** opens https://buymeacoffee.com/enzoc1977r in a new tab. The footer links to Privacy, Terms, and the content policy.
+**Install app** appears when the browser offers to install Moovicut. The service worker only exists so that offer can fire: it does not cache pages or assets, and a new deploy is still loaded through the normal HTTP cache. **Support the project** opens https://buymeacoffee.com/enzoc1977r in a new tab. The footer links to Privacy, Terms, and the content policy.
 
 ## Tests and production build
 
@@ -84,7 +84,7 @@ npm test
 NUXT_APP_BASE_URL=/ npm run build
 ```
 
-`npm test` runs the prompt engine, CLI, project store, Vue checks, redirect checks, and a Playwright smoke test. The smoke test builds the static site, opens every page in English and Portuguese on a desktop window and an iPhone-sized window, fills the fields, and clicks the buttons. It fails on an uncaught page error, a dead in-site link, a transparent dialog, an export that is not JSON, a dark-mode toggle that does not change, or a wizard Next that does not point at the missing field. It uses the installed Chrome, or Playwright’s Chromium when Chrome is not on the machine (`npx playwright install chromium`).
+`npm test` runs the prompt engine, CLI, project store, Vue checks, redirect checks, and a Playwright smoke test. The smoke test builds the static site, opens every page in English and Portuguese on a desktop window and an iPhone-sized window, fills the fields, and clicks the buttons. It fails on an uncaught page error, a dead in-site link, a transparent dialog, an export that is not JSON, a theme toggle still on the page, or a wizard Next that does not point at the missing field. It uses the installed Chrome, or Playwright’s Chromium when Chrome is not on the machine (`npx playwright install chromium`).
 
 `npm run build` and `npm run generate` both run `nuxt generate`. Nuxt writes the static site to `.output/public/`. That folder is generated output. Railway uses `NUXT_APP_BASE_URL=/ npm run build`, then `node server/prod-server.mjs`.
 

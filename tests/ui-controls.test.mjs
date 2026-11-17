@@ -1,10 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { downloadBody } from '../app/composables/useNotifier.js'
 import { legacyRedirectTarget } from '../server/prod-server.mjs'
 import { dispatchAgentRequest } from '../server/agent-api.mjs'
 import { createStoryboard } from '../app/utils/prompt-engine.js'
+import { createPreferences } from '../app/utils/preferences.js'
 import {
   blankWizard,
   setIdea,
@@ -193,15 +194,42 @@ test('one shot can omit the character while another shot keeps the lock line', (
   assert.match(source('app/i18n/locales/pt.json'), /Sem personagem neste plano/)
 })
 
-test('header, footer, skip target, theme, install worker, and /en redirect are wired', () => {
+test('no theme toggle is rendered and an old saved darkMode preference does not break load', () => {
+  assert.equal(existsSync('app/components/ThemeToggle.vue'), false)
+  for (const file of ['app/components/AppHeader.vue', 'app/components/WorkspaceHeader.vue']) {
+    assert.doesNotMatch(source(file), /ThemeToggle|theme-toggle|darkMode|Dark mode|Use dark mode/, file)
+  }
+  assert.doesNotMatch(source('app/assets/css/main.css'), /\.theme-toggle|\.moovicut-dark|\.workspace-theme/)
+  assert.doesNotMatch(source('app/composables/usePreferences.js'), /darkMode|moovicut-dark/)
+  assert.doesNotMatch(source('app/utils/preferences.js'), /darkMode\s*:/)
+  const data = new Map()
+  data.set('shotboard.preferences.v1', JSON.stringify({ autoSave: false, darkMode: true, notifications: true, emailUpdates: false }))
+  const storage = {
+    getItem: key => data.has(key) ? data.get(key) : null,
+    setItem: (key, value) => data.set(key, String(value))
+  }
+  const preferences = createPreferences(storage)
+  assert.equal(preferences.settings.autoSave, false)
+  assert.equal(preferences.settings.notifications, true)
+  assert.equal(Object.hasOwn(preferences.settings, 'darkMode'), false)
+  assert.doesNotThrow(() => preferences.setPreference('emailUpdates', true))
+  const saved = JSON.parse(data.get('shotboard.preferences.v1'))
+  assert.equal(saved.emailUpdates, true)
+  assert.equal(Object.hasOwn(saved, 'darkMode'), false)
+  data.set('shotboard.preferences.v1', JSON.stringify({ darkMode: 'yes', autoSave: true }))
+  const odd = createPreferences(storage)
+  assert.equal(odd.settings.autoSave, true)
+  assert.equal(Object.hasOwn(odd.settings, 'darkMode'), false)
+})
+
+test('header, footer, skip target, install worker, and /en redirect are wired', () => {
   const pages = ['app/pages/index.vue', 'app/pages/studio.vue', 'app/pages/faq.vue', 'app/pages/agents.vue', 'app/pages/credits.vue', 'app/pages/readme.vue', 'app/pages/skill.vue', 'app/pages/[slug].vue']
   for (const file of pages) assert.match(source(file), /id="main-content"/, file)
   assert.match(source('app/pages/studio.vue'), /class="skip-link" href="#main-content"/)
-  assert.match(source('app/components/AppHeader.vue'), /<ThemeToggle \/>/)
   assert.match(source('app/components/AppHeader.vue'), /<InstallButton \/>/)
-  assert.match(source('app/components/WorkspaceHeader.vue'), /<ThemeToggle \/>/)
   assert.match(source('app/components/WorkspaceHeader.vue'), /<InstallButton \/>/)
-  assert.match(source('app/components/ThemeToggle.vue'), /setPreference\('darkMode'/)
+  assert.doesNotMatch(source('app/components/AppHeader.vue'), /<ThemeToggle/)
+  assert.doesNotMatch(source('app/components/WorkspaceHeader.vue'), /<ThemeToggle/)
   const footer = source('app/components/SiteFooter.vue')
   for (const name of ['privacy', 'terms', 'content-policy']) assert.match(footer, new RegExp(`pageHref\\('${name}'\\)`))
   assert.match(source('app/pages/[slug].vue'), /page\.missing \? '\/' : '\/studio'/)

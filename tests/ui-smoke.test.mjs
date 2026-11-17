@@ -68,10 +68,17 @@ async function clickButtons(page) {
   page.on('filechooser', chooser => { chooser.setFiles([]).catch(() => {}) })
   const buttons = page.locator('button')
   const count = await buttons.count()
+  // Indexes belong to this document. A client navigation (Create storyboard) reuses the
+  // same index for a control on the next page, including the desktop-hidden workspace button.
+  const pageUrl = page.url()
   for (let index = 0; index < count; index += 1) {
+    if (page.url() !== pageUrl) break
     const button = buttons.nth(index)
     if (!(await button.isVisible().catch(() => false))) continue
+    if (page.url() !== pageUrl) break
     const label = ((await button.getAttribute('aria-label')) || (await button.innerText()) || `button ${index}`).replace(/\s+/g, ' ').trim()
+    if (page.url() !== pageUrl) break
+    if (!(await button.isVisible().catch(() => false))) continue
     if (await button.isDisabled().catch(() => false)) {
       const cursor = await button.evaluate(element => getComputedStyle(element).cursor)
       assert.notEqual(cursor, 'wait', `disabled "${label}" still uses cursor wait`)
@@ -85,8 +92,11 @@ async function clickButtons(page) {
         await page.keyboard.press('Escape')
         continue
       }
+      if (page.url() !== pageUrl) break
+      if (!(await button.isVisible().catch(() => false))) continue
       throw new Error(`"${label}" did not respond: ${error.message.split('\n')[0]}`)
     }
+    if (page.url() !== pageUrl) break
     if (await page.locator('.modal-panel').count()) {
       const background = await page.locator('.modal-panel').first().evaluate(element => getComputedStyle(element).backgroundColor)
       assert.notEqual(background, 'rgba(0, 0, 0, 0)', `${label} opened a transparent modal`)
@@ -255,12 +265,15 @@ async function checkAdvancedNoCharacter(page, lang) {
   assert.doesNotMatch(prompts, / — |People:|SUBJECT:|Same character:|Same wardrobe:|frame of Fog/)
 }
 
+async function assertNoThemeToggle(page, label) {
+  assert.equal(await page.locator('.theme-toggle').count(), 0, `${label} rendered a theme toggle`)
+  assert.equal(await page.getByRole('button', { name: /dark mode|modo escuro/i }).count(), 0, `${label} rendered a dark mode control`)
+  assert.equal(await page.evaluate(() => document.documentElement.classList.contains('moovicut-dark')), false, `${label} applied a saved darkMode preference`)
+}
+
 async function checkStudio(page, lang) {
   await openGuidedStudio(page, lang)
-  const theme = page.locator('.theme-toggle')
-  const before = await theme.getAttribute('aria-pressed')
-  await theme.click()
-  assert.notEqual(await theme.getAttribute('aria-pressed'), before, 'dark mode toggle did not change')
+  await assertNoThemeToggle(page, 'studio')
   await page.locator('#wizard-idea').fill('Short')
   await page.getByRole('button', { name: /^(Next|Seguinte)$/ }).click()
   const focused = await page.evaluate(() => document.activeElement?.id || '')
@@ -318,6 +331,9 @@ test('every page responds in English and Portuguese on desktop and a phone', { t
   try {
     browser = await launch()
     const english = await browser.newPage()
+    await english.addInitScript(() => {
+      localStorage.setItem('shotboard.preferences.v1', JSON.stringify({ autoSave: true, darkMode: true, notifications: false, emailUpdates: false }))
+    })
     const errors = []
     english.on('pageerror', error => errors.push(String(error)))
     english.on('console', message => { if (message.type() === 'error' && !IGNORED.test(message.text())) errors.push(message.text()) })
@@ -325,6 +341,7 @@ test('every page responds in English and Portuguese on desktop and a phone', { t
     assert.equal(new URL(english.url()).pathname, '/')
     assert.ok(!moved || moved.status() < 400)
     await english.waitForSelector('#main-content')
+    await assertNoThemeToggle(english, '/en')
     await english.evaluate(() => {
       const event = new Event('beforeinstallprompt')
       event.prompt = () => Promise.resolve()
@@ -341,6 +358,9 @@ test('every page responds in English and Portuguese on desktop and a phone', { t
     for (const viewport of viewports) {
         for (const lang of ['?lang=en', '?lang=pt']) {
         const context = await browser.newContext(viewport.context)
+        await context.addInitScript(() => {
+          localStorage.setItem('shotboard.preferences.v1', JSON.stringify({ autoSave: true, darkMode: true, notifications: false, emailUpdates: false }))
+        })
         const page = await context.newPage()
         const problems = []
         page.on('pageerror', error => problems.push(String(error)))
@@ -348,6 +368,7 @@ test('every page responds in English and Portuguese on desktop and a phone', { t
         for (const path of PATHS) {
           await page.goto(origin + path + lang, { waitUntil: 'domcontentloaded' })
           await page.waitForSelector('#main-content')
+          await assertNoThemeToggle(page, `${viewport.name} ${path} ${lang}`)
           const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
           assert.ok(overflow <= 1, `${viewport.name} ${path} ${lang} overflows by ${overflow}px`)
           if (path === '/studio') {

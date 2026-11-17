@@ -1,6 +1,7 @@
-export const DEFAULT_PREFERENCES = Object.freeze({ autoSave:true, darkMode:false, notifications:false, emailUpdates:false })
+export const DEFAULT_PREFERENCES = Object.freeze({ autoSave:true, notifications:false, emailUpdates:false })
 
-/** Device-only settings. Injected storage makes browser and Node behavior identical. */
+/** Device-only settings. Injected storage makes browser and Node behavior identical.
+ *  A retired darkMode flag in an older save is ignored and never applied. */
 export function createPreferences(storage = undefined, initial = undefined) {
   const settings = { ...DEFAULT_PREFERENCES }
   try {
