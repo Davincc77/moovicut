@@ -1,5 +1,7 @@
 /** Deterministic pre-generation checks. Warnings never block a board. */
 import { findByName, foldName, nameParts } from './scenario.js'
+import { isNonPlaceNoun, isRejectedPlace } from './place-lexicon.js'
+import { warningAction } from './warning-action.js'
 import { cleanText } from './text.js'
 import { allowedDurations, profileFor, snapAspect } from './model-profiles.js'
 import { continuityWarnings } from './continuity-check.js'
@@ -51,8 +53,18 @@ const CAMERA_CONFLICTS = [
   [/\bpan left\b/i, /\bpan right\b/i, 'pan left and pan right']
 ]
 
+const NOT_A_WARNING_PLACE = new Set(['snow', 'neve', 'ice', 'gelo', 'stage', 'palco', 'water', 'agua', 'água'])
+
+export { warningAction }
+
 function warning(shot, code, message, fix, extra = {}) {
-  return { shotId: shot.id || shot.shot_id, order: shot.order, code, message, fix, ...extra }
+  return { shotId: shot.id || shot.shot_id, order: shot.order, code, message, fix, action: extra.action || warningAction(code), ...extra }
+}
+
+function ignoredPlace(name) {
+  const key = foldName(name)
+  if (!key || NOT_A_WARNING_PLACE.has(key)) return true
+  return isNonPlaceNoun(name) || isRejectedPlace(name)
 }
 
 function sourceOf(shot) {
@@ -87,7 +99,7 @@ function unresolved(shot, project) {
     if (name && !findByName(sheet.characters, name)) found.push(warning(shot, 'unresolved_character', `${name} is not on the film sheet.`, `Add ${name} to the characters, or use a name that is already there.`))
   })
   nameParts(shot.where).forEach(name => {
-    if (name && !findByName(sheet.places, name)) found.push(warning(shot, 'unresolved_place', `${name} is not on the film sheet.`, `Add ${name} to the places, or use a place that is already there.`))
+    if (name && !ignoredPlace(name) && !findByName(sheet.places, name)) found.push(warning(shot, 'unresolved_place', `${name} is not on the film sheet.`, `Add ${name} to the places, or use a place that is already there.`))
   })
   return found
 }

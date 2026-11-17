@@ -1,11 +1,12 @@
 /** Zero-token continuity check. Warnings never block a board. */
 import { findByName, foldName } from './scenario.js'
+import { warningAction } from './warning-action.js'
 import { charactersInShot, conflictingTrait, ensureLockVersions, lockLineFor, lockReflectsWardrobe, repeatedTraits, wardrobeChangeNote } from './character-lock.js'
 import { promptHasFraming } from './framing.js'
 import { splitActionText } from './action-split.js'
 
 function warning(shot, code, message, fix, extra = {}) {
-  return { shotId: shot.id || shot.shot_id, order: shot.order, code, message, fix, ...extra }
+  return { shotId: shot.id || shot.shot_id, order: shot.order, code, message, fix, action: extra.action || warningAction(code), ...extra }
 }
 
 function outsideText(shot, locks) {

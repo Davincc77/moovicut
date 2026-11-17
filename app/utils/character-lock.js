@@ -2,7 +2,7 @@
 import { cleanText } from './text.js'
 import { findByName, foldName, nameParts } from './scenario.js'
 import { phrase } from './prompt-lang.js'
-import { namedWornAndCarried } from './prose-extra.js'
+import { keptTrait, namedWornAndCarried } from './prose-extra.js'
 import { placeIsSure, settingName } from './place-lexicon.js'
 
 export const SHEET_KEYS = Object.freeze(['front', 'side', 'back', 'expressions', 'palette', 'outfit', 'props'])
@@ -232,7 +232,13 @@ export function charactersInShot(shot, project = {}) {
     if (found.some(item => foldName(item.name) === foldName(person.name))) return
     found.push(person)
   }
-  named.forEach(name => add(personFromWho(name, characters, project)))
+  const chunks = []
+  named.forEach(part => {
+    const bits = part.split(/\s+\be\b\s+/i)
+    if (bits.length > 1 && bits.every(bit => findByName(characters, bit))) chunks.push(...bits)
+    else chunks.push(part)
+  })
+  chunks.forEach(name => add(personFromWho(name, characters, project)))
   characters.forEach(character => {
     if (characterNamedIn(source, character, characters)) add(character)
   })
@@ -405,6 +411,7 @@ const VERB_RULES = Object.freeze([
   { op: 'pickup', re: /(?<![\p{L}])(?:picks?\s+up|pick\s+up|grabs?|pega|pegam|agarra|agarram|receives?|recebe|recebem)(?![\p{L}])/iu },
   { op: 'drop', re: /(?<![\p{L}])(?:drops?|sets?\s+down|set\s+down|larga|largam|pousa|pousam)(?![\p{L}])/iu },
   { op: 'hand', re: /(?<![\p{L}])(?:hands?(?:\s+over)?|entrega|entregam)(?![\p{L}])/iu },
+  { op: 'return', re: /(?<![\p{L}])(?:returns?|gives?\s+back|hands?\s+back|devolve|devolvem)(?![\p{L}])/iu },
   { op: 'carry', re: /(?<![\p{L}])(?:carries|carrying|carrega|carregam|leva|levam|traz|trazem)(?![\p{L}])/iu }
 ])
 
@@ -618,6 +625,12 @@ function sheetHasValue(person, value) {
   return related(`${person.outfit || ''} ${person.items || ''} ${person.look || ''} ${person.props || ''} ${person.carried || ''}`, value)
 }
 
+function originalClause(person, value) {
+  if (!person || !value) return ''
+  const blob = [person.outfit, person.items, person.look, person.props, person.carried].filter(Boolean).join(', ')
+  return fieldClauses(blob).find(part => related(part, value)) || ''
+}
+
 function storyEvents(shots, characters) {
   const events = []
   ;(shots || []).forEach((shot, index) => {
@@ -672,6 +685,20 @@ function storyEvents(shots, characters) {
         } else if (verb.op === 'carry') {
           objects.items.forEach(value => { if (!sheetHasValue(actorSheet, value)) push('add', value, 'items', actor) })
           objects.garments.forEach(value => { if (!sheetHasValue(actorSheet, value)) push('wear', value, 'outfit', actor) })
+        } else if (verb.op === 'return') {
+          let values = objects.items.filter(value => !/^(?:it|o|a|lo|la|isso|isto)$/iu.test(value))
+          if (!values.length) {
+            const recent = [...events].reverse().find(item => item.field === 'items')
+            if (recent) values = [recent.value]
+          }
+          values.forEach(value => {
+            const prior = [...events].reverse().find(item => item.field === 'items' && foldName(item.actor) !== foldName(actor) && related(item.value, value))
+            const holder = (characters || []).find(person => foldName(person.name) !== foldName(actor) && (sheetHasValue(person, value) || (prior && foldName(person.name) === foldName(prior.actor))))
+            const owner = holder?.name || prior?.actor || ''
+            const restored = originalClause(holder || (characters || []).find(person => foldName(person.name) === foldName(owner)), value) || value
+            push('remove', value, 'items', actor)
+            if (owner) push('add', restored, 'items', owner)
+          })
         }
       })
     })
@@ -791,7 +818,7 @@ function scrubChangeText(snapshot) {
       if (/(?:tira|takes|despe|removes)/iu.test(text)) return worn.garments[0] || worn.items[0] || ''
       return ''
     }
-    return text
+    return keptTrait(text) || ''
   }
   const next = { ...snapshot }
   ;['look', 'outfit', 'items'].forEach(key => {

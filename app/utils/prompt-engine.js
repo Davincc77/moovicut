@@ -1,7 +1,7 @@
 /** A deterministic local story planner. No remote AI or video generation. */
 import { canonicalModel, modelRegistry } from '../integrations/models/model-registry.js'
 import { plannedAspect, plannedLengthBudget, plannedShotSeconds, profileFor, snapAspect, snapDuration } from './model-profiles.js'
-import { LIGHTS, MOODS, describeCast, describePlace, describeScenarioErrors, findByName, foldName, looksLikeScenario, nameParts, parseScenario, resolveUserCamera, scenarioFromProject, scenarioPremise, sequencePacks } from './scenario.js'
+import { LIGHTS, MOODS, TIMES, describeCast, describePlace, describeScenarioErrors, findByName, foldName, looksLikeScenario, nameParts, parseScenario, resolveUserCamera, scenarioFromProject, scenarioPremise, sequencePacks } from './scenario.js'
 import { episodePacks, isPresetMode, parseAd, parseExplainer, parseSeries } from './preset-modes.js'
 import { detectProse, isNamedTraitPremise, premiseShotPlan } from './prose-detect.js'
 import { canonicalStyleFamily, formatPresetBlock, listPresets, presetFamilies, presetGenres, resolvePreset } from './presets/index.js'
@@ -789,6 +789,8 @@ function createScenarioStoryboard(options) {
     const choice = resolveUserCamera(scene.camera)
     const chosenFrame = canonicalFramingLabel(scene.framingText) || choice.framing
     const lightId = scene.light || ''
+    const timeId = scene.time || ''
+    const timePhrase = TIMES[timeId] || ''
     const moodId = scene.mood || parsed.mood || ''
     const duration = scene.duration || defaultDuration
     const shot = {
@@ -808,12 +810,13 @@ function createScenarioStoryboard(options) {
       who: scene.who,
       where: scene.where,
       light: scene.light || '',
+      time: timeId,
       mood: scene.mood || '',
       directions: [MOODS[moodId], scene.what, preset.voiceOver].filter(Boolean).join('. '),
       continuity: `${scene.who} at ${scene.where}.`,
       cue: 'natural ambience',
       sound: preset.voiceOver || 'natural ambience consistent with the place',
-      lighting: lightId ? (LIGHTS[lightId] || preset.lighting) : preset.lighting,
+      lighting: timePhrase ? (lightId && LIGHTS[lightId] ? `${timePhrase}, ${LIGHTS[lightId]}` : timePhrase) : (lightId ? (LIGHTS[lightId] || preset.lighting) : preset.lighting),
       duration,
       duration_seconds: duration,
       palette: ['#b69263', '#7c99a1', '#a88a64', '#696b80', '#af8061', '#657b6f'][index % 6],
@@ -831,6 +834,7 @@ function createScenarioStoryboard(options) {
     if (!shot.cutReason) delete shot.cutReason
     if (!shot.cutKind) delete shot.cutKind
     if (!shot.timeLabel) delete shot.timeLabel
+    if (!shot.time) delete shot.time
     if (!shot.sceneCut) delete shot.sceneCut
     if (!shot.cutUncertain) delete shot.cutUncertain
     if (scene.prompt && !options.overwritePrompt) { shot.prompt = scene.prompt; shot.promptEdited = true }
@@ -1060,9 +1064,13 @@ function placePhrase(shot, project) {
   }).filter(Boolean).join('; ')
 }
 
-/** Shot light wins. Preset lighting is the one light only when the shot does not define one. */
+/** Shot time of day wins, then shot light. Preset lighting is used only when the shot defines neither. */
 function oneLight(shot, project) {
+  const timeId = cleanText(shot?.time || '')
+  const timePhrase = TIMES[timeId] || ''
   const id = cleanText(shot?.light || '')
+  const quality = id && LIGHTS[id] ? LIGHTS[id] : ''
+  if (timePhrase) return quality && foldName(quality) !== foldName(timePhrase) ? `${timePhrase}, ${quality}` : timePhrase
   if (id && LIGHTS[id]) return LIGHTS[id]
   if (id && !/consistent with/i.test(id)) return id
   const lighting = cleanText(shot?.lighting || '')
