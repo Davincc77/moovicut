@@ -74,26 +74,35 @@ async function clickButtons(page) {
   for (let index = 0; index < count; index += 1) {
     if (page.url() !== pageUrl) break
     const button = buttons.nth(index)
-    await button.evaluate(element => {
-      let hidden = element.closest('[hidden]')
-      while (hidden) {
-        const opener = hidden.id && document.querySelector(`[aria-controls="${CSS.escape(hidden.id)}"]`)
-        if (opener instanceof HTMLElement && opener.getAttribute('aria-expanded') !== 'true') opener.click()
-        else hidden.hidden = false
-        hidden = hidden.parentElement ? hidden.parentElement.closest('[hidden]') : null
-      }
-      let details = element.closest('details')
-      while (details) {
-        details.open = true
-        details = details.parentElement ? details.parentElement.closest('details') : null
-      }
-      element.scrollIntoView({ block: 'center', inline: 'nearest' })
-    }).catch(() => {})
+    if (!(await button.isVisible().catch(() => false))) {
+      await button.evaluate(element => {
+        let hidden = element.closest('[hidden]')
+        while (hidden) {
+          const opener = hidden.id && document.querySelector(`[aria-controls="${CSS.escape(hidden.id)}"]`)
+          if (opener instanceof HTMLElement && opener.getAttribute('aria-expanded') !== 'true') opener.click()
+          else hidden.hidden = false
+          hidden = hidden.parentElement ? hidden.parentElement.closest('[hidden]') : null
+        }
+        let details = element.closest('details')
+        while (details) {
+          details.open = true
+          details = details.parentElement ? details.parentElement.closest('details') : null
+        }
+      }).catch(() => {})
+    }
     if (!(await button.isVisible().catch(() => false))) continue
     if (page.url() !== pageUrl) break
     const label = ((await button.getAttribute('aria-label')) || (await button.innerText()) || `button ${index}`).replace(/\s+/g, ' ').trim()
     if (page.url() !== pageUrl) break
     if (!(await button.isVisible().catch(() => false))) continue
+    // An open action menu is a top-layer popover. It stays up after its trigger is
+    // clicked and covers later controls such as "Open in Google", so close every
+    // menu that does not contain the button we are about to press.
+    await button.evaluate(element => {
+      document.querySelectorAll(':popover-open').forEach(menu => {
+        if (!menu.contains(element) && menu.hidePopover) menu.hidePopover()
+      })
+    }).catch(() => {})
     if (await button.isDisabled().catch(() => false)) {
       const cursor = await button.evaluate(element => getComputedStyle(element).cursor)
       assert.notEqual(cursor, 'wait', `disabled "${label}" still uses cursor wait`)
@@ -109,7 +118,19 @@ async function clickButtons(page) {
       }
       if (page.url() !== pageUrl) break
       if (!(await button.isVisible().catch(() => false))) continue
-      throw new Error(`"${label}" did not respond: ${error.message.split('\n')[0]}`)
+      await page.locator('.toast [aria-label="Dismiss notification"], .toast [aria-label="Dispensar a notificação"]').click({ timeout: 500 }).catch(() => {})
+      await button.evaluate(element => {
+        document.querySelectorAll(':popover-open').forEach(menu => {
+          if (!menu.contains(element) && menu.hidePopover) menu.hidePopover()
+        })
+        element.scrollIntoView({ block: 'center', inline: 'nearest' })
+      }).catch(() => {})
+      try {
+        await button.click({ timeout: 1500 })
+      } catch (retryError) {
+        if (page.url() !== pageUrl) break
+        throw new Error(`"${label}" did not respond: ${retryError.message.split('\n')[0]}`)
+      }
     }
     if (page.url() !== pageUrl) break
     if (await page.locator('.modal-panel').count()) {
