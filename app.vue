@@ -31,6 +31,6 @@ useHead(() => {
 })
 </script>
 <template>
-  <div class="moovicut-app"><NuxtLoadingIndicator color="#d4a054" :height="2" />
+  <div class="moovicut-app"><NuxtLoadingIndicator color="#f0b429" :height="2" />
   <NuxtPage /></div>
 </template>

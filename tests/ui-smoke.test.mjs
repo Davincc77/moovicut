@@ -258,8 +258,9 @@ async function checkAdvancedNoCharacter(page, lang) {
   assert.equal(await skip.getAttribute('aria-pressed'), 'true')
   await page.locator('#studio-idea').fill('Fog rolls across an empty city street at dusk.')
   await page.locator('.studio-generate').click()
-  await page.waitForSelector('textarea[aria-label^="Prompt"]')
-  const prompts = await page.locator('textarea[aria-label^="Prompt"]').evaluateAll(elements => elements.map(element => element.value).join('\n'))
+  await page.locator('.studio-preview-panel .shot-card-open').first().click()
+  await page.locator('dialog.side-sheet textarea[aria-label^="Prompt"]').waitFor()
+  const prompts = await page.locator('dialog.side-sheet textarea[aria-label^="Prompt"]').evaluateAll(elements => elements.map(element => element.value).join('\n'))
   assert.ok(prompts.length > 40, 'advanced no-character prompts were empty')
   assert.doesNotMatch(prompts, / — |People:|SUBJECT:|Same character:|Same wardrobe:|frame of Fog/)
 }

@@ -243,7 +243,7 @@ test('header, footer, skip target, install worker, and /en redirect are wired', 
   const css = source('app/assets/css/main.css')
   assert.doesNotMatch(css, /cursor:\s*wait/)
   assert.match(css, /button:disabled,\s*button\[disabled\] \{ cursor:not-allowed; \}/)
-  assert.match(css, /button\.button-primary:disabled[\s\S]*background:#2a2824/)
+  assert.match(css, /button\.button-primary:disabled[\s\S]*background:var\(--surface-hover\)/)
   const worker = source('public/sw.js')
   assert.match(worker, /addEventListener\('fetch'/)
   assert.doesNotMatch(worker, /caches\.put|caches\.add|caches\.match/)

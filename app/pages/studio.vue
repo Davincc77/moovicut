@@ -114,7 +114,6 @@ useSeoMeta({
         <div v-show="workspace==='create' && experience==='advanced'" class="studio-advanced">
           <p class="studio-advanced-bar"><button class="button button-secondary" type="button" @click="setExperience('guided')">{{ $t(wizardText('advanced.back')) }}</button></p>
           <StudioCreationPanel />
-          <StudioLandingGallery />
         </div>
         <div v-show="workspace==='storyboard'"><StudioEditor /></div>
       </div>
@@ -136,7 +135,7 @@ useSeoMeta({
           </div>
         </li>
       </ul>
-      <p v-if="!store.savedProjects.length" class="empty-state">{{ $t('No saved projects yet. Write an idea, create the storyboard, then save it here.') }} <a href="#wizard-idea" @click.prevent="focusIdea">{{ $t('Write an idea') }}</a></p>
+      <p v-if="!store.savedProjects.length" class="empty-state">{{ $t('No saved projects yet. Create the storyboard, then save it here.') }} <a href="#wizard-idea" @click.prevent="focusIdea">{{ $t('Write an idea') }}</a></p>
       <details class="sheet-fold backup-transfer">
         <summary>{{ $t('Backup & transfer') }}</summary>
         <div class="library-file-actions">

@@ -328,7 +328,10 @@ function copyAgent() {
       </section>
 
       <section v-else-if="state.step === 'characters'" class="wizard-panel" :aria-label="t('character.panel')">
-        <button id="wizard-no-character" class="button button-secondary wizard-skip-characters" type="button" :aria-pressed="state.noCharacter" @click="state = setNoCharacter(state, !state.noCharacter)">{{ t('character.none') }}</button>
+        <div class="cast-segment" role="group" :aria-label="$t('Characters')">
+          <button type="button" :aria-pressed="!state.noCharacter" @click="state = setNoCharacter(state, false)">{{ t('character.with') }}</button>
+          <button id="wizard-no-character" type="button" :aria-pressed="state.noCharacter" @click="state = setNoCharacter(state, true)">{{ t('character.none') }}</button>
+        </div>
         <p v-if="state.noCharacter" class="wizard-hint" role="status">{{ t('character.noneHelp') }}</p>
         <p v-if="state.detection && !state.noCharacter" role="status">{{ t('detect.summary', { confidence: confidenceLabel(state.detection.confidence), language: languageLabel(state.detection.language) }) }}</p>
         <div v-if="!state.noCharacter" class="wizard-tabs" role="tablist" :aria-label="t('character.list')" @keydown="moveTabs($event, 'character')">

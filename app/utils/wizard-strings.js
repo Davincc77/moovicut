@@ -25,6 +25,7 @@ export const WIZARD_STRINGS = Object.freeze({
   'action.back': 'Go back',
   'action.generate': 'Generate prompts',
   'action.generateAgain': 'Generate prompts again',
+  'character.with': 'With characters',
   'character.none': 'No character',
   'character.noneHelp': 'This story has no character. Shots can show a place, an object, or an empty scene.',
   'shot.none': 'No character in this shot',
