@@ -510,9 +510,24 @@ export function enteredPlace(sentence, language = 'en') {
   if (!open) return ''
   const raw = tidyPlaceLemma(open[1])
   if (!raw || DOOR_WORD.test(raw.split(/\s+/).at(-1) || '')) return ''
-  const name = settingName(raw, language)
-  if (!name || DOOR_WORD.test(name) || isRejectedPlace(name)) return ''
+  const name = settingName(raw, language) || openedCompound(raw, language)
+  if (!name || DOOR_WORD.test(name) || (isRejectedPlace(name) && !openedCompound(raw, language))) return ''
   return name
+}
+
+/** "abre a escola de surf" keeps the compound. The head is the place; the tail is not cut off. */
+function openedCompound(raw, language) {
+  const bits = String(raw || '').split(/\s+/).filter(Boolean)
+  const join = bits.findIndex(bit => /^(?:de|do|da|dos|das|of)$/i.test(bit))
+  if (join <= 0 || join >= bits.length - 1) return ''
+  const head = bits[0]
+  const other = language === 'pt' ? 'en' : 'pt'
+  const tag = placeTag(language, head) || placeTag(other, head)
+  const headPlace = tag === 's' || locationShaped(head) || (String(tag).startsWith('a:') && !/^a:(?:object|material|garment|adjective|determiner)$/.test(tag))
+  if (!headPlace || isNonPlaceNoun(head)) return ''
+  const phrase = tidyPlaceLemma(bits.slice(0, join + 2).join(' '))
+  if (!phrase || DOOR_WORD.test(phrase.split(/\s+/).at(-1) || '')) return ''
+  return displayName(phrase)
 }
 
 function bareToken(token) {

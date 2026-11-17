@@ -95,7 +95,7 @@ const SEQUENCE = Object.freeze({
 })
 
 const TIME_RULES = [
-  { re: /(?<![\p{L}])(late that night|later that night|that night|tonight|last night|tard cette nuit|cette nuit-là|cette nuit|esta noite|essa noite|hoje à noite|heute nacht|heute abend|stanotte|quella notte|haut an der nuecht|その夜|夜遅く|那天夜里|那天晚上|深夜)(?![\p{L}])/iu, id: 'that-night', jump: 'part', light: 'night' },
+  { re: /(?<![\p{L}])(late that night|later that night|that night|tonight|last night|tard cette nuit|cette nuit-là|cette nuit|esta noite|essa noite|hoje à noite|naquela noite|nessa noite|heute nacht|heute abend|stanotte|quella notte|haut an der nuecht|その夜|夜遅く|那天夜里|那天晚上|深夜)(?![\p{L}])/iu, id: 'that-night', jump: 'part', light: 'night' },
   { re: /(?<![\p{L}])(in the morning|one morning|early morning|at sunrise|sunrise|dans la matinée|au lever du soleil|de manhã|ao nascer do sol|am morgen|bei sonnenaufgang|di mattina|all'alba|日の出|日出)(?![\p{L}])/iu, id: 'in-the-morning', jump: 'part', light: 'dawn' },
   { re: /(?<![\p{L}])(in the evening|at evening|le soir|à la tombée|am abend|di sera|di sera|夕方|傍晚)(?![\p{L}])/iu, id: 'in-the-evening', jump: 'part', light: 'dusk' },
   { re: /(?<![\p{L}])(at night|in the night|by night|la nuit|de noite|nachts|in der nacht|di notte|an der nuecht)(?![\p{L}])/iu, id: 'at-night', jump: 'part', light: 'night' },

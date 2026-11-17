@@ -210,7 +210,7 @@ const PT_TEN = 'vinte|trinta|quarenta|cinquenta|sessenta|setenta|oitenta|noventa
 const PT_AGE = new RegExp(`^(?:cerca de\\s+)?(?:tem\\s+|têm\\s+)?(?:\\d{1,3}|${PT_TEEN}|${PT_TEN}(?:\\s+e\\s+(?:${PT_UNIT}))?)(?:\\s+anos)?$|^(?:nos seus\\s+[\\p{L}'’-]+(?:\\s+[\\p{L}'’-]+)?)`, 'iu')
 const PT_ROLE = /(?<![\p{L}])(pescadora|pescador|padeira|padeiro|professora|professor|cozinheira|cozinheiro|enfermeira|enfermeiro|agricultora|agricultor|marinheira|marinheiro|guarda|aprendiz|arquivista|aluna|aluno|estudante|pintora|pintor)(?![\p{L}])/iu
 const PT_LOOK = /(?<![\p{L}])(cabelo|cabelos|barba|bigode|olhos|rosto|pele|coque|caracóis|caracois|tranças|trancas|franja|madeixas|binóculos|binoculos|óculos|oculos|careca|calvo|calva|bald|rastas|dreadlocks|dreads)(?![\p{L}])/iu
-const PT_WEAR = /(?<![\p{L}])(impermeável|impermeavel|gabardina|capa|casaco|avental|vestido|camisa|t-shirt|jaqueta|blusa|saia|calças|calcas|chapéu|chapeu|botas|lenço|lenco|xaile|uniforme|jardineira|jardineiras|luvas|luva|camisola|colete|macacão|macacao|pulôver|pullover|fato-macaco|fato|farda|tailleur|batina|pérolas|perolas)(?![\p{L}])/iu
+const PT_WEAR = /(?<![\p{L}])(impermeável|impermeavel|gabardina|capa|casaco|avental|vestido|camisa|t-shirt|jaqueta|blusa|saia|calças|calcas|chapéu|chapeu|boné|bonés|botas|lenço|lenco|xaile|uniforme|jardineira|jardineiras|luvas|luva|camisola|colete|macacão|macacao|pulôver|pullover|fato-macaco|fato|farda|tailleur|batina|bata|batas|pérolas|perolas)(?![\p{L}])/iu
 const PT_PROP = /(?<![\p{L}])((?:um|uma|uns|umas)\s+(?:apito|lanterna|chave|carta|bússola|bussola|martelo|câmara|camera|leque|flauta|pincel|caderno|cadernos|mochila|prancha|facão|facao|machado|microfone|estetoscópio|estetoscopio|anel|conchas|concha|terço|terco)|binóculos(?:\s+ao\s+pescoço)?|binoculos(?:\s+ao\s+pescoco)?|lanterna|apito|câmara|camera|leque|flauta|pincel|caderno|cadernos|mochila|violino|giz|prancha|facão|facao|conchas|concha|microfone|terço|terco)(?![\p{L}])/iu
 const PT_DANGLING = /(?:\s+(?:de|do|da|dos|das|em|no|na|nos|nas|num|numa|com|por|para|ao|à|aos|às|pelo|pela|preso|presa|um|uma|o|a))+$/iu
 const PT_FEMININE = new Map([
@@ -293,12 +293,13 @@ const LISTED_AGE = /,\s*(\d{1,3})(?!\d)(?!\s*(?:anos|years|s\b|h\b|am\b|pm\b))/g
 const HAIR_STYLE = 'até\\s+(?:os|as|à|a|o)\\s+[\\p{L}\'’-]+|em\\s+(?:tranças|trancas|caracóis|caracois|coque|franja)|dos\\s+lados|da\\s+frente|nas\\s+costas|compridas|curtas|rapado(?:\\s+dos\\s+lados)?'
 const HAIR_BIT = new RegExp(`(?<![\\p{L}])(?:slicked-back\\s+)?(?:(?:short|long|curly|wavy|straight|auburn|copper|brown|black|blonde|blond|gray|grey|salt|frozen|white|silver|red|dark|fine|thin|castanh[oa]s?|grisalh[oa]|pret[oa]|ruiv[oa]|loir[oa]s?)\\s+){1,3}(?:hair|braids?|beard|cabelo|caracóis|caracois|tranças|trancas|barba|coque|bun|curls|locs|rastas|dreadlocks|dreads|franja|madeixas|sideburns)(?:\\s+(?:${HAIR_STYLE}))?|(?<![\\p{L}])(?:tranças|trancas|cabelo|caracóis|caracois|barba|braids?|beard|coque|curls|franja|madeixas|sideburns|rastas|dreadlocks|dreads)(?:\\s+[\\p{L}'’-]+(?:\\s+(?:${HAIR_STYLE}|[\\p{L}'’-]+)){0,4})?`, 'giu')
 const MARK_BIT = /(?<![\p{L}])((?:red|white|round|rubber)\s+nose|(?:nariz)(?:\s+vermelho|\s+de\s+palhaço|\s+de\s+palhaco)?)(?![\p{L}])/giu
-const GARMENT_WORD = 't-shirt|tee-shirt|sweatshirt|raincoat|peacoat|overcoat|waistcoat|cardigan|blazer|anorak|parka|hoodie|jumper|pullover|overalls|dungarees|impermeável|impermeavel|gabardina|casaco|jaqueta|camisola|colete|vestido|camisa|blusa|saia|calças|calcas|avental|jardineira|macacão|macacao|farda|fato-macaco|fato|capa|cape|cloak|robe|uniform|apron|coat|jacket|dress|shirt|sweater|skirt|blouse|trousers|pants|scarf|gloves|luvas|goggles|óculos|oculos|hat|cap|boots|botas|suit|cachecol|cachecóis|cachecois|chapéu|chapeu|lenço|lenco|xaile|xale|shawl|tailleur|batina|pérolas|perolas|pearls'
+const GARMENT_WORD = 't-shirt|tee-shirt|sweatshirt|raincoat|peacoat|overcoat|waistcoat|cardigan|blazer|anorak|parka|hoodie|jumper|pullover|overalls|dungarees|impermeável|impermeavel|gabardina|casaco|jaqueta|camisola|colete|vestido|camisa|blusa|saia|calças|calcas|avental|jardineira|macacão|macacao|farda|fato-macaco|fato|capa|cape|cloak|robe|uniform|apron|coat|jacket|dress|shirt|sweater|skirt|blouse|trousers|pants|scarf|gloves|luvas|goggles|óculos|oculos|hat|cap|boné|bonés|boots|botas|suit|cachecol|cachecóis|cachecois|chapéu|chapeu|lenço|lenco|xaile|xale|shawl|tailleur|batina|bata|batas|pérolas|perolas|pearls'
 const GARMENT_BIT = new RegExp(`(?<![\\p{L}])((?:[\\p{L}'’-]+\\s+){0,3}(?:${GARMENT_WORD}))(?![\\p{L}])(?:\\s+(?!e\\b|and\\b|com\\b|with\\b|e\\b)(?:de|do|da|dos|das|of|[\\p{L}'’-]+)){0,3}`, 'giu')
 const ITEM_WORD = 'mochila|backpack|rucksack|locket|whistle|apito|key|chave|compass|bússola|bussola|lanterna|câmara|camera|leque|fan|binóculos|binoculos|punch|radio|flauta|flute|pincel|brush|caderno|cadernos|notebook|violino|axe|machado|picareta|cane|bengala|goggles|facão|facao|machete|prancha|surfboard|conchas|concha|shells|shell|microphone|microfone|stethoscope|estetoscópio|estetoscopio|anel|ring|rings|nariz|nose|lápis|lapis|pencil|pencils|argola|argolas|brinco|brincos|earring|earrings|cachimbo|cachimbos|pipe|pipes|terço|terco|rosary|rosaries'
-const ITEM_TAIL = '(?:\\s+(?:de|do|da|of)\\s+[\\p{L}\'’-]+|\\s+(?!e\\b|and\\b|um\\b|uma\\b|com\\b|with\\b)[\\p{L}\'’-]+)'
-const ITEM_BIT = new RegExp(`(?<![\\p{L}])(?:uma|um|uns|umas|an|a)(?![\\p{L}])\\s+((?:[\\p{L}'’-]+\\s+){0,2}(?:${ITEM_WORD})(?![\\p{L}])${ITEM_TAIL}{0,2})`, 'giu')
-const BARE_ITEM = new RegExp(`(?<![\\p{L}])((?:[\\p{L}'’-]+\\s+){0,2}(?:${ITEM_WORD})(?![\\p{L}])${ITEM_TAIL}{0,2})`, 'giu')
+const ITEM_TAIL = '(?:\\s+(?:de|do|da|of)\\s+[\\p{L}\'’-]+|\\s+(?!e\\b|and\\b|um\\b|uma\\b|com\\b|with\\b|back\\b|to\\b|para\\b|for\\b|up\\b|down\\b|off\\b|a\\b)[\\p{L}\'’-]+)'
+const ITEM_PREFIX = '(?:(?!e\\b|and\\b|com\\b|with\\b|ou\\b|or\\b|shows?\\b|holds?\\b|holding\\b|segura\\b|seguram\\b|mostra\\b|mostram\\b|the\\b|an\\b|a\\b|o\\b|os\\b|as\\b|um\\b|uma\\b)[\\p{L}\'’-]+\\s+){0,2}'
+const ITEM_BIT = new RegExp(`(?<![\\p{L}])(?:uma|um|uns|umas|an|a)(?![\\p{L}])\\s+(${ITEM_PREFIX}(?:${ITEM_WORD})(?![\\p{L}])${ITEM_TAIL}{0,2})`, 'giu')
+const BARE_ITEM = new RegExp(`(?<![\\p{L}])(${ITEM_PREFIX}(?:${ITEM_WORD})(?![\\p{L}])${ITEM_TAIL}{0,2})`, 'giu')
 const BALD_BIT = /(?<![\p{L}])(careca|calvo|calva|bald)(?![\p{L}])/giu
 const ROLE_BIT = /(?:^|[^\p{L}])(?:é|e|is)\s+(?:um|uma|a|an|the|o|a)?\s*(aprendiz|arquivista|archivist|apprentice|pescadora|pescador|aluna|aluno|estudante|student|guarda|padeira|padeiro|professora|professor)/giu
 const BARE_ROLE = /(?<![\p{L}])(aprendiz|arquivista|archivist|apprentice|aluna|aluno|estudante|student)(?![\p{L}])/giu
@@ -307,7 +308,7 @@ const ACTION_CLAUSE = /(?<![\p{L}])(?:lava|lavam|washes|wash|yawns?|yawned|bocej
 const WEAR_LEAD = /(?<![\p{L}])(?:pulls?\s+on|puts?\s+on|zips(?:\s+into)?|veste|vestem|usa|usam|calça|calca|wears?|wore)(?![\p{L}])\s+(?:uma|um|uns|umas|an|a|the|her|his|o|a|de\s+)?([^.,;]+)/giu
 const CARRY_LEAD = /(?<![\p{L}])(?:carrega|carregam|leva|levam|traz|segura|seguram|keeps?|holds?|holding|carries|carrying)(?![\p{L}])\s+(?:uma|um|uns|umas|an|a|the|her|his|o|a|seu|sua)?\s*([^.,;]+)/giu
 const ACTION_HOLD = /(?:both hands|duas mãos|duas maos|ambas as mãos|ambas as maos)/iu
-const VERB_WORD = /(?<![\p{L}])(?:encer\w*|testa|testam|cai(?:r|ndo|ram)?|caem|entrega\w*|assin\w*|surf(?:a|am|ou|ando|aram|ava|avam|ar|ei|em|e)\b|rings|irons|drops|laces|lace|wraps|wrapped|wrapping|lights|lit|crawls|crawled|crawling|toca|tocam|acende|acendem|senta|abre|abrem|fecha|fecham|lava|lavam|walks|walked|runs|picks|picked|returns|returned|devolve|devolvem|gives|hands|wears|wore|holds|carries|carrega|carregam|veste|vestem|usa|usam|pulls|puts|takes|opens|closes|waits|sits|stands|smiles|waves|writes|pushes|nods|checks|loses|lose|hangs|hang|will|perde|perdem|deixam|deixa|mostra|mostram|segura|seguram|traz|trazem)(?![\p{L}])/iu
+const VERB_WORD = /(?<![\p{L}])(?:encer\w*|testa|testam|cai(?:r|ndo|ram)?|caem|entrega\w*|assin\w*|surf(?:a|am|ou|ando|aram|ava|avam|ar|ei|em|e)\b|rings|irons|drops|laces|lace|wraps|wrapped|wrapping|lights|lit|crawls|crawled|crawling|toca|tocam|acende|acendem|senta|abre|abrem|fecha|fecham|lava|lavam|walks|walked|runs|picks|picked|returns|returned|devolve|devolvem|gives|hands|wears|wore|holds|carries|carrega|carregam|veste|vestem|usa|usam|pulls|puts|takes|opens|closes|waits|sits|stands|smiles|waves|writes|pushes|nods|checks|loses|lose|hangs|hang|will|perde|perdem|deixam|deixa|mostra|mostram|shows|show|segura|seguram|traz|trazem)(?![\p{L}])/iu
 const WEAR_CUE = /(?<![\p{L}])(?:wears?|wore|veste|vestem|usa|usam|puts?\s+on|carrega|carregam|carries|carrying|holds?|holding)(?![\p{L}])/iu
 const SALVAGE_NOUN = new RegExp(`(?<![\\p{L}])(${ITEM_WORD}|bell|sino|cesto|cestos|basket|baskets|lantern)(?![\\p{L}])`, 'giu')
 
@@ -332,9 +333,14 @@ export function keptTrait(value, field = '') {
     return bit
   }
   if (!WEAR_CUE.test(raw) && !/(?:pulls?|puxa|puxam)/iu.test(raw)) {
+    const noun = itemNoun(tidyAttribute(raw))
+    if (noun && !verbPhrase(noun) && new RegExp(`(?:${ITEM_WORD})`, 'iu').test(noun)) {
+      if (field === 'outfit' && !garmentText(noun)) return ''
+      return noun
+    }
     if (garmentText(raw) && !/^(?:[\p{Lu}][\p{L}'’-]+\s+)?(?:wears?|wore|veste|vestem|usa|usam|puts?|takes?|tira|tiram|despe|despem|surfa|surfam|surfou)\b/iu.test(raw)) {
-      const noun = tidyAttribute(raw)
-      if (noun && garmentText(noun) && !verbPhrase(noun) && !/\b(?:e|and)\b/iu.test(noun)) return noun
+      const worn = tidyAttribute(raw)
+      if (worn && garmentText(worn) && !verbPhrase(worn) && !/\b(?:e|and)\b/iu.test(worn)) return worn
     }
     return ''
   }
@@ -366,7 +372,7 @@ function tidyAttribute(value, kind = '') {
   let previous = ''
   while (bit !== previous) {
     previous = bit
-    bit = bit.replace(/^(?:off|out|away|without|wears?|wore|wearing|pulls?(?:\s+on)?|puts?(?:\s+on)?|takes?(?:\s+off)?|removes?|veste|vestem|usa|usam|calça|calca|carrega|carregam|leva|levam|traz|trazem|segura|seguram|keeps?|holds?|holding|carries|carrying|has|have|tem|têm|tira|tiram|despe|despem|puxa|puxam|é|e|is|de|do|da|uma|um|uns|umas|an|a|the|o|os|as|his|her|their|seu|sua|suas|seus|and|with|com|over|down|up|mostra|mostram|cair|perde|perdem|loses?|lose|hangs?|hang|deixa|deixam)\s+/iu, '')
+    bit = bit.replace(/^(?:off|out|away|without|wears?|wore|wearing|pulls?(?:\s+on)?|puts?(?:\s+on)?|takes?(?:\s+off)?|removes?|veste|vestem|usa|usam|calça|calca|carrega|carregam|leva|levam|traz|trazem|segura|seguram|keeps?|holds?|holding|carries|carrying|has|have|tem|têm|tira|tiram|despe|despem|puxa|puxam|é|e|is|de|do|da|uma|um|uns|umas|an|a|the|o|os|as|his|her|their|seu|sua|suas|seus|and|with|com|over|down|up|mostra|mostram|shows?|cair|perde|perdem|loses?|lose|hangs?|hang|deixa|deixam)\s+/iu, '')
     if (/^\p{Lu}[\p{L}'’-]+$/u.test(bit.split(/\s+/)[0] || '') && !COLOR_LEAD.test(bit.split(/\s+/)[0] || '')) {
       bit = bit.replace(/^\p{Lu}[\p{L}'’-]+\s+/u, '')
     }
@@ -380,7 +386,7 @@ function tidyAttribute(value, kind = '') {
     words.push(word)
   }
   bit = words.join(' ')
-  if (kind !== 'hair') bit = bit.replace(/(?:\s+(?:de|do|da|dos|das|em|no|na|com|with|por|para|ao|à|pelo|pela|and|e|até|ate|um|uma))+$/iu, '')
+  if (kind !== 'hair') bit = bit.replace(/(?:\s+(?:de|do|da|dos|das|em|no|na|com|with|por|para|ao|à|pelo|pela|and|e|até|ate|um|uma|a|to|back))+$/iu, '')
   else bit = bit.replace(/(?:\s+(?:de|do|da|em|com|até|ate|para|um|uma|e|and))+$/iu, '')
   return cleanText(bit)
 }
@@ -526,7 +532,9 @@ export function identityTraits(text, name, names = []) {
 }
 
 function itemNoun(value) {
-  return String(value || '').replace(/^(?:mostra|mostram|segura|seguram|traz|trazem|loses?|lose|hangs?|hang|perde|perdem|deixa|deixam|cair|drops?|picks?|holds?|holding|carries|carrying)\s+(?:os|as|uns|umas|uma|um|the|an|his|her|their|o|a)?\s*/iu, '')
+  return String(value || '')
+    .replace(/^(?:mostra|mostram|shows?|segura|seguram|traz|trazem|loses?|lose|hangs?|hang|perde|perdem|deixa|deixam|cair|drops?|picks?|holds?|holding|carries|carrying)\s+/iu, '')
+    .replace(/^(?:os|as|uns|umas|uma|um|the|an|a|his|her|their|o)\s+/iu, '')
 }
 
 function sheetWord(list, value) {
@@ -607,6 +615,19 @@ function nameInText(text, name) {
     if (!possessiveAt(source, match.index)) return true
   }
   return false
+}
+
+/** A later first name or last name is the full-name character when only one person owns it. */
+function castInText(text, characters) {
+  return (characters || []).filter(person => {
+    if (!person?.name) return false
+    if (nameInText(text, person.name)) return true
+    const parts = String(person.name).split(/\s+/).filter(part => foldName(part).length >= 3)
+    return parts.some(part => {
+      const owners = characters.filter(other => String(other.name || '').split(/\s+/).some(bit => foldName(bit) === foldName(part)))
+      return owners.length === 1 && nameInText(text, part)
+    })
+  })
 }
 
 function whoFromPronoun(sentence, center) {
@@ -716,11 +737,11 @@ function findScenes(text, lex, characters, places, language) {
       else if (subject && (cueLight(sentence, language) || lastWhere)) lastWhere = subject
       const nextLight = lightAfterCue(sentence, language, light)
       if (nextLight) light = nextLight
-      characters.filter(person => nameInText(sentence, person.name)).forEach(person => rememberPresent(present, person.name))
+      castInText(sentence, characters).forEach(person => rememberPresent(present, person.name))
       return
     }
     const action = cleanText(sentence).replace(/[.!?。！？]+$/, '')
-    const foundNames = characters.filter(character => nameInText(action, character.name))
+    const foundNames = castInText(action, characters)
     let who = ''
     let whoFlag = ''
     const grouped = groupSubject(action, characters, present)
