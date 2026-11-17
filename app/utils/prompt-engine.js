@@ -912,6 +912,7 @@ function shotFromPremiseAction(text, item, index, total) {
     what,
     who: item.who || '',
     where: item.where || '',
+    light: item.light || '',
     fromPremise: true
   }
 }

@@ -77,7 +77,8 @@ test('a sure place counts without a locative, and an ambiguous one needs the fra
 
 test('a scene place stays until a new locative sentence replaces it', () => {
   const found = detectProse('Nia waits in the kitchen. The greenhouse is quiet. Nia waits in the greenhouse.')
-  assert.deepEqual(found.scenes.map(scene => scene.where), ['Kitchen', 'Kitchen', 'Greenhouse'])
+  assert.deepEqual(found.scenes.map(scene => scene.where), ['Kitchen', 'Greenhouse'])
+  assert.equal(found.scenes.some(scene => /quiet/i.test(scene.what)), false)
 })
 
 test('a held noun does not become the place', () => {

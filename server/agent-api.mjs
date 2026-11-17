@@ -534,6 +534,31 @@ function refuseUnplannedPremise(project, input) {
   error.errors = errors
   throw error
 }
+const PACKED_BEAT = /(?<![\p{L}])(?:pours?|walks?|runs?|opens?|enters?|leaves?|sits?|stands?|reads?|gives?|hands?|waits?|lifts?|holds?|turns?|takes?|puts?|calls?|checks?|follows?|arrives?|smiles?|says?|meets?|boards?|crosses?|abre|fecha|entra|sai|caminha|corre|espera|pega|l[eê]|diz|sorri|entrega|observa|acende|sobe|desce|chama|verifica|cumprimenta|acena|senta|levanta)(?![\p{L}])/iu
+
+function actionBeats(text) {
+  return String(text || '').split(/(?<=[.!?。！？])\s+|\n+/u).map(part => cleanText(part)).filter(part => part && PACKED_BEAT.test(part))
+}
+
+/** A scenario that merges many action beats into few shots is not a board. */
+function refusePackedScenario(scenario, premise, shots) {
+  if (!scenario || typeof scenario !== 'object' || Array.isArray(scenario) || !Array.isArray(scenario.scenes)) return
+  const texts = scenario.scenes.map(scene => cleanText(scene?.what || scene?.do || scene?.action || scene?.beat || '')).filter(Boolean)
+  if (!texts.length || !shots) return
+  const counts = texts.map(actionBeats)
+  const total = Math.max(counts.reduce((sum, list) => sum + list.length, 0), actionBeats(premise).length)
+  const collapsed = total >= shots * 2 && total >= shots + 8
+  if (!collapsed) return
+  const index = Math.max(0, counts.findIndex(list => list.length >= 2))
+  const quoted = texts[index].slice(0, 180)
+  const message = `Give one action per shot. One action beat is one shot. Do not merge beats. A story longer than 40 shots is split into parts of at most 40. This shot packs several actions: "${quoted}".`
+  const error = new Error(message)
+  error.status = 400
+  error.code = 'invalid_plan'
+  error.errors = [{ section: 'scenario', field: 'scenes', action: quoted, message }]
+  throw error
+}
+
 export function planFromInput(input, { origin = SITE, compact = false } = {}) {
   if (input && typeof input === 'object' && !Array.isArray(input) && input.schema === AGENT_BOARD_SCHEMA) {
     const project = importAgentBoard(input, { overwritePrompt: input.overwritePrompt === true })
@@ -547,6 +572,7 @@ export function planFromInput(input, { origin = SITE, compact = false } = {}) {
   const options = storyboardOptions(input)
   if (options.prose) return planProse(options.raw, { origin, compact })
   const project = withActionSplits(createStoryboard(options), input)
+  if (options.scenario && typeof options.scenario === 'object') refusePackedScenario(options.scenario, options.premise, project.shots?.length || 0)
   refuseUnplannedPremise(project, input)
   const link = boardLink(origin, project, options)
   if (input?.format === 'agent') {
