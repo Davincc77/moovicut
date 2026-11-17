@@ -4,7 +4,7 @@ import { agentCameraValue, createStoryboard, refreshProjectPrompts, refreshShotP
 import { BOARD_MODES, isPresetMode } from './preset-modes.js'
 import { asCharacter, lockLineFor, lockLinesForShot, publicSheet } from './character-lock.js'
 import { promptFraming, termById } from './framing.js'
-import { resolveUserCamera } from './scenario.js'
+import { TIME_VALUES, resolveUserCamera } from './scenario.js'
 
 export const AGENT_BOARD_SCHEMA = 'shotboard.compact.v1'
 
@@ -108,7 +108,8 @@ export function exportAgentBoard(project) {
       if (shot.cutCue) item.cutCue = shot.cutCue
       if (shot.cutReason) item.cutReason = shot.cutReason
       if (shot.cutUncertain === true) item.cutUncertain = true
-      if (shot.timeLabel) item.time = shot.timeLabel
+      if (TIME_VALUES.includes(shot.time)) item.time = shot.time
+      else if (shot.timeLabel) item.time = shot.timeLabel
       if (shot.source) item.source = shot.source
       if (Array.isArray(shot.flags) && shot.flags.length) item.flags = shot.flags
       return item
@@ -143,6 +144,7 @@ export function importAgentBoard(board, options = {}) {
           what: shot.what,
           camera: shot.camera || undefined,
           light: shot.light,
+          time: TIME_VALUES.includes(shot.time) ? shot.time : undefined,
           mood: shot.mood,
           duration: shot.duration,
           prompt: !overwrite && shot.promptEdited ? shot.prompt : undefined

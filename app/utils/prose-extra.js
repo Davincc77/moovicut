@@ -2,7 +2,7 @@
 import { cleanText } from './text.js'
 import { foldName, scenarioBudget, scenarioPremise, scenarioToFields } from './scenario.js'
 import { cueLight, findPlaceCue, inNamedVenue, isDescriptionSentence, isFunctionWord, isNumberWord, isQuotedOrRemembered, isVenueType, lightAfterCue, mentionMovesScene, namedVenues, subjectPlace } from './scene-split.js'
-import { isNonPlaceNoun, isRejectedPlace, libraryHits, locativeHeads, movementPlace, preferPlaceHead, tidyPlaceLemma } from './place-lexicon.js'
+import { enteredPlace, isNonPlaceNoun, isRejectedPlace, libraryHits, locativeHeads, movementPlace, preferPlaceHead, settingName, tidyPlaceLemma } from './place-lexicon.js'
 
 const LEX = {
   pt: {
@@ -138,18 +138,23 @@ function findCharacters(text, lex, places, language) {
   }
   characters.forEach(person => {
     const found = identityTraits(text, person.name, characters.map(item => item.name))
-    const usable = bit => bit && !new RegExp(`^${person.name}\\b`, 'iu').test(bit) && !TRAIT_VERB.test(bit) && !ACTION_CLAUSE.test(bit) && !/\b(?:veste|vestem|tira|tiram|despe|carrega|carregam|wears?|carries|holds?|pulls?|takes?\s+off)\b/iu.test(bit)
+    const usable = bit => {
+      const clean = keptTrait(bit)
+      return clean && !new RegExp(`^${person.name}\\b`, 'iu').test(clean) && !TRAIT_VERB.test(clean) && !ACTION_CLAUSE.test(clean)
+    }
     const looks = String(person.look || '').split(/,\s*/).filter(usable)
-    const outfits = String(person.outfit || '').split(/,\s*/).filter(usable)
+    const outfits = String(person.outfit || '').split(/,\s*/).filter(bit => keptTrait(bit))
     const messy = value => /^(?:de|do|da)\s/iu.test(value) || /\b(?:e|and)\s+(?:uma|um|a|an)\b/iu.test(value) || foldName(value) === foldName(person.name)
-    const merge = (list, item) => {
-      if (!item || foldName(item) === foldName(person.name) || TRAIT_VERB.test(item)) return
+    const merge = (list, item, field) => {
+      const clean = keptTrait(item, field)
+      if (!clean || foldName(clean) === foldName(person.name) || TRAIT_VERB.test(clean)) return
+      item = clean
       const index = list.findIndex(bit => foldName(bit).includes(foldName(item)) || foldName(item).includes(foldName(bit)))
       if (index < 0) list.push(item)
       else if (messy(list[index]) || (item.length > list[index].length && foldName(item).includes(foldName(list[index])))) list[index] = item
     }
-    found.looks.forEach(item => merge(looks, item))
-    found.outfits.forEach(item => merge(outfits, item))
+    found.looks.forEach(item => merge(looks, item, ''))
+    found.outfits.forEach(item => merge(outfits, item, ''))
     person.look = looks.filter(bit => bit && foldName(bit) !== foldName(person.name)).join(', ')
     person.outfit = outfits.filter(bit => bit && foldName(bit) !== foldName(person.name)).join(', ')
     if (person.look || person.outfit) person.confidence = person.confidence === 'low' ? 'medium' : person.confidence
@@ -236,10 +241,19 @@ function traitsFromWindow(window) {
     const looked = PT_LOOK.test(bit)
     if (looked) looks.push(tidyAttribute(bit, 'hair'))
     const garmentHits = [...bit.matchAll(new RegExp(GARMENT_BIT.source, 'giu'))]
-    garmentHits.forEach(match => outfits.push(tidyAttribute(match[0])))
-    for (const match of `${bit} ${raw}`.matchAll(new RegExp(ITEM_BIT.source, 'giu'))) outfits.push(tidyAttribute(match[1] || match[0]))
+    garmentHits.forEach(match => {
+      const clean = keptTrait(match[0], 'outfit')
+      if (clean) outfits.push(clean)
+    })
+    for (const match of `${bit} ${raw}`.matchAll(new RegExp(ITEM_BIT.source, 'giu'))) {
+      const clean = keptTrait(match[1] || match[0], 'items')
+      if (clean) outfits.push(clean)
+    }
     if (!garmentHits.length && (PT_PROP.test(bit) || PT_PROP.test(raw))) outfits.push(tidyAttribute(bit))
-    else if (!aged && !role && !looked && bit.split(/\s+/).length <= 5 && !/^(?:no|na|em|ao|à)\b/iu.test(bit) && !ACTION_CLAUSE.test(bit) && !/^\p{Lu}/u.test(bit)) outfits.push(bit)
+    else if (!aged && !role && !looked && bit.split(/\s+/).length <= 5 && !/^(?:no|na|em|ao|à)\b/iu.test(bit) && !ACTION_CLAUSE.test(bit) && !verbPhrase(bit) && !/^\p{Lu}/u.test(bit)) {
+      const clean = keptTrait(bit, 'outfit')
+      if (clean) outfits.push(clean)
+    }
   })
   return { looks: unique(looks), outfits: unique(outfits) }
 }
@@ -267,6 +281,51 @@ const ACTION_CLAUSE = /(?<![\p{L}])(?:lava|lavam|washes|wash|yawns?|yawned|bocej
 const WEAR_LEAD = /(?<![\p{L}])(?:pulls?\s+on|puts?\s+on|zips(?:\s+into)?|veste|vestem|usa|usam|calça|calca|wears?|wore)(?![\p{L}])\s+(?:uma|um|uns|umas|an|a|the|her|his|o|a|de\s+)?([^.,;]+)/giu
 const CARRY_LEAD = /(?<![\p{L}])(?:carrega|carregam|leva|levam|traz|segura|seguram|keeps?|holds?|holding|carries|carrying)(?![\p{L}])\s+(?:uma|um|uns|umas|an|a|the|her|his|o|a|seu|sua)?\s*([^.,;]+)/giu
 const ACTION_HOLD = /(?:both hands|duas mãos|duas maos|ambas as mãos|ambas as maos)/iu
+const VERB_WORD = /(?<![\p{L}])(?:encer\w*|testa|testam|cai|caem|entrega\w*|assin\w*|surf\w*|rings|irons|drops|laces|lace|wraps|wrapped|wrapping|lights|lit|crawls|crawled|crawling|toca|tocam|acende|acendem|senta|abre|abrem|fecha|fecham|lava|lavam|walks|walked|runs|picks|picked|returns|returned|devolve|devolvem|gives|hands|wears|wore|holds|carries|carrega|carregam|veste|vestem|usa|usam|pulls|puts|takes|opens|closes|waits|sits|stands|smiles|waves|writes|pushes|nods|checks)(?![\p{L}])/iu
+const WEAR_CUE = /(?<![\p{L}])(?:wears?|wore|veste|vestem|usa|usam|puts?\s+on|carrega|carregam|carries|carrying|holds?|holding)(?![\p{L}])/iu
+const SALVAGE_NOUN = new RegExp(`(?<![\\p{L}])(${ITEM_WORD}|bell|sino|cesto|cestos|basket|baskets|lantern)(?![\\p{L}])`, 'giu')
+
+function verbPhrase(text) {
+  return VERB_WORD.test(String(text || ''))
+}
+
+function garmentText(value) {
+  return new RegExp(`(?:${GARMENT_WORD}|tailleur|pérolas|perolas|pearls|goggles)`, 'iu').test(value)
+}
+
+/** A sheet or lock clause. Verb phrases are dropped. A phrase with no verb is kept as written. */
+export function keptTrait(value, field = '') {
+  const raw = cleanText(String(value || '').split(/\n/)[0]).replace(/[.,;]+$/g, '')
+  if (!raw) return ''
+  if (/(?:de\s+fato|in\s+fact)/iu.test(raw) && !WEAR_CUE.test(raw)) return ''
+  if (!verbPhrase(raw)) {
+    const posed = raw.replace(/\s+(?:down|up|off|baixo)$/iu, '').replace(/\s+(?:com|with)\s+(?:uma\s+|um\s+|a\s+|an\s+|the\s+)?(?:só\s+|so\s+)?(?:mão|mãos|maos|hand|hands)$/iu, '').replace(/\s+(?:com|with)\s+(?:uma|um|a|an|the)$/iu, '')
+    const bit = posed || raw
+    if (field === 'outfit' && !garmentText(bit)) return ''
+    if (field === 'items' && /^(?:onda|wave|mão|mao|hand|hands)$/iu.test(bit)) return ''
+    return bit
+  }
+  if (!WEAR_CUE.test(raw) && !/(?:pulls?|puxa|puxam)/iu.test(raw)) return ''
+  let bit = tidyAttribute(raw).replace(/\s+(?:com|with)\s+.+$/iu, '').replace(/\s+(?:down|up|off|baixo)$/iu, '')
+  if (!bit || verbPhrase(bit)) return ''
+  if (field === 'outfit' && !garmentText(bit)) return ''
+  return bit
+}
+
+function salvagedNouns(text) {
+  const found = []
+  const source = String(text || '')
+  for (const match of source.matchAll(new RegExp(SALVAGE_NOUN.source, 'giu'))) {
+    if (/^(?:rings?)$/iu.test(match[1])) continue
+    let clause = source.slice(Math.max(0, match.index - 48), match.index + match[0].length)
+    const breakAt = Math.max(clause.lastIndexOf('.'), clause.lastIndexOf('!'), clause.lastIndexOf('?'))
+    if (breakAt >= 0) clause = clause.slice(breakAt + 1)
+    if (!verbPhrase(clause) || WEAR_CUE.test(clause) || /(?:de\s+fato|in\s+fact)/iu.test(clause)) continue
+    const noun = tidyAttribute(match[1])
+    if (noun && !verbPhrase(noun)) found.push(noun)
+  }
+  return unique(found)
+}
 const COLOR_LEAD = /^(?:black|brown|blonde|blond|red|ginger|auburn|silver|white|grey|gray|blue|green|pink|purple|navy|charcoal|oatmeal|rust|gold|amber|ash|olive|plum|russet|saffron|indigo|wool|linen|velvet|silk|leather|yellow|copper|preto|preta|pretos|pretas|azul|verde|vermelho|vermelha|amarelo|amarela|cinzento|cinzenta|castanho|castanha|grisalho|grisalha|lã|la|couro|linho|veludo|curto|curta|comprido|comprida|liso|lisa)$/iu
 
 function tidyAttribute(value, kind = '') {
@@ -361,14 +420,20 @@ export function identityTraits(text, name, names = []) {
   const outfits = []
   const ages = []
   const items = []
+  const objects = []
   const source = identityWindow(text, name, names)
-  if (!source) return { looks, outfits, ages, items }
+  if (!source) return { looks, outfits, ages, items, objects }
   const addAge = value => { pushUnique(ages, value, 'age'); pushUnique(looks, value, 'age') }
   const addItem = value => {
     if (ACTION_HOLD.test(value)) return
-    const clean = tidyAttribute(value)
-    if (!clean || ACTION_CLAUSE.test(clean)) return
+    const clean = keptTrait(value, 'items')
+    if (!clean || ACTION_CLAUSE.test(clean) || verbPhrase(clean)) return
     pushUnique(items, clean)
+    pushUnique(outfits, clean)
+  }
+  const addOutfit = value => {
+    const clean = keptTrait(value, 'outfit')
+    if (!clean || verbPhrase(clean)) return
     pushUnique(outfits, clean)
   }
   const clauseAt = index => {
@@ -393,7 +458,9 @@ export function identityTraits(text, name, names = []) {
   for (const match of source.matchAll(new RegExp(BARE_ROLE.source, 'giu'))) pushUnique(looks, match[1])
   for (const match of source.matchAll(new RegExp(GARMENT_BIT.source, 'giu'))) {
     if (keepWorn(match.index) === 'skip') continue
-    pushUnique(outfits, match[0])
+    const before = source.slice(Math.max(0, match.index - 4), match.index)
+    if (/(?:de\s+|in\s+)$/iu.test(before) && /fato/iu.test(match[0])) continue
+    addOutfit(match[0])
   }
   for (const match of source.matchAll(new RegExp(ITEM_BIT.source, 'giu'))) {
     if (keepWorn(match.index) === 'skip') continue
@@ -407,14 +474,23 @@ export function identityTraits(text, name, names = []) {
     if (keepWorn(match.index) === 'change' || keepWorn(match.index) === 'skip') continue
     splitJoined(match[1]).forEach(part => {
       if (/(?:carrega|carregam|carries|carrying|holds?|grips?|segura)/iu.test(part)) return
-      pushUnique(outfits, part)
+      addOutfit(part)
     })
   }
   for (const match of source.matchAll(new RegExp(CARRY_LEAD.source, 'giu'))) {
     if (keepWorn(match.index) === 'skip') continue
     addItem(match[1])
   }
-  return { looks, outfits, ages, items }
+  salvagedNouns(source).forEach(noun => {
+    if (sheetWord(outfits, noun) || sheetWord(items, noun)) return
+    pushUnique(objects, noun)
+  })
+  return { looks, outfits, ages, items, objects }
+}
+
+function sheetWord(list, value) {
+  const key = foldName(value)
+  return list.some(item => foldName(item).includes(key))
 }
 
 /** Garments and carried items named in this clause. Nothing is added that the text does not say. */
@@ -438,7 +514,9 @@ function sheetCovers(blob, value) {
   if (!key || key.length < 2) return true
   if (blob.includes(key)) return true
   const words = key.split(/\s+/).filter(word => word.length > 2)
-  return words.length > 0 && words.every(word => blob.includes(word))
+  if (words.length > 0 && words.every(word => blob.includes(word))) return true
+  const head = words.at(-1) || ''
+  return head.length >= 4 && blob.includes(head)
 }
 
 /** Age, garments, and carried items the story names that a character sheet left out. */
@@ -458,10 +536,11 @@ export function characterSheetGaps(characters, storyText) {
         gaps.push({ index, name, field, value: clean })
       }
     }
-    const worn = found.outfits.filter(item => !found.items.some(bit => foldName(bit) === foldName(item)))
+    const garment = value => keptTrait(value, 'outfit')
+    const worn = found.outfits.filter(item => garment(item) && !found.items.some(bit => foldName(bit) === foldName(item)))
     note('age', found.ages)
-    note('outfit', worn)
-    note('items', found.items)
+    note('outfit', worn.map(garment).filter(Boolean))
+    note('items', [...found.items, ...(found.objects || [])].map(item => keptTrait(item, 'items')).filter(Boolean))
   })
   return gaps
 }
@@ -560,6 +639,16 @@ function findScenes(text, lex, characters, places, language) {
       }
     }
     if (whereFlag) flags.push({ field: 'where', code: whereFlag })
+    const entered = enteredPlace(action, language)
+    const nested = action.match(/(?:água|agua|water|neve|snow|gelo|ice)\s+(?:de|do|da|dos|das|of)\s+(?:a\s+|o\s+|the\s+)?([\p{L}'’-]+)/iu)
+    const nestedPlace = nested ? (settingName(nested[1], language) || '') : ''
+    if (nestedPlace && !isRejectedPlace(nestedPlace)) {
+      where = nestedPlace
+      whereFlag = ''
+    } else if (entered && !isRejectedPlace(entered)) {
+      where = entered
+      whereFlag = ''
+    }
     if (where) lastWhere = where
     const nextLight = lightAfterCue(sentence, language, light)
     if (nextLight !== light) light = nextLight
@@ -608,7 +697,7 @@ function pack(text, language, found) {
     places: found.places.map(({ name, description, uncertain }) => ({ name, description, ...(uncertain ? { uncertain: true } : {}) })),
     light: found.ambience.light,
     mood: found.ambience.mood,
-    scenes: found.scenes.scenes.map(({ number, who, where, what, duration, light, source, flags }) => ({ number, who, where, what, duration, ...(light ? { light } : {}), ...(source ? { source } : {}), ...(flags?.length ? { flags } : {}) }))
+    scenes: found.scenes.scenes.map(({ number, who, where, what, duration, light, source, flags }) => ({ number, who, where, what, duration, rulesLight: true, ...(light ? { light } : {}), ...(source ? { source } : {}), ...(flags?.length ? { flags } : {}) }))
   }
   const canonical = scenarioToFields(scenario)
   const budget = scenarioBudget([canonical.characters, canonical.places, canonical.scenes].join('\n'), found.scenes.scenes.length * 3)

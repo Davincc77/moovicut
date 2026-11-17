@@ -48,6 +48,62 @@ export const LIGHTS = Object.freeze({
 })
 export const LIGHT_VALUES = Object.freeze(Object.keys(LIGHTS))
 
+/** Time of day for a scene. It drives the light line and carries forward until the next cue. */
+export const TIMES = Object.freeze({
+  dawn: 'dawn light, cool blue shadows warming into soft gold',
+  morning: 'morning light',
+  midday: 'midday light',
+  afternoon: 'afternoon light',
+  dusk: 'dusk light, warm amber and deep shadows',
+  evening: 'evening light',
+  night: 'night, deep navy and sparse practical lights'
+})
+export const TIME_VALUES = Object.freeze(Object.keys(TIMES))
+const LIGHT_AS_TIME = Object.freeze({
+  evening: 'evening',
+  morning: 'morning',
+  afternoon: 'afternoon',
+  midday: 'midday',
+  noon: 'midday'
+})
+const TIME_ALIAS = Object.freeze({
+  noon: 'midday',
+  noite: 'night',
+  manha: 'morning',
+  'manhã': 'morning',
+  tarde: 'afternoon',
+  entardecer: 'evening',
+  amanhecer: 'dawn',
+  crepusculo: 'dusk',
+  'crepúsculo': 'dusk',
+  'meio-dia': 'midday',
+  'meio dia': 'midday'
+})
+const TIME_CUES = Object.freeze([
+  [/the next morning|next morning|in the morning|this morning|that morning|one morning|early morning|de manh[ãa]|pela manh[ãa]|na manh[ãa]|manh[ãa] seguinte|by morning/iu, 'morning'],
+  [/at dawn|ao amanhecer|ao raiar do dia|\bdawn\b|\bsunrise\b/iu, 'dawn'],
+  [/at noon|at midday|\bmidday\b|\bnoon\b|ao meio-dia|ao meio dia|meio-dia/iu, 'midday'],
+  [/in the afternoon|this afternoon|that afternoon|à tarde|a tarde|de tarde|pela tarde|\bafternoon\b/iu, 'afternoon'],
+  [/at dusk|ao crepúsculo|ao crepusculo|\bdusk\b/iu, 'dusk'],
+  [/in the evening|this evening|that evening|early evening|ao entardecer|\bentardecer\b|\bevening\b/iu, 'evening'],
+  [/at night|in the night|by night|\btonight\b|à noite|a noite|de noite|pela noite|na noite|meia-noite|meia noite|\bmadrugada\b|ao anoitecer|ao luar|\bnight\b|\bnoite\b/iu, 'night'],
+  [/\bmorning\b|\bmanh[ãa]\b/iu, 'morning']
+])
+
+/** The time of day named in a sentence, or an empty string. */
+export function timeInText(value) {
+  const text = String(value || '')
+  for (const [pattern, id] of TIME_CUES) if (pattern.test(text)) return id
+  return ''
+}
+
+function canonicalTime(value) {
+  const token = cleanText(value).toLowerCase()
+  if (!token) return ''
+  if (TIME_VALUES.includes(token)) return token
+  return TIME_ALIAS[token] || ''
+}
+
 export const MOODS = Object.freeze({
   grounded: 'Grounded and clear',
   playful: 'Playful and light',
@@ -521,12 +577,21 @@ function parseScenarioObject(input, options = {}) {
     const cameraRaw = entry.camera ?? entry.cam
     if (cameraRaw != null && cameraRaw !== '' && !cameraToken) errors.push(problem(`camera must be one of: ${CAMERA_VALUES.join(', ')}.`, { path: `${path}.camera`, section: 'scenes', field: 'camera', index, value: cleanText(cameraRaw).toLowerCase() }))
     const camera = cameraToken
-    const sceneLight = readEnum(entry.light ?? entry.lighting, LIGHT_VALUES, 'light', { path: `${path}.light`, section: 'scenes', index }, errors)
+    const rulesLight = entry.rulesLight === true
+    const rawLight = cleanText(entry.light ?? entry.lighting).toLowerCase()
+    const timeFromLight = rulesLight ? '' : (LIGHT_AS_TIME[rawLight] || '')
+    const sceneLight = timeFromLight ? '' : readEnum(rawLight, LIGHT_VALUES, 'light', { path: `${path}.light`, section: 'scenes', index }, errors)
+    const rawTime = rulesLight ? '' : (entry.time ?? entry.timeOfDay)
+    let sceneTime = ''
+    if (!rulesLight && rawTime != null && rawTime !== '') {
+      sceneTime = canonicalTime(rawTime)
+      if (!sceneTime) errors.push(enumError(cleanText(rawTime).toLowerCase(), TIME_VALUES, 'time', { path: `${path}.time`, section: 'scenes', index }))
+    } else if (!rulesLight) sceneTime = timeFromLight
     const sceneMood = readEnum(entry.mood, MOOD_VALUES, 'mood', { path: `${path}.mood`, section: 'scenes', index }, errors)
     const duration = readDuration(entry.duration ?? entry.s, { path: `${path}.duration`, section: 'scenes', index }, errors)
     const prompt = typeof entry.prompt === 'string' ? entry.prompt.trim().slice(0, 16000) : ''
     if (what && (who || options.allowMissingWho) && (where || options.allowMissingWhere)) {
-      const scene = { number: index + 1, who, where, what, line: index + 1, camera, light: sceneLight, mood: sceneMood, duration, prompt }
+      const scene = { number: index + 1, who, where, what, line: index + 1, camera, light: sceneLight, time: sceneTime, mood: sceneMood, duration, prompt, ...(rulesLight ? { rulesLight: true } : {}) }
       const framingText = cleanText(typeof entry.framing === 'string' ? entry.framing : (typeof entry.frame === 'string' ? entry.frame : ''))
       if (framingText) scene.framingText = framingText
       if (entry.source) scene.source = cleanText(entry.source).slice(0, 500)
@@ -544,6 +609,19 @@ function parseScenarioObject(input, options = {}) {
       if (Number.isInteger(entry.sceneId)) scene.sceneId = entry.sceneId
       scenes.push(scene)
     }
+  })
+  let carriedTime = ''
+  scenes.forEach(scene => {
+    if (scene.rulesLight) {
+      delete scene.rulesLight
+      delete scene.time
+      return
+    }
+    const stated = scene.time || timeInText(scene.what)
+    if (stated) {
+      scene.time = stated
+      carriedTime = stated
+    } else if (carriedTime) scene.time = carriedTime
   })
   const canonical = formatScenario({ characters, places, scenes, light, mood })
   return finish(characters, places, scenes, light, mood, errors, canonical)

@@ -8,7 +8,8 @@ import { detectProse } from '../app/utils/prose-detect.js'
 import { characterSheetGaps } from '../app/utils/prose-extra.js'
 import { lockVersionWarnings } from '../app/utils/character-lock.js'
 import { proseWarningMessage } from '../app/utils/scene-split.js'
-import { CAMERA_VALUES, LIGHT_VALUES, MOOD_VALUES, SCENARIO_MAX_CHARS } from '../app/utils/scenario.js'
+import { CAMERA_VALUES, LIGHT_VALUES, MOOD_VALUES, SCENARIO_MAX_CHARS, TIME_VALUES } from '../app/utils/scenario.js'
+import { warningAction } from '../app/utils/warning-action.js'
 import { studioUrl } from '../app/utils/studio-link.js'
 import { cleanText } from '../app/utils/text.js'
 import { readPromptLanguage } from '../app/utils/prompt-lang.js'
@@ -339,6 +340,7 @@ function scenesForPlan(detected) {
       what: scene.what || row.what || scene.action || '',
       duration: scene.duration || row.duration || 3,
       light: scene.light || row.light || '',
+      rulesLight: true,
       timeLabel: scene.timeLabel || '',
       sceneId: scene.sceneId || index + 1,
       sceneCut: scene.sceneCut === true,
@@ -403,7 +405,7 @@ function planProse(input, { origin, compact }) {
   if (warnings.length) body.warnings = warnings
   else delete body.warnings
   stripSceneKeys(project)
-  return withSheetsMissing(withShortBoardWarning(body, project, input), project, input)
+  return finishAgent(withSheetsMissing(withShortBoardWarning(body, project, input), project, input), input)
 }
 
 function sheetClauses(text) {
@@ -492,6 +494,24 @@ function fullStoryboard(project, link) {
   return { ...project, studioUrl: link, modelProfile: publicProfile(project.model) }
 }
 
+const BOARD_NOTE = 'This board is complete. Do not re-post only some of the scenes. Any re-post must resend the whole scenario, every scene. A warning with action "none" is informational and needs no change. A warning with action "optional" does not require a new request.'
+
+function stampWarnings(body) {
+  if (!Array.isArray(body?.warnings)) return body
+  body.warnings = body.warnings.map(item => ({ ...item, action: item?.action || warningAction(item?.code) }))
+  return body
+}
+
+function withBoardNote(body, input) {
+  if (input?.format !== 'agent') return body
+  body.note = BOARD_NOTE
+  return body
+}
+
+function finishAgent(body, input) {
+  return withBoardNote(stampWarnings(body), input)
+}
+
 function attachWarnings(body, project) {
   const warnings = assessProject(project)
   if (warnings.length) body.warnings = warnings
@@ -514,7 +534,7 @@ function planRegenerate(input, { origin, compact }) {
   if (result.skipped) body.kept = true
   const warned = attachWarnings(body, result.project)
   stripSceneKeys(result.project)
-  return warned
+  return finishAgent(warned, input)
 }
 
 function agentBody(project, link) {
@@ -756,12 +776,12 @@ export function planFromInput(input, { origin = SITE, compact = false } = {}) {
   if (input?.format === 'agent') {
     const body = mergeExtraWarnings(withShortBoardWarning(agentBody(project, link), project, input), extra)
     stripSceneKeys(project)
-    return body
+    return finishAgent(body, input)
   }
   const body = compact ? compactStoryboard(project, link) : fullStoryboard(project, link)
   const warned = mergeExtraWarnings(withShortBoardWarning(attachWarnings(body, project), project, input), extra)
   stripSceneKeys(project)
-  return warned
+  return finishAgent(warned, input)
 }
 
 function wantsCompact(input, searchParams) {
@@ -844,8 +864,9 @@ const SCENARIO_SCENE = {
     camera: { type: 'string', enum: [...CAMERA_VALUES], description: 'Camera id. close-up, 特写, gros plan, and the other framing labels map to the matching id.' },
     cam: { type: 'string', enum: [...CAMERA_VALUES], description: 'Short alias of camera.' },
     framing: { type: 'string', description: 'Framing term, such as close-up or 特写. A known term is written into the prompt. Unknown text is left off.' },
-    light: { type: 'string', enum: [...LIGHT_VALUES] },
-    lighting: { type: 'string', enum: [...LIGHT_VALUES], description: 'Alias of light.' },
+    light: { type: 'string', enum: [...LIGHT_VALUES], description: 'Lighting quality. evening, morning, afternoon, and midday are accepted and stored as time instead of a 400.' },
+    lighting: { type: 'string', enum: [...LIGHT_VALUES], description: 'Alias of light. A time word is stored as time.' },
+    time: { type: 'string', enum: [...TIME_VALUES], description: 'Time of day for this scene: dawn, morning, midday, afternoon, dusk, evening, or night. It drives the light line and carries forward until a later scene changes it. When omitted, a time cue in the action is used, such as At night, The next morning, à tarde, De manhã, or à noite.' },
     mood: { type: 'string', enum: [...MOOD_VALUES] },
     duration: { type: 'integer', minimum: 2, maximum: 15 },
     s: { type: 'integer', minimum: 2, maximum: 15, description: 'Short alias of duration, in seconds.' },

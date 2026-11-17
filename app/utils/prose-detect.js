@@ -3,9 +3,9 @@ import { cleanText } from './text.js'
 import { foldName, scenarioBudget, scenarioPremise, scenarioToFields } from './scenario.js'
 import { flaggedNameKeys } from './shot-risk.js'
 import { splitActionText } from './action-split.js'
-import { detectLocalized, identityTraits } from './prose-extra.js'
+import { detectLocalized, identityTraits, keptTrait } from './prose-extra.js'
 import { inNamedVenue, inSpans, isCueStopword, isFunctionWord, isNeverPlace, isNumberWord, isQuotedOrRemembered, isVenueType, mentionMovesScene, namedVenues, placeMentionIsReal, quoteSpans, splitNarrative } from './scene-split.js'
-import { isNonPlaceNoun, isRejectedPlace, libraryHits, locativeHeads, placeLexiconHas, placeTag, preferPlaceHead, tidyPlaceLemma } from './place-lexicon.js'
+import { enteredPlace, isNonPlaceNoun, isRejectedPlace, libraryHits, locativeHeads, normalizePlaceName, placeLexiconHas, placeTag, preferPlaceHead, settingName, tidyPlaceLemma } from './place-lexicon.js'
 
 const STOP = new Set(['the', 'a', 'an', 'he', 'she', 'they', 'it', 'his', 'her', 'their', 'then', 'when', 'after', 'before', 'later', 'next', 'once', 'this', 'that', 'there', 'here', 'un', 'une', 'le', 'la', 'les', 'il', 'elle', 'ils', 'elles', 'lui', 'leur', 'puis', 'quand', 'apres', 'avant', 'dans', 'sur', 'sous', 'avec', 'pour', 'par', 'chez', 'au', 'aux', 'du', 'des', 'en', 'et', 'mais', 'ou', 'ce', 'cette', 'ces', 'son', 'sa', 'ses', 'mon', 'ma', 'mes', 'je', 'tu', 'nous', 'vous', 'on', 'plus', 'tout', 'toute', 'tous', 'morning', 'evening', 'night', 'day', 'matin', 'soir', 'nuit', 'jour', 'aube', 'tard', 'lendemain', 'and', 'with', 'from', 'into', 'over', 'while', 'its', 'our', 'your'])
 
@@ -629,19 +629,23 @@ function detectCharacters(text, places = [], language = 'en') {
   })
   characters.forEach(person => {
     const found = identityTraits(text, person.name, characters.map(item => item.name))
-    const usable = bit => bit && !new RegExp(`^${person.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'iu').test(bit) && !/\b(?:veste|vestem|tira|tiram|despe|carrega|carregam|wears?|carries|holds?|pulls?|takes?\s+off|yawns?|lava|lavam)\b/iu.test(bit)
+    const usable = bit => {
+      const clean = keptTrait(bit)
+      return clean && !new RegExp(`^${person.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'iu').test(clean)
+    }
     const looks = String(person.look || '').split(/,\s*/).filter(usable)
-    const outfits = String(person.outfit || '').split(/,\s*/).filter(usable)
+    const outfits = String(person.outfit || '').split(/,\s*/).filter(bit => keptTrait(bit))
     const messy = value => /^(?:de|do|da)\s/iu.test(value) || /\b(?:e|and)\s+(?:uma|um|a|an)\b/iu.test(value) || foldName(value) === foldName(person.name)
-    const merge = (list, item) => {
-      if (!item || foldName(item) === foldName(person.name)) return
-      if (/\b(?:fecha|abre|espera|lifts?|sets?|puts?|opens?|closes?|waits?|walks?|waves?|carrega|holds?|carries)\b/iu.test(item)) return
+    const merge = (list, item, field) => {
+      const clean = keptTrait(item, field)
+      if (!clean || foldName(clean) === foldName(person.name)) return
+      item = clean
       const index = list.findIndex(bit => foldName(bit).includes(foldName(item)) || foldName(item).includes(foldName(bit)))
       if (index < 0) list.push(item)
       else if (messy(list[index]) || (item.length > list[index].length && foldName(item).includes(foldName(list[index])))) list[index] = item
     }
-    found.looks.forEach(item => merge(looks, item))
-    found.outfits.forEach(item => merge(outfits, item))
+    found.looks.forEach(item => merge(looks, item, ''))
+    found.outfits.forEach(item => merge(outfits, item, ''))
     person.look = looks.filter(bit => bit && foldName(bit) !== foldName(person.name)).join(', ')
     person.outfit = outfits.filter(bit => bit && foldName(bit) !== foldName(person.name)).join(', ')
   })
@@ -1089,7 +1093,16 @@ function detectScenes(text, characters, places, language, flagged, options = {})
           else if (left.endsWith(` ${right}`) || right.endsWith(` ${left}`)) where = left.length >= right.length ? where : head.name
           else where = head.name
         }
+        const nested = String(shot.what || '').match(/(?:água|agua|water|neve|snow|gelo|ice)\s+(?:de|do|da|dos|das|of)\s+(?:a\s+|o\s+|the\s+)?([\p{L}'’-]+)/iu)
+        const nestedPlace = nested ? settingName(nested[1], language) : ''
+        const entered = enteredPlace(shot.what, language)
+        if (nestedPlace && !isRejectedPlace(nestedPlace)) where = nestedPlace
+        else if (entered && !isRejectedPlace(entered)) where = entered
         if (where && isRejectedPlace(where)) where = carriedWhere && !isRejectedPlace(carriedWhere) ? carriedWhere : ''
+        if (where) {
+          const named = normalizePlaceName(where, language)
+          where = named || (/^(?:água|agua|water|neve|snow|gelo|ice|areia|sand)$/iu.test(where) ? '' : where)
+        }
         if (where) carriedWhere = where
         return where
       })(),
@@ -1152,7 +1165,7 @@ export function detectProse(input, options = {}) {
     places: foundPlaces.places.map(({ name, description, uncertain }) => ({ name, description, ...(uncertain ? { uncertain: true } : {}) })),
     light: openingShotLight,
     mood: ambience.mood,
-    scenes: foundScenes.scenes.map(({ number, who, where, what, duration, light, source, flags }) => ({ number, who, where, what, duration, ...(light ? { light } : {}), ...(source ? { source } : {}), ...(flags?.length ? { flags } : {}) }))
+    scenes: foundScenes.scenes.map(({ number, who, where, what, duration, light, source, flags }) => ({ number, who, where, what, duration, rulesLight: true, ...(light ? { light } : {}), ...(source ? { source } : {}), ...(flags?.length ? { flags } : {}) }))
   }
   const canonical = scenarioToFields(scenario)
   const budget = scenarioBudget([canonical.characters, canonical.places, canonical.scenes].join('\n'), foundScenes.scenes.length * 3)

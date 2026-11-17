@@ -60,7 +60,7 @@ function carry(state, shot) {
   const next = { ...state }
   const place = usablePlace(shot?.where)
   if (place) next.place = place
-  const light = cleanText(shot?.light)
+  const light = cleanText(shot?.time) || cleanText(shot?.light)
   if (light) next.time = light
   return next
 }
@@ -80,7 +80,7 @@ export function partOpening(project, index) {
   const carried = stateAt(project, index)
   if (!shot) return carried
   const place = usablePlace(shot.where) || usablePlace(carried.place)
-  const time = cleanText(shot.light) || carried.time
+  const time = cleanText(shot.time) || cleanText(shot.light) || carried.time
   return { place, time }
 }
 

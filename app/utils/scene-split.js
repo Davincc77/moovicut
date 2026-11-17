@@ -1,6 +1,6 @@
 /** Deterministic scene cuts. Closed word lists only. No model call. */
 import { cleanText } from './text.js'
-import { extendsPlace, heldPlaceNoun, isNonPlaceNoun, isRejectedPlace, locativeHeads, movementPlace, placeTag, preferPlaceHead, settingName, tidyPlaceLemma } from './place-lexicon.js'
+import { enteredPlace, extendsPlace, heldPlaceNoun, isNonPlaceNoun, isRejectedPlace, locativeHeads, movementPlace, placeTag, preferPlaceHead, settingName, tidyPlaceLemma } from './place-lexicon.js'
 import { foldName } from './scenario.js'
 import { splitActionText } from './action-split.js'
 
@@ -440,7 +440,7 @@ function collectPlaceCues(sentence, language, places) {
         const afterKey = sentence.slice(index + key.length)
         const locative = clauseLooks(before, language, LOCATIVE) || (language === 'ja' && /^(?:で|に|へ|の中|を)/.test(afterKey)) || (language === 'zh-Hans' && (/^(?:里|上|中|内|边|旁)/.test(afterKey) || /(?:在|去|到|来到)/.test(before)))
         const towardOnly = /(?:^|[^\p{L}])(?:to|into|onto|zum|zur|ins|vers|para|verso)\s+(?:the\s+|a\s+|an\s+|der\s+|die\s+|das\s+|dem\s+|den\s+|o\s+|il\s+|lo\s+|la\s+|le\s+)?$/iu.test(before)
-        const arrived = /(?:go(?:es|ing|ne)?|went|walk(?:s|ed|ing)?|climb(?:s|ed|ing)?|enter(?:s|ed|ing)?|reach(?:es|ed|ing)?|come[s]?|came|arriv|step(?:s|ped)?|descend(?:s|ed|ing)?|geht|gehen|ging|komm(?:t|en)|kam|betritt|betrat|erreicht|entra|chega|vai|\bva\b|arrive|entre|monte)/iu.test(sentence.slice(Math.max(0, index - 48), index))
+        const arrived = /(?:go(?:es|ing|ne)?|went|walk(?:s|ed|ing)?|climb(?:s|ed|ing)?|enter(?:s|ed|ing)?|reach(?:es|ed|ing)?|come[s]?|came|arriv|step(?:s|ped)?|descend(?:s|ed|ing)?|crawl(?:s|ed|ing)?|creep(?:s|ing)?|crept|duck(?:s|ed|ing)?|squeeze[sd]?|squeezing|slide[sd]?|sliding|clamber(?:s|ed|ing)?|rasteja(?:m|r|ndo)?|geht|gehen|ging|komm(?:t|en)|kam|betritt|betrat|erreicht|entra|chega|vai|\bva\b|arrive|entre|monte)/iu.test(sentence.slice(Math.max(0, index - 48), index))
         if (heldPlaceNoun(sentence, index)) continue
         const opener = clauseLooks(before, language, OPEN_PLACE)
         const weak = clauseLooks(before, language, WEAK_PLACE)
@@ -749,6 +749,10 @@ export function splitNarrative(text, options = {}) {
       if (headed && !(headed.soft && state.place)) firmPlace = { name: headed.name, key: headed.lemma, cue: headed.name, uncertain: false, unlisted: headed.tag === 'unlisted' }
     }
     if (!firmPlace) {
+      const entered = enteredPlace(sentence, language)
+      if (entered && !isRejectedPlace(entered)) firmPlace = { name: entered, key: entered, cue: entered, uncertain: false }
+    }
+    if (!firmPlace) {
       const venue = namedVenues(sentence, language).find(item => String(item.name || '').split(/\s+/).length > 1)
       if (venue && !isRejectedPlace(venue.name)) firmPlace = { name: venue.name, key: venue.name, cue: venue.name, uncertain: false }
     }
@@ -764,6 +768,13 @@ export function splitNarrative(text, options = {}) {
     if (!firmPlace) {
       const subject = subjectPlace(sentence, language, places)
       if (subject && !isRejectedPlace(subject)) firmPlace = { name: subject, key: subject, cue: subject, uncertain: false }
+    }
+    if (!firmPlace) {
+      const nested = String(sentence || '').match(/(?:água|agua|water|neve|snow|gelo|ice)\s+(?:de|do|da|dos|das|of)\s+(?:a\s+|o\s+|the\s+)?([\p{L}'’-]+)/iu)
+      if (nested) {
+        const name = settingName(nested[1], language)
+        if (name && !isRejectedPlace(name)) firmPlace = { name, key: name, cue: name, uncertain: false }
+      }
     }
     if (!firmPlace) {
       const moved = movementPlace(sentence, language)
