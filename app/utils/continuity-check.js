@@ -1,6 +1,6 @@
 /** Zero-token continuity check. Warnings never block a board. */
 import { findByName, foldName } from './scenario.js'
-import { charactersInShot, conflictingTrait, lockLineFor, repeatedTraits, wardrobeChangeNote } from './character-lock.js'
+import { charactersInShot, conflictingTrait, ensureLockVersions, lockLineFor, lockReflectsWardrobe, repeatedTraits, wardrobeChangeNote } from './character-lock.js'
 import { promptHasFraming } from './framing.js'
 import { splitActionText } from './action-split.js'
 
@@ -15,6 +15,7 @@ function outsideText(shot, locks) {
 }
 
 export function continuityWarnings(shot, project = {}) {
+  ensureLockVersions(project)
   const warnings = []
   const order = shot.order || 1
   const cast = charactersInShot(shot, project)
@@ -83,7 +84,7 @@ export function continuityWarnings(shot, project = {}) {
     const note = wardrobeChangeNote(`${shot.action || ''} ${shot.what || ''}`)
     if (!note) return
     const declared = (character.states || []).some(item => item.fromOrder <= order && foldName(item.change) === foldName(note))
-    if (declared) return
+    if (declared || lockReflectsWardrobe(character, order, note)) return
     warnings.push(warning(
       shot,
       'undeclared_wardrobe',

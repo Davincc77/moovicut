@@ -3,6 +3,7 @@ import { cleanText } from './text.js'
 import { findByName, foldName, nameParts } from './scenario.js'
 import { phrase } from './prompt-lang.js'
 import { namedWornAndCarried } from './prose-extra.js'
+import { placeIsSure, settingName } from './place-lexicon.js'
 
 export const SHEET_KEYS = Object.freeze(['front', 'side', 'back', 'expressions', 'palette', 'outfit', 'props'])
 const REF_SLOTS = Object.freeze(['front', 'side', 'back'])
@@ -175,7 +176,7 @@ function lockLineEnglish(character, order = 1) {
     return `${base}. State: ${note}.`
   }
   const version = versionAt(person.locks, order)
-  if (!state && version) return lockFromVersion(person, version)
+  if (version) return lockFromVersion(person, version)
   if (!state) return derivedLockLine(person)
   const parts = dedupeParts([...identityParts(person), usable(person.items), state.change])
   if (!parts.length) return `${person.name} — ${state.change}.`
@@ -400,7 +401,8 @@ const VERB_RULES = Object.freeze([
   { op: 'remove', re: /(?<![\p{L}])(?:takes?\s+off|take\s+off|removes?|tira|tiram|despe|despem)(?![\p{L}])/iu },
   { op: 'pickup', re: /(?<![\p{L}])(?:picks?\s+up|pick\s+up|grabs?|pega|pegam|agarra|agarram|receives?|recebe|recebem)(?![\p{L}])/iu },
   { op: 'drop', re: /(?<![\p{L}])(?:drops?|sets?\s+down|set\s+down|larga|largam|pousa|pousam)(?![\p{L}])/iu },
-  { op: 'hand', re: /(?<![\p{L}])(?:hands?(?:\s+over)?|entrega|entregam)(?![\p{L}])/iu }
+  { op: 'hand', re: /(?<![\p{L}])(?:hands?(?:\s+over)?|entrega|entregam)(?![\p{L}])/iu },
+  { op: 'carry', re: /(?<![\p{L}])(?:carries|carrying|carrega|carregam|leva|levam|traz|trazem)(?![\p{L}])/iu }
 ])
 
 function versionAt(locks, order) {
@@ -507,6 +509,106 @@ function sentencesOf(text) {
   return parts
 }
 
+const OBJECT_ARTICLE = new Set(['the', 'a', 'an', 'his', 'her', 'their', 'its', 'this', 'that', 'these', 'those', 'my', 'your', 'our', 'o', 'os', 'as', 'um', 'uma', 'uns', 'umas', 'seu', 'sua', 'seus', 'suas', 'meu', 'minha', 'meus', 'minhas', 'este', 'esta', 'esse', 'essa', 'aquele', 'aquela'])
+const OBJECT_PRONOUN = new Set(['him', 'her', 'them', 'it', 'me', 'you', 'lhe', 'lo', 'la', 'ele', 'ela', 'eles', 'elas', 'isso', 'isto'])
+const OBJECT_STOP = new Set(['to', 'for', 'at', 'in', 'on', 'into', 'onto', 'from', 'over', 'with', 'upon', 'down', 'up', 'off', 'para', 'em', 'no', 'na', 'nos', 'nas', 'ao', 'à', 'aos', 'às', 'com', 'por', 'pelo', 'pela', 'sobre', 'até', 'ate', 'num', 'numa', 'and', 'e', 'then', 'while', 'before', 'after', 'quando', 'when'])
+const OBJECT_OF = new Set(['de', 'do', 'da', 'dos', 'das', 'of'])
+const ABSTRACT_NOUN = new Set(['hope', 'fear', 'love', 'hate', 'idea', 'thought', 'memory', 'dream', 'name', 'voice', 'courage', 'luck', 'truth', 'time', 'moment', 'chance', 'silence', 'light', 'darkness', 'distance', 'place', 'circle', 'way', 'joy', 'sorrow', 'anger', 'doubt', 'faith', 'peace', 'life', 'death', 'beauty', 'pain', 'wish', 'secret', 'reason', 'sense', 'feeling', 'meaning', 'purpose', 'pride', 'shame', 'guilt', 'trust', 'power', 'freedom', 'justice', 'soul', 'mind', 'rest', 'sleep', 'hurry', 'weather', 'fate', 'destiny', 'spirit', 'attention', 'trouble', 'help', 'honor', 'honour', 'esperanca', 'medo', 'amor', 'odio', 'ideia', 'pensamento', 'memoria', 'sonho', 'nome', 'voz', 'coragem', 'sorte', 'verdade', 'tempo', 'momento', 'silencio', 'luz', 'escuridao', 'distancia', 'lugar', 'circulo', 'caminho', 'alegria', 'tristeza', 'raiva', 'duvida', 'fe', 'paz', 'vida', 'morte', 'beleza', 'dor', 'segredo', 'razao', 'sentido', 'honra', 'orgulho', 'vergonha', 'culpa', 'confianca', 'poder', 'liberdade', 'justica', 'alma', 'mente', 'descanso', 'sono', 'pressa', 'vez', 'jeito', 'modo'])
+const BODY_NOUN = new Set(['hand', 'hands', 'head', 'arm', 'arms', 'leg', 'legs', 'foot', 'feet', 'finger', 'fingers', 'eye', 'eyes', 'face', 'hair', 'mouth', 'ear', 'ears', 'nose', 'shoulder', 'shoulders', 'mao', 'maos', 'rosto', 'cabelo', 'cabeca', 'braco', 'perna', 'olho', 'olhos', 'boca', 'nariz', 'pe', 'pes', 'dedo', 'dedos'])
+const ACTION_HEAD = new Set(['walks', 'runs', 'sits', 'waits', 'waves', 'opens', 'closes', 'reads', 'turns', 'enters', 'leaves', 'goes', 'comes', 'looks', 'stands', 'smiles', 'nods', 'bows', 'checks', 'taps', 'stacks', 'espera', 'acena', 'abre', 'fecha', 'senta', 'corre', 'caminha', 'entra', 'sai', 'le', 'olha'])
+const GARMENT_HEAD = /(?<![\p{L}])(?:cardigans?|waistcoats?|jumpers?|pullovers?|overalls|dungarees|gloves?|goggles|coletes?|vestidos?|casacos?|jaquetas?|blusas?|saias?|calças|calcas|camisas?|aprons?|coats?|jackets?|dresses?|shirts?|sweaters?|peacoats?|cloaks?|robes?|uniforms?|skirts?|blouses?|trousers|pants|hats?|caps?|scarves?|scarfs?|avental|aventais|jardineiras?|luvas?|camisolas?|macacões|macacoes|macacão|macacao|suits?|parkas?|anoraks?|fatos?|fardas?|lenços|lencos|lenço|lenco|cachecóis|cachecois|cachecol|chapéus|chapeus|chapéu|chapeu|hakama|hoodies?|boots?)(?![\p{L}])/iu
+
+function isPlaceNoun(word) {
+  const key = foldName(word)
+  if (!key || key.length < 3) return false
+  if (placeIsSure('en', key) || placeIsSure('pt', key)) return true
+  const named = settingName(key, 'en') || settingName(key, 'pt')
+  return Boolean(named) && foldName(named) === key
+}
+
+function isGarmentPhrase(phrase) {
+  return Boolean(garmentFamily(phrase) || GARMENT_HEAD.test(phrase))
+}
+
+function rejectedObject(phrase) {
+  const words = foldName(phrase).split(/\s+/).filter(Boolean)
+  const head = words.at(-1) || ''
+  if (!head || head.length < 2) return true
+  if (ABSTRACT_NOUN.has(head) || BODY_NOUN.has(head) || ACTION_HEAD.has(head) || OBJECT_ARTICLE.has(head) || OBJECT_PRONOUN.has(head)) return true
+  if (isPlaceNoun(head) || isPlaceNoun(phrase)) return true
+  if (words.length === 1 && OBJECT_STOP.has(head)) return true
+  return false
+}
+
+function phraseFromObjectWords(words, characters) {
+  let index = 0
+  while (index < words.length) {
+    const folded = foldName(words[index])
+    if (OBJECT_ARTICLE.has(folded) || OBJECT_PRONOUN.has(folded)) {
+      index += 1
+      continue
+    }
+    if ((characters || []).some(person => foldName(person.name) === folded || person.name.split(/\s+/).some(part => foldName(part) === folded && folded.length >= 3))) {
+      index += 1
+      continue
+    }
+    break
+  }
+  const collected = []
+  while (index < words.length && collected.length < 5) {
+    const word = words[index]
+    const folded = foldName(word)
+    if (!folded) break
+    if (collected.length && (OBJECT_STOP.has(folded) || OBJECT_ARTICLE.has(folded) || OBJECT_PRONOUN.has(folded))) break
+    if (collected.length && (characters || []).some(person => foldName(person.name) === folded)) break
+    if (OBJECT_OF.has(folded)) {
+      const next = words[index + 1]
+      const nextFold = foldName(next)
+      if (!next || OBJECT_ARTICLE.has(nextFold) || isPlaceNoun(nextFold) || (characters || []).some(person => foldName(person.name) === nextFold)) break
+      collected.push(word)
+      index += 1
+      continue
+    }
+    if (!collected.length && (ABSTRACT_NOUN.has(folded) || isPlaceNoun(folded))) return ''
+    collected.push(word)
+    index += 1
+  }
+  while (collected.length && OBJECT_OF.has(foldName(collected.at(-1)))) collected.pop()
+  const phrase = cleanText(collected.join(' '))
+  if (!phrase || phrase.length > 80 || rejectedObject(phrase)) return ''
+  return phrase
+}
+
+/** Concrete noun after a carry, hand, pick-up, or drop. Abstracts and places are not items. */
+function concreteObjectPhrases(text, characters) {
+  const found = []
+  String(text || '').split(/\s+\b(?:and|e)\b\s+/iu).forEach(part => {
+    const words = part.match(/[\p{L}][\p{L}'’-]*/gu) || []
+    const phrase = phraseFromObjectWords(words, characters)
+    if (!phrase) return
+    if (found.some(item => related(item, phrase) || related(phrase, item))) return
+    found.push(phrase)
+  })
+  return found
+}
+
+function objectsAfterVerb(after, characters) {
+  const listed = namedWornAndCarried(after)
+  concreteObjectPhrases(after, characters).forEach(phrase => {
+    const garments = isGarmentPhrase(phrase)
+    const bucket = garments ? listed.garments : listed.items
+    const other = garments ? listed.items : listed.garments
+    if ([...bucket, ...other].some(item => related(item, phrase) || related(phrase, item))) return
+    bucket.push(phrase)
+  })
+  return listed
+}
+
+function sheetHasValue(person, value) {
+  if (!person) return false
+  return related(`${person.outfit || ''} ${person.items || ''} ${person.look || ''} ${person.props || ''} ${person.carried || ''}`, value)
+}
+
 function storyEvents(shots, characters) {
   const events = []
   ;(shots || []).forEach((shot, index) => {
@@ -533,8 +635,9 @@ function storyEvents(shots, characters) {
         if (named.length === 1) actor = named[0].name
         else if (who && (named.length === 0 || named.some(person => foldName(person.name) === foldName(who)))) actor = who
         if (!actor) return
-        const objects = namedWornAndCarried(after)
+        const objects = objectsAfterVerb(after, characters)
         const receiver = namesIn(after, characters).find(person => foldName(person.name) !== foldName(actor))
+        const actorSheet = (characters || []).find(person => foldName(person.name) === foldName(actor))
         const push = (op, value, field, target) => {
           const clean = cleanText(value)
           if (!clean || !target) return
@@ -554,9 +657,12 @@ function storyEvents(shots, characters) {
           objects.garments.forEach(value => push('remove', value, 'outfit', actor))
         } else if (verb.op === 'hand') {
           ;[...objects.items.map(value => ({ value, field: 'items' })), ...objects.garments.map(value => ({ value, field: 'outfit' }))].forEach(item => {
-            push('remove', item.value, item.field, actor)
+            if (sheetHasValue(actorSheet, item.value)) push('remove', item.value, item.field, actor)
             if (receiver) push('add', item.value, item.field, receiver.name)
           })
+        } else if (verb.op === 'carry') {
+          objects.items.forEach(value => { if (!sheetHasValue(actorSheet, value)) push('add', value, 'items', actor) })
+          objects.garments.forEach(value => { if (!sheetHasValue(actorSheet, value)) push('wear', value, 'outfit', actor) })
         }
       })
     })
@@ -595,9 +701,20 @@ function userLocks(person) {
   return copy
 }
 
-function legacyNoteOnly(person) {
-  const states = normalizeStates(person?.states)
-  return states.length > 0
+function noteOperation(note) {
+  const text = cleanText(note)
+  if (!text) return null
+  const worn = text.match(/^(?:puts?\s+on|put\s+on|veste|põe|poe|põem|poem)\s+(?:the\s+|a\s+|an\s+|o\s+|os\s+|as\s+|um\s+|uma\s+)?(.+)$/iu)
+  if (worn) return { op: 'wear', value: cleanText(worn[1]), field: 'outfit' }
+  const taken = text.match(/^(?:takes?\s+off|take\s+off|removes?|tira|tiram|despe|despem)\s+(?:the\s+|a\s+|an\s+|o\s+|os\s+|as\s+|um\s+|uma\s+|seu\s+|sua\s+)?(.+)$/iu)
+  if (taken) return { op: 'remove', value: cleanText(taken[1]), field: 'outfit' }
+  const removed = text.match(/^(.+?)\s+(?:removed|tirado|tirada|despido|despida)$/iu)
+  if (removed) return { op: 'remove', value: cleanText(removed[1]), field: 'outfit' }
+  return null
+}
+
+function sameSnapshot(left, right) {
+  return ['age', 'role', 'body', 'face', 'hair', 'colors', 'marks', 'look', 'outfit', 'items'].every(key => (left?.[key] || '') === (right?.[key] || ''))
 }
 
 function applyToSnapshot(snapshot, event) {
@@ -655,10 +772,6 @@ function applyLockVersions(project) {
   characters.forEach(person => {
     if (!person?.name) return
     const declared = userLocks(person)
-    if (legacyNoteOnly(person) && !declared.length) {
-      if (person.locks?.some(item => item?.[COMPUTED])) delete person.locks
-      return
-    }
     let current = snapshotOf(asCharacter(person))
     const additions = events.filter(event => foldName(event.actor) === foldName(person.name) && (event.op === 'wear' || event.op === 'add' || event.op === 'replace'))
     additions.forEach(event => {
@@ -685,10 +798,17 @@ function applyLockVersions(project) {
       if (!parsed.order) return
       planned.push({ order: parsed.order, op: 'declare', outfit: entry.outfit, items: entry.items, age: entry.age, look: entry.look, actor: person.name })
     })
+    normalizeStates(person.states).forEach(state => {
+      const op = noteOperation(state.change)
+      if (!op) return
+      planned.push({ order: state.fromOrder, op: op.op, value: op.value, field: op.field, actor: person.name })
+    })
     planned.sort((a, b) => a.order - b.order)
     const versions = [{ fromOrder: 1, ...current }]
     planned.forEach(event => {
-      current = applyToSnapshot(current, event)
+      const nextSnap = applyToSnapshot(current, event)
+      if (sameSnapshot(current, nextSnap)) return
+      current = nextSnap
       const last = versions[versions.length - 1]
       const next = { fromOrder: event.order, ...current }
       if (event.order <= last.fromOrder) versions[versions.length - 1] = { ...next, fromOrder: last.fromOrder }
@@ -705,8 +825,9 @@ function applyLockVersions(project) {
   versionWarnings.set(project, warnings)
 }
 
-const WARDROBE_CHANGE = /\b(?:takes off|take off|removes|removed|without (?:his|her|their))\s+(?:the\s+|a\s+|an\s+|his\s+|her\s+|their\s+)?(coat|jacket|scarf|hat|cap|apron|peacoat|sweater|boots|hakama)\b/i
-const WARDROBE_SHORT = /\b(coat|jacket|scarf|hat|cap|apron|peacoat|sweater|hakama)\s+(?:is\s+)?(?:removed|off)\b/i
+const WARDROBE_GARMENT = 'coat|jacket|scarf|hat|cap|apron|peacoat|sweater|boots|hakama|casaco|jaqueta|lenço|lenco|cachecol|chapéu|chapeu|avental|colete|camisola|botas|fato|farda|vestido|camisa|saia|blusa|parka|cardigan|cloak|anorak'
+const WARDROBE_CHANGE = new RegExp(`(?<![\\p{L}])(?:takes?\\s+off|take\\s+off|removes?|tira|tiram|despe|despem|without(?:\\s+(?:his|her|their))?|sem)\\s+(?:the\\s+|a\\s+|an\\s+|his\\s+|her\\s+|their\\s+|o\\s+|os\\s+|as\\s+|um\\s+|uma\\s+|seu\\s+|sua\\s+)?(${WARDROBE_GARMENT})(?![\\p{L}])`, 'iu')
+const WARDROBE_SHORT = new RegExp(`(?<![\\p{L}])(${WARDROBE_GARMENT})\\s+(?:is\\s+)?(?:removed|off|tirado|tirada|despido|despida)(?![\\p{L}])`, 'iu')
 
 export function wardrobeChangeNote(text) {
   const source = cleanText(text)
@@ -715,4 +836,17 @@ export function wardrobeChangeNote(text) {
   const phrase = source.match(WARDROBE_CHANGE)
   if (phrase) return `${phrase[1].toLowerCase()} removed`
   return ''
+}
+
+/** True when the versioned lock already removed or added the garment this note names. */
+export function lockReflectsWardrobe(character, order, note) {
+  const op = noteOperation(note)
+  if (!op?.value) return false
+  const person = asCharacter(character)
+  const bare = { ...person, states: [], locks: [], lockEdited: false, lockLine: '' }
+  const before = Number(order) > 1 ? lockLineEnglish(person, Number(order) - 1) : derivedLockLine(bare)
+  const current = lockLineEnglish(person, order)
+  if (op.op === 'remove') return related(before, op.value) && !related(current, op.value)
+  if (op.op === 'wear' || op.op === 'add') return !related(before, op.value) && related(current, op.value)
+  return false
 }
