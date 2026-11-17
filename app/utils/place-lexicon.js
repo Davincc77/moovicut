@@ -39,6 +39,7 @@ const EXPLICIT_NON_PLACES = new Set([
   'chão', 'chao', 'floor', 'parede', 'wall', 'teto', 'tecto', 'ceiling', 'solo', 'ground', 'piso', 'soalho',
   'caixa', 'registadora', 'registradora', 'register', 'xaile', 'xale', 'shawl', 'coque', 'bun',
   'watch', 'watches', 'watching', 'relógio', 'relogio', 'relógios', 'relogios',
+  'distance', 'light', 'darkness', 'silence', 'low', 'drawing', 'distancia', 'luz', 'silencio', 'silêncio',
   'french', 'english', 'portuguese', 'spanish', 'german', 'italian', 'japanese', 'chinese',
   'francês', 'frances', 'inglês', 'ingles', 'português', 'portugues', 'espanhol', 'alemão', 'alemao', 'japonês', 'japones', 'chinês', 'chines'
 ].map(word => word.toLowerCase().replace(/’/g, "'")))
@@ -63,7 +64,12 @@ const SUPPLEMENT = new Map([
     ['larder', 's'],
     ['laundry', 's'],
     ['sea', 's'],
-    ['ocean', 's']
+    ['ocean', 's'],
+    ['kiln', 's'],
+    ['church', 's'],
+    ['stage', 's'],
+    ['sleeper car', 's'],
+    ['cellar', 's']
   ])],
   ['pt', new Map([
     ['farol', 's'],
@@ -88,7 +94,12 @@ const SUPPLEMENT = new Map([
     ['vestibulo', 's'],
     ['claustro', 's'],
     ['bilheteira', 's'],
-    ['vinha', 's']
+    ['vinha', 's'],
+    ['forno', 's'],
+    ['fornalha', 's'],
+    ['palco', 's'],
+    ['igreja', 's'],
+    ['adega', 's']
   ])]
 ])
 
@@ -200,7 +211,7 @@ export function heldPlaceNoun(sentence, index) {
 }
 
 const STRONG = Object.freeze({
-  en: ['in', 'at', 'on', 'onto', 'upon', 'inside', 'into', 'within', 'through', 'to', 'reaches', 'reach'],
+  en: ['in', 'at', 'on', 'onto', 'upon', 'inside', 'into', 'within', 'through', 'to', 'outside', 'reaches', 'reach'],
   fr: ['dans', 'au', 'aux', 'à', 'chez', 'sur'],
   pt: ['em', 'no', 'na', 'nos', 'nas', 'num', 'numa', 'ao', 'à', 'aos', 'às', 'dentro', 'entra', 'chega', 'até', 'ate', 'para'],
   it: ['in', 'nel', 'nello', 'nella', 'negli', 'nelle', 'sul', 'sullo', 'sulla', 'sui', 'sugli', 'sulle', 'al', 'allo', 'alla', 'ai', 'agli', 'alle', 'dentro', 'entra', 'entro', 'arriva', 'apre']
@@ -252,7 +263,7 @@ const GARMENT_HEAD = /^(?:[\p{L}'’-]+\s+){0,3}(?:cardigans?|waistcoats?|vests?
 const BODY_HEAD = /^(?:[\p{L}'’-]+\s+){0,3}(?:beards?|barbas?|hair|cabelo|cabelos|braids?|tranças|trancas|trança|tranca|buns?|coques?|curls?|faces?|rostos?|hands?|mãos|maos|eyes?|olhos)$/iu
 const OBJECT_HEAD = /^(?:[\p{L}'’-]+\s+){0,3}(?:watch(?:es)?|relógio|relogio|relógios|relogios|cases?|estojos?|notebooks?|cadernos?|caderno|newspapers?|jornais|jornal|books?|livros?|letters?|cartas?|chairs?|cadeiras?|cadeira|stools?|banquinhos?|benches?|bancos?|scales?|balanças|balancas|balança|windows?|janelas?|janela|doors?|portas?|tables?|mesas?|bags?|mochilas?|mochila|purses?|wallets?|phones?|telefones?|canes?|bengalas?|bengala|facões|facoes|facão|facao|facas?|knife|knives|cups?|copos?|bottles?|lamps?|candeeiros?)$/iu
 const VERB_PLACE = /^(?:correr|corre|correndo|running|runs|run|tests?|testing|stepping|arrives?|arriving|walks?|walking|waits?|waiting|hurrying|hurry)$/iu
-const LOCATION_HEAD = /(?:room|house|hall|shop|yard|barn|stable|stables|cottage|station|kitchen|deck|quay|pier|dock|warehouse|office|studio|gallery|church|caravan|vineyard|compartment|lighthouse|market|forest|beach|cafe|café|loft|attic|cellar|basement|porch|balcony|terrace|garden|courtyard|plaza|square|street|bridge|tower|museum|library|theatre|theater|cinema|hotel|hangar|garage|workshop|factory|farm|field|cliff|shore|harbour|harbor|port|marina|yacht|ship|boat|ferry|platform|lobby|corridor|hallway|gate|store|bakery|bar|pub|school|hospital|clinic|archive|cave|tunnel|cabin|hut|tent|camp|villa|apartment|flat|conservatory|atrium|study|pantry|greenhouse|sea|ocean|sala|varanda|conves|convés|cais|loja|armazem|armazém|floresta|mercado|oficina|igreja|estacao|estação|falesia|falésia|cozinha|patio|pátio|quintal|galpao|galpão|adega|biblioteca|teatro|porao|porão|sotao|sótão|praia|miradouro|vinha|estabulo|estábulo|iate|navio|barco|galeria|estalagem|estufa|celeiro|tombadilho|camarote|vagao|vagão|carruagem|doca|atelier|ateliê|porteira|portao|portão|bilheteira|mar|átrio|atrio|steps|stairs)$/iu
+const LOCATION_HEAD = /(?:room|house|hall|shop|yard|barn|stable|stables|cottage|station|kitchen|deck|quay|pier|dock|warehouse|office|studio|gallery|church|caravan|vineyard|compartment|lighthouse|market|forest|beach|cafe|café|loft|attic|cellar|basement|porch|balcony|terrace|garden|courtyard|plaza|square|street|bridge|tower|museum|library|theatre|theater|cinema|hotel|hangar|garage|workshop|factory|farm|field|cliff|shore|harbour|harbor|port|marina|yacht|ship|boat|ferry|platform|lobby|corridor|hallway|gate|store|bakery|bar|pub|school|hospital|clinic|archive|cave|tunnel|cabin|hut|tent|camp|villa|apartment|flat|conservatory|atrium|study|pantry|greenhouse|sea|ocean|kiln|stage|sala|varanda|conves|convés|cais|loja|armazem|armazém|floresta|mercado|oficina|igreja|estacao|estação|falesia|falésia|cozinha|patio|pátio|quintal|galpao|galpão|adega|biblioteca|teatro|porao|porão|sotao|sótão|praia|miradouro|vinha|estabulo|estábulo|iate|navio|barco|galeria|estalagem|estufa|celeiro|tombadilho|camarote|vagao|vagão|carruagem|doca|atelier|ateliê|porteira|portao|portão|bilheteira|mar|átrio|atrio|palco|forno|fornalha|olaria|steps|stairs)$/iu
 /** Locatives that can name an unlisted setting, not only to/into/na/no. */
 const LOOSE_LOCATIVE = new Set(['in', 'at', 'on', 'inside', 'through', 'within', 'em', 'na', 'no', 'nos', 'nas', 'num', 'numa', 'ao', 'à', 'aos', 'às', 'dentro'])
 
@@ -414,7 +425,7 @@ export function locativeHeads(text, language) {
       const adopts = DESTINATION.has(prep) || LOOSE_LOCATIVE.has(prep)
       if (!adopts) continue
       if (indefinite && !locationShaped(lemma)) continue
-      if (!DESTINATION.has(prep) && words.length === 1 && !locationShaped(lemma)) continue
+      if (!DESTINATION.has(prep) && words.length === 1 && !locationShaped(lemma) && !definite) continue
       const namedPerson = words.every(item => item.word[0] !== item.word[0].toLowerCase())
       if (namedPerson) continue
       tag = 'unlisted'

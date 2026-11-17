@@ -143,9 +143,9 @@ const WEAR_VERB = /(?<![\p{L}])(porte|portent|wears?|trägt|tragt|indossa|dréit
 const DOOR_NOUN = /\b(?:la|le|une|sa|son|cette|the|a|an|der|die|das)\s+porte\b/giu
 
 const BUILTIN_VERBS = Object.freeze({
-  en: ['reads', 'read', 'sets', 'set', 'stands', 'stand', 'tidies', 'tidy', 'folds', 'fold', 'switches', 'switch', 'takes', 'take', 'opens', 'open', 'pours', 'pour', 'waits', 'wait', 'comes', 'come', 'leaves', 'leave', 'looks', 'look', 'says', 'say', 'smiles', 'smile', 'closes', 'close', 'hands', 'hand', 'finds', 'find', 'compare', 'compares', 'sits', 'sit', 'puts', 'put', 'walks', 'walk', 'stops', 'stop', 'checks', 'check', 'answers', 'answer', 'watch', 'watches', 'steps', 'step', 'pulls', 'pull', 'stays', 'stay', 'remains', 'remain', 'pushes', 'push', 'lifts', 'lift', 'holds', 'hold', 'arrives', 'arrive', 'shuts', 'shut', 'listens', 'listen', 'unrolls', 'unroll', 'points', 'point', 'talks', 'talk', 'enters', 'enter', 'returns', 'return', 'knocks', 'knock', 'laughs', 'laugh', 'boards', 'board', 'meets', 'meet', 'gives', 'give', 'rides', 'turns', 'follows', 'crosses', 'drinks', 'writes', 'calls', 'runs', 'sits', 'waves', 'wave', 'mends', 'mend'],
+  en: ['reads', 'read', 'sets', 'set', 'stands', 'stand', 'tidies', 'tidy', 'folds', 'fold', 'switches', 'switch', 'takes', 'take', 'opens', 'open', 'pours', 'pour', 'waits', 'wait', 'comes', 'come', 'leaves', 'leave', 'looks', 'look', 'says', 'say', 'smiles', 'smile', 'closes', 'close', 'hands', 'hand', 'finds', 'find', 'compare', 'compares', 'sits', 'sit', 'puts', 'put', 'walks', 'walk', 'stops', 'stop', 'checks', 'check', 'answers', 'answer', 'watch', 'watches', 'steps', 'step', 'pulls', 'pull', 'stays', 'stay', 'remains', 'remain', 'pushes', 'push', 'lifts', 'lift', 'holds', 'hold', 'arrives', 'arrive', 'shuts', 'shut', 'listens', 'listen', 'unrolls', 'unroll', 'points', 'point', 'talks', 'talk', 'enters', 'enter', 'returns', 'return', 'knocks', 'knock', 'laughs', 'laugh', 'boards', 'board', 'meets', 'meet', 'gives', 'give', 'rides', 'turns', 'follows', 'crosses', 'drinks', 'writes', 'calls', 'runs', 'sits', 'waves', 'wave', 'mends', 'mend', 'applauds', 'applaud', 'bows', 'bow', 'kneels', 'kneel', 'nods', 'nod', 'claps', 'clap'],
   fr: ['lit', 'pose', 'leve', 'range', 'eteint', 'ouvre', 'verse', 'attend', 'entre', 'laisse', 'cherche', 'dit', 'sourit', 'referme', 'tend', 'boit', 'repose', 'retrouve', 'comparent', 'glisse', 'restent', 'ajuste', 'assoient', "s'assoient", 'assied', 'assoit', 'sort', 'regarde', 'apporte', 'pousse', 'releve', 'allume', 'arrive', 'ferme', 'ecoute', 'deroule', 'montre', 'parlent', 'enfilent', 'marche', 'marchent', 'arrete', 'relit', 'reste', 'repondent', 'reprennent', 'regardent', 'approche', 'serre', 'pense', 'sont', 'arrose', 'achete'],
-  pt: ['entrega', 'lê', 'le', 'afasta', 'observa', 'abre', 'entra', 'poe', 'diz', 'sorri', 'fecha', 'anda', 'espera', 'pega'],
+  pt: ['entrega', 'lê', 'le', 'afasta', 'observa', 'abre', 'entra', 'poe', 'diz', 'sorri', 'fecha', 'anda', 'espera', 'pega', 'veste', 'vestem', 'acena', 'aplaude', 'ajoelha'],
   it: ['porge', 'legge', 'allontana', 'guarda', 'entra', 'esce', 'apre', 'dice', 'sorride', 'chiude', 'cammina', 'aspetta'],
   ja: ['渡す', '渡した', '読む', '読んだ', '歩き去る', '歩いて', '見る', '見た', '笑う', '入る', '出る', '開ける', '置く', '言う', '座る'],
   'zh-Hans': ['交给', '读了', '读', '走开', '看着', '看', '笑', '走进', '打开', '递给', '说', '坐下', '放下']
@@ -230,7 +230,7 @@ function collectVenues(source, language, found) {
     const tokenAt = source.slice(start, end).lastIndexOf(lastToken)
     if (tokenAt >= 0) {
       const afterToken = source.slice(start + tokenAt + lastToken.length, start + tokenAt + lastToken.length + 24)
-      if (/^\s+(?:checks|walks|pours|waits|opens|lifts|sits|stands|reads|turns|enters|leaves|holds)\b/i.test(afterToken)) return
+      if (/^\s+(?:checks|walks|pours|waits|opens|lifts|sits|stands|reads|turns|enters|leaves|holds|waves|applauds|bows|kneels|nods|claps|acena|aplaude)\b/i.test(afterToken)) return
     }
     found.push({
       name: clean.replace(/^\p{Ll}/u, char => char.toUpperCase()),
@@ -571,7 +571,7 @@ export function isPortraitSentence(sentence) {
   if (/^\p{Lu}[\p{L}'’-]{1,40}(?:\s+\p{Lu}[\p{L}'’-]{1,40}){0,2}\s+is\s+/u.test(raw)) return true
   if (STORY_ACT.test(raw)) return false
   if (/^(?:she|he|they|elle|il|ela|ele)\s+(?:has|have|had|wears?|wore|is wearing|veste|usa|tem|têm)\b/iu.test(raw)) return true
-  if (/^\p{Lu}[\p{L}'’-]{1,40}(?:\s+\p{Lu}[\p{L}'’-]{1,40}){0,2}\s+(?:tem|têm|veste|vestem|usa|usam|has|have|wears?|wore)\b/iu.test(raw)) return true
+  if (/^\p{Lu}[\p{L}'’-]{1,40}(?:\s+\p{Lu}[\p{L}'’-]{1,40}){0,2}\s+(?:tem|têm|veste|vestem|usa|usam|has|have|wears?|wore)\b/iu.test(raw)) return !isDefiniteDressing(raw)
   if (/\b(?:nephew|niece|brother|sister|cousin|son|daughter|mother|father|uncle|aunt|neveu|nièce|niece|cousine|frère|soeur|sœur)\s+(?:\p{Lu}[\p{L}'’-]+\s+){1,3}is\b/iu.test(raw)) return true
   return false
 }
@@ -588,7 +588,11 @@ function isLookIntro(sentence) {
 const COPULA_SETTING = /(?<![\p{L}])(?:is|are|was|were|está|esta|estão|estao|são|sao|fica|ficam)(?![\p{L}])/iu
 const QUIET_SETTING = /(?<![\p{L}])(?:quiet|silent|still|empty|calm|calmo|calma|vazio|vazia|silencioso|silenciosa|escuro|escura|deserto|deserta)(?![\p{L}])/iu
 const APPEARANCE_LEAD = /^(?:she|he|they|ela|ele|eles|elas)\s+(?:has|have|had|wears?|wore|is wearing|carries|carrying|holds?|holding|veste|usam|usa|traz|tem|têm|leva|levam)\b/iu
-const STORY_ACT = /(?<![\p{L}])(?:walks?|runs?|enters?|leaves?|opens?|pours?|sits?|stands?|reads?|turns?|gives?|hands?|waits?|lifts?|follows?|arrives?|meets?|boards?|checks?|calls?|smiles?|says?|abre|fecha|entra|sai|caminha|corre|espera|pega|lê|le|diz|sorri|entrega|observa|acende|sobe|desce|chama|cumprimenta|acena|senta)(?![\p{L}])/iu
+const STORY_ACT = /(?<![\p{L}])(?:walks?|runs?|enters?|leaves?|opens?|pours?|sits?|stands?|reads?|turns?|gives?|hands?|waits?|lifts?|follows?|arrives?|meets?|boards?|checks?|calls?|smiles?|says?|applauds?|bows?|kneels?|nods?|claps?|abre|fecha|entra|sai|caminha|corre|espera|pega|lê|le|diz|sorri|entrega|observa|acende|sobe|desce|chama|cumprimenta|acena|aplaude|ajoelha|senta)(?![\p{L}])/iu
+
+function isDefiniteDressing(sentence) {
+  return /(?<![\p{L}])(?:veste|vestem)(?![\p{L}])\s+(?:o|a|os|as)\s+\p{L}/iu.test(sentence)
+}
 
 /** A sentence that only sets place, time, or appearance. It is context, not a shot. */
 export function isDescriptionSentence(sentence) {
@@ -753,7 +757,7 @@ export function splitNarrative(text, options = {}) {
     if (cast || portrait || described) {
       const subject = described ? subjectPlace(sentence, language, places) : ''
       if (firmPlace && !isRejectedPlace(firmPlace.name)) state.place = firmPlace.name
-      else if (subject && times.length) state.place = subject
+      else if (subject && (times.length || state.place)) state.place = subject
       if (times.length) applyTime(times, state)
       return
     }

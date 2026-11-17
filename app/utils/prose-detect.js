@@ -122,7 +122,7 @@ function traitHits(clause) {
   const outfits = []
   for (const match of source.matchAll(new RegExp(LOOK_TRAIT.source, 'giu'))) looks.push(cleanText(match[0]))
   for (const match of source.matchAll(new RegExp(OUTFIT_TRAIT.source, 'giu'))) {
-    outfits.push(cleanText(match[0]).replace(/^(?:a|an|the)\s+/i, ''))
+    outfits.push(tidyTrait(match[0]))
   }
   return { looks, outfits }
 }
@@ -147,7 +147,8 @@ function tidyTrait(value) {
   bit = bit.replace(/^(?:who|that|which)\s+(?:is|are|was|were)\s+/i, '')
   bit = bit.replace(/^(?:is|are|was|were)\s+/i, '')
   bit = bit.replace(/^(?:carries|carrying|holds?|holding|wears?|wearing|has|have|had)\s+/i, '')
-  while (/^(?:with|and|a|an|the|un|une)\s+/i.test(bit)) bit = bit.replace(/^(?:with|and|a|an|the|un|une)\s+/i, '')
+  bit = bit.replace(/^(?:in|at|on|inside|into|beside|near)\s+/i, '')
+  while (/^(?:with|and|an|a|the|un|une)\s+/i.test(bit)) bit = bit.replace(/^(?:with|and|an|a|the|un|une)\s+/i, '')
   bit = bit.replace(/(?:\s+(?:of|de|do|da|dos|das|in|on|at|with|num|numa|no|na|em|ao|à|por|para|com|pelo|pela|preso|presa))+$/iu, '')
   return cleanText(bit)
 }
@@ -207,9 +208,20 @@ function commaTraits(text, name, names) {
   const outfits = []
   if (!slice) return { looks, outfits }
   slice.split(',').forEach(part => {
-    const found = traitHits(part)
-    found.looks.forEach(item => absorbTrait(looks, item))
-    found.outfits.forEach(item => absorbTrait(outfits, item))
+    part.split(/\s+\b(?:and|e)\b\s+/i).forEach(piece => {
+      const found = traitHits(piece)
+      if (found.looks.length || found.outfits.length) {
+        found.looks.forEach(item => absorbTrait(looks, item))
+        found.outfits.forEach(item => absorbTrait(outfits, item))
+        return
+      }
+      const raw = cleanText(piece)
+      if (/^(?:on|in|at|inside|aboard|onto)\b/i.test(raw)) return
+      const bit = tidyTrait(raw)
+      if (!bit || TRAIT_STOP.test(bit) || bit.split(/\s+/).length > 6) return
+      if (LOOK_WORD.test(bit) || AGE_PHRASE.test(bit) || /\b(?:beard|hair|eyes|sideburns|barba|cabelo)\b/iu.test(bit)) absorbTrait(looks, bit)
+      else absorbTrait(outfits, bit)
+    })
   })
   return { looks, outfits }
 }
@@ -260,8 +272,8 @@ function traitWindow(text, name, names) {
     const found = boundary(other).exec(text.slice(after))
     if (found) nextAt = Math.min(nextAt, after + found.index)
   })
-  const lead = text.slice(Math.max(0, match.index - 16), match.index)
-  const leadingAge = lead.match(/\b(?:old|young|little|poor)\s+$/iu)
+  const lead = text.slice(Math.max(0, match.index - 40), match.index)
+  const leadingAge = lead.match(/(?:(?:\d{1,3}|(?:twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)(?:-(?:one|two|three|four|five|six|seven|eight|nine))?)[ -]year-old|(?<![\p{L}-])(?:old|young|little|poor))\s+$/iu)
   const start = leadingAge ? match.index - leadingAge[0].length : match.index
   const bounded = cutTraits(text.slice(start, nextAt))
   return bounded || text.slice(start, Math.min(text.length, after + 48)).split(/[.!?。！？]/)[0]
@@ -312,8 +324,8 @@ function castTraits(text, name, names) {
 }
 
 const STREET_WORD = new Set(['rue', 'street', 'road', 'avenue', 'lane', 'boulevard', 'way', 'via', 'strasse', 'straße', 'strada', 'rua', 'calle', 'gasse'])
-const GARMENT_WORD = /\b(?:raincoats?|coats?|jackets?|aprons?|caps?|hats?|scarves?|scarf|dress(?:es)?|shirts?|boots?|peacoats?|sweaters?|cloaks?|robes?|hoodies?|hakama|vests?|uniforms?|shawls?|cardigans?|waistcoats?|blouses?|trousers|pants|skirts?|jumpers?|pullovers?|overalls|dungarees|gloves)\b/i
-const CARRIED_ITEM = /\b(?:cord|chain|strap|string|ribbon|neck|wrist|belt|shoulder|locket|compass|watch|pendant|tongs|hammer|brush|lantern|whistle|key|keys|camera|letter|map|cup|mug|basket|notebook|pen|knife|sword|staff|cane|umbrella|book|bag|purse|wallet|flower|rose|tray|plate|bottle|torch|flashlight|flute|bell|ticket punch|walkie-talkie|walkie|paper fan|hand fan|fan|binoculars|radio|backpack|rucksack|satchel)\b/i
+const GARMENT_WORD = /\b(?:raincoats?|coats?|jackets?|aprons?|caps?|hats?|scarves?|scarf|dress(?:es)?|shirts?|boots?|peacoats?|sweaters?|cloaks?|robes?|hoodies?|hakama|vests?|uniforms?|shawls?|cardigans?|waistcoats?|blouses?|trousers|pants|skirts?|jumpers?|pullovers?|overalls|dungarees|gloves|suits?|parkas?|goggles|anoraks?|fat[oa]s?)\b/i
+const CARRIED_ITEM = /\b(?:cord|chain|strap|string|ribbon|neck|wrist|belt|shoulder|locket|compass|watch|pendant|tongs|hammer|brush|lantern|whistle|key|keys|camera|letter|map|cup|mug|basket|notebook|pen|knife|sword|staff|cane|canes|umbrella|book|bag|purse|wallet|flower|rose|tray|plate|bottle|torch|flashlight|flute|bell|ticket punch|walkie-talkie|walkie|paper fan|hand fan|fan|binoculars|radio|backpack|rucksack|satchel|axe|axes|goggles|parka)\b/i
 
 function isNameNoise(token, language) {
   const key = foldName(token)
@@ -527,7 +539,7 @@ function detectCharacters(text, places = [], language = 'en') {
     if (!kept.has(key)) continue
     const mentioned = traitWindow(text, name, candidateNames)
     const young = /\byoung\b/iu.test(mentioned) && !new RegExp(`\\byoung\\s+(?!${name}\\b)\\p{Lu}`, 'u').test(mentioned)
-    const old = new RegExp(`\\bold\\s+${name}\\b`, 'iu').test(mentioned)
+    const old = new RegExp(`(?<![\\p{L}-])old\\s+${name}\\b`, 'iu').test(mentioned)
     const look = unique([
       matchOne(mentioned, /cheveux\s+[\p{L}'’-]+(?:\s+[\p{L}'’-]+)?/iu),
       matchOne(mentioned, /(?:curly|wavy|straight|long|short|red|brown|black|blonde|blond|roux|rousse)\s+(?:red\s+|brown\s+|black\s+)?hair/iu),
@@ -609,7 +621,7 @@ function detectCharacters(text, places = [], language = 'en') {
     person.outfit = outfits.join(', ')
   })
   characters.forEach(person => {
-    const found = identityTraits(text, person.name)
+    const found = identityTraits(text, person.name, characters.map(item => item.name))
     const usable = bit => bit && !new RegExp(`^${person.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'iu').test(bit) && !/\b(?:veste|vestem|carrega|carregam|wears?|carries|holds?)\b/iu.test(bit)
     const looks = String(person.look || '').split(/,\s*/).filter(usable)
     const outfits = String(person.outfit || '').split(/,\s*/).filter(usable)
