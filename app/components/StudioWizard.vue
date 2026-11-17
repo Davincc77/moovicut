@@ -7,7 +7,7 @@ import {
   blankWizard,
   loadWizard,
   saveWizard,
-  gapsFor,
+  gateGaps,
   gapFieldId,
   revealGap,
   splitOffer,
@@ -112,9 +112,12 @@ const stepNumber = computed(() => WIZARD_STEPS.findIndex(step => step.id === sta
 const stepName = computed(() => t(stepMeta.value.label))
 const headingText = computed(() => `${stepNumber.value}. ${stepName.value}`)
 function numberedStep(step, index) { return `${index + 1}. ${t(step.label)}` }
-const gaps = computed(() => gapsFor(state.value, state.value.step))
-const showIdeaError = computed(() => state.value.step === 'idea' && ideaFeedback.value && gaps.value.some(item => item.field === 'idea'))
-const visibleGaps = computed(() => gaps.value.filter(item => item.field !== 'idea' || showIdeaError.value))
+const gateNotice = ref(false)
+const gaps = computed(() => gateGaps(state.value, state.value.step))
+const showIdeaError = computed(() => state.value.step === 'idea' && (ideaFeedback.value || gateNotice.value) && gaps.value.some(item => item.field === 'idea'))
+const visibleGaps = computed(() => gateNotice.value ? gaps.value.filter(item => item.field !== 'idea') : [])
+watch(() => state.value.step, () => { gateNotice.value = false })
+watch(gaps, list => { if (!list.length) gateNotice.value = false })
 const modelLabel = computed(() => MODEL_OPTIONS.find(item => item.id === state.value.model)?.label || MODEL_OPTIONS[0]?.label || '')
 const promptStyleLabel = computed(() => state.value.promptStyle === 'detailed' ? t('settings.detailed') : t('settings.short'))
 const settingsSummary = computed(() => t('settings.summary', { model: modelLabel.value, aspect: state.value.aspectRatio, style: promptStyleLabel.value }))
@@ -209,24 +212,33 @@ function moveTabs(event, kind) {
 }
 
 function onIdeaBlur() { ideaFeedback.value = true }
+function showBlocked(blocking) {
+  gateNotice.value = true
+  if (state.value.step === 'idea') ideaFeedback.value = true
+  const target = gapFieldId(state.value, blocking[0])
+  pendingFocusId.value = target
+  state.value = revealGap(state.value, blocking[0])
+  nextTick(() => {
+    document.getElementById(target)?.focus()
+    pendingFocusId.value = ''
+  })
+}
 function onSubmit() {
   if (state.value.step === 'generate') {
     generate()
     return
   }
-  const blocking = gapsFor(state.value, state.value.step)
-  if (state.value.step === 'idea' && blocking.length) ideaFeedback.value = true
-  if (state.value.step === 'check' && !generateEnabled.value) return
-  if (blocking.length) {
-    const target = gapFieldId(state.value, blocking[0])
-    pendingFocusId.value = target
-    state.value = revealGap(state.value, blocking[0])
-    nextTick(() => {
-      document.getElementById(target)?.focus()
-      pendingFocusId.value = ''
-    })
+  if (state.value.step === 'check') {
+    if (!generateEnabled.value) return
+    state.value = continueStep(state.value)
     return
   }
+  const blocking = gateGaps(state.value, state.value.step)
+  if (blocking.length) {
+    showBlocked(blocking)
+    return
+  }
+  gateNotice.value = false
   state.value = continueStep(state.value)
 }
 
@@ -267,7 +279,7 @@ function copyAgent() {
       <progress :value="stepNumber" :max="WIZARD_STEPS.length" :aria-label="t('progress.label', { current: stepNumber, total: WIZARD_STEPS.length, label: headingText })"></progress>
     </div>
 
-    <form class="wizard-form" aria-labelledby="wizard-step-heading" @submit.prevent="onSubmit">
+    <form class="wizard-form" novalidate aria-labelledby="wizard-step-heading" @submit.prevent="onSubmit">
       <section v-if="state.step === 'idea'" class="wizard-panel" :aria-label="t('idea.heading')">
         <p>{{ t('idea.help') }}</p>
         <div class="wizard-field">
@@ -572,7 +584,7 @@ function copyAgent() {
         <p v-else>{{ t('generate.waiting') }}</p>
       </section>
 
-      <ul v-if="visibleGaps.length && state.step !== 'check'" id="wizard-gaps" class="wizard-gaps" role="status" :aria-label="t('gaps.heading')">
+      <ul v-if="visibleGaps.length && state.step !== 'check'" id="wizard-gaps" class="wizard-gaps" role="alert" :aria-label="t('gaps.heading')">
         <li v-for="(item, index) in visibleGaps" :key="`${item.step}-${item.targetId}-${item.field}-${item.key}-${index}`">{{ gapText(item) }}</li>
       </ul>
 

@@ -239,6 +239,39 @@ function shotGaps(state) {
   return gaps
 }
 
+const REQUIRED_CHARACTER_FIELDS = CHARACTER_FIELDS.filter(field => !OPTIONAL_CHARACTER_FIELDS.includes(field))
+
+/** The minimum that must be true before Next or a later stepper circle. */
+export function gateGaps(state, stepId) {
+  if (!state) return [gap('idea', { field: 'idea', key: 'missing.ideaShort' })]
+  if (stepId === 'idea') return gapsFor(state, 'idea')
+  if (stepId === 'characters') {
+    if (state.noCharacter) return []
+    const people = state.characters || []
+    if (!people.length) return [gap('characters', { field: 'characters', key: 'missing.characters' })]
+    const ready = people.some(character => REQUIRED_CHARACTER_FIELDS.every(field => filled(character[field])))
+    if (ready) return []
+    const character = people[state.characterIndex] || people[0]
+    const field = REQUIRED_CHARACTER_FIELDS.find(item => !filled(character[item])) || 'name'
+    return [gap('characters', { targetId: character.id, field, key: MISSING_KEY[field], name: cleanText(character.name) })]
+  }
+  if (stepId === 'places') {
+    const places = state.places || []
+    if (places.some(place => filled(place.name))) return []
+    if (!places.length) return [gap('places', { field: 'places', key: 'missing.places' })]
+    const place = places[state.placeIndex] || places[0]
+    return [gap('places', { targetId: place.id, field: 'name', key: 'missing.placeName' })]
+  }
+  if (stepId === 'shots') {
+    const shots = state.shots || []
+    if (shots.some(shot => filled(shot.action))) return []
+    if (!shots.length) return [gap('shots', { field: 'shots', key: 'missing.shots' })]
+    const shot = shots[state.shotIndex] || shots[0]
+    return [gap('shots', { targetId: shot.id, field: 'action', key: 'missing.action' })]
+  }
+  return []
+}
+
 export function gapsFor(state, stepId) {
   if (!state) return [gap('idea', { key: 'missing.ideaShort' })]
   if (stepId === 'idea') {
@@ -319,9 +352,8 @@ export function canOpenStep(state, stepId) {
   const current = stepIndex(state?.step)
   if (target < 0 || current < 0) return false
   if (target <= current) return true
-  if (target > (state.maxReached || 0)) return false
   for (let index = 0; index < target; index += 1) {
-    if (gapsFor(state, WIZARD_STEPS[index].id).length) return false
+    if (gateGaps(state, WIZARD_STEPS[index].id).length) return false
   }
   if (stepId === 'generate') return canGenerate(state)
   return true
@@ -331,11 +363,12 @@ export function openStep(state, stepId) {
   if (!canOpenStep(state, stepId) || state.step === stepId) return state
   const next = clone(state)
   next.step = stepId
+  next.maxReached = Math.max(next.maxReached || 0, stepIndex(stepId))
   return next
 }
 
 export function continueStep(state) {
-  if (gapsFor(state, state.step).length) return state
+  if (gateGaps(state, state.step).length) return state
   if (state.step === 'idea') return move(applyIdeaDetection(state), 'characters')
   if (state.step === 'check') {
     if (!canGenerate(state)) return state
