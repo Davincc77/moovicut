@@ -361,6 +361,22 @@ export function identityTraits(text, name, names = []) {
   return { looks, outfits, ages, items }
 }
 
+/** Garments and carried items named in this clause. Nothing is added that the text does not say. */
+export function namedWornAndCarried(text) {
+  const source = String(text || '')
+  const garments = []
+  const items = []
+  for (const match of source.matchAll(new RegExp(GARMENT_BIT.source, 'giu'))) pushUnique(garments, match[0])
+  for (const match of source.matchAll(new RegExp(ITEM_BIT.source, 'giu'))) pushUnique(items, match[1] || match[0])
+  for (const match of source.matchAll(new RegExp(BARE_ITEM.source, 'giu'))) pushUnique(items, match[1] || match[0])
+  const worn = garments.filter(item => !items.some(bit => {
+    const left = foldName(bit)
+    const right = foldName(item)
+    return left === right || left.includes(right) || right.includes(left)
+  }))
+  return { garments: worn, items }
+}
+
 function sheetBlob(entry) {
   return foldName([entry?.look, entry?.l, entry?.outfit, entry?.o, entry?.age, entry?.years, entry?.items, entry?.props, entry?.carried, entry?.marks, entry?.hair, entry?.role].map(value => cleanText(value)).filter(Boolean).join(' '))
 }

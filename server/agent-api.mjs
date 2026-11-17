@@ -6,6 +6,7 @@ import { AGENT_BOARD_SCHEMA, exportAgentBoard, importAgentBoard } from '../app/u
 import { publicProfile } from '../app/utils/model-profiles.js'
 import { detectProse } from '../app/utils/prose-detect.js'
 import { characterSheetGaps } from '../app/utils/prose-extra.js'
+import { lockVersionWarnings } from '../app/utils/character-lock.js'
 import { proseWarningMessage } from '../app/utils/scene-split.js'
 import { CAMERA_VALUES, LIGHT_VALUES, MOOD_VALUES, SCENARIO_MAX_CHARS } from '../app/utils/scenario.js'
 import { studioUrl } from '../app/utils/studio-link.js'
@@ -588,6 +589,69 @@ function storyForSheets(input, scenario) {
   return [input?.premise, input?.prose, input?.text, ...scenes.map(scene => [scene?.what, scene?.do, scene?.action, scene?.beat].filter(Boolean).join(' '))].filter(Boolean).join('\n')
 }
 
+function strictSheet(input) {
+  const value = input?.strict_sheet ?? input?.strictSheet
+  return value === true || value === 1 || value === '1' || value === 'true'
+}
+
+function textHasValue(text, value) {
+  const needle = foldName(value)
+  if (!needle) return false
+  const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, 'u').test(foldName(text))
+}
+
+function gapSource(input, scenario, value) {
+  const scenes = Array.isArray(scenario?.scenes) ? scenario.scenes : []
+  for (let index = 0; index < scenes.length; index += 1) {
+    const scene = scenes[index]
+    const text = [scene?.what, scene?.do, scene?.action, scene?.beat].filter(Boolean).join(' ')
+    if (textHasValue(text, value)) return `scene ${index + 1}`
+  }
+  const premise = [input?.premise, input?.prose, input?.text].filter(Boolean).join('\n')
+  if (textHasValue(premise, value)) return 'premise'
+  return 'scene 1'
+}
+
+function appendSheetValue(entry, key, value) {
+  const current = cleanText(entry[key])
+  if (!current) {
+    entry[key] = value
+    return
+  }
+  if (textHasValue(current, value)) return
+  entry[key] = `${current}, ${value}`
+}
+
+/** Fill age, garments, and carried items the story names and the sheet left out. Nothing is invented. */
+function fillThinSheets(input) {
+  const scenario = input?.scenario
+  if (!scenario || typeof scenario !== 'object' || Array.isArray(scenario) || !Array.isArray(scenario.characters)) return []
+  const gaps = characterSheetGaps(scenario.characters, storyForSheets(input, scenario))
+  return gaps.map(gap => {
+    const entry = scenario.characters[gap.index]
+    if (entry && gap.field === 'age') {
+      if (!cleanText(entry.age || entry.years)) entry.age = gap.value
+    } else if (entry && (gap.field === 'outfit' || gap.field === 'items')) {
+      appendSheetValue(entry, gap.field, gap.value)
+    }
+    return {
+      character: gap.name,
+      field: gap.field,
+      value: gap.value,
+      source: gapSource(input, scenario, gap.value),
+      code: 'sheet_filled',
+      message: `${gap.name}: filled ${gap.field} "${gap.value}" from the story. The text named it and the sheet left it out.`
+    }
+  })
+}
+
+function mergeExtraWarnings(body, extra) {
+  if (!extra?.length) return body
+  body.warnings = [...(body.warnings || []), ...extra]
+  return body
+}
+
 /** A submitted character sheet must keep every age, garment, and carried item the story names. */
 function refuseThinSheets(input) {
   const scenario = input?.scenario
@@ -621,18 +685,19 @@ export function planFromInput(input, { origin = SITE, compact = false } = {}) {
   }
   const options = storyboardOptions(input)
   if (options.prose) return planProse(options.raw, { origin, compact })
-  if (input?.scenario && typeof input.scenario === 'object') refuseThinSheets(input)
+  const sheetWarnings = input?.scenario && typeof input.scenario === 'object' && strictSheet(input) ? (refuseThinSheets(input), []) : fillThinSheets(input)
   const project = withActionSplits(createStoryboard(options), input)
   if (options.scenario && typeof options.scenario === 'object') refusePackedScenario(options.scenario, options.premise, project.shots?.length || 0)
   refuseUnplannedPremise(project, input)
   const link = boardLink(origin, project, options)
+  const extra = [...sheetWarnings, ...lockVersionWarnings(project)]
   if (input?.format === 'agent') {
-    const body = withShortBoardWarning(agentBody(project, link), project, input)
+    const body = mergeExtraWarnings(withShortBoardWarning(agentBody(project, link), project, input), extra)
     stripSceneKeys(project)
     return body
   }
   const body = compact ? compactStoryboard(project, link) : fullStoryboard(project, link)
-  const warned = withShortBoardWarning(attachWarnings(body, project), project, input)
+  const warned = mergeExtraWarnings(withShortBoardWarning(attachWarnings(body, project), project, input), extra)
   stripSceneKeys(project)
   return warned
 }
@@ -666,7 +731,7 @@ function aliasOf(name) {
 const SCENARIO_CHARACTER = {
   type: 'object',
   additionalProperties: true,
-    description: 'A complete character sheet. Short fields: n for name, l for look, o for outfit. age and items (or props) are copied into the lock line. Put every garment in outfit and every carried item in items or outfit.',
+    description: 'A character sheet. Short fields: n for name, l for look, o for outfit. age and items (or props) are copied into the lock line. If the story names an age, garment, or carried item that this sheet omits, Moovicut fills it from the text and adds a sheet_filled warning. strict_sheet keeps the 400 instead. locks is an ordered list of { fromOrder, outfit, items } versions. A version applies from that shot forward.',
     properties: {
       name: { type: 'string' },
       n: aliasOf('name'),
@@ -773,6 +838,8 @@ const STORYBOARD_SCHEMA = {
     overwritePrompt: { type: 'boolean', default: false, description: 'When false or omitted, a hand-edited prompt (promptEdited) is kept, including when a shotboard.compact.v1 board is posted back. When true, those prompts are regenerated.' },
     splitActions: { type: 'boolean', default: true, description: 'When true or omitted, a shot whose action contains more than one verb is split into one shot per action. Set false to keep the line in one shot. The studio Fix button still splits one shot. A shot marked promptEdited is not split.' },
     splitScenes: { type: 'boolean', default: true, description: 'Free prose only. Default true. Place and time cues open a scene; a sequence word alone opens a shot in the current scene. At most one cut per sentence. The response cuts array gives each cut cue, reason, kind (scene or shot), place, time, and uncertain. Set false to omit that cut list. Dialogue, memory, body parts, clothing, and abstract nouns still do not move the scene. split_scenes is the same field.' },
+    strict_sheet: { type: 'boolean', default: false, description: 'When true, a character sheet that omits an age, garment, or carried item named in the story is HTTP 400 invalid_scenario. When false or omitted, Moovicut fills those fields from the text and returns 200 with a sheet_filled warning for each addition. Nothing is invented.' },
+    strictSheet: { type: 'boolean', description: 'Alias of strict_sheet.' },
     format: { type: 'string', enum: ['agent'], description: 'Return shotboard.compact.v1 for every mode: title, premise, model, aspect, mode, style, genre, film sheet (with each character lockLine and character sheet), shots, and warnings when a shot looks risky. Minified JSON, with no extra whitespace, is the token-efficient way to send that document back. The default compact plan response stays the short payload.' },
     schema: { type: 'string', enum: ['shotboard.compact.v1'], description: 'Send a shotboard.compact.v1 document back to resume it. Prompts marked promptEdited stay as written unless overwritePrompt is true, which regenerates them.' },
     regenerateShot: { type: 'string', description: 'Shot id to rebuild. Send project or storyboard with it. Other shots stay unchanged. A hand-edited prompt is kept unless overwritePrompt is true.' },
@@ -889,7 +956,7 @@ export function openApiDocument() {
             studioUrl: { type: 'string', description: 'Hash link to /studio. The board is in the fragment and is not sent to the server on open.' },
             shots: { type: 'array', items: { $ref: '#/components/schemas/CompactShot' } },
             parts: { type: 'array', description: 'Present when the board has more than 40 shots. Each part has at most 40 shots and reuses the same character and place sheet.', items: { type: 'object', required: ['index', 'from', 'to', 'place', 'time'], properties: { index: { type: 'integer' }, from: { type: 'integer' }, to: { type: 'integer' }, place: { type: 'string' }, time: { type: 'string' } } } },
-            warnings: { type: 'array', description: 'Present only when a shot has a pre-generation risk. Warnings never block the board.', items: { type: 'object', additionalProperties: true } },
+            warnings: { type: 'array', description: 'Present when a shot looks risky, or when a thin character sheet was filled from the story. sheet_filled warnings have character, field, value, and source. Warnings never block the board.', items: { type: 'object', additionalProperties: true } },
             regenerated: { type: 'string', description: 'Shot id rebuilt by regenerateShot. Null when an edited prompt was kept.' }
           }
         },
@@ -910,7 +977,7 @@ export function openApiDocument() {
 const TOOLS = [
   {
     name: 'plan_storyboard',
-    description: 'Plan a deterministic storyboard. Default is 5 scenes × 3s (15s total) and a short per-shot video prompt: framing, the named action, the lock line, the place, one light, and locked-off camera unless a movement was set. Each character lock line is copied unchanged into every shot they appear in. For a story of 40 shots or more, fill one complete character sheet per character in scenario.characters before the shots: name, age, every garment in outfit, carried items, and distinctive features. A sheet that omits an age, garment, or carried item the story names is HTTP 400. Pass prompt_style "detailed" for the full sheet in every shot. Pass shots/duration, a scenes array, a scenario, mode ad, series, or explainer, input "prose", format "agent", or a model: grok, google, sora, chatgpt, midjourney, hailuo, seedance, pika, kling, runway, luma, wan, or generic. Free prose splits on place and time cues unless splitScenes is false. The cuts array gives each cue and reason. A character with no look is a warning, not a 400, on free prose. A story longer than 40 shots is split into parts of at most 40 shots. The same character sheet and place sheet are reused across parts. A prompt marked promptEdited is kept. Returns a compact payload and a /studio# link. Nothing is stored.',
+    description: 'Plan a deterministic storyboard. Default is 5 scenes × 3s (15s total) and a short per-shot video prompt: framing, the named action, the lock line for that shot, the place, one light, and locked-off camera unless a movement was set. Each character has an ordered list of lock versions. A new version starts when the story puts on, changes, or takes off a garment, or picks up, drops, or hands an item. Shots before that shot keep the earlier version, including across parts. A sheet may declare locks with fromOrder. A sheet that omits an age, garment, or carried item the story names is filled from the text and returned with a sheet_filled warning. strict_sheet true keeps that case as HTTP 400. Pass prompt_style "detailed" for the full sheet in every shot. Pass shots/duration, a scenes array, a scenario, mode ad, series, or explainer, input "prose", format "agent", or a model: grok, google, sora, chatgpt, midjourney, hailuo, seedance, pika, kling, runway, luma, wan, or generic. Free prose splits on place and time cues unless splitScenes is false. The cuts array gives each cue and reason. A character with no look is a warning, not a 400, on free prose. A story longer than 40 shots is split into parts of at most 40 shots. The same character sheet and place sheet are reused across parts. A prompt marked promptEdited is kept. Returns a compact payload and a /studio# link. Nothing is stored.',
     inputSchema: STORYBOARD_SCHEMA
   },
   {
