@@ -1,6 +1,6 @@
 /** Deterministic scene cuts. Closed word lists only. No model call. */
 import { cleanText } from './text.js'
-import { enteredPlace, extendsPlace, finishCarriedPlace, heldPlaceNoun, isNonPlaceNoun, isRejectedPlace, locativeHeads, movementPlace, placeTag, preferPlaceHead, settingName, tidyPlaceLemma } from './place-lexicon.js'
+import { aircraftPlace, enteredPlace, extendsPlace, finishCarriedPlace, heldPlaceNoun, isNonPlaceNoun, isRejectedPlace, locativeHeads, movementPlace, placeTag, preferPlaceHead, settingName, tidyPlaceLemma } from './place-lexicon.js'
 import { foldName } from './scenario.js'
 import { splitActionText } from './action-split.js'
 
@@ -108,7 +108,8 @@ const TIME_RULES = [
   { re: /(?<![\p{L}])(à la nuit tombée|a la nuit tombee|la nuit tombe|at nightfall|nightfall|ao anoitecer|bei einbruch der nacht|al calar della notte|bei der nuecht|夜になる|夜幕降临|入夜)(?![\p{L}])/iu, id: 'nightfall', jump: 'part', light: 'night' },
   { re: /(?<![\p{L}])(au crépuscule|au crepuscule|at dusk|ao crepúsculo|ao crepusculo|in der dämmerung|in der dammerung|al crepuscolo|an der dämmerung|黄昏|夕暮れ)(?![\p{L}])/iu, id: 'dusk', jump: 'part', light: 'dusk' },
   { re: /(?<![\p{L}])(en début de soirée|en debut de soiree|début de soirée|debut de soiree|in the early evening|early evening|ao início da noite|am frühen abend|in prima serata|fréi owes|夕方|傍晚)(?![\p{L}])/iu, id: 'evening', jump: 'part', light: 'dusk' },
-  { re: /(?<![\p{L}])(vers midi|à midi|a midi|at noon|ao meio-dia|zu mittag|a mezzogiorno|géint mëtteg|正午ごろ|中午|正午)(?![\p{L}])/iu, id: 'noon', jump: 'part', light: 'day' },
+  { re: /(?<![\p{L}])(vers midi|à midi|a midi|at noon|at midday|midday|ao meio-dia|zu mittag|a mezzogiorno|géint mëtteg|正午ごろ|中午|正午)(?![\p{L}])/iu, id: 'noon', jump: 'part', light: 'day' },
+  { re: /(?<![\p{L}])(in the afternoon|this afternoon|that afternoon|à tarde|a tarde|de tarde|pela tarde)(?![\p{L}])/iu, id: 'afternoon', jump: 'part', light: 'day' },
   { re: /(?<![\p{L}])((?:two|three|four|five|six|seven|eight|nine|ten|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|\d+)\s+(?:days|jours|dias|tage|giorni|deeg)\s+(?:later|plus tard|après|apres|depois|später|spater|dopo|drop))(?![\p{L}])/iu, id: 'days-later', jump: 'day' },
   { re: /(?<![\p{L}])(plus tard|later|mais tarde|später|spater|più tardi|piu tardi|méi spéit|mei speit|あとで|后来)(?![\p{L}])/iu, id: 'later', jump: 'later' },
   { re: /(?<![\p{L}])(perto da meia-noite|pela meia-noite|à meia-noite|a meia-noite|de meia-noite|meia-noite|meia noite)(?![\p{L}])/iu, id: 'meia-noite', jump: 'part', light: 'night' },
@@ -560,10 +561,10 @@ function hasAction(sentence, language, extra) {
 
 const LOOK = new Set(['hair', 'cheveux', 'cabelo', 'haar', 'capelli', 'hoer', 'glasses', 'lunettes', 'oculos', 'brille', 'occhiali', 'beard', 'barbe', 'barba', 'bart', 'coat', 'manteau', 'casaco', 'mantel', 'cappotto', 'apron', 'tablier', 'avental', 'schuerze', 'grembiule', 'eyes', 'yeux', 'olhos', 'augen', 'occhi', 'face', 'visage', 'rosto', 'gesicht', 'viso', 'sweater', 'pull', 'pullover', 'maglione', 'shirt', 'chemise', 'camisa', 'hemd', 'camicia', 'dress', 'robe', 'vestido', 'kleid', 'vestito', 'hat', 'chapeau', 'hut', 'cappello', 'casquette', 'cap', 'scarf', 'echarpe', 'cachecol', 'schal', 'sciarpa', 'jacket', 'veste', 'boots', 'bottes', 'shoes', 'souliers'].map(word => foldName(word)))
 
-const STRONG_ACTION = /\b(walks?|runs?|enters?|leaves?|opens?|pours?|sits?|stands?|reads?|turns?|crosses?|gives?|hands?|waits?|checks?|lifts?|holds?|follows?|yawns?|leads?|practises?|practices?|writes?|comes?|entre|sort|ouvre|verse|marche|lit|regarde|attend|porte|prend|donne|revient|boceja|lava|acende|acendem|pinta|pintam|ajuda|ajudam|senta|sentam|mostra|mostram|segura|seguram|perde|perdem)\b/iu
+const STRONG_ACTION = /\b(walks?|runs?|enters?|leaves?|opens?|pours?|sits?|stands?|reads?|turns?|crosses?|gives?|hands?|waits?|checks?|lifts?|holds?|follows?|yawns?|leads?|practises?|practices?|writes?|comes?|entre|sort|ouvre|verse|marche|lit|regarde|attend|porte|prend|donne|revient|boceja|lava|acende|acendem|pinta|pintam|ajuda|ajudam|senta|sentam|mostra|mostram|segura|seguram|perde|perdem|benze|benzem|reza|rezam|ora|oram|canta|cantam|dança|danca|dançam|dancam|fala|falam|olha|olham|abraça|abraca)\b/iu
 
 const WARDROBE_SENTENCE = /(?<![\p{L}])(?:veste|vestem|põe|poe|põem|poem|tira|tiram|despe|despem|vestir|despir|puts?\s+on|takes?\s+off|take\s+off)(?![\p{L}])/iu
-const WARDROBE_NOUN = /(?<![\p{L}])(?:impermeável|impermeavel|casaco|jaqueta|camisola|colete|vestido|camisa|blusa|saia|calças|calcas|avental|fato|farda|capa|gabardina|chapéu|chapeu|cachecol|lenço|lenco|coat|jacket|scarf|hat|cloak|apron|dress|shirt|sweater|parka|boots?)(?![\p{L}])/iu
+const WARDROBE_NOUN = /(?<![\p{L}])(?:impermeável|impermeavel|casaco|jaqueta|camisola|colete|vestido|camisa|blusa|saia|calças|calcas|avental|fato|farda|capa|gabardina|chapéu|chapeu|cachecol|lenço|lenco|coat|jacket|scarf|hat|cloak|apron|dress|shirt|sweater|parka|boots?|tailleur|batina|pérolas|perolas)(?![\p{L}])/iu
 
 /** A put-on or take-off after the story has started. It versions the outfit instead of staying a portrait. */
 export function isWardrobeSentence(sentence) {
@@ -601,7 +602,7 @@ function isLookIntro(sentence) {
 const COPULA_SETTING = /(?<![\p{L}])(?:is|are|was|were|está|esta|estão|estao|são|sao|fica|ficam)(?![\p{L}])/iu
 const QUIET_SETTING = /(?<![\p{L}])(?:quiet|silent|still|empty|calm|calmo|calma|vazio|vazia|silencioso|silenciosa|escuro|escura|deserto|deserta)(?![\p{L}])/iu
 const APPEARANCE_LEAD = /^(?:she|he|they|ela|ele|eles|elas)\s+(?:has|have|had|wears?|wore|is wearing|carries|carrying|holds?|holding|veste|usam|usa|traz|tem|têm|leva|levam)\b/iu
-const STORY_ACT = /(?<![\p{L}])(?:walks?|runs?|enters?|leaves?|opens?|pours?|sits?|stands?|reads?|turns?|gives?|hands?|waits?|lifts?|follows?|arrives?|meets?|boards?|checks?|calls?|smiles?|says?|applauds?|bows?|kneels?|nods?|claps?|yawns?|leads?|practises?|practices?|writes?|pushes?|abre|fecha|entra|sai|caminha|corre|espera|pega|lê|le|diz|sorri|entrega|observa|acende|acendem|pinta|pintam|ajuda|ajudam|sobe|desce|chama|cumprimenta|acena|aplaude|ajoelha|senta|sentam|boceja|lava|lavam|mostra|mostram|segura|seguram|perde|perdem)(?![\p{L}])/iu
+const STORY_ACT = /(?<![\p{L}])(?:walks?|runs?|enters?|leaves?|opens?|pours?|sits?|stands?|reads?|turns?|gives?|hands?|waits?|lifts?|follows?|arrives?|meets?|boards?|checks?|calls?|smiles?|says?|applauds?|bows?|kneels?|nods?|claps?|yawns?|leads?|practises?|practices?|writes?|pushes?|abre|fecha|entra|sai|caminha|corre|espera|pega|lê|le|diz|sorri|entrega|observa|acende|acendem|pinta|pintam|ajuda|ajudam|sobe|desce|chama|cumprimenta|acena|aplaude|ajoelha|senta|sentam|boceja|lava|lavam|mostra|mostram|segura|seguram|perde|perdem|benze|benzem|reza|rezam|ora|oram|canta|cantam|dança|danca|dançam|dancam|fala|falam|olha|olham|abraça|abraca)(?![\p{L}])/iu
 
 function isDefiniteDressing(sentence) {
   return /(?<![\p{L}])(?:veste|vestem)(?![\p{L}])\s+(?:o|a|os|as)\s+\p{L}/iu.test(sentence)
@@ -771,7 +772,8 @@ export function splitNarrative(text, options = {}) {
       if (venue && !isRejectedPlace(venue.name)) firmPlace = { name: venue.name, key: venue.name, cue: venue.name, uncertain: false }
     }
     const words = verbTokens(sentence).length
-    const cueOnly = !action && !cast && !firmPlace && (times.length > 0 || Boolean(sequence)) && words <= 5
+    const afterCue = times.reduce((text, cue) => text.replace(cue.cue, ' '), sentence)
+    const cueOnly = !action && !cast && !firmPlace && ((times.length > 0 && verbTokens(afterCue).length < 3) || (Boolean(sequence) && !times.length && words <= 5))
     if (cast || portrait || described) {
       const subject = described ? subjectPlace(sentence, language, places) : ''
       if (firmPlace && !isRejectedPlace(firmPlace.name)) {
@@ -889,6 +891,8 @@ export function splitNarrative(text, options = {}) {
         time: state.timeLabel || ''
       })
     }
+    const flown = aircraftPlace(sentence, language)
+    if (flown) state.place = flown
     const spoken = whoIn(sentence)
     const bits = splitPieces(actionText(sentence), language, extraVerbs)
     const statedLight = cueLight(sentence, language)

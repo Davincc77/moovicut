@@ -616,13 +616,17 @@ function parseScenarioObject(input, options = {}) {
   scenes.forEach(scene => {
     const rules = scene.rulesLight === true
     delete scene.rulesLight
-    const stated = scene.time || timeInText(scene.what) || timeInText(scene.timeLabel)
+    const stated = scene.time || timeInText(scene.what)
+    const labeled = timeInText(scene.timeLabel)
     if (stated) {
       scene.time = stated
       carriedTime = stated
     } else if (DAY_JUMP.test(`${scene.what || ''} ${scene.timeLabel || ''}`)) {
       scene.time = ''
       carriedTime = ''
+    } else if (labeled && !carriedTime) {
+      scene.time = labeled
+      carriedTime = labeled
     } else if (carriedTime) scene.time = carriedTime
     if (rules && scene.time && coarseLight.has(scene.light || '')) scene.light = ''
   })

@@ -270,11 +270,15 @@ export function compactStoryboard(project, link) {
     model: project.model,
     aspectRatio: project.aspectRatio,
     studioUrl: link,
-    shots: project.shots.map(shot => ({
-      order: shot.order,
-      duration: shot.duration_seconds || shot.duration,
-      prompt: shot.prompt
-    }))
+    shots: project.shots.map(shot => {
+      const row = {
+        order: shot.order,
+        duration: shot.duration_seconds || shot.duration,
+        prompt: shot.prompt
+      }
+      if (shot.time) row.time = shot.time
+      return row
+    })
   }
   if (project.sequenceMode === 'scenario') {
     if (project.sequences?.length) body.sequences = project.sequences.map(sequence => ({ order: sequence.order, duration: sequence.duration, shotIds: sequence.shotIds }))
@@ -393,7 +397,8 @@ function planProse(input, { origin, compact }) {
     duration: input.duration,
     promptStyle: input.prompt_style ?? input.promptStyle,
     promptLanguage: optionalPromptLanguage(input),
-    overwritePrompt: input.overwritePrompt === true
+    overwritePrompt: input.overwritePrompt === true,
+    storyText: text
   }), input)
   project.sceneSplit = splitScenes
   project.cuts = detection.cuts
