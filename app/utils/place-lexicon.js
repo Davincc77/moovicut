@@ -38,6 +38,7 @@ const EXPLICIT_NON_PLACES = new Set([
   'boca', 'joelho', 'knee', 'cotovelo', 'elbow', 'nariz', 'nose', 'orelha', 'ear', 'peito', 'chest', 'cintura', 'waist', 'dedo', 'finger',
   'chão', 'chao', 'floor', 'parede', 'wall', 'teto', 'tecto', 'ceiling', 'solo', 'ground', 'piso', 'soalho',
   'caixa', 'registadora', 'registradora', 'register', 'xaile', 'xale', 'shawl', 'coque', 'bun',
+  'watch', 'watches', 'watching', 'relógio', 'relogio', 'relógios', 'relogios',
   'french', 'english', 'portuguese', 'spanish', 'german', 'italian', 'japanese', 'chinese',
   'francês', 'frances', 'inglês', 'ingles', 'português', 'portugues', 'espanhol', 'alemão', 'alemao', 'japonês', 'japones', 'chinês', 'chines'
 ].map(word => word.toLowerCase().replace(/’/g, "'")))
@@ -48,13 +49,46 @@ const SUPPLEMENT = new Map([
     ['lighthouse', 's'],
     ['sleeper compartment', 's'],
     ['dining car', 's'],
-    ['red carpet', 's']
+    ['red carpet', 's'],
+    ['conservatory', 's'],
+    ['atrium', 's'],
+    ['study', 's'],
+    ['attic', 's'],
+    ['gallery', 's'],
+    ['workshop', 's'],
+    ['lobby', 's'],
+    ['chapel', 's'],
+    ['cloister', 's'],
+    ['vestibule', 's'],
+    ['larder', 's'],
+    ['laundry', 's'],
+    ['sea', 's'],
+    ['ocean', 's']
   ])],
   ['pt', new Map([
     ['farol', 's'],
     ['mercado', 's'],
     ['tapete vermelho', 's'],
-    ['compartimento', 's']
+    ['compartimento', 's'],
+    ['mar', 's'],
+    ['praia', 's'],
+    ['cais', 's'],
+    ['átrio', 's'],
+    ['atrio', 's'],
+    ['escritório', 's'],
+    ['escritorio', 's'],
+    ['sótão', 's'],
+    ['sotao', 's'],
+    ['galeria', 's'],
+    ['lavanderia', 's'],
+    ['biblioteca', 's'],
+    ['conservatório', 's'],
+    ['conservatorio', 's'],
+    ['vestíbulo', 's'],
+    ['vestibulo', 's'],
+    ['claustro', 's'],
+    ['bilheteira', 's'],
+    ['vinha', 's']
   ])]
 ])
 
@@ -168,7 +202,7 @@ export function heldPlaceNoun(sentence, index) {
 const STRONG = Object.freeze({
   en: ['in', 'at', 'on', 'onto', 'upon', 'inside', 'into', 'within', 'through', 'to', 'reaches', 'reach'],
   fr: ['dans', 'au', 'aux', 'à', 'chez', 'sur'],
-  pt: ['em', 'no', 'na', 'nos', 'nas', 'num', 'numa', 'ao', 'à', 'aos', 'às', 'dentro', 'entra', 'chega'],
+  pt: ['em', 'no', 'na', 'nos', 'nas', 'num', 'numa', 'ao', 'à', 'aos', 'às', 'dentro', 'entra', 'chega', 'até', 'ate', 'para'],
   it: ['in', 'nel', 'nello', 'nella', 'negli', 'nelle', 'sul', 'sullo', 'sulla', 'sui', 'sugli', 'sulle', 'al', 'allo', 'alla', 'ai', 'agli', 'alle', 'dentro', 'entra', 'entro', 'arriva', 'apre']
 })
 const ARTICLE = new Set(['the', 'a', 'an', 'le', 'la', 'les', 'un', 'une', 'des', 'du', 'o', 'os', 'as', 'um', 'uma', 'der', 'die', 'das', 'dem', 'den', 'ein', 'eine', 'einem', 'einer', 'einen', 'il', 'lo', 'gli', 'i', 'del', 'della', 'dei', 'delle', 'his', 'her', 'their', 'its', 'son', 'sa', 'ses', 'mon', 'ma', 'mes', 'seu', 'sua', 'suo', 'mio', 'mia', 'l', 'd'])
@@ -178,7 +212,9 @@ const PRONOUN = new Set(['she', 'he', 'they', 'her', 'his', 'him', 'them', 'we',
 const VERB_STEM = new Set(['climb', 'walk', 'swim', 'go', 'come', 'run', 'enter', 'leave', 'reach', 'open', 'close', 'sit', 'stand', 'read', 'wait', 'look', 'turn', 'give', 'take', 'hold', 'carry', 'wear', 'unlock', 'rake', 'lower', 'boil', 'wave', 'buy', 'pay', 'drink', 'sleep', 'write', 'arrive', 'pick', 'put', 'eat', 'check', 'pour', 'lift', 'set', 'switch', 'speak', 'sitzen', 'gehen', 'kommen', 'kaufen', 'bezahlen', 'trinken', 'lesen', 'spielen', 'schlafen', 'entra', 'legge', 'scrive', 'accende', 'siede', 'compra', 'espera', 'mostra', 'apanha', 'fecha', 'come', 'marche', 'entre', 'ouvre', 'lit', 'regarde', 'attend'])
 const PARTICLE = new Set(['down', 'up', 'away', 'back', 'out', 'off', 'along', 'over'])
 const SKIP_HEAD = new Set(['him', 'her', 'them', 'me', 'you', 'elle', 'lui', 'pixie', 'silence', 'counter', 'pocket', 'bolso', 'sleeve', 'left', 'right', 'hair', 'cut', 'hand', 'hands', 'eye', 'eyes', 'face', 'door', 'window', 'table', 'cup', 'letter', 'water', 'tea', 'it', 'one', 'end', 'side', 'front', 'back', 'top', 'bottom', 'yeux', 'oeil', 'sourcil', 'dos', 'poche', 'tiroir', 'tiroirs', 'main', 'mains', 'cheveux', 'ink', 'drawing', 'mark', 'sketch', 'paper', 'step', 'steps', 'stair', 'stairs', 'post', 'rail', 'rails', 'drawer', 'drawers', 'coat', 'jacket', 'shirt', 'dress', 'hat', 'apron', 'manteau', 'tablier', 'mantel', 'hemd', 'kleid', 'hut', 'tasche', 'schuerze', 'schürze', 'auge', 'augen', 'gesicht', 'haar', 'kopf', 'bein', 'brief', 'stille', 'licht', 'traum', 'stimme', 'fenster', 'tisch', 'glas', 'tasse', 'sleep', 'schlaf', 'sommeil', 'sonno', 'dream', 'memory', 'thought', 'voice', 'name'])
-const DESTINATION = new Set(['to', 'into', 'onto', 'dans', 'au', 'aux', 'entra', 'apre', 'ins', 'zum', 'zur', 'alla', 'al', 'allo', 'reaches', 'reach', 'chega', 'para', 'na', 'no', 'nel', 'nella', 'im'])
+const DESTINATION = new Set(['to', 'into', 'onto', 'dans', 'au', 'aux', 'entra', 'apre', 'ins', 'zum', 'zur', 'alla', 'al', 'allo', 'reaches', 'reach', 'chega', 'para', 'até', 'ate', 'na', 'no', 'nel', 'nella', 'im'])
+const BARE_VERB_NOUN = new Set(['study', 'studies', 'studying', 'watch', 'watches', 'watching', 'look', 'looks', 'looking', 'wait', 'waits', 'waiting', 'stop', 'stops', 'stopping'])
+const GENERIC_SETTING = new Set(['room', 'place', 'space', 'area', 'air', 'light', 'scene', 'sala', 'lugar', 'quarto', 'espaco', 'espaço', 'ar', 'luz', 'cena', 'setting'])
 const WEAK_BEFORE = /(?:^|[^\p{L}])(?:behind|below|under|above|beside|near|across|of|from|about|vers|près|pres|hinter|unter|neben|vicino|sotto|sopra|perto|atrás|atras)\s+(?:the\s+|a\s+|an\s+|le\s+|la\s+|les\s+|il\s+|lo\s+|l['’])?$/iu
 const MATERIAL_BEFORE = /(?:en|of|de|aus|di|von)\s+$/iu
 const OBJECT_AFTER = /^(?:\s+\p{L}[\p{L}'’-]*){0,3}\s+(?:window|door|table|wall|sill|pane|glass|frame|ledge|counter|desk|shutter|fenêtre|fenetre|porte|fenster|finestra|窗户|窗|窓)/iu
@@ -214,9 +250,9 @@ const MANNER_PLACE = new Set(['hurry', 'rush', 'haste', 'panic', 'flash', 'momen
 const STATE_ADJ = new Set(['empty', 'quiet', 'silent', 'still', 'calm', 'dark', 'bright', 'vazio', 'vazia', 'calmo', 'calma', 'escuro', 'escura', 'deserto', 'deserta'])
 const GARMENT_HEAD = /^(?:[\p{L}'’-]+\s+){0,3}(?:cardigans?|waistcoats?|vests?|blouses?|trousers|pants|jeans|coletes?|camisolas?|saias?|calças|calcas|vestidos?|casacos?|jaquetas?|blusas?|sweaters?|coats?|jackets?|dresses?|shirts?|aprons?|scarves?|scarfs?|hats?|caps?|boots?|cloaks?|robes?|hoodies?|uniforms?|skirts?|peacoats?|overcoats?|cardigãs?|pulôveres?|pullovers?)$/iu
 const BODY_HEAD = /^(?:[\p{L}'’-]+\s+){0,3}(?:beards?|barbas?|hair|cabelo|cabelos|braids?|tranças|trancas|trança|tranca|buns?|coques?|curls?|faces?|rostos?|hands?|mãos|maos|eyes?|olhos)$/iu
-const OBJECT_HEAD = /^(?:[\p{L}'’-]+\s+){0,3}(?:watches?|relógios?|relogios?|cases?|estojos?|notebooks?|cadernos?|caderno|newspapers?|jornais|jornal|books?|livros?|letters?|cartas?|chairs?|cadeiras?|cadeira|stools?|banquinhos?|benches?|bancos?|scales?|balanças|balancas|balança|windows?|janelas?|janela|doors?|portas?|tables?|mesas?|bags?|mochilas?|mochila|purses?|wallets?|phones?|telefones?|canes?|bengalas?|bengala|facões|facoes|facão|facao|facas?|knives?|cups?|copos?|bottles?|lamps?|candeeiros?)$/iu
+const OBJECT_HEAD = /^(?:[\p{L}'’-]+\s+){0,3}(?:watch(?:es)?|relógio|relogio|relógios|relogios|cases?|estojos?|notebooks?|cadernos?|caderno|newspapers?|jornais|jornal|books?|livros?|letters?|cartas?|chairs?|cadeiras?|cadeira|stools?|banquinhos?|benches?|bancos?|scales?|balanças|balancas|balança|windows?|janelas?|janela|doors?|portas?|tables?|mesas?|bags?|mochilas?|mochila|purses?|wallets?|phones?|telefones?|canes?|bengalas?|bengala|facões|facoes|facão|facao|facas?|knife|knives|cups?|copos?|bottles?|lamps?|candeeiros?)$/iu
 const VERB_PLACE = /^(?:correr|corre|correndo|running|runs|run|tests?|testing|stepping|arrives?|arriving|walks?|walking|waits?|waiting|hurrying|hurry)$/iu
-const LOCATION_HEAD = /(?:room|house|hall|shop|yard|barn|stable|stables|cottage|station|kitchen|deck|quay|pier|dock|warehouse|office|studio|gallery|church|caravan|vineyard|compartment|lighthouse|market|forest|beach|cafe|café|loft|attic|cellar|basement|porch|balcony|terrace|garden|courtyard|plaza|square|street|bridge|tower|museum|library|theatre|theater|cinema|hotel|hangar|garage|workshop|factory|farm|field|cliff|shore|harbour|harbor|port|marina|yacht|ship|boat|ferry|platform|lobby|corridor|hallway|gate|store|bakery|bar|pub|school|hospital|clinic|archive|cave|tunnel|cabin|hut|tent|camp|villa|apartment|flat|sala|varanda|conves|convés|cais|loja|armazem|armazém|floresta|mercado|oficina|igreja|estacao|estação|falesia|falésia|cozinha|patio|pátio|quintal|galpao|galpão|adega|biblioteca|teatro|porao|porão|sotao|sótão|praia|miradouro|vinha|estabulo|estábulo|iate|navio|barco|galeria|estalagem|estufa|celeiro|tombadilho|camarote|vagao|vagão|carruagem|doca|atelier|ateliê|porteira|portao|portão|steps|stairs)$/iu
+const LOCATION_HEAD = /(?:room|house|hall|shop|yard|barn|stable|stables|cottage|station|kitchen|deck|quay|pier|dock|warehouse|office|studio|gallery|church|caravan|vineyard|compartment|lighthouse|market|forest|beach|cafe|café|loft|attic|cellar|basement|porch|balcony|terrace|garden|courtyard|plaza|square|street|bridge|tower|museum|library|theatre|theater|cinema|hotel|hangar|garage|workshop|factory|farm|field|cliff|shore|harbour|harbor|port|marina|yacht|ship|boat|ferry|platform|lobby|corridor|hallway|gate|store|bakery|bar|pub|school|hospital|clinic|archive|cave|tunnel|cabin|hut|tent|camp|villa|apartment|flat|conservatory|atrium|study|pantry|greenhouse|sea|ocean|sala|varanda|conves|convés|cais|loja|armazem|armazém|floresta|mercado|oficina|igreja|estacao|estação|falesia|falésia|cozinha|patio|pátio|quintal|galpao|galpão|adega|biblioteca|teatro|porao|porão|sotao|sótão|praia|miradouro|vinha|estabulo|estábulo|iate|navio|barco|galeria|estalagem|estufa|celeiro|tombadilho|camarote|vagao|vagão|carruagem|doca|atelier|ateliê|porteira|portao|portão|bilheteira|mar|átrio|atrio|steps|stairs)$/iu
 /** Locatives that can name an unlisted setting, not only to/into/na/no. */
 const LOOSE_LOCATIVE = new Set(['in', 'at', 'on', 'inside', 'through', 'within', 'em', 'na', 'no', 'nos', 'nas', 'num', 'numa', 'ao', 'à', 'aos', 'às', 'dentro'])
 
@@ -241,6 +277,55 @@ function locationShaped(lemma) {
   const bits = text.split(/\s+/)
   if (bits.length === 1 && /^(?:steps?|stairs?)$/u.test(text)) return false
   return LOCATION_HEAD.test(bits.at(-1))
+}
+
+function indefiniteArticle(word, language) {
+  const article = String(word || '').toLowerCase()
+  if (language === 'pt') return article === 'um' || article === 'uma'
+  return article === 'a' || article === 'an' || article === 'um' || article === 'uma'
+}
+
+function definiteArticle(word, language) {
+  const article = String(word || '').toLowerCase()
+  if (language === 'pt' && article === 'a') return true
+  return /^(?:the|o|os|as|le|la|les|il|lo)$/i.test(article)
+}
+
+/** A sure place, or a compound whose head is a real setting. A bare room, a watch, and a verb are not. */
+export function settingName(lemma, language = 'en') {
+  const text = tidyPlaceLemma(lemma)
+  if (!text || isRejectedPlace(text)) return ''
+  const lang = language === 'zh' ? 'en' : (language || 'en')
+  if (GENERIC_SETTING.has(keyOf(text))) return ''
+  if (placeTag(lang, text) === 's' || placeTag(lang === 'pt' ? 'en' : 'pt', text) === 's') return displayName(text)
+  if (locationShaped(text) && !GENERIC_SETTING.has(keyOf(text.split(/\s+/).at(-1)))) return displayName(text)
+  if (locationShaped(text) && text.split(/\s+/).length > 1) return displayName(text)
+  return ''
+}
+
+/** The next word is part of the noun, not the verb that follows a place subject. */
+export function extendsPlace(word, language = 'en') {
+  const key = keyOf(word)
+  if (!key || /^(?:is|are|was|were|está|esta|estão|estao|fica|ficam|são|sao)$/iu.test(key)) return false
+  if (placeTag(language, key) || placeTag('en', key) || placeTag('pt', key)) return true
+  return isRejectedPlace(key) && !VERB_PLACE.test(key)
+}
+
+const MOVE_OBJECT = /(?<![\p{L}])(?:cross(?:es|ed|ing)?|wade(?:s|d|ing)?|stride(?:s|d|ing)?|swim(?:s|ming)?|sail(?:s|ed|ing)?|float(?:s|ed|ing)?|atravessa(?:m|r|ndo)?|nada(?:m|r|ndo)?|caminha(?:m|r|ndo)?|anda(?:m|r|ndo)?|corre(?:m|r|ndo)?|volta(?:m|r|ndo)?|segue(?:m)?|sobe(?:m)?|desce(?:m)?)(?![\p{L}])\s+((?:(?:into|onto|through|to|in|on|at|para|até|ate|no|na|nos|nas|em|ao|à|aos|às|the|an|o|os|as|um|uma|his|her|their|seu|sua|a)\s+){0,4})([\p{L}'’-]+(?:\s+[\p{L}'’-]+){0,3})/iu
+
+/** The place a movement verb reaches: "crosses the vineyard", "wades into the sea", "caminha até a bilheteira". */
+export function movementPlace(sentence, language = 'en') {
+  const match = String(sentence || '').match(MOVE_OBJECT)
+  if (!match) return ''
+  const words = match[2].split(/\s+/).filter(Boolean)
+  for (let size = Math.min(4, words.length); size >= 1; size -= 1) {
+    const phrase = words.slice(0, size).join(' ')
+    const next = words[size]
+    if (next && extendsPlace(next, language)) continue
+    const name = settingName(phrase, language)
+    if (name) return name
+  }
+  return ''
 }
 
 /**
@@ -276,10 +361,12 @@ export function locativeHeads(text, language) {
     let cursor = index + 1
     let possessive = false
     let indefinite = false
+    let definite = false
     while (cursor < tokens.length && (ARTICLE.has(bareToken(tokens[cursor][0]).toLowerCase()) || preps.has(tokens[cursor][0].toLowerCase()))) {
       const article = bareToken(tokens[cursor][0])
       if (/^(?:son|sa|ses|his|her|their|its|seu|sua|suo|mio|mia|mon|ma|mes)$/i.test(article)) possessive = true
-      if (/^(?:a|an|um|uma)$/i.test(article)) indefinite = true
+      if (indefiniteArticle(article, lang)) indefinite = true
+      if (definiteArticle(article, lang)) definite = true
       cursor += 1
     }
     let modifiers = 0
@@ -319,6 +406,7 @@ export function locativeHeads(text, language) {
     })) continue
     const lemma = tidyPlaceLemma(words.map(item => item.word).join(' '))
     if (!lemma || isRejectedPlace(lemma) || /^(?:com|with|wearing)\b/iu.test(lemma)) continue
+    if (words.length === 1 && BARE_VERB_NOUN.has(words[0].word.toLowerCase()) && !definite) continue
     let tag = placeTag(lang, lemma)
     if ((!tag || UNUSABLE.has(tag)) && words.length > 1) tag = placeTag(lang, words.at(-1).word)
     if (tag && UNUSABLE.has(tag)) continue
@@ -331,21 +419,24 @@ export function locativeHeads(text, language) {
       if (namedPerson) continue
       tag = 'unlisted'
     }
-    const toward = new Set(['to', 'into', 'onto', 'zum', 'zur', 'ins', 'vers', 'para', 'verso'])
-    const arrived = /(?:^|[^\p{L}])(?:go(?:es|ing|ne)?|went|walk(?:s|ed|ing)?|climb(?:s|ed|ing)?|enter(?:s|ed|ing)?|reach(?:es|ed|ing)?|come[s]?|came|arriv(?:e|es|ed|ing)|step(?:s|ped)?|descend(?:s|ed|ing)?|geht|gehen|ging|komm(?:t|en)|kam|betritt|betrat|erreicht|entra(?:r|ndo)?|chega|vai|va|arrive|entre|descend|monte|走进|来到|回到|进了)/iu
+    const toward = new Set(['to', 'into', 'onto', 'zum', 'zur', 'ins', 'vers', 'para', 'verso', 'até', 'ate'])
+    const arrived = /(?:^|[^\p{L}])(?:go(?:es|ing|ne)?|went|walk(?:s|ed|ing)?|climb(?:s|ed|ing)?|enter(?:s|ed|ing)?|reach(?:es|ed|ing)?|come[s]?|came|arriv(?:e|es|ed|ing)|step(?:s|ped)?|descend(?:s|ed|ing)?|wade(?:s|d|ing)?|cross(?:es|ed|ing)?|head(?:s|ed|ing)?|swim(?:s|ming)?|sail(?:s|ed|ing)?|float(?:s|ed|ing)?|geht|gehen|ging|komm(?:t|en)|kam|betritt|betrat|erreicht|entra(?:r|ndo)?|chega|vai|va|arrive|entre|descend|monte|caminha(?:m|r|ndo)?|anda(?:m|r|ndo)?|corre(?:m|r|ndo)?|volta(?:m|r|ndo)?|segue(?:m)?|sobe(?:m)?|desce(?:m)?|nada(?:m|r|ndo)?|atravessa(?:m|r|ndo)?|carrega(?:m|r|ndo)?|leva(?:m|r|ndo)?|traz|carries|carrying|brings|bring|走进|来到|回到|进了)(?![\p{L}])/iu
     const moves = !toward.has(prep) || arrived.test(source.slice(Math.max(0, tokens[index].index - 48), words.at(-1).at + words.at(-1).word.length))
     heads.push({ lemma, name: displayName(lemma), tag, index: words[0].at, locative: true, moves })
     index = cursor
   }
   const directMove = new Set(['enter', 'enters', 'entered', 'entering', 'arrive', 'arrives', 'arrived', 'arriving', 'reach', 'reaches', 'reached', 'board', 'boards', 'boarded', 'boarding', 'entra', 'entram', 'entrou', 'entrar', 'entrando', 'chega', 'chegam', 'chegou', 'chegar', 'chegando'])
-  const stepPrep = new Set(['to', 'into', 'onto', 'upon', 'on', 'in', 'at', 'inside', 'through', 'no', 'na', 'nos', 'nas', 'em', 'num', 'numa', 'ao', 'à', 'aos', 'às', 'para', 'a'])
+  const stepPrep = new Set(['to', 'into', 'onto', 'upon', 'on', 'in', 'at', 'inside', 'through', 'no', 'na', 'nos', 'nas', 'em', 'num', 'numa', 'ao', 'à', 'aos', 'às', 'para', 'a', 'até', 'ate'])
   for (let index = 0; index < tokens.length; index += 1) {
     if (!directMove.has(tokens[index][0].toLowerCase())) continue
     let cursor = index + 1
     let hops = 0
     let indefinite = false
+    let definite = false
     while (cursor < tokens.length && hops < 3 && (stepPrep.has(tokens[cursor][0].toLowerCase()) || ARTICLE.has(bareToken(tokens[cursor][0]).toLowerCase()))) {
-      if (/^(?:a|an|um|uma)$/i.test(bareToken(tokens[cursor][0]))) indefinite = true
+      const article = bareToken(tokens[cursor][0])
+      if (indefiniteArticle(article, lang)) indefinite = true
+      if (definiteArticle(article, lang)) definite = true
       cursor += 1
       hops += 1
     }
@@ -380,6 +471,7 @@ export function locativeHeads(text, language) {
     if (!words.length || words.some(item => isNonPlaceNoun(item.word))) continue
     const lemma = tidyPlaceLemma(words.map(item => item.word).join(' '))
     if (!lemma || isRejectedPlace(lemma) || /^(?:com|with|wearing)\b/iu.test(lemma)) continue
+    if (words.length === 1 && BARE_VERB_NOUN.has(words[0].word.toLowerCase()) && !definite) continue
     if (indefinite && !locationShaped(lemma) && !placeTag(lang, lemma)) continue
     if (heads.some(head => head.index === words[0].at)) continue
     let tag = placeTag(lang, lemma)
