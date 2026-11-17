@@ -23,7 +23,7 @@ test('an opening action keeps age and every garment, and traits do not cross cha
   const petra = derivedLockLine(found.characters.find(person => person.name === 'Petra'))
   const ivo = derivedLockLine(found.characters.find(person => person.name === 'Ivo'))
   for (const part of [/Twenty-nine/, /saffron coat/, /linen gloves/, /brass compass/]) assert.match(petra, part, petra)
-  assert.doesNotMatch(petra, /\bold\b|sideburns|indigo|oak cane|hawser/i, petra)
+  assert.doesNotMatch(petra, /(?<!year-)\bold\b|sideburns|indigo|oak cane|hawser/i, petra)
   for (const part of [/58/, /grey sideburns/, /indigo jacket/, /oak cane/]) assert.match(ivo, part, ivo)
   assert.doesNotMatch(ivo, /saffron|linen gloves|brass compass|hawser|Twenty-nine/i, ivo)
   assert.equal(found.scenes.some(scene => /grips the hawser/.test(scene.what)), true)

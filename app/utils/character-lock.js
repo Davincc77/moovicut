@@ -24,8 +24,11 @@ const GARMENT_FAMILIES = Object.freeze([
   ['suit', /\bsuits?\b/i],
   ['hoodie', /\bhoodies?\b/i],
   ['hakama', /\bhakama\b/i],
+  ['cape', /\b(?:capes?|capas?)\b/i],
   ['cap', /\b(?:caps?|hats?)\b/i],
-  ['cloak', /\bcloaks?\b/i],
+  ['cloak', /\b(?:cloaks?|capas?)\b/i],
+  ['blazer', /\bblazers?\b/i],
+  ['raincoat', /\b(?:raincoats?|impermeáveis|impermeaveis|gabardinas?)\b/i],
   ['parka', /\bparkas?\b/i],
   ['cardigan', /\bcardigans?\b/i],
   ['waistcoat', /\bwaistcoats?\b/i],
@@ -107,12 +110,12 @@ function splitClauses(text) {
 }
 
 function covers(longer, shorter) {
-  const a = foldName(longer)
-  const b = foldName(shorter)
+  const a = foldName(longer).replace(/-/g, ' ')
+  const b = foldName(shorter).replace(/-/g, ' ')
   if (!a || !b) return false
   if (a === b) return true
   if (b.length < 4) return false
-  return ` ${a} `.includes(` ${b} `) || a.startsWith(`${b} `) || a.endsWith(` ${b}`) || a.includes(`${b} `)
+  return ` ${a} `.includes(` ${b} `)
 }
 
 export function dedupeParts(texts) {
@@ -461,7 +464,13 @@ function related(text, value) {
 }
 
 function fieldClauses(text) {
-  return cleanText(text).split(/\s*,\s*|\s+\b(?:and|e)\b\s+/iu).map(part => part.trim()).filter(Boolean)
+  const ageJoin = /^(?:vinte|trinta|quarenta|cinquenta|sessenta|setenta|oitenta|noventa|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)\b/iu
+  const ageUnit = /^(?:um|dois|duas|três|tres|quatro|cinco|seis|sete|oito|nove|one|two|three|four|five|six|seven|eight|nine)\b/iu
+  return cleanText(text).split(/\s*,\s*/).flatMap(part => {
+    const pieces = part.split(/\s+\b(?:and|e)\b\s+/iu).map(piece => piece.trim()).filter(Boolean)
+    if (pieces.length === 2 && ageJoin.test(pieces[0]) && ageUnit.test(pieces[1])) return [part.trim()]
+    return pieces
+  })
 }
 
 function writeClauses(parts) {
@@ -764,6 +773,36 @@ export function ensureLockVersions(project) {
   appliedVersions.set(project, sign)
 }
 
+function scrubChangeText(snapshot) {
+  const cleanClause = part => {
+    const text = cleanText(part)
+    if (!text) return ''
+    if (/(?:takes?\s+off|take\s+off|removes?|tira|tiram|despe|despem)\b/iu.test(text) || /^(?:off|out)\s+/iu.test(text)) {
+      const worn = namedWornAndCarried(text)
+      return worn.garments[0] || worn.items[0] || ''
+    }
+    if (/(?:puts?\s+on|put\s+on|veste|vestem|põe|poe|poem)\s+(?:o|a|os|as|the)\b/iu.test(text)) return ''
+    if (/(?:pulls?|puxa|puxam)\b/iu.test(text)) {
+      const worn = namedWornAndCarried(text)
+      return worn.items[0] || worn.garments[0] || ''
+    }
+    if (/^\p{Lu}[\p{L}'’-]+\s+(?:tira|veste|pulls|takes|lava|yawns|boceja)\b/u.test(text)) {
+      const worn = namedWornAndCarried(text)
+      if (/(?:tira|takes|despe|removes)/iu.test(text)) return worn.garments[0] || worn.items[0] || ''
+      return ''
+    }
+    return text
+  }
+  const next = { ...snapshot }
+  ;['look', 'outfit', 'items'].forEach(key => {
+    const original = fieldClauses(next[key])
+    const cleaned = original.map(cleanClause)
+    const changed = original.length !== cleaned.filter(Boolean).length || original.some((part, index) => cleanText(part) !== cleanText(cleaned[index] || ''))
+    if (changed) next[key] = writeClauses(cleaned.filter(Boolean))
+  })
+  return next
+}
+
 function applyLockVersions(project) {
   const characters = project.filmSheet.characters
   const shots = project.shots || []
@@ -772,7 +811,7 @@ function applyLockVersions(project) {
   characters.forEach(person => {
     if (!person?.name) return
     const declared = userLocks(person)
-    let current = snapshotOf(asCharacter(person))
+    let current = scrubChangeText(snapshotOf(asCharacter(person)))
     const additions = events.filter(event => foldName(event.actor) === foldName(person.name) && (event.op === 'wear' || event.op === 'add' || event.op === 'replace'))
     additions.forEach(event => {
       if (mentionedBefore(shots, event.order, event.value)) return

@@ -1,6 +1,6 @@
 /** Deterministic scene cuts. Closed word lists only. No model call. */
 import { cleanText } from './text.js'
-import { extendsPlace, heldPlaceNoun, isNonPlaceNoun, isRejectedPlace, locativeHeads, movementPlace, placeTag, settingName, tidyPlaceLemma } from './place-lexicon.js'
+import { extendsPlace, heldPlaceNoun, isNonPlaceNoun, isRejectedPlace, locativeHeads, movementPlace, placeTag, preferPlaceHead, settingName, tidyPlaceLemma } from './place-lexicon.js'
 import { foldName } from './scenario.js'
 import { splitActionText } from './action-split.js'
 
@@ -59,9 +59,9 @@ const MEMORY = Object.freeze({
 })
 
 const GLANCE = Object.freeze({
-  en: /\b(glances?|glancing|peeks?|peering|looks?\s+toward|looking\s+toward|looks?\s+at)\b[^.]{0,48}$/i,
+  en: /\b(glances?|glancing|peeks?|peering|looks?\s+toward|looking\s+toward|looks?\s+at|smiles?\s+at|smiling\s+at|stares?\s+at|gazes?\s+at|grins?\s+at|waves?\s+at|nods?\s+at)\b[^.]{0,48}$/i,
   fr: /\b(jette un regard|jeter un regard|regarde vers|regard vers|aperçoit|apercoit|sans quitter)\b[^.]{0,60}$/i,
-  pt: /\b(olha para|olha em direção|sem sair|dá uma olhada)\b[^.]{0,48}$/i,
+  pt: /\b(olha para|olha em direção|sem sair|dá uma olhada|sorri para|sorri ao|sorri à|acena para)\b[^.]{0,48}$/i,
   it: /\b(guarda verso|dà un'occhiata|da un'occhiata|senza lasciare)\b[^.]{0,48}$/i,
   ja: /(ちらっと|目をやる|見やる)[^。]{0,24}$/,
   'zh-Hans': /(看向|瞥向|望向|没有离开)[^。]{0,24}$/
@@ -143,9 +143,9 @@ const WEAR_VERB = /(?<![\p{L}])(porte|portent|wears?|trägt|tragt|indossa|dréit
 const DOOR_NOUN = /\b(?:la|le|une|sa|son|cette|the|a|an|der|die|das)\s+porte\b/giu
 
 const BUILTIN_VERBS = Object.freeze({
-  en: ['reads', 'read', 'sets', 'set', 'stands', 'stand', 'tidies', 'tidy', 'folds', 'fold', 'switches', 'switch', 'takes', 'take', 'opens', 'open', 'pours', 'pour', 'waits', 'wait', 'comes', 'come', 'leaves', 'leave', 'looks', 'look', 'says', 'say', 'smiles', 'smile', 'closes', 'close', 'hands', 'hand', 'finds', 'find', 'compare', 'compares', 'sits', 'sit', 'puts', 'put', 'walks', 'walk', 'stops', 'stop', 'checks', 'check', 'answers', 'answer', 'watch', 'watches', 'steps', 'step', 'pulls', 'pull', 'stays', 'stay', 'remains', 'remain', 'pushes', 'push', 'lifts', 'lift', 'holds', 'hold', 'arrives', 'arrive', 'shuts', 'shut', 'listens', 'listen', 'unrolls', 'unroll', 'points', 'point', 'talks', 'talk', 'enters', 'enter', 'returns', 'return', 'knocks', 'knock', 'laughs', 'laugh', 'boards', 'board', 'meets', 'meet', 'gives', 'give', 'rides', 'turns', 'follows', 'crosses', 'drinks', 'writes', 'calls', 'runs', 'sits', 'waves', 'wave', 'mends', 'mend', 'applauds', 'applaud', 'bows', 'bow', 'kneels', 'kneel', 'nods', 'nod', 'claps', 'clap'],
+  en: ['reads', 'read', 'sets', 'set', 'stands', 'stand', 'tidies', 'tidy', 'folds', 'fold', 'switches', 'switch', 'takes', 'take', 'opens', 'open', 'pours', 'pour', 'waits', 'wait', 'comes', 'come', 'leaves', 'leave', 'looks', 'look', 'says', 'say', 'smiles', 'smile', 'closes', 'close', 'hands', 'hand', 'finds', 'find', 'compare', 'compares', 'sits', 'sit', 'puts', 'put', 'walks', 'walk', 'stops', 'stop', 'checks', 'check', 'answers', 'answer', 'watch', 'watches', 'steps', 'step', 'pulls', 'pull', 'stays', 'stay', 'remains', 'remain', 'pushes', 'push', 'lifts', 'lift', 'holds', 'hold', 'arrives', 'arrive', 'shuts', 'shut', 'listens', 'listen', 'unrolls', 'unroll', 'points', 'point', 'talks', 'talk', 'enters', 'enter', 'returns', 'return', 'knocks', 'knock', 'laughs', 'laugh', 'boards', 'board', 'meets', 'meet', 'gives', 'give', 'rides', 'turns', 'follows', 'crosses', 'drinks', 'writes', 'calls', 'runs', 'sits', 'waves', 'wave', 'mends', 'mend', 'applauds', 'applaud', 'bows', 'bow', 'kneels', 'kneel', 'nods', 'nod', 'claps', 'clap', 'yawns', 'yawn', 'leads', 'lead', 'practises', 'practise', 'practices', 'practice'],
   fr: ['lit', 'pose', 'leve', 'range', 'eteint', 'ouvre', 'verse', 'attend', 'entre', 'laisse', 'cherche', 'dit', 'sourit', 'referme', 'tend', 'boit', 'repose', 'retrouve', 'comparent', 'glisse', 'restent', 'ajuste', 'assoient', "s'assoient", 'assied', 'assoit', 'sort', 'regarde', 'apporte', 'pousse', 'releve', 'allume', 'arrive', 'ferme', 'ecoute', 'deroule', 'montre', 'parlent', 'enfilent', 'marche', 'marchent', 'arrete', 'relit', 'reste', 'repondent', 'reprennent', 'regardent', 'approche', 'serre', 'pense', 'sont', 'arrose', 'achete'],
-  pt: ['entrega', 'lê', 'le', 'afasta', 'observa', 'abre', 'entra', 'poe', 'diz', 'sorri', 'fecha', 'anda', 'espera', 'pega', 'veste', 'vestem', 'acena', 'aplaude', 'ajoelha'],
+  pt: ['entrega', 'lê', 'le', 'afasta', 'observa', 'abre', 'entra', 'poe', 'diz', 'sorri', 'fecha', 'anda', 'espera', 'pega', 'veste', 'vestem', 'acena', 'aplaude', 'ajoelha', 'boceja', 'lava', 'lavam', 'caminha', 'traz', 'leva', 'tira'],
   it: ['porge', 'legge', 'allontana', 'guarda', 'entra', 'esce', 'apre', 'dice', 'sorride', 'chiude', 'cammina', 'aspetta'],
   ja: ['渡す', '渡した', '読む', '読んだ', '歩き去る', '歩いて', '見る', '見た', '笑う', '入る', '出る', '開ける', '置く', '言う', '座る'],
   'zh-Hans': ['交给', '读了', '读', '走开', '看着', '看', '笑', '走进', '打开', '递给', '说', '坐下', '放下']
@@ -559,7 +559,7 @@ function hasAction(sentence, language, extra) {
 
 const LOOK = new Set(['hair', 'cheveux', 'cabelo', 'haar', 'capelli', 'hoer', 'glasses', 'lunettes', 'oculos', 'brille', 'occhiali', 'beard', 'barbe', 'barba', 'bart', 'coat', 'manteau', 'casaco', 'mantel', 'cappotto', 'apron', 'tablier', 'avental', 'schuerze', 'grembiule', 'eyes', 'yeux', 'olhos', 'augen', 'occhi', 'face', 'visage', 'rosto', 'gesicht', 'viso', 'sweater', 'pull', 'pullover', 'maglione', 'shirt', 'chemise', 'camisa', 'hemd', 'camicia', 'dress', 'robe', 'vestido', 'kleid', 'vestito', 'hat', 'chapeau', 'hut', 'cappello', 'casquette', 'cap', 'scarf', 'echarpe', 'cachecol', 'schal', 'sciarpa', 'jacket', 'veste', 'boots', 'bottes', 'shoes', 'souliers'].map(word => foldName(word)))
 
-const STRONG_ACTION = /\b(walks?|runs?|enters?|leaves?|opens?|pours?|sits?|stands?|reads?|turns?|crosses?|gives?|hands?|waits?|checks?|lifts?|holds?|follows?|entre|sort|ouvre|verse|marche|lit|regarde|attend|porte|prend|donne|revient)\b/iu
+const STRONG_ACTION = /\b(walks?|runs?|enters?|leaves?|opens?|pours?|sits?|stands?|reads?|turns?|crosses?|gives?|hands?|waits?|checks?|lifts?|holds?|follows?|yawns?|leads?|practises?|practices?|writes?|comes?|entre|sort|ouvre|verse|marche|lit|regarde|attend|porte|prend|donne|revient|boceja|lava)\b/iu
 
 /** A sentence that only introduces a person. It fills the sheet and is not a shot. */
 export function isPortraitSentence(sentence) {
@@ -588,7 +588,7 @@ function isLookIntro(sentence) {
 const COPULA_SETTING = /(?<![\p{L}])(?:is|are|was|were|está|esta|estão|estao|são|sao|fica|ficam)(?![\p{L}])/iu
 const QUIET_SETTING = /(?<![\p{L}])(?:quiet|silent|still|empty|calm|calmo|calma|vazio|vazia|silencioso|silenciosa|escuro|escura|deserto|deserta)(?![\p{L}])/iu
 const APPEARANCE_LEAD = /^(?:she|he|they|ela|ele|eles|elas)\s+(?:has|have|had|wears?|wore|is wearing|carries|carrying|holds?|holding|veste|usam|usa|traz|tem|têm|leva|levam)\b/iu
-const STORY_ACT = /(?<![\p{L}])(?:walks?|runs?|enters?|leaves?|opens?|pours?|sits?|stands?|reads?|turns?|gives?|hands?|waits?|lifts?|follows?|arrives?|meets?|boards?|checks?|calls?|smiles?|says?|applauds?|bows?|kneels?|nods?|claps?|abre|fecha|entra|sai|caminha|corre|espera|pega|lê|le|diz|sorri|entrega|observa|acende|sobe|desce|chama|cumprimenta|acena|aplaude|ajoelha|senta)(?![\p{L}])/iu
+const STORY_ACT = /(?<![\p{L}])(?:walks?|runs?|enters?|leaves?|opens?|pours?|sits?|stands?|reads?|turns?|gives?|hands?|waits?|lifts?|follows?|arrives?|meets?|boards?|checks?|calls?|smiles?|says?|applauds?|bows?|kneels?|nods?|claps?|yawns?|leads?|practises?|practices?|writes?|pushes?|abre|fecha|entra|sai|caminha|corre|espera|pega|lê|le|diz|sorri|entrega|observa|acende|sobe|desce|chama|cumprimenta|acena|aplaude|ajoelha|senta|boceja|lava|lavam)(?![\p{L}])/iu
 
 function isDefiniteDressing(sentence) {
   return /(?<![\p{L}])(?:veste|vestem)(?![\p{L}])\s+(?:o|a|os|as)\s+\p{L}/iu.test(sentence)
@@ -745,8 +745,8 @@ export function splitNarrative(text, options = {}) {
     const action = hasAction(sentence, language, extraVerbs) && !cast && !portrait && !described
     let firmPlace = place && !place.uncertain && !isRejectedPlace(place.name) ? place : null
     if (!firmPlace) {
-      const headed = locativeHeads(sentence, language).find(item => item.moves !== false && !isRejectedPlace(item.lemma) && mentionMovesScene(sentence, item.index, language))
-      if (headed) firmPlace = { name: headed.name, key: headed.lemma, cue: headed.name, uncertain: false, unlisted: headed.tag === 'unlisted' }
+      const headed = preferPlaceHead(locativeHeads(sentence, language).filter(item => item.moves !== false && !isNonPlaceNoun(item.lemma) && !isRejectedPlace(item.lemma) && mentionMovesScene(sentence, item.index, language)), sentence)
+      if (headed && !(headed.soft && state.place)) firmPlace = { name: headed.name, key: headed.lemma, cue: headed.name, uncertain: false, unlisted: headed.tag === 'unlisted' }
     }
     if (!firmPlace) {
       const venue = namedVenues(sentence, language).find(item => String(item.name || '').split(/\s+/).length > 1)
@@ -773,7 +773,7 @@ export function splitNarrative(text, options = {}) {
       }
     }
     if (cueOnly) {
-      const headed = locativeHeads(sentence, language).find(item => item.moves !== false && !isRejectedPlace(item.lemma) && mentionMovesScene(sentence, item.index, language))
+      const headed = preferPlaceHead(locativeHeads(sentence, language).filter(item => item.moves !== false && !isNonPlaceNoun(item.lemma) && !isRejectedPlace(item.lemma) && mentionMovesScene(sentence, item.index, language)), sentence)
       pending.push({
         place: headed ? { name: headed.name, key: headed.lemma, cue: headed.name, uncertain: false } : null,
         times,
