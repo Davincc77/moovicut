@@ -13,9 +13,9 @@ const appBaseURL = useRuntimeConfig().app.baseURL
       <li v-for="study in STUDIO_INSPIRATIONS" :key="study.file">
         <picture>
           <source :srcset="joinAppPath(appBaseURL, promptImageSrc(study.file, 'webp'))" type="image/webp" />
-          <img :src="joinAppPath(appBaseURL, promptImageSrc(study.file, 'jpg'))" :alt="study.title" width="1280" height="720" loading="lazy" decoding="async" />
+          <img :src="joinAppPath(appBaseURL, promptImageSrc(study.file, 'jpg'))" :alt="$t(study.caption || study.title)" width="1280" height="720" loading="lazy" decoding="async" />
         </picture>
-        <span>{{ study.title }}</span>
+        <span>{{ $t(study.caption || study.title) }}</span>
       </li>
     </ul>
   </section>

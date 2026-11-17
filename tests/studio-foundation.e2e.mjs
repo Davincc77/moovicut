@@ -62,9 +62,9 @@ const copy = {
     name: 'Nome', quick: 'Ideia rápida', scenario: 'Cenário', ad: 'Anúncio', series: 'Série', explainer: 'Explicação',
     createBoard: 'Criar storyboard', steps: 'Storyboard passo a passo', settings: 'Mais opções',
     shots: 'Número de planos', seconds: 'Duração em segundos', family: 'Família de estilo', library: 'Importar a biblioteca',
-    undo: 'Desfazer', save: 'Salvar',
+    undo: 'Desfazer', save: 'Guardar',
     export: 'Exportar', close: 'Fechar a caixa de diálogo', exportJson: 'Exportar JSON', exportLibrary: 'Exportar a biblioteca',
-    importProject: 'Importar o projeto', saveProject: 'Salvar o projeto atual', prompt: 'Alvo do prompt',
+    importProject: 'Importar o projeto', saveProject: 'Guardar o projeto atual', prompt: 'Alvo do prompt',
     aspect: 'Proporção', length: 'Comprimento do prompt', dialog: 'Edite o storyboard local',
     menu: /Abrir a navegação do estúdio/, projectsPattern: /Meus projetos/, meta: /5 planos · \d+ segundos/
   }

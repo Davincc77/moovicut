@@ -194,7 +194,8 @@ export function createVisitServer({ store, token = '', staticRoot = join(rootDir
           userAgent: request.headers['user-agent'] || '',
           path: payload.path,
           referrer: payload.referrer,
-          purpose: `${request.headers.purpose || ''} ${request.headers['sec-purpose'] || ''}`
+          purpose: `${request.headers.purpose || ''} ${request.headers['sec-purpose'] || ''}`,
+          webdriver: payload.webdriver
         })
         sendJson(response, 200, result)
         return

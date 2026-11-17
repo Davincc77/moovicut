@@ -37,6 +37,27 @@ test('CSS and Vue colours stay inside the token palette', () => {
   assert.deepEqual(offenders, [])
 })
 
+test('form controls that used to be browser-grey use the palette tokens', () => {
+  const css = readFileSync('app/assets/css/main.css', 'utf8')
+  const rules = [
+    ['.studio-step-actions button', /background:\s*var\(--surface\)/, /color:\s*var\(--text\)/, /border:\s*1px solid var\(--border\)/],
+    ['.library-open', /background:\s*var\(--surface\)/, /color:\s*var\(--text\)/, /border:\s*1px solid var\(--border\)/],
+    ['dialog.confirm-dialog button', /background:\s*var\(--surface\)/, /color:\s*var\(--text\)/, /border:\s*1px solid var\(--border\)/],
+    ['.copy-prompt-button', /background:\s*var\(--surface\)/, /color:\s*var\(--text\)/, /border:\s*1px solid var\(--border\)/],
+    ['.studio-sequence-mode :is(input, textarea, select)', /background:\s*var\(--bg\)/, /color:\s*var\(--text\)/, /border:\s*1px solid var\(--border\)/],
+    ['.studio-scenario textarea', /background:\s*var\(--bg\)/, /color:\s*var\(--text\)/, /border:\s*1px solid var\(--border\)/]
+  ]
+  for (const [selector, background, color, border] of rules) {
+    const start = css.indexOf(selector)
+    assert.ok(start >= 0, `${selector} is missing`)
+    const body = css.slice(start, css.indexOf('}', start))
+    assert.match(body, background, selector)
+    assert.match(body, color, selector)
+    assert.match(body, border, selector)
+    assert.doesNotMatch(body, /buttonface|canvastext|graytext|#808080|#d3d3d3/i, selector)
+  }
+})
+
 test('colour tokens are defined on :root', () => {
   const css = readFileSync('app/assets/css/main.css', 'utf8')
   assert.match(css, /:root \{[^}]*--bg:#0a0a0a/)

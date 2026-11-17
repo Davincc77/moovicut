@@ -152,13 +152,13 @@ defineExpose({ draft, fill: fillFromText })
       </li>
     </ul>
     <label>{{ $t('1. Characters') }}
-      <textarea v-model="characters" :aria-label="$t('Characters')" rows="3" placeholder="Léa — curly hair, round glasses — green apron" @input="onEdit('characters')"></textarea>
+      <textarea v-model="characters" :aria-label="$t('Characters')" rows="3" :placeholder="$t('Léa — curly hair, round glasses — green apron')" @input="onEdit('characters')"></textarea>
     </label>
     <label>{{ $t('2. Places') }}
-      <textarea v-model="places" :aria-label="$t('Places')" rows="3" placeholder="Café — a small morning cafe" @input="onEdit('places')"></textarea>
+      <textarea v-model="places" :aria-label="$t('Places')" rows="3" :placeholder="$t('Café — a small morning cafe')" @input="onEdit('places')"></textarea>
     </label>
     <label>{{ $t('3. Story, scene by scene') }}
-      <textarea v-model="scenes" :aria-label="$t('Scenes')" rows="4" placeholder="Scene 1 — Lea — Cafe — She pours a latte" @input="onEdit('scenes')"></textarea>
+      <textarea v-model="scenes" :aria-label="$t('Scenes')" rows="4" :placeholder="$t('Scene 1 — Lea — Cafe — She pours a latte')" @input="onEdit('scenes')"></textarea>
     </label>
     <div class="studio-scenario-style">
       <label>{{ $t('Light') }}

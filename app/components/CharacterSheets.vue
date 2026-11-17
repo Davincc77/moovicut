@@ -26,6 +26,11 @@ const turnaround = [
 ]
 
 const cast = computed(() => (project.value.filmSheet?.characters || []).map(asCharacter))
+function slotKey(slot) {
+  if (slot === 'front') return 'Front reference'
+  if (slot === 'side') return 'Side reference'
+  return 'Back reference'
+}
 
 function patchAt(index, patch) {
   const characters = (project.value.filmSheet?.characters || []).map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : { ...item })
@@ -166,9 +171,9 @@ function printPacket() {
         <p>{{ $t('These stay in this browser. Moovicut does not upload them or call an image API.') }}</p>
         <div class="character-ref-slots">
           <div v-for="ref in character.sheet.refs" :key="ref.slot">
-            <label :for="`ref-${index}-${ref.slot}`">{{ ref.slot }}</label>
-            <img v-if="ref.dataUrl" :src="ref.dataUrl" :alt="ref.name || $t('{name} {slot} reference', { name: character.name, slot: ref.slot })" />
-            <input :id="`ref-${index}-${ref.slot}`" type="file" accept="image/png,image/jpeg,image/webp,image/gif" @change="readRef(index, ref.slot, $event)" />
+            <label :for="`ref-${index}-${ref.slot}`">{{ $t(slotKey(ref.slot)) }}</label>
+            <img v-if="ref.dataUrl" :src="ref.dataUrl" :alt="ref.name || $t('{name} {slot} reference', { name: character.name, slot: $t(slotKey(ref.slot)) })" />
+            <input :id="`ref-${index}-${ref.slot}`" type="file" accept="image/png,image/jpeg,image/webp,image/gif" :aria-label="$t('{name} reference image, {slot}', { name: character.name || $t('Character'), slot: $t(slotKey(ref.slot)) })" @change="readRef(index, ref.slot, $event)" />
             <label :for="`ref-note-${index}-${ref.slot}`">{{ $t('Note') }}</label>
             <input :id="`ref-note-${index}-${ref.slot}`" :value="ref.note" @change="setRef(index, ref.slot, { name: ref.name, note: $event.target.value, dataUrl: ref.dataUrl })" />
             <button v-if="ref.dataUrl || ref.note" type="button" class="text-button" @click="clearRef(index, ref.slot)">{{ $t('Remove {slot}', { slot: ref.slot }) }}</button>
