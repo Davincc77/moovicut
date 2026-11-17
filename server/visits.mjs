@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync, renameSync, existsSync, accessSync, consta
 import { writeFile, rename } from 'node:fs/promises'
 import { dirname } from 'node:path'
 
-const BOT = /bot\b|crawl|spider|slurp|preview|headless|facebookexternalhit|embedly|quora|whatsapp|telegram|slackbot|discord|linkedinbot|twitterbot|applebot|bingbot|googlebot|duckduck|baidu|yandex|semrush|ahrefs|petalbot|bytespider|gptbot|claudebot|amazonbot|wget|curl\b|python-requests|go-http-client/i
+const BOT = /bot\b|crawl|spider|slurp|preview|headless|webdriver|playwright|puppeteer|phantomjs|facebookexternalhit|embedly|quora|whatsapp|telegram|slackbot|discord|linkedinbot|twitterbot|applebot|bingbot|googlebot|duckduck|baidu|yandex|semrush|ahrefs|petalbot|bytespider|gptbot|claudebot|amazonbot|wget|curl\b|python-requests|go-http-client/i
 const VIEW_CAP = 60
 const WRITE_DELAY_MS = 3000
 const DEFAULT_COUNTER_FILE = '/data/visits.json'
@@ -15,6 +15,12 @@ export function visitCounterPath(env = process.env) {
 
 export function isBot(userAgent = '') {
   return BOT.test(String(userAgent || ''))
+}
+
+/** Playwright and other crawlers set navigator.webdriver. A headless UA is already a bot. */
+export function isAutomatedVisit({ userAgent = '', webdriver = false } = {}) {
+  if (webdriver === true || webdriver === 1 || webdriver === '1' || webdriver === 'true') return true
+  return isBot(userAgent)
 }
 
 export function normalizePath(input) {
@@ -216,8 +222,8 @@ export function createVisitStore({ filePath = '', now = () => new Date(), random
     return commit().finally(() => { flushing = false })
   }
 
-  function record({ address = '', userAgent = '', path = '/', referrer = '', purpose = '' } = {}) {
-    if (isBot(userAgent) || /prefetch/i.test(String(purpose || ''))) return { counted: false, total: state.total }
+  function record({ address = '', userAgent = '', path = '/', referrer = '', purpose = '', webdriver = false } = {}) {
+    if (isAutomatedVisit({ userAgent, webdriver }) || /prefetch/i.test(String(purpose || ''))) return { counted: false, total: state.total }
     const pagePath = normalizePath(path)
     if (!pagePath) return { counted: false, total: state.total }
     const bucket = todayBucket(now())

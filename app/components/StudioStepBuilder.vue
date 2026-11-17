@@ -17,9 +17,9 @@ const emit = defineEmits(['add', 'remove', 'move', 'update', 'count'])
         <header>
           <span>{{ $t('Scene {n}', { n: index + 1 }) }}</span>
           <span class="studio-step-actions">
-            <button type="button" :aria-label="$t('Move scene {n} up', { n: index + 1 })" :disabled="index === 0" @click="emit('move', index, -1)">{{ $t('Up') }}</button>
-            <button type="button" :aria-label="$t('Move scene {n} down', { n: index + 1 })" :disabled="index === scenes.length - 1" @click="emit('move', index, 1)">{{ $t('Down') }}</button>
-            <button type="button" :aria-label="$t('Remove scene {n}', { n: index + 1 })" :disabled="scenes.length <= 1" @click="emit('remove', index)">{{ $t('Remove') }}</button>
+            <button class="button button-secondary" type="button" :aria-label="$t('Move scene {n} up', { n: index + 1 })" :disabled="index === 0" @click="emit('move', index, -1)">{{ $t('Up') }}</button>
+            <button class="button button-secondary" type="button" :aria-label="$t('Move scene {n} down', { n: index + 1 })" :disabled="index === scenes.length - 1" @click="emit('move', index, 1)">{{ $t('Down') }}</button>
+            <button class="button button-secondary" type="button" :aria-label="$t('Remove scene {n}', { n: index + 1 })" :disabled="scenes.length <= 1" @click="emit('remove', index)">{{ $t('Remove') }}</button>
           </span>
         </header>
         <label>{{ $t('Beat / action') }}<textarea :value="scene.action" :aria-label="$t('Beat for scene {n}', { n: index + 1 })" @change="emit('update', index, 'action', $event.target.value)"></textarea></label>
@@ -31,6 +31,6 @@ const emit = defineEmits(['add', 'remove', 'move', 'update', 'count'])
         <OpenInButtons v-if="scene.prompt" :prompt="scene.prompt" :seed="index" />
       </li>
     </ol>
-    <button type="button" @click="emit('add')">{{ $t('+ Add scene') }}</button>
+    <button class="button button-secondary" type="button" @click="emit('add')">{{ $t('+ Add scene') }}</button>
   </section>
 </template>

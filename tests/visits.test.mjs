@@ -52,6 +52,18 @@ test('a visitor is counted once per day and the raw address is never stored', ()
   assert.doesNotMatch(JSON.stringify(store.stats()), /salt|seen|203\.0\.113/)
 })
 
+test('webdriver and headless clients are not counted, and a normal browser still is', () => {
+  const store = createVisitStore({ filePath: '' })
+  assert.equal(store.record({ address: '203.0.113.70', userAgent: browser, path: '/studio', webdriver: true }).counted, false)
+  assert.equal(store.record({ address: '203.0.113.71', userAgent: 'Mozilla/5.0 HeadlessChrome/131.0.0.0 Safari/537.36', path: '/' }).counted, false)
+  assert.equal(store.record({ address: '203.0.113.72', userAgent: browser, path: '/faq', webdriver: false }).counted, true)
+  assert.equal(store.publicTotal().total, 1)
+  const plugin = readFileSync('app/plugins/visits.client.js', 'utf8')
+  assert.match(plugin, /navigator\.webdriver/)
+  assert.match(readFileSync('server/prod-server.mjs', 'utf8'), /webdriver: payload\.webdriver/)
+  assert.match(readFileSync('server/index.mjs', 'utf8'), /webdriver: payload\.webdriver/)
+})
+
 test('bots, prefetch, and the private stats path are not counted', () => {
   const store = createVisitStore({ filePath: '' })
   assert.equal(store.record({ address: '203.0.113.8', userAgent: 'Mozilla/5.0 (compatible; Googlebot/2.1)', path: '/' }).counted, false)

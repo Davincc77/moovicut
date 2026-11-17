@@ -28,9 +28,9 @@ function onDragStart(event) {
     @drop="emit('move-to', $event, shot.id)"
   >
     <span class="sr-only">{{ $t('Drag to reorder') }}</span>
-    <button class="shot-card-open" type="button" :title="$t('Edit shot')" :aria-label="$t('Edit shot {n}: {title}', { n: index + 1, title: shot.title })" @click="emit('edit')">
+    <button class="shot-card-open" type="button" :title="$t('Edit shot')" :aria-label="$t('Edit shot {n}: {title}', { n: index + 1, title: $t(shot.title) })" @click="emit('edit')">
       <span class="shot-number">{{ String(index + 1).padStart(2, '0') }}</span>
-      <span class="shot-card-title">{{ shot.title }}</span>
+      <span class="shot-card-title">{{ $t(shot.title) }}</span>
       <span class="shot-thumbnail" :class="`scene-shot-${index % 6}`">
         <SceneArt :index="index" :title="$t('Original scene illustration for {title}', { title: shot.title })" />
       </span>

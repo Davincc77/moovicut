@@ -56,7 +56,7 @@ const copy = {
     ideaError: 'Acrescente um pouco mais. A ideia precisa de pelo menos 8 caracteres.',
     nameError: 'Adicione um nome.', placeError: 'Adicione o nome do lugar.', actionError: 'Descreva uma só ação.',
     none: 'Sem personagem', back: 'Voltar', storyboard: 'Storyboard', projects: 'Meus projetos',
-    menu: /Abrir a navegação do estúdio/, export: 'Exportar', save: 'Salvar o projeto atual',
+    menu: /Abrir a navegação do estúdio/, export: 'Exportar', save: 'Guardar o projeto atual',
     backup: 'Cópia e transferência', exportJson: 'Exportar JSON', move: 'Mover para antes',
     shotMenu: 'Ações do plano 2', goCharacters: 'Ir para Personagens', advanced: 'Modo avançado'
   }

@@ -25,7 +25,7 @@ defineExpose({ ask })
     <h2>{{ pending?.title }}</h2>
     <p>{{ pending?.message }}</p>
     <form method="dialog">
-      <button value="cancel" type="submit">{{ $t('Cancel') }}</button>
+      <button class="button button-secondary" value="cancel" type="submit">{{ $t('Cancel') }}</button>
       <button class="button button-primary" value="confirm" type="submit">{{ pending?.confirm || $t('Delete') }}</button>
     </form>
   </dialog>

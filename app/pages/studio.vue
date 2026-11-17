@@ -124,7 +124,7 @@ useSeoMeta({
       <ul class="library-list">
         <li v-for="project in store.savedProjects" :key="project.id">
           <div class="library-row">
-            <button v-if="renamingId!==project.id" type="button" @click="store.loadProject(project);projectsOpen=false"><strong>{{ project.title }}</strong><span>{{ $t('{count} shots · {date}', { count: project.shots.length, date: project.updatedAt?.slice(0,10) }) }}</span></button>
+            <button v-if="renamingId!==project.id" class="button button-secondary library-open" type="button" @click="store.loadProject(project);projectsOpen=false"><strong>{{ project.title }}</strong><span>{{ $t('{count} shots · {date}', { count: project.shots.length, date: project.updatedAt?.slice(0,10) }) }}</span></button>
             <label v-else class="library-rename">{{ $t('New name') }}<input :value="renameDraft" :aria-label="$t('Rename {title}', { title: project.title })" @input="renameDraft=$event.target.value" @keydown.enter.prevent="saveRename(project)" /></label>
             <ActionMenu :label="$t('Actions for {title}', { title: project.title })">
               <template #trigger><Ellipsis :size="18" aria-hidden="true" /></template>

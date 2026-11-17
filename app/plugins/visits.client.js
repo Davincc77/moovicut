@@ -9,7 +9,11 @@ export default defineNuxtPlugin(() => {
       method: 'POST',
       credentials: 'omit',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ path: to.path || '/', referrer: document.referrer || '' })
+      body: JSON.stringify({
+        path: to.path || '/',
+        referrer: document.referrer || '',
+        webdriver: typeof navigator !== 'undefined' && navigator.webdriver === true
+      })
     }).then(async response => {
       const type = response.headers.get('content-type') || ''
       if (!response.ok || !type.includes('application/json')) return

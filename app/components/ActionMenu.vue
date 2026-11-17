@@ -6,7 +6,18 @@ const props = defineProps({
 const open = ref(false)
 const trigger = ref(null)
 const menu = ref(null)
+const portal = shallowRef('body')
+const inDialog = ref(false)
 const menuId = `action-menu-${Math.random().toString(36).slice(2, 9)}`
+
+function bindPortal() {
+  const dialog = trigger.value?.closest?.('dialog') || null
+  // Only a modal sheet (the full-height phone dialog) sits in the top layer
+  // above a body-level popover. A non-modal desktop sheet keeps the popover.
+  const modal = Boolean(dialog && (dialog.classList.contains('is-modal') || dialog.matches?.(':modal')))
+  inDialog.value = modal
+  portal.value = modal ? dialog : 'body'
+}
 
 function items() {
   return [...(menu.value?.querySelectorAll('[role="menuitem"]:not([disabled])') || [])]
@@ -28,20 +39,32 @@ function place() {
 }
 
 async function openMenu(focusFirst = false) {
+  bindPortal()
   const pop = menu.value
   if (!pop) return
-  if (pop.showPopover && !pop.matches(':popover-open')) pop.showPopover()
   open.value = true
   await nextTick()
+  // A phone sheet is a modal dialog in the top layer. A popover teleported to
+  // body is painted over that sheet but the dialog keeps the hit test, so a
+  // tap lands on the row underneath. Inside a dialog the menu is a normal
+  // descendant and receives the tap.
+  if (!inDialog.value && pop.showPopover && !pop.matches(':popover-open')) pop.showPopover()
   place()
   if (focusFirst) items()[0]?.focus()
 }
 
 function close(restore = true) {
   const pop = menu.value
-  if (pop?.hidePopover && pop.matches(':popover-open')) pop.hidePopover()
+  if (pop?.hidePopover && pop.matches?.(':popover-open')) pop.hidePopover()
   open.value = false
   if (restore) trigger.value?.focus()
+}
+
+function onDocPointer(event) {
+  if (!open.value || !inDialog.value) return
+  const target = event.target
+  if (menu.value?.contains(target) || trigger.value?.contains(target)) return
+  close(false)
 }
 
 function onToggle(event) {
@@ -81,8 +104,15 @@ function onMenuClick(event) {
 }
 
 function onResize() { if (open.value) place() }
-onMounted(() => window.addEventListener('resize', onResize))
-onBeforeUnmount(() => window.removeEventListener('resize', onResize))
+onMounted(() => {
+  bindPortal()
+  window.addEventListener('resize', onResize)
+  document.addEventListener('pointerdown', onDocPointer)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', onResize)
+  document.removeEventListener('pointerdown', onDocPointer)
+})
 </script>
 
 <template>
@@ -97,12 +127,13 @@ onBeforeUnmount(() => window.removeEventListener('resize', onResize))
     @click="open ? close(false) : openMenu(false)"
     @keydown="onTriggerKey"
   ><slot name="trigger">{{ label }}</slot></button>
-  <Teleport to="body">
+  <Teleport :to="portal">
     <div
       :id="menuId"
       ref="menu"
       class="action-menu"
-      popover="auto"
+      :class="{ 'is-open': open && inDialog }"
+      :popover="inDialog ? null : 'auto'"
       role="menu"
       :aria-label="menuLabel || label"
       @toggle="onToggle"

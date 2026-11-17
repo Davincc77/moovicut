@@ -49,6 +49,49 @@ test('translations keep placeholders and are not a copy of English', () => {
   }
 })
 
+test('legal pages, shot chrome, inspiration, and scenario examples are catalog keys', () => {
+  const keys = new Set(collectKeys())
+  const english = catalog('en')
+  const portuguese = catalog('pt')
+  const surfaces = [
+    'Privacy, in plain language',
+    'Your story belongs to you. Moovicut is local-first by design.',
+    'A fair agreement for your creative work',
+    'Make something worth sharing',
+    'Page not found',
+    'This address is not part of Moovicut.',
+    'Opening',
+    'Establish the world',
+    'Meet the protagonist',
+    'An apprentice astronaut crosses a silent space station to recover a paper star map.',
+    'Automatic reading of this language is uncertain. Check the names, places, and actions.',
+    'Léa — curly hair, round glasses — green apron',
+    'Café — a small morning cafe',
+    'Scene 1 — Lea — Cafe — She pours a latte',
+    'Create a storyboard before applying a style preset.',
+    'Front reference',
+    '{name} reference image, {slot}'
+  ]
+  for (const key of surfaces) {
+    assert.equal(keys.has(key), true, key)
+    assert.equal(english[key], key, key)
+    assert.notEqual(portuguese[key], key, `${key} is still English in Portuguese`)
+  }
+  assert.equal(portuguese.Genre, 'Género')
+  const gallery = readFileSync('app/components/StudioLandingGallery.vue', 'utf8')
+  assert.match(gallery, /\$t\(study\.caption \|\| study\.title\)/)
+  assert.doesNotMatch(gallery, /\{\{\s*study\.title\s*\}\}/)
+  const scenario = readFileSync('app/components/StudioScenario.vue', 'utf8')
+  assert.doesNotMatch(scenario, /placeholder="[^$]/)
+  const cards = readFileSync('app/components/ShotCard.vue', 'utf8')
+  assert.match(cards, /\{\{\s*\$t\(shot\.title\)\s*\}\}/)
+  const editor = readFileSync('app/components/StudioEditor.vue', 'utf8')
+  assert.match(editor, /\$t\(activeShot\.stage\)/)
+  for (const value of Object.values(portuguese)) {
+    assert.doesNotMatch(value, /\b(você|Você|Salvar|Excluir|gênero|baixar)\b/)
+  }
+})
+
 test('the language switcher renders the native names', async () => {
   const source = readFileSync('app/components/LanguageSwitcher.vue', 'utf8')
   assert.match(source, /v-for="item in LOCALES"/)

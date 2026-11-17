@@ -9,6 +9,9 @@ import { assessShot } from '~/utils/shot-risk.js'
 import { downloadBody } from '~/composables/useNotifier.js'
 const store = useProjectStore()
 const { locale, t } = useI18n()
+// Top-level computeds. Nested refs on the plain store object are not unwrapped in the template.
+const canUndo = computed(() => store.canUndo.value === true)
+const canRedo = computed(() => Array.isArray(store.future.value) && store.future.value.length > 0)
 const project = computed(() => store.project.value)
 const totalSeconds = computed(() => Number(store.duration.value) || 0)
 const { notify, copyText, downloadText } = useNotifier()
@@ -115,8 +118,8 @@ function onExport(id) {
       <button class="text-button" type="button" @click="openSettings">{{ $t('Project settings') }}</button>
     </header>
     <div class="editor-toolbar storyboard-toolbar" role="toolbar" :aria-label="$t('Storyboard')">
-      <button class="icon-button" type="button" :title="$t('Undo')" :aria-label="$t('Undo')" :disabled="!store.canUndo" @click="store.undo()"><Undo2 :size="16" aria-hidden="true" /></button>
-      <button class="icon-button" type="button" :title="$t('Redo')" :aria-label="$t('Redo')" :disabled="!store.future.length" @click="store.redo()"><Redo2 :size="16" aria-hidden="true" /></button>
+      <button class="icon-button" type="button" :title="$t('Undo')" :aria-label="$t('Undo')" :disabled="!canUndo" @click="store.undo()"><Undo2 :size="16" aria-hidden="true" /></button>
+      <button class="icon-button" type="button" :title="$t('Redo')" :aria-label="$t('Redo')" :disabled="!canRedo" @click="store.redo()"><Redo2 :size="16" aria-hidden="true" /></button>
       <label class="storyboard-search" for="editor-search">{{ $t('Search shots') }}<input id="editor-search" v-model="boardSearch" type="search" :placeholder="$t('Search your storyboard')" /></label>
       <button class="button button-secondary" type="button" @click="store.addShotAtEnd"><Plus :size="14" aria-hidden="true" />{{ $t('Add shot') }}</button>
       <ActionMenu :label="$t('Export')" :menu-label="$t('Export')">
@@ -182,7 +185,7 @@ function onExport(id) {
     </section>
     <p class="form-note">{{ $t('Local planning and source/JSON exports only. External providers handle their own accounts and rendering charges.') }}</p>
     <input ref="importInput" class="sr-only" type="file" accept=".json,application/json" :aria-label="$t('Import Moovicut project')" @change="importJson" />
-    <SideSheet v-if="sheet" :title="activeShot ? $t('Edit {title}', { title: activeShot.title }) : $t('Project settings')" @close="closeSheet">
+    <SideSheet v-if="sheet" :title="activeShot ? $t('Edit {title}', { title: $t(activeShot.title) }) : $t('Project settings')" @close="closeSheet">
       <details class="sheet-fold" :open="sheet === 'settings'">
         <summary>{{ $t('Project settings') }}</summary>
         <label for="editor-title">{{ $t('Project title') }}<input id="editor-title" :value="project.title" @change="store.commit({ ...project, title: $event.target.value }, 'Project title saved')" /></label>
@@ -190,7 +193,7 @@ function onExport(id) {
         <button class="button button-secondary" type="button" @click="store.persist()">{{ $t('Save') }}</button>
       </details>
       <div v-if="activeShot" class="studio-shot-detail">
-        <p v-if="activeShot.stage">{{ activeShot.stage }}</p>
+        <p v-if="activeShot.stage">{{ $t(activeShot.stage) }}</p>
         <p v-if="activeShot.source" class="shot-source">{{ activeShot.source }}</p>
         <p v-if="activeShot.flags?.length" class="shot-source">{{ activeShot.flags.map(flag => `${flag.field}: ${flag.code}`).join(', ') }}</p>
         <FramingPicker :shot="activeShot" label="Framing" />
