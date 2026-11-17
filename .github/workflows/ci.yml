@@ -17,3 +17,5 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm test
       - run: NUXT_APP_BASE_URL=/ npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: node tests/studio-foundation.e2e.mjs
