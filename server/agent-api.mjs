@@ -5,6 +5,7 @@ import { assessProject } from '../app/utils/shot-risk.js'
 import { AGENT_BOARD_SCHEMA, exportAgentBoard, importAgentBoard } from '../app/utils/agent-board.js'
 import { publicProfile } from '../app/utils/model-profiles.js'
 import { detectProse } from '../app/utils/prose-detect.js'
+import { characterSheetGaps } from '../app/utils/prose-extra.js'
 import { proseWarningMessage } from '../app/utils/scene-split.js'
 import { CAMERA_VALUES, LIGHT_VALUES, MOOD_VALUES, SCENARIO_MAX_CHARS } from '../app/utils/scenario.js'
 import { studioUrl } from '../app/utils/studio-link.js'
@@ -534,7 +535,7 @@ function refuseUnplannedPremise(project, input) {
   error.errors = errors
   throw error
 }
-const PACKED_BEAT = /(?<![\p{L}])(?:pours?|walks?|runs?|opens?|enters?|leaves?|sits?|stands?|reads?|gives?|hands?|waits?|lifts?|holds?|turns?|takes?|puts?|calls?|checks?|follows?|arrives?|smiles?|says?|meets?|boards?|crosses?|abre|fecha|entra|sai|caminha|corre|espera|pega|l[eê]|diz|sorri|entrega|observa|acende|sobe|desce|chama|verifica|cumprimenta|acena|senta|levanta)(?![\p{L}])/iu
+const PACKED_BEAT = /(?<![\p{L}])(?:pours?|walks?|runs?|opens?|enters?|leaves?|sits?|stands?|reads?|gives?|hands?|waits?|lifts?|holds?|turns?|takes?|puts?|calls?|checks?|follows?|arrives?|smiles?|says?|meets?|boards?|crosses?|applauds?|bows?|kneels?|nods?|claps?|abre|fecha|entra|sai|caminha|corre|espera|pega|l[eê]|diz|sorri|entrega|observa|acende|sobe|desce|chama|verifica|cumprimenta|acena|aplaude|veste|senta|levanta)(?![\p{L}])/iu
 
 function actionBeats(text) {
   return String(text || '').split(/(?<=[.!?。！？])\s+|\n+/u).map(part => cleanText(part)).filter(part => part && PACKED_BEAT.test(part))
@@ -582,6 +583,32 @@ function refusePackedScenario(scenario, premise, shots) {
   throw error
 }
 
+function storyForSheets(input, scenario) {
+  const scenes = Array.isArray(scenario?.scenes) ? scenario.scenes : []
+  return [input?.premise, input?.prose, input?.text, ...scenes.map(scene => [scene?.what, scene?.do, scene?.action, scene?.beat].filter(Boolean).join(' '))].filter(Boolean).join('\n')
+}
+
+/** A submitted character sheet must keep every age, garment, and carried item the story names. */
+function refuseThinSheets(input) {
+  const scenario = input?.scenario
+  if (!scenario || typeof scenario !== 'object' || Array.isArray(scenario) || !Array.isArray(scenario.characters)) return
+  const gaps = characterSheetGaps(scenario.characters, storyForSheets(input, scenario))
+  if (!gaps.length) return
+  const errors = gaps.map(gap => ({
+    section: 'characters',
+    field: gap.field,
+    name: gap.name,
+    index: gap.index,
+    value: gap.value,
+    message: `characters[${gap.index}] (${gap.name}) is missing ${gap.field} "${gap.value}" that the story names. Fill a complete character sheet before the shots: name, age, every garment in outfit, carried items, and distinctive features.`
+  }))
+  const error = new Error(errors.map(item => item.message).join(' '))
+  error.status = 400
+  error.code = 'invalid_scenario'
+  error.errors = errors
+  throw error
+}
+
 export function planFromInput(input, { origin = SITE, compact = false } = {}) {
   if (input && typeof input === 'object' && !Array.isArray(input) && input.schema === AGENT_BOARD_SCHEMA) {
     const project = importAgentBoard(input, { overwritePrompt: input.overwritePrompt === true })
@@ -594,6 +621,7 @@ export function planFromInput(input, { origin = SITE, compact = false } = {}) {
   }
   const options = storyboardOptions(input)
   if (options.prose) return planProse(options.raw, { origin, compact })
+  if (input?.scenario && typeof input.scenario === 'object') refuseThinSheets(input)
   const project = withActionSplits(createStoryboard(options), input)
   if (options.scenario && typeof options.scenario === 'object') refusePackedScenario(options.scenario, options.premise, project.shots?.length || 0)
   refuseUnplannedPremise(project, input)
@@ -638,15 +666,18 @@ function aliasOf(name) {
 const SCENARIO_CHARACTER = {
   type: 'object',
   additionalProperties: true,
-  description: 'A character. Short fields: n for name, l for look, o for outfit.',
-  properties: {
-    name: { type: 'string' },
-    n: aliasOf('name'),
-    look: { type: 'string' },
-    l: aliasOf('look'),
-    outfit: { type: 'string' },
-    o: aliasOf('outfit')
-  }
+    description: 'A complete character sheet. Short fields: n for name, l for look, o for outfit. age and items (or props) are copied into the lock line. Put every garment in outfit and every carried item in items or outfit.',
+    properties: {
+      name: { type: 'string' },
+      n: aliasOf('name'),
+      look: { type: 'string', description: 'Age, hair, face, and distinctive features.' },
+      l: aliasOf('look'),
+      outfit: { type: 'string', description: 'Every garment the story names.' },
+      o: aliasOf('outfit'),
+      age: { type: 'string', description: 'Age, when it is not already inside look.' },
+      items: { type: 'string', description: 'Carried items or props. props is the same field.' },
+      props: aliasOf('items')
+    }
 }
 
 const SCENARIO_PLACE = {
@@ -879,7 +910,7 @@ export function openApiDocument() {
 const TOOLS = [
   {
     name: 'plan_storyboard',
-    description: 'Plan a deterministic storyboard. Default is 5 scenes × 3s (15s total) and a short per-shot video prompt: framing, the named action, the lock line, the place, one light, and locked-off camera unless a movement was set. Each character lock line is copied unchanged into every shot they appear in. Pass prompt_style "detailed" for the full sheet in every shot. Pass shots/duration, a scenes array, a scenario, mode ad, series, or explainer, input "prose", format "agent", or a model: grok, google, sora, chatgpt, midjourney, hailuo, seedance, pika, kling, runway, luma, wan, or generic. Free prose splits on place and time cues unless splitScenes is false. The cuts array gives each cue and reason. A character with no look is a warning, not a 400. A story longer than 40 shots is split into parts of at most 40 shots. The same character sheet and place sheet are reused across parts. A prompt marked promptEdited is kept. Returns a compact payload and a /studio# link. Nothing is stored.',
+    description: 'Plan a deterministic storyboard. Default is 5 scenes × 3s (15s total) and a short per-shot video prompt: framing, the named action, the lock line, the place, one light, and locked-off camera unless a movement was set. Each character lock line is copied unchanged into every shot they appear in. For a story of 40 shots or more, fill one complete character sheet per character in scenario.characters before the shots: name, age, every garment in outfit, carried items, and distinctive features. A sheet that omits an age, garment, or carried item the story names is HTTP 400. Pass prompt_style "detailed" for the full sheet in every shot. Pass shots/duration, a scenes array, a scenario, mode ad, series, or explainer, input "prose", format "agent", or a model: grok, google, sora, chatgpt, midjourney, hailuo, seedance, pika, kling, runway, luma, wan, or generic. Free prose splits on place and time cues unless splitScenes is false. The cuts array gives each cue and reason. A character with no look is a warning, not a 400, on free prose. A story longer than 40 shots is split into parts of at most 40 shots. The same character sheet and place sheet are reused across parts. A prompt marked promptEdited is kept. Returns a compact payload and a /studio# link. Nothing is stored.',
     inputSchema: STORYBOARD_SCHEMA
   },
   {
