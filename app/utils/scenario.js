@@ -274,7 +274,7 @@ export function describeScenarioErrors(errors) {
   return lines.join(' ')
 }
 
-function finish(characters, places, scenes, light, mood, errors, sourceText) {
+function finish(characters, places, scenes, light, mood, errors, sourceText, options = {}) {
   const seenCharacters = new Set()
   characters.forEach((character, index) => {
     const key = foldName(character.name)
@@ -288,7 +288,7 @@ function finish(characters, places, scenes, light, mood, errors, sourceText) {
     seenPlaces.add(key)
   })
   const mentioned = section => errors.some(item => item.section === section)
-  if (!characters.length && !mentioned('characters')) errors.push(problem('Add at least one character: Name — look — outfit.', { section: 'characters', field: 'name' }))
+  if (!characters.length && !mentioned('characters') && !options.allowEmptyCast) errors.push(problem('Add at least one character: Name — look — outfit.', { section: 'characters', field: 'name' }))
   if (!places.length && !mentioned('places')) errors.push(problem('Add at least one place: Name — short description.', { section: 'places', field: 'name' }))
   if (!scenes.length && !mentioned('scenes')) errors.push(problem('Add at least one scene line: Scène 1 — who — where — what happens.', { section: 'scenes', field: 'what' }))
   const text = formatScenario({ characters, places, scenes, light, mood })
@@ -591,8 +591,8 @@ function parseScenarioObject(input, options = {}) {
     const sceneMood = readEnum(entry.mood, MOOD_VALUES, 'mood', { path: `${path}.mood`, section: 'scenes', index }, errors)
     const duration = readDuration(entry.duration ?? entry.s, { path: `${path}.duration`, section: 'scenes', index }, errors)
     const prompt = typeof entry.prompt === 'string' ? entry.prompt.trim().slice(0, 16000) : ''
-    if (what && (who || options.allowMissingWho) && (where || options.allowMissingWhere)) {
-      const scene = { number: index + 1, who, where, what, line: index + 1, camera, light: sceneLight, time: sceneTime, mood: sceneMood, duration, prompt, ...(rulesLight ? { rulesLight: true } : {}) }
+      if (what && (who || options.allowMissingWho) && (where || options.allowMissingWhere)) {
+      const scene = { number: index + 1, who, where, what, line: index + 1, camera, light: sceneLight, time: sceneTime, mood: sceneMood, duration, prompt, ...(rulesLight ? { rulesLight: true } : {}), ...(entry.noCharacter === true ? { noCharacter: true } : {}) }
       const framingText = cleanText(typeof entry.framing === 'string' ? entry.framing : (typeof entry.frame === 'string' ? entry.frame : ''))
       if (framingText) scene.framingText = framingText
       if (entry.source) scene.source = cleanText(entry.source).slice(0, 500)
@@ -631,7 +631,7 @@ function parseScenarioObject(input, options = {}) {
     if (rules && scene.time && coarseLight.has(scene.light || '')) scene.light = ''
   })
   const canonical = formatScenario({ characters, places, scenes, light, mood })
-  return finish(characters, places, scenes, light, mood, errors, canonical)
+  return finish(characters, places, scenes, light, mood, errors, canonical, options)
 }
 
 export function parseScenario(input, options = {}) {

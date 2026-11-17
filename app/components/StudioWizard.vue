@@ -8,6 +8,8 @@ import {
   loadWizard,
   saveWizard,
   gapsFor,
+  gapFieldId,
+  revealGap,
   splitOffer,
   canOpenStep,
   openStep,
@@ -19,6 +21,8 @@ import {
   setPromptStyle,
   setAspect,
   setCharacterField,
+  setNoCharacter,
+  setShotNoCharacter,
   openCharacter,
   addCharacter,
   removeCharacter,
@@ -63,6 +67,8 @@ const ready = ref(false)
 const heading = ref(null)
 const buildError = ref('')
 const presets = listPresets()
+const optionalCharacterFields = new Set(['colors', 'mark'])
+const pendingFocusId = ref('')
 const missingField = {
   name: 'missing.name',
   age: 'missing.age',
@@ -73,12 +79,18 @@ const missingField = {
   mark: 'missing.mark'
 }
 
+function onFocusIdea() {
+  state.value = openStep(state.value, 'idea')
+  nextTick(() => document.getElementById('wizard-idea')?.focus())
+}
 onMounted(() => {
   const saved = loadWizard(localStorage)
   if (saved) state.value = saved
   ready.value = true
+  window.addEventListener('moovicut-focus-idea', onFocusIdea)
   nextTick(() => heading.value?.focus())
 })
+onBeforeUnmount(() => window.removeEventListener('moovicut-focus-idea', onFocusIdea))
 
 watch(state, value => {
   if (ready.value) saveWizard(localStorage, value)
@@ -92,7 +104,8 @@ watch(() => state.value.step, () => {
 
 watch(() => state.value.characterIndex, (index, previous) => {
   if (!ready.value || state.value.step !== 'characters' || index === previous) return
-  nextTick(() => document.getElementById(`${state.value.characters[index]?.id}-name`)?.focus())
+  const pending = pendingFocusId.value
+  nextTick(() => document.getElementById(pending || `${state.value.characters[index]?.id}-name`)?.focus())
 })
 
 const stepMeta = computed(() => WIZARD_STEPS.find(step => step.id === state.value.step) || WIZARD_STEPS[0])
@@ -191,6 +204,18 @@ function onSubmit() {
     generate()
     return
   }
+  const blocking = gapsFor(state.value, state.value.step)
+  if (state.value.step === 'check' && !generateEnabled.value) return
+  if (blocking.length) {
+    const target = gapFieldId(state.value, blocking[0])
+    pendingFocusId.value = target
+    state.value = revealGap(state.value, blocking[0])
+    nextTick(() => {
+      document.getElementById(target)?.focus()
+      pendingFocusId.value = ''
+    })
+    return
+  }
   state.value = continueStep(state.value)
 }
 
@@ -276,9 +301,11 @@ function copyAgent() {
         </fieldset>
       </section>
 
-      <section v-else-if="state.step === 'characters' && character" class="wizard-panel" :aria-label="t('character.panel')">
-        <p v-if="state.detection" role="status">{{ t('detect.summary', { confidence: confidenceLabel(state.detection.confidence), language: languageLabel(state.detection.language) }) }}</p>
-        <div class="wizard-tabs" role="tablist" :aria-label="t('character.list')" @keydown="moveTabs($event, 'character')">
+      <section v-else-if="state.step === 'characters'" class="wizard-panel" :aria-label="t('character.panel')">
+        <label class="wizard-checks"><input id="wizard-no-character" type="checkbox" :checked="state.noCharacter" @change="state = setNoCharacter(state, $event.target.checked)" /><span>{{ t('character.none') }}</span></label>
+        <p v-if="state.noCharacter" class="wizard-hint" role="status">{{ t('character.noneHelp') }}</p>
+        <p v-if="state.detection && !state.noCharacter" role="status">{{ t('detect.summary', { confidence: confidenceLabel(state.detection.confidence), language: languageLabel(state.detection.language) }) }}</p>
+        <div v-if="!state.noCharacter" class="wizard-tabs" role="tablist" :aria-label="t('character.list')" @keydown="moveTabs($event, 'character')">
           <button
             v-for="(item, index) in state.characters"
             :id="`wizard-character-${item.id}`"
@@ -291,8 +318,8 @@ function copyAgent() {
             @click="state = openCharacter(state, index)"
           >{{ item.name.trim() || t('character.new') }}</button>
         </div>
-        <button class="button button-secondary" type="button" @click="state = addCharacter(state)">{{ t('action.addCharacter') }}</button>
-        <div :id="`wizard-character-panel-${character.id}`" role="tabpanel" :aria-labelledby="`wizard-character-${character.id}`" class="wizard-sheet">
+        <button v-if="!state.noCharacter" id="wizard-add-character" class="button button-secondary" type="button" @click="state = addCharacter(state)">{{ t('action.addCharacter') }}</button>
+        <div v-if="character && !state.noCharacter" :id="`wizard-character-panel-${character.id}`" role="tabpanel" :aria-labelledby="`wizard-character-${character.id}`" class="wizard-sheet">
           <p>{{ t('character.count', { current: state.characterIndex + 1, total: state.characters.length }) }}</p>
           <div v-for="field in CHARACTER_FIELDS" :key="field" class="wizard-field">
             <label :for="`${character.id}-${field}`">{{ t(`field.${field}`) }}</label>
@@ -300,16 +327,17 @@ function copyAgent() {
               :id="`${character.id}-${field}`"
               :name="field"
               type="text"
-              required
+              :required="!optionalCharacterFields.has(field)"
               autocomplete="off"
               enterkeyhint="next"
               :maxlength="field === 'name' ? 80 : 300"
               :value="character[field]"
-              :aria-invalid="!character[field].trim()"
-              :aria-describedby="describedBy(character.id, field, !character[field].trim(), character.origin[field] === 'detected' && character[field].trim())"
+              :aria-invalid="optionalCharacterFields.has(field) ? undefined : !character[field].trim()"
+              :aria-describedby="describedBy(character.id, field, !optionalCharacterFields.has(field) && !character[field].trim(), character.origin[field] === 'detected' && character[field].trim())"
               @input="state = setCharacterField(state, character.id, field, $event.target.value)"
             />
             <p v-if="character.origin[field] === 'detected' && character[field].trim()" :id="`${character.id}-${field}-hint`" class="wizard-hint">{{ t('hint.detected', { confidence: confidenceLabel(character.confidence[field]) }) }}</p>
+            <p v-else-if="optionalCharacterFields.has(field) && !character[field].trim()" :id="`${character.id}-${field}-hint`" class="wizard-hint">{{ t('field.optional') }}</p>
             <p v-else-if="!character[field].trim()" :id="`${character.id}-${field}-error`" class="wizard-error">{{ t(missingField[field]) }}</p>
           </div>
           <p class="wizard-lock" aria-live="polite">
@@ -334,7 +362,7 @@ function copyAgent() {
             @click="state = openPlace(state, index)"
           >{{ item.name.trim() || t('place.new') }}</button>
         </div>
-        <button class="button button-secondary" type="button" @click="state = addPlace(state)">{{ t('action.addPlace') }}</button>
+        <button id="wizard-add-place" class="button button-secondary" type="button" @click="state = addPlace(state)">{{ t('action.addPlace') }}</button>
         <div :id="`wizard-place-panel-${place.id}`" role="tabpanel" :aria-labelledby="`wizard-place-${place.id}`" class="wizard-sheet">
           <p>{{ t('place.count', { current: state.placeIndex + 1, total: state.places.length }) }}</p>
           <div class="wizard-field">
@@ -369,7 +397,7 @@ function copyAgent() {
           <p v-if="!state.mood" id="wizard-mood-error" class="wizard-error">{{ t('missing.mood') }}</p>
           <p v-else-if="state.moodOrigin === 'detected'" class="wizard-hint">{{ t('hint.detected', { confidence: confidenceLabel('medium') }) }}</p>
         </div>
-        <fieldset>
+        <fieldset id="wizard-style" tabindex="-1">
           <legend>{{ t('field.style') }}</legend>
           <p class="wizard-hint">{{ t('style.help') }}</p>
           <div class="wizard-choice">
@@ -402,19 +430,27 @@ function copyAgent() {
             @click="state = openShot(state, index)"
           >{{ index + 1 }}</button>
         </div>
-        <button class="button button-secondary" type="button" @click="state = addWizardShot(state)">{{ t('action.addShot') }}</button>
+        <button id="wizard-add-shot" class="button button-secondary" type="button" @click="state = addWizardShot(state)">{{ t('action.addShot') }}</button>
         <div :id="`wizard-shot-panel-${shot.id}`" role="tabpanel" :aria-labelledby="`wizard-shot-${shot.id}`" class="wizard-sheet">
           <p>{{ t('shot.count', { current: state.shotIndex + 1, total: state.shots.length }) }}</p>
-          <fieldset>
+          <fieldset :id="`${shot.id}-who`">
             <legend>{{ t('field.who') }}</legend>
-            <p class="wizard-hint">{{ t('shot.whoHelp') }}</p>
             <div class="wizard-checks">
-              <label v-for="person in state.characters" :key="person.id">
-                <input type="checkbox" :name="`who-${shot.id}`" :checked="shot.whoIds.includes(person.id)" @change="state = toggleShotCharacter(state, shot.id, person.id)" />
-                <span>{{ person.name.trim() || t('character.new') }}</span>
+              <label>
+                <input type="checkbox" :name="`none-${shot.id}`" :checked="state.noCharacter || shot.noCharacter" :disabled="state.noCharacter" @change="state = setShotNoCharacter(state, shot.id, $event.target.checked)" />
+                <span>{{ t('shot.none') }}</span>
               </label>
             </div>
-            <p v-if="!shot.whoIds.length" class="wizard-error">{{ t('missing.who') }}</p>
+            <template v-if="!(state.noCharacter || shot.noCharacter)">
+              <p class="wizard-hint">{{ t('shot.whoHelp') }}</p>
+              <div class="wizard-checks">
+                <label v-for="person in state.characters" :key="person.id">
+                  <input type="checkbox" :name="`who-${shot.id}`" :checked="shot.whoIds.includes(person.id)" @change="state = toggleShotCharacter(state, shot.id, person.id)" />
+                  <span>{{ person.name.trim() || t('character.new') }}</span>
+                </label>
+              </div>
+              <p v-if="!shot.whoIds.length" class="wizard-error">{{ t('missing.who') }}</p>
+            </template>
           </fieldset>
           <div class="wizard-field">
             <label :for="`${shot.id}-place`">{{ t('field.place') }}</label>
@@ -456,7 +492,7 @@ function copyAgent() {
 
       <section v-else-if="state.step === 'check'" class="wizard-panel" :aria-label="t('check.heading')">
         <h3>{{ t('check.heading') }}</h3>
-        <p role="status">{{ t('check.sheet', { characters: state.characters.map(item => item.name).filter(Boolean).join(', '), places: state.places.map(item => item.name).filter(Boolean).join(', '), light: state.light }) }}</p>
+        <p role="status">{{ t('check.sheet', { characters: state.noCharacter ? t('character.none') : state.characters.map(item => item.name).filter(Boolean).join(', '), places: state.places.map(item => item.name).filter(Boolean).join(', '), light: state.light }) }}</p>
         <p v-if="report && report.gaps.length" role="status">{{ t('check.needSteps') }}</p>
         <template v-else-if="report">
           <p v-if="!report.blocking.length" role="status">{{ t('check.clear') }}</p>
@@ -528,7 +564,7 @@ function copyAgent() {
 
       <div class="wizard-actions">
         <button v-if="stepNumber > 1" class="button button-secondary" type="button" @click="state = openStep(state, WIZARD_STEPS[stepNumber - 2].id)">{{ t('action.back') }}</button>
-        <button v-if="state.step !== 'generate'" class="button button-primary" type="submit" :disabled="gaps.length > 0 || (state.step === 'check' && !generateEnabled)">{{ t('action.next') }}</button>
+        <button v-if="state.step !== 'generate'" class="button button-primary" type="submit" :disabled="state.step === 'check' && !generateEnabled" :aria-describedby="gaps.length ? 'wizard-gaps' : undefined">{{ t('action.next') }}</button>
         <button v-else class="button button-primary" type="submit" :disabled="!generateEnabled">{{ state.hasGenerated ? t('action.generateAgain') : t('action.generate') }}</button>
       </div>
     </form>

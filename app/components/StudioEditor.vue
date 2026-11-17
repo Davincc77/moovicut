@@ -4,6 +4,7 @@ import { MODEL_OPTIONS } from '~/utils/prompt-engine.js'
 import { joinAppPath } from '~/utils/urls.js'
 import { STUDIO_INSPIRATIONS, promptImageSrc } from '~/utils/reference-content.js'
 import { combinedShotPrompts, partShotPrompts } from '~/utils/open-targets.js'
+import { downloadBody } from '~/composables/useNotifier.js'
 const store = useProjectStore()
 const project = computed(() => store.project.value)
 const { notify, copyText, downloadText } = useNotifier()
@@ -24,7 +25,7 @@ function editShot(id) { editingShotId.value=id }
 function updateShotField(field,value) { if(activeShot.value)store.updateShotFields(activeShot.value.id,{[field]:value}) }
 function onDragStart(event,id) { event.dataTransfer?.setData('text/plain',id);if(event.dataTransfer)event.dataTransfer.effectAllowed='move' }
 function moveTo(event,id) { const from=event.dataTransfer?.getData('text/plain');const start=project.value.shots.findIndex(shot=>shot.id===from);const end=project.value.shots.findIndex(shot=>shot.id===id);if(start<0||end<0||start===end)return;const next=JSON.parse(JSON.stringify(project.value));const [shot]=next.shots.splice(start,1);next.shots.splice(end,0,shot);next.shots.forEach((item,index)=>item.order=index+1);store.commit(next,'Shot order saved. Undo is available.') }
-function exportJson() { try { downloadText(`${(project.value.title||'moovicut').replace(/[^a-z0-9]+/gi,'-').toLowerCase()}.json`,store.serialized) } catch(error) { notify(error.message||'Could not export this project.','error') } }
+function exportJson() { try { downloadText(`${(project.value.title||'moovicut').replace(/[^a-z0-9]+/gi,'-').toLowerCase()}.json`, downloadBody(store.serialized)) } catch(error) { notify(error.message||'Could not export this project.','error') } }
 function openImport() { importInput.value?.click() }
 function importProject() { openImport() }
 async function importJson(event) { const file=event.target.files?.[0];try { if(!file)return;store.importProject(await file.text()) } catch(error) { notify(error.message||'Could not read this JSON file.','error') } finally { if(event.target)event.target.value='' } }

@@ -596,6 +596,11 @@ export function mergeDetectedSheet(sheet, detected, locks = {}) {
   if (!locks.mood && detected.mood) sheet.mood = detected.mood
   return sheet
 }
+function sheetForPrompt(project, shot) {
+  const sheet = project?.filmSheet
+  if (!sheet || !(shot?.noCharacter || project?.noCharacter)) return sheet
+  return { ...sheet, characters: [] }
+}
 export function formatFilmSheet(sheet, project = {}) {
   if (!sheet) return ''
   const wardrobe = project.sequenceMode === 'continuous' ? project.continuitySheet?.appearance : ''
@@ -766,10 +771,16 @@ function scenarioFailure(parsed) {
 function createScenarioStoryboard(options) {
   const promptStyle = readPromptStyle(options.promptStyle ?? options.prompt_style)
   const source = options.scenario != null ? options.scenario : options.premise
+  const raw = source && typeof source === 'object' && !Array.isArray(source) ? source : null
+  const emptyCast = Array.isArray(raw?.characters) && raw.characters.length === 0
+  const sceneList = Array.isArray(raw?.scenes) ? raw.scenes : []
+  const allowMissingWho = options.allowMissingWho === true || emptyCast || options.noCharacter === true || sceneList.some(scene => scene && scene.noCharacter === true)
+  const allowEmptyCast = options.allowEmptyCast === true || emptyCast || options.noCharacter === true
   const parsed = parseScenario(source, {
     allowIncompleteCast: options.allowIncompleteCast === true,
     allowMissingWhere: options.allowMissingWhere === true,
-    allowMissingWho: options.allowMissingWho === true
+    allowMissingWho,
+    allowEmptyCast
   })
   if (!parsed.ok) throw scenarioFailure(parsed)
   const model = canonicalModel(options.model || 'grok')
@@ -813,7 +824,7 @@ function createScenarioStoryboard(options) {
       time: timeId,
       mood: scene.mood || '',
       directions: [MOODS[moodId], scene.what, preset.voiceOver].filter(Boolean).join('. '),
-      continuity: `${scene.who} at ${scene.where}.`,
+      continuity: scene.who ? `${scene.who} at ${scene.where}.` : (scene.where ? `${scene.where}.` : 'Match the place and the light.'),
       cue: 'natural ambience',
       sound: preset.voiceOver || 'natural ambience consistent with the place',
       lighting: timePhrase ? (lightId && LIGHTS[lightId] ? `${timePhrase}, ${LIGHTS[lightId]}` : timePhrase) : (lightId ? (LIGHTS[lightId] || preset.lighting) : preset.lighting),
@@ -837,6 +848,7 @@ function createScenarioStoryboard(options) {
     if (!shot.time) delete shot.time
     if (!shot.sceneCut) delete shot.sceneCut
     if (!shot.cutUncertain) delete shot.cutUncertain
+    if (scene.noCharacter === true || options.noCharacter === true || filmSheet.characters.length === 0) shot.noCharacter = true
     if (scene.prompt && !options.overwritePrompt) { shot.prompt = scene.prompt; shot.promptEdited = true }
     return shot
   })
@@ -864,6 +876,7 @@ function createScenarioStoryboard(options) {
     generationMode: 'local',
     shots
   }
+  if (options.noCharacter === true || filmSheet.characters.length === 0) project.noCharacter = true
   stampPromptLanguage(project, readPromptLanguage(options.promptLanguage ?? options.prompt_language))
   fitBoard(project)
   project.shots = project.shots.map((shot, index) => refreshShotPrompt(shot, project, index, { overwrite: options.overwritePrompt === true }))
@@ -1205,10 +1218,10 @@ export function createShortPrompt(shot, project, index = 0) {
   }, plannedLengthBudget(profileFor(project.model || project.target_model))), shot)
 }
 
-function promptHeader(project) {
+function promptHeader(project, shot) {
   const lines = [`Idea: ${ideaAnchor(project.premise || '')}`, `Style lock: ${styleLockFor(project)}`, `aspect ratio ${canonicalAspect(project.aspectRatio)}`]
   if (project.preset) lines.push(formatPresetBlock(project.preset))
-  const film = formatFilmSheet(project.filmSheet, project)
+  const film = formatFilmSheet(sheetForPrompt(project, shot), project)
   if (film) lines.push(film)
   return lines.join('\n')
 }
@@ -1233,8 +1246,8 @@ export function createPrompt(shot, project, index = 0) {
   }
   const body = modelRegistry.get(project.model || project.target_model).compose({ shot: spoken, project, index, premise, aspect, duration, genre, style, lockedStyle })
   const total = Math.max(project.shots?.length || 0, index + 1)
-  const header = promptHeader(project)
-  const locks = lockLinesForShot(shot, project, index).join('\n')
+  const header = promptHeader(project, shot)
+  const locks = (shot?.noCharacter || project?.noCharacter) ? '' : lockLinesForShot(shot, project, index).join('\n')
   const withLock = text => {
     if (!locks || text.includes(locks)) return text
     if (header && text.startsWith(header)) return `${header}\n${locks}\n${text.slice(header.length).replace(/^\n/, '')}`

@@ -13,6 +13,7 @@ import { assessProject } from '~/utils/shot-risk.js'
 import { exportAgentBoard } from '~/utils/agent-board.js'
 import { takeStudioHandoff } from '~/utils/studio-handoff.js'
 import { textLanguageHint } from '~/utils/prose-detect.js'
+import { downloadBody } from '~/composables/useNotifier.js'
 const store = useProjectStore()
 const { locale, t } = useI18n()
 const LANGUAGE_NAMES = { en: 'English', pt: 'Portuguese' }
@@ -420,9 +421,8 @@ function useMention(name){
 }
 function exportStoryboardJson(){
  if(!boardReady.value){uploadError.value='Create a local storyboard before exporting JSON.';return}
- const payload=store.serialized?.value??store.serialized
  const name=`${(project.value.title||'moovicut').replace(/[^a-z0-9]+/gi,'-').toLowerCase()}.json`
- downloadText(name,typeof payload==='string'?payload:JSON.stringify(payload))
+ downloadText(name, downloadBody(store.serialized))
 }
 function useStudy(study){premise.value=study.premise;style.value=study.genre==='Experimental'?'Fun':'Normal'}
 function flashCopied(key){copiedKey.value=key;clearTimeout(copiedTimer);copiedTimer=setTimeout(()=>{copiedKey.value=''},1600)}

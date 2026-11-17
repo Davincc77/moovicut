@@ -12,7 +12,7 @@ useSeoMeta({
 })
 </script>
 <template>
- <div class="site-shell"><AppHeader /><main class="legal-page"><div class="container-docs">
+ <div class="site-shell"><AppHeader /><main id="main-content" class="legal-page"><div class="container-docs">
   <div class="page-intro"><p class="eyebrow">SKILL</p><h1>{{ $t('Agent skill — Moovicut') }}</h1><p>{{ $t('This page is the agent skill. The raw Markdown file is served at /SKILL.md.') }} <a href="/SKILL.md">{{ $t('Raw skill') }}</a></p></div>
   <pre class="readme-source">{{ skill }}</pre>
  </div></main><SiteFooter /></div>

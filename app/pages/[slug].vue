@@ -2,7 +2,7 @@
 import { ArrowUpRight } from 'lucide-vue-next'
 import { socialPreviewSeo } from '~/utils/social-preview.js'
 const route = useRoute()
-const localeCodes = new Set(['zh', 'ru', 'de', 'fr', 'ja', 'it', 'ko', 'es', 'pt', 'tr'])
+const localeCodes = new Set(['en', 'zh', 'ru', 'de', 'fr', 'ja', 'it', 'ko', 'es', 'pt', 'tr'])
 const localeRoot = localeCodes.has(String(route.params.slug || ''))
 if (localeRoot) onMounted(() => navigateTo('/', { replace: true }))
 const pages = {
@@ -16,4 +16,4 @@ const socialPreview = socialPreviewSeo(runtimeConfig.public.productionOrigin || 
 const { t } = useI18n()
 useSeoMeta({ title: computed(() => t('{title} — Moovicut', { title: t(page.title) })), ogTitle: computed(() => t('{title} — Moovicut', { title: t(page.title) })), twitterTitle: computed(() => t('{title} — Moovicut', { title: t(page.title) })), ...socialPreview })
 </script>
-<template><div class="site-shell"><AppHeader /><main class="legal-page"><AppToast /><div class="container-docs"><div class="page-intro"><p class="eyebrow">{{ $t('MOOVICUT · THE CLEAR VERSION') }}</p><h1>{{ $t(page.title) }}</h1><p>{{ $t(page.intro) }}</p></div><section v-for="section in page.sections" :key="section[0]" class="legal-section"><h2>{{ $t(section[0]) }}</h2><p>{{ $t(section[1]) }}</p></section><div class="legal-bottom"><p v-if="!page.missing">{{ $t('Updated November 2026') }}</p><NuxtLink to="/" class="button button-primary">{{ page.missing ? $t('Back to Moovicut') : $t('Back to the studio') }} <ArrowUpRight :size="15" /></NuxtLink></div></div></main><SiteFooter /></div></template>
+<template><div class="site-shell"><AppHeader /><main id="main-content" class="legal-page"><AppToast /><div class="container-docs"><div class="page-intro"><p class="eyebrow">{{ $t('MOOVICUT · THE CLEAR VERSION') }}</p><h1>{{ $t(page.title) }}</h1><p>{{ $t(page.intro) }}</p></div><section v-for="section in page.sections" :key="section[0]" class="legal-section"><h2>{{ $t(section[0]) }}</h2><p>{{ $t(section[1]) }}</p></section><div class="legal-bottom"><p v-if="!page.missing">{{ $t('Updated November 2026') }}</p><NuxtLink :to="page.missing ? '/' : '/studio'" class="button button-primary">{{ page.missing ? $t('Back to Moovicut') : $t('Back to the studio') }} <ArrowUpRight :size="15" /></NuxtLink></div></div></main><SiteFooter /></div></template>

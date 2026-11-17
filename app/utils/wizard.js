@@ -26,6 +26,8 @@ export const WIZARD_STEPS = Object.freeze([
 ])
 
 export const CHARACTER_FIELDS = Object.freeze(['name', 'age', 'build', 'hair', 'outfit', 'colors', 'mark'])
+/** Detection often leaves these blank. They do not block Next or Generate. */
+export const OPTIONAL_CHARACTER_FIELDS = Object.freeze(['colors', 'mark'])
 
 const FIELD_LIMITS = Object.freeze({
   name: 80,
@@ -111,6 +113,7 @@ function blankShot(id) {
   return {
     id,
     whoIds: [],
+    noCharacter: false,
     placeId: '',
     action: '',
     framing: '',
@@ -147,6 +150,7 @@ export function blankWizard() {
     styleOrigin: 'default',
     genreOrigin: 'default',
     detection: null,
+    noCharacter: false,
     characterIndex: 0,
     placeIndex: 0,
     shotIndex: 0,
@@ -172,6 +176,7 @@ function gap(step, extra) {
 
 function characterGaps(state) {
   const gaps = []
+  if (state.noCharacter) return gaps
   if (!state.characters.length) {
     gaps.push(gap('characters', { field: 'characters', key: 'missing.characters' }))
     return gaps
@@ -180,6 +185,7 @@ function characterGaps(state) {
   state.characters.forEach(character => {
     const name = cleanText(character.name)
     CHARACTER_FIELDS.forEach(field => {
+      if (OPTIONAL_CHARACTER_FIELDS.includes(field)) return
       if (filled(character[field])) return
       gaps.push(gap('characters', { targetId: character.id, field, key: MISSING_KEY[field], name }))
     })
@@ -219,8 +225,9 @@ function shotGaps(state) {
     return gaps
   }
   state.shots.forEach((shot, index) => {
+    const skipWho = state.noCharacter || shot.noCharacter
     const who = (shot.whoIds || []).filter(id => state.characters.some(character => character.id === id && filled(character.name)))
-    if (!who.length) gaps.push(gap('shots', { targetId: shot.id, field: 'who', key: 'missing.who', name: wizardText('shot.count', { current: index + 1, total: state.shots.length }) }))
+    if (!skipWho && !who.length) gaps.push(gap('shots', { targetId: shot.id, field: 'who', key: 'missing.who', name: wizardText('shot.count', { current: index + 1, total: state.shots.length }) }))
     const place = state.places.find(item => item.id === shot.placeId && filled(item.name))
     if (!place) gaps.push(gap('shots', { targetId: shot.id, field: 'place', key: 'missing.place' }))
     if (!filled(shot.action)) gaps.push(gap('shots', { targetId: shot.id, field: 'action', key: 'missing.action' }))
@@ -248,6 +255,50 @@ export function gapsFor(state, stepId) {
 
 export function allGaps(state) {
   return ['idea', 'characters', 'places', 'shots'].flatMap(step => gapsFor(state, step))
+}
+
+/** DOM id of the control the guide should focus for this gap. */
+export function gapFieldId(state, gap) {
+  if (!gap) return 'wizard-gaps'
+  if (gap.field === 'idea') return 'wizard-idea'
+  if (gap.field === 'light') return 'wizard-light'
+  if (gap.field === 'mood') return 'wizard-mood'
+  if (gap.field === 'style') return 'wizard-style'
+  if (gap.field === 'genre') return 'wizard-genre'
+  if (gap.field === 'characters') return 'wizard-no-character'
+  if (gap.field === 'places') return 'wizard-add-place'
+  if (gap.field === 'shots') return 'wizard-add-shot'
+  if (gap.targetId && (gap.step === 'characters' || state?.step === 'characters') && CHARACTER_FIELDS.includes(gap.field)) return `${gap.targetId}-${gap.field}`
+  if (gap.targetId && (gap.step === 'places' || state?.step === 'places')) {
+    if (gap.field === 'description') return `${gap.targetId}-description`
+    if (gap.field === 'name') return `${gap.targetId}-name`
+  }
+  if (gap.targetId && (gap.step === 'shots' || state?.step === 'shots')) {
+    if (gap.field === 'who') return `${gap.targetId}-who`
+    if (gap.field === 'place') return `${gap.targetId}-place`
+    if (gap.field === 'action') return `${gap.targetId}-action`
+    if (gap.field === 'framing') return `${gap.targetId}-framing`
+    if (gap.field === 'duration') return `${gap.targetId}-duration`
+  }
+  return 'wizard-gaps'
+}
+
+/** Open the tab that holds the gap so the missing field can be focused. */
+export function revealGap(state, gap) {
+  if (!state || !gap?.targetId) return state
+  if (state.step === 'characters') {
+    const index = state.characters.findIndex(item => item.id === gap.targetId)
+    if (index >= 0 && index !== state.characterIndex) return openCharacter(state, index)
+  }
+  if (state.step === 'places') {
+    const index = state.places.findIndex(item => item.id === gap.targetId)
+    if (index >= 0 && index !== state.placeIndex) return openPlace(state, index)
+  }
+  if (state.step === 'shots') {
+    const index = state.shots.findIndex(item => item.id === gap.targetId)
+    if (index >= 0 && index !== state.shotIndex) return openShot(state, index)
+  }
+  return state
 }
 
 export function splitOffer(action) {
@@ -530,6 +581,24 @@ export function setAspect(state, value) {
   return next
 }
 
+export function setNoCharacter(state, value) {
+  const next = clone(state)
+  next.noCharacter = value === true
+  return next
+}
+
+export function setShotNoCharacter(state, shotId, value) {
+  if (state.noCharacter) return state
+  const next = clone(state)
+  const shot = next.shots.find(item => item.id === shotId)
+  if (!shot) return state
+  shot.noCharacter = value === true
+  if (shot.noCharacter) shot.whoIds = []
+  shot.origin.who = 'user'
+  shot.confidence.who = ''
+  return next
+}
+
 export function setCharacterField(state, id, field, value) {
   if (!CHARACTER_FIELDS.includes(field)) return state
   const next = clone(state)
@@ -776,6 +845,7 @@ export function previewLock(character, order = 1) {
 }
 
 function shotWho(state, shot) {
+  if (state.noCharacter || shot.noCharacter) return ''
   return (shot.whoIds || [])
     .map(id => state.characters.find(character => character.id === id))
     .map(character => cleanText(character?.name))
@@ -784,18 +854,21 @@ function shotWho(state, shot) {
 }
 
 export function wizardScenario(state) {
+  const people = state.noCharacter ? [] : state.characters.map(engineCharacter).filter(person => person.name)
   return {
-    characters: state.characters.map(engineCharacter),
+    characters: people,
     places: state.places.map(place => ({ name: cleanText(place.name), description: cleanText(place.description) })),
     light: state.light,
     mood: state.mood,
     scenes: state.shots.map(shot => {
+      const skip = state.noCharacter || shot.noCharacter
       const scene = {
         who: shotWho(state, shot),
         where: cleanText(state.places.find(place => place.id === shot.placeId)?.name),
         what: cleanText(shot.action),
         duration: Number(shot.duration) || 3
       }
+      if (skip) scene.noCharacter = true
       if (shot.prompt) scene.prompt = shot.prompt
       return scene
     })
@@ -812,7 +885,10 @@ export function wizardStoryboardOptions(state) {
     genre: state.genre,
     aspectRatio: canonicalAspect(state.aspectRatio),
     promptStyle: state.promptStyle === 'detailed' ? 'detailed' : 'short',
-    duration: 3
+    duration: 3,
+    noCharacter: state.noCharacter === true,
+    allowEmptyCast: state.noCharacter === true,
+    allowMissingWho: state.noCharacter === true || state.shots.some(shot => shot.noCharacter)
   }
 }
 
@@ -910,6 +986,7 @@ function restoreShot(value, index) {
   const source = value && typeof value === 'object' ? value : {}
   const shot = blankShot(typeof source.id === 'string' && source.id ? source.id : `shot-${index + 1}`)
   shot.whoIds = asArray(source.whoIds)?.filter(id => typeof id === 'string').slice(0, 12) || []
+  shot.noCharacter = source.noCharacter === true
   shot.placeId = typeof source.placeId === 'string' ? source.placeId : ''
   shot.action = clip(source.action, FIELD_LIMITS.action)
   shot.framing = termById(source.framing) ? source.framing : ''
@@ -946,6 +1023,7 @@ export function normalizeWizard(value) {
   next.moodOrigin = value.moodOrigin === 'user' || value.moodOrigin === 'detected' ? value.moodOrigin : ''
   next.styleOrigin = value.styleOrigin === 'user' ? 'user' : 'default'
   next.genreOrigin = value.genreOrigin === 'user' ? 'user' : 'default'
+  next.noCharacter = value.noCharacter === true
   if (value.detection && typeof value.detection === 'object') {
     next.detection = {
       language: ['en', 'pt'].includes(value.detection.language) ? value.detection.language : 'en',

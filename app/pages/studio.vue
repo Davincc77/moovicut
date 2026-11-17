@@ -3,6 +3,7 @@ import { ArrowUpRight, Check, Download, FolderOpen, Upload } from 'lucide-vue-ne
 import { joinAppPath } from '~/utils/urls.js'
 import { socialPreviewSeo } from '~/utils/social-preview.js'
 import { wizardText } from '~/utils/wizard-strings.js'
+import { downloadBody } from '~/composables/useNotifier.js'
 const store = useProjectStore()
 const runtimeConfig = useRuntimeConfig()
 const appBaseURL = runtimeConfig.app.baseURL
@@ -13,11 +14,11 @@ const experience = ref('guided')
 const panel = ref(null)
 const workspaceMenu = ref(false)
 const workspaceCollapsed = ref(false)
-function exportJson() { try { downloadText(`${(store.project.title||'moovicut').replace(/[^a-z0-9]+/gi,'-').toLowerCase()}.json`,store.serialized) } catch(error){notify(error.message||'Could not export this project.','error')} }
+function exportJson() { try { downloadText(`${(store.project.title||'moovicut').replace(/[^a-z0-9]+/gi,'-').toLowerCase()}.json`, downloadBody(store.serialized)) } catch(error){notify(error.message||'Could not export this project.','error')} }
 function openImport(){const input=document.createElement('input');input.type='file';input.accept='.json,application/json';input.onchange=importJson;input.click()}
 function importProject(){openImport()}
-function focusIdea(){panel.value=null;nextTick(()=>document.getElementById('studio-idea')?.focus())}
-function exportLibrary(){downloadText('moovicut-library.json',JSON.stringify({schema:'shotboard.backup.v1',projects:store.savedProjects,settings:store.settings},null,2),'application/json')}
+function focusIdea(){panel.value=null;if(experience.value!=='guided')setExperience('guided');nextTick(()=>window.dispatchEvent(new CustomEvent('moovicut-focus-idea')))}
+function exportLibrary(){const settings=store.settings?.value??store.settings;downloadText('moovicut-library.json',JSON.stringify({schema:'shotboard.backup.v1',projects:store.savedProjects,settings},null,2),'application/json')}
 async function importJson(event){const file=event.target.files?.[0];try{if(!file)return;const text=await file.text();const parsed=JSON.parse(text);if(parsed&&['shotboard.v1','shotboard.backup.v1'].includes(parsed.schema)&&Array.isArray(parsed.projects)){store.restoreBackup(parsed);notify('Local library restored.','success')}else store.importProject(text)}catch(error){notify(error.message||'Could not read this JSON file.','error')}finally{if(event.target)event.target.value=''}}
 function setExperience(next){experience.value=next;try{localStorage.setItem('moovicut.studio.experience',next)}catch{}}
 onMounted(()=>{const route=useRoute();const hash=String(route.hash||'');if(hash.includes('board='))experience.value='advanced';else{try{const saved=localStorage.getItem('moovicut.studio.experience');if(saved==='advanced'||saved==='guided')experience.value=saved}catch{}}if(route.hash==='#storyboard')showMoreTools.value=true;if(route.hash==='#library')panel.value='library';if(hash.includes('board='))return;const id=route.query.project;if(typeof id==='string'){const saved=store.savedProjects.find(project=>project.id===id);if(saved)store.loadProject(saved)}})
@@ -33,6 +34,7 @@ useSeoMeta({
 })
 </script>
 <template><div class="studio-shell application-shell" :class="{'workspace-collapsed':workspaceCollapsed,'workspace-menu-open':workspaceMenu}">
+ <a class="skip-link" href="#main-content">{{ $t('Skip to content') }}</a>
  <WorkspaceSidebar @projects="panel='library'" @editor="showMoreTools=true" />
  <WorkspaceHeader :menu-open="workspaceMenu" @menu="workspaceMenu=!workspaceMenu" />
  <nav v-if="workspaceMenu" id="mobile-workspace-menu" class="workspace-mobile-nav" :aria-label="$t('Workspace navigation')"><NuxtLink to="/" @click="workspaceMenu=false">{{ $t('Home') }}</NuxtLink><NuxtLink to="/studio" @click="workspaceMenu=false">{{ $t('Studio') }}</NuxtLink><NuxtLink to="/faq" @click="workspaceMenu=false">{{ $t('FAQ') }}</NuxtLink><NuxtLink to="/agents" @click="workspaceMenu=false">{{ $t('Agents') }}</NuxtLink><a href="https://buymeacoffee.com/enzoc1977r" target="_blank" rel="noopener" @click="workspaceMenu=false">{{ $t('Tips') }}</a><button type="button" @click="panel='library';workspaceMenu=false">{{ $t('My projects') }}</button><button type="button" @click="showMoreTools=true;workspaceMenu=false">{{ $t('Board tools') }}</button></nav>

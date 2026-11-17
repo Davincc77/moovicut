@@ -14,6 +14,8 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocumentClick))
   <p class="studio-local-badge">{{ $t('Free · Local · No account') }}</p>
   <SupportLink />
   <LanguageSwitcher />
+  <ThemeToggle />
+  <InstallButton />
   <button class="workspace-nav-button" type="button" :aria-expanded="navOpen" aria-controls="studio-nav-menu" :aria-label="navOpen ? $t('Close navigation menu') : $t('Open navigation menu')" @click.stop="navOpen = !navOpen"><Menu v-if="!navOpen" :size="18" /><X v-else :size="18" /></button>
   <nav v-if="navOpen" id="studio-nav-menu" class="studio-nav-menu" :aria-label="$t('Studio')"><NuxtLink to="/studio" @click="navOpen=false">{{ $t('Studio') }}</NuxtLink><NuxtLink to="/faq" @click="navOpen=false">{{ $t('FAQ') }}</NuxtLink><NuxtLink to="/agents" @click="navOpen=false">{{ $t('Agents') }}</NuxtLink><a href="https://buymeacoffee.com/enzoc1977r" target="_blank" rel="noopener" @click="navOpen=false">{{ $t('Tips') }}</a></nav>
  </header>
