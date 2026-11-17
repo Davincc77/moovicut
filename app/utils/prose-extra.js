@@ -2,7 +2,7 @@
 import { cleanText } from './text.js'
 import { foldName, scenarioBudget, scenarioPremise, scenarioToFields } from './scenario.js'
 import { cueLight, findPlaceCue, inNamedVenue, isDescriptionSentence, isFunctionWord, isNumberWord, isQuotedOrRemembered, isVenueType, isWardrobeSentence, lightAfterCue, mentionMovesScene, namedVenues, subjectPlace } from './scene-split.js'
-import { enteredPlace, finishCarriedPlace, isNonPlaceNoun, isRejectedPlace, libraryHits, locativeHeads, movementPlace, preferPlaceHead, settingName, tidyPlaceLemma } from './place-lexicon.js'
+import { aircraftPlace, enteredPlace, finishCarriedPlace, isNonPlaceNoun, isRejectedPlace, libraryHits, locativeHeads, movementPlace, preferPlaceHead, settingName, tidyPlaceLemma } from './place-lexicon.js'
 
 const LEX = {
   pt: {
@@ -76,10 +76,19 @@ function findPlaces(text, lex, language) {
   })
   libraryHits(text, language).forEach(hit => {
     const right = foldName(hit.name)
-    if (places.some(place => foldName(place.name) === right)) return
-    if (places.some(place => {
+    if (!right || places.some(place => foldName(place.name) === right)) return
+    const shorter = places.find(place => {
       const left = foldName(place.name)
       return left && (right.startsWith(`${left} `) || right.endsWith(` ${left}`))
+    })
+    if (shorter) {
+      shorter.name = hit.name
+      if (!shorter.description || foldName(shorter.description) === foldName(shorter.name)) shorter.description = hit.name
+      return
+    }
+    if (places.some(place => {
+      const left = foldName(place.name)
+      return left.startsWith(`${right} `) || left.endsWith(` ${right}`)
     })) return
     places.push({ name: hit.name, description: hit.name, confidence: hit.tag === 's' ? 'high' : hit.tag === 'unlisted' ? 'low' : 'medium', ...(hit.tag === 'unlisted' ? { unlisted: true } : {}) })
   })
@@ -200,9 +209,9 @@ const PT_TEEN = 'dez|onze|doze|treze|catorze|quatorze|quinze|dezasseis|dezesseis
 const PT_TEN = 'vinte|trinta|quarenta|cinquenta|sessenta|setenta|oitenta|noventa'
 const PT_AGE = new RegExp(`^(?:cerca de\\s+)?(?:tem\\s+|têm\\s+)?(?:\\d{1,3}|${PT_TEEN}|${PT_TEN}(?:\\s+e\\s+(?:${PT_UNIT}))?)(?:\\s+anos)?$|^(?:nos seus\\s+[\\p{L}'’-]+(?:\\s+[\\p{L}'’-]+)?)`, 'iu')
 const PT_ROLE = /(?<![\p{L}])(pescadora|pescador|padeira|padeiro|professora|professor|cozinheira|cozinheiro|enfermeira|enfermeiro|agricultora|agricultor|marinheira|marinheiro|guarda|aprendiz|arquivista|aluna|aluno|estudante|pintora|pintor)(?![\p{L}])/iu
-const PT_LOOK = /(?<![\p{L}])(cabelo|cabelos|barba|bigode|olhos|rosto|pele|coque|caracóis|caracois|tranças|trancas|franja|madeixas|binóculos|binoculos|óculos|oculos|careca|calvo|calva|bald)(?![\p{L}])/iu
-const PT_WEAR = /(?<![\p{L}])(impermeável|impermeavel|gabardina|capa|casaco|avental|vestido|camisa|t-shirt|jaqueta|blusa|saia|calças|calcas|chapéu|chapeu|botas|lenço|lenco|xaile|uniforme|jardineira|jardineiras|luvas|luva|camisola|colete|macacão|macacao|pulôver|pullover|fato-macaco|fato|farda)(?![\p{L}])/iu
-const PT_PROP = /(?<![\p{L}])((?:um|uma|uns|umas)\s+(?:apito|lanterna|chave|carta|bússola|bussola|martelo|câmara|camera|leque|flauta|pincel|caderno|cadernos|mochila|prancha|facão|facao|machado|microfone|estetoscópio|estetoscopio|anel|conchas|concha)|binóculos(?:\s+ao\s+pescoço)?|binoculos(?:\s+ao\s+pescoco)?|lanterna|apito|câmara|camera|leque|flauta|pincel|caderno|cadernos|mochila|violino|giz|prancha|facão|facao|conchas|concha|microfone)(?![\p{L}])/iu
+const PT_LOOK = /(?<![\p{L}])(cabelo|cabelos|barba|bigode|olhos|rosto|pele|coque|caracóis|caracois|tranças|trancas|franja|madeixas|binóculos|binoculos|óculos|oculos|careca|calvo|calva|bald|rastas|dreadlocks|dreads)(?![\p{L}])/iu
+const PT_WEAR = /(?<![\p{L}])(impermeável|impermeavel|gabardina|capa|casaco|avental|vestido|camisa|t-shirt|jaqueta|blusa|saia|calças|calcas|chapéu|chapeu|botas|lenço|lenco|xaile|uniforme|jardineira|jardineiras|luvas|luva|camisola|colete|macacão|macacao|pulôver|pullover|fato-macaco|fato|farda|tailleur|batina|pérolas|perolas)(?![\p{L}])/iu
+const PT_PROP = /(?<![\p{L}])((?:um|uma|uns|umas)\s+(?:apito|lanterna|chave|carta|bússola|bussola|martelo|câmara|camera|leque|flauta|pincel|caderno|cadernos|mochila|prancha|facão|facao|machado|microfone|estetoscópio|estetoscopio|anel|conchas|concha|terço|terco)|binóculos(?:\s+ao\s+pescoço)?|binoculos(?:\s+ao\s+pescoco)?|lanterna|apito|câmara|camera|leque|flauta|pincel|caderno|cadernos|mochila|violino|giz|prancha|facão|facao|conchas|concha|microfone|terço|terco)(?![\p{L}])/iu
 const PT_DANGLING = /(?:\s+(?:de|do|da|dos|das|em|no|na|nos|nas|num|numa|com|por|para|ao|à|aos|às|pelo|pela|preso|presa|um|uma|o|a))+$/iu
 const PT_FEMININE = new Map([
   ['pescador', 'pescadora'],
@@ -216,7 +225,9 @@ const PT_FEMININE = new Map([
 
 function tidyPortuguese(value) {
   let bit = cleanText(value).replace(/^(?:é|e)\s+/iu, '')
-  bit = bit.replace(/^(?:uma|um|o|a)\s+/iu, '')
+  bit = bit.replace(/^(?:de|do|da|dos|das|of)\s+/iu, '')
+  bit = bit.replace(/^(?:uma|um|uns|umas|o|a)\s+/iu, '')
+  bit = bit.replace(/(?:\s+(?:um|uma|uns|umas))+$/iu, '')
   if (PT_DANGLING.test(bit)) bit = bit.replace(PT_DANGLING, '')
   return cleanText(bit)
 }
@@ -233,7 +244,12 @@ function traitsFromWindow(window) {
   const looks = []
   const outfits = []
   const source = String(window || '')
-  source.split(/[,;]/).forEach(part => {
+  source.split(/[,;]/).flatMap(part => {
+    const raw = cleanText(part)
+    const pieces = raw.split(/\s+\b(?:e|and)\b\s+/iu).map(piece => piece.trim()).filter(Boolean)
+    if (pieces.length === 2 && /^(?:vinte|trinta|quarenta|cinquenta|sessenta|setenta|oitenta|noventa|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)\b/iu.test(pieces[0]) && /^(?:um|dois|duas|três|tres|one|two|three)\b/iu.test(pieces[1])) return [raw]
+    return pieces.length ? pieces : [raw]
+  }).forEach(part => {
     const raw = cleanText(part)
     if (!raw || /(?<![\p{L}])(?:encontra|entra|abre|espera|caminha|corre|sai|pega|lê|le|diz|entrega|observa|acende)(?![\p{L}])/iu.test(raw)) return
     const bit = tidyPortuguese(raw)
@@ -275,11 +291,11 @@ const YEAR_OLD = new RegExp(`(?<![\\p{L}])((?:\\d{1,3}|(?:${EN_TEN})(?:-(?:${EN_
 const STATED_AGE = new RegExp(`(?<![\\p{L}])(?:is|tem|têm|aged)\\s+(\\d{1,3}|${PT_TEEN}|${PT_TEN}(?:\\s+e\\s+(?:${PT_UNIT}))?)(?!\\d)(?!\\s*s\\b)`, 'giu')
 const LISTED_AGE = /,\s*(\d{1,3})(?!\d)(?!\s*(?:anos|years|s\b|h\b|am\b|pm\b))/giu
 const HAIR_STYLE = 'até\\s+(?:os|as|à|a|o)\\s+[\\p{L}\'’-]+|em\\s+(?:tranças|trancas|caracóis|caracois|coque|franja)|dos\\s+lados|da\\s+frente|nas\\s+costas|compridas|curtas|rapado(?:\\s+dos\\s+lados)?'
-const HAIR_BIT = new RegExp(`(?<![\\p{L}])(?:slicked-back\\s+)?(?:(?:short|long|curly|wavy|straight|auburn|copper|brown|black|blonde|blond|gray|grey|salt|frozen|white|silver|red|dark|fine|thin|castanh[oa]s?|grisalh[oa]|pret[oa]|ruiv[oa]|loir[oa]s?)\\s+){1,3}(?:hair|braids?|beard|cabelo|caracóis|caracois|tranças|trancas|barba|coque|bun|curls|locs|franja|madeixas|sideburns)(?:\\s+(?:${HAIR_STYLE}))?|(?<![\\p{L}])(?:tranças|trancas|cabelo|caracóis|caracois|barba|braids?|beard|coque|curls|franja|madeixas|sideburns)\\s+[\\p{L}'’-]+(?:\\s+(?:${HAIR_STYLE}|[\\p{L}'’-]+)){0,4}`, 'giu')
+const HAIR_BIT = new RegExp(`(?<![\\p{L}])(?:slicked-back\\s+)?(?:(?:short|long|curly|wavy|straight|auburn|copper|brown|black|blonde|blond|gray|grey|salt|frozen|white|silver|red|dark|fine|thin|castanh[oa]s?|grisalh[oa]|pret[oa]|ruiv[oa]|loir[oa]s?)\\s+){1,3}(?:hair|braids?|beard|cabelo|caracóis|caracois|tranças|trancas|barba|coque|bun|curls|locs|rastas|dreadlocks|dreads|franja|madeixas|sideburns)(?:\\s+(?:${HAIR_STYLE}))?|(?<![\\p{L}])(?:tranças|trancas|cabelo|caracóis|caracois|barba|braids?|beard|coque|curls|franja|madeixas|sideburns|rastas|dreadlocks|dreads)(?:\\s+[\\p{L}'’-]+(?:\\s+(?:${HAIR_STYLE}|[\\p{L}'’-]+)){0,4})?`, 'giu')
 const MARK_BIT = /(?<![\p{L}])((?:red|white|round|rubber)\s+nose|(?:nariz)(?:\s+vermelho|\s+de\s+palhaço|\s+de\s+palhaco)?)(?![\p{L}])/giu
-const GARMENT_WORD = 't-shirt|tee-shirt|sweatshirt|raincoat|peacoat|overcoat|waistcoat|cardigan|blazer|anorak|parka|hoodie|jumper|pullover|overalls|dungarees|impermeável|impermeavel|gabardina|casaco|jaqueta|camisola|colete|vestido|camisa|blusa|saia|calças|calcas|avental|jardineira|macacão|macacao|farda|fato-macaco|fato|capa|cape|cloak|robe|uniform|apron|coat|jacket|dress|shirt|sweater|skirt|blouse|trousers|pants|scarf|gloves|luvas|goggles|óculos|oculos|hat|cap|boots|botas|suit|cachecol|cachecóis|cachecois|chapéu|chapeu|lenço|lenco|xaile|xale|shawl'
+const GARMENT_WORD = 't-shirt|tee-shirt|sweatshirt|raincoat|peacoat|overcoat|waistcoat|cardigan|blazer|anorak|parka|hoodie|jumper|pullover|overalls|dungarees|impermeável|impermeavel|gabardina|casaco|jaqueta|camisola|colete|vestido|camisa|blusa|saia|calças|calcas|avental|jardineira|macacão|macacao|farda|fato-macaco|fato|capa|cape|cloak|robe|uniform|apron|coat|jacket|dress|shirt|sweater|skirt|blouse|trousers|pants|scarf|gloves|luvas|goggles|óculos|oculos|hat|cap|boots|botas|suit|cachecol|cachecóis|cachecois|chapéu|chapeu|lenço|lenco|xaile|xale|shawl|tailleur|batina|pérolas|perolas|pearls'
 const GARMENT_BIT = new RegExp(`(?<![\\p{L}])((?:[\\p{L}'’-]+\\s+){0,3}(?:${GARMENT_WORD}))(?![\\p{L}])(?:\\s+(?!e\\b|and\\b|com\\b|with\\b|e\\b)(?:de|do|da|dos|das|of|[\\p{L}'’-]+)){0,3}`, 'giu')
-const ITEM_WORD = 'mochila|backpack|rucksack|locket|whistle|apito|key|chave|compass|bússola|bussola|lanterna|câmara|camera|leque|fan|binóculos|binoculos|punch|radio|flauta|flute|pincel|brush|caderno|cadernos|notebook|violino|axe|machado|picareta|cane|bengala|goggles|facão|facao|machete|prancha|surfboard|conchas|concha|shells|shell|microphone|microfone|stethoscope|estetoscópio|estetoscopio|anel|ring|rings|nariz|nose|lápis|lapis|pencil|pencils|argola|argolas|brinco|brincos|earring|earrings|cachimbo|cachimbos|pipe|pipes'
+const ITEM_WORD = 'mochila|backpack|rucksack|locket|whistle|apito|key|chave|compass|bússola|bussola|lanterna|câmara|camera|leque|fan|binóculos|binoculos|punch|radio|flauta|flute|pincel|brush|caderno|cadernos|notebook|violino|axe|machado|picareta|cane|bengala|goggles|facão|facao|machete|prancha|surfboard|conchas|concha|shells|shell|microphone|microfone|stethoscope|estetoscópio|estetoscopio|anel|ring|rings|nariz|nose|lápis|lapis|pencil|pencils|argola|argolas|brinco|brincos|earring|earrings|cachimbo|cachimbos|pipe|pipes|terço|terco|rosary|rosaries'
 const ITEM_TAIL = '(?:\\s+(?:de|do|da|of)\\s+[\\p{L}\'’-]+|\\s+(?!e\\b|and\\b|um\\b|uma\\b|com\\b|with\\b)[\\p{L}\'’-]+)'
 const ITEM_BIT = new RegExp(`(?<![\\p{L}])(?:uma|um|uns|umas|an|a)(?![\\p{L}])\\s+((?:[\\p{L}'’-]+\\s+){0,2}(?:${ITEM_WORD})(?![\\p{L}])${ITEM_TAIL}{0,2})`, 'giu')
 const BARE_ITEM = new RegExp(`(?<![\\p{L}])((?:[\\p{L}'’-]+\\s+){0,2}(?:${ITEM_WORD})(?![\\p{L}])${ITEM_TAIL}{0,2})`, 'giu')
@@ -306,7 +322,7 @@ function garmentText(value) {
 /** A sheet or lock clause. Verb phrases are dropped. A phrase with no verb is kept as written. */
 export function keptTrait(value, field = '') {
   const raw = cleanText(String(value || '').split(/\n/)[0]).replace(/[.,;]+$/g, '')
-  if (!raw) return ''
+  if (!raw || /^(?:to|para|for)\s+/iu.test(raw) || /\b(?:to|para)\s+\p{Lu}/u.test(raw)) return ''
   if (/(?:de\s+fato|in\s+fact)/iu.test(raw) && !WEAR_CUE.test(raw)) return ''
   if (!verbPhrase(raw)) {
     const posed = raw.replace(/^(?:um|uma|uns|umas)\s+/iu, '').replace(/\s+(?:down|up|off|baixo)$/iu, '').replace(/\s+(?:com|with)\s+(?:uma\s+|um\s+|a\s+|an\s+|the\s+)?(?:só\s+|so\s+)?(?:mão|mãos|maos|hand|hands)$/iu, '').replace(/\s+(?:com|with)\s+(?:uma|um|a|an|the)$/iu, '')
@@ -578,11 +594,19 @@ function findAmbience(text, lex) {
   return { light, mood, confidence: light || mood ? 'medium' : 'low' }
 }
 
+function possessiveAt(text, index) {
+  return /(?:de|do|da|dos|das|of)\s+$/iu.test(String(text || '').slice(Math.max(0, index - 12), index))
+}
+
 function nameInText(text, name) {
-  const needle = foldName(name)
-  if (!needle) return false
-  if (tokens(text).some(token => foldName(token.replace(/^d'/i, '')) === needle)) return true
-  return new RegExp(`(?<![\\p{L}])${needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}])`, 'iu').test(foldName(text))
+  const label = cleanText(name)
+  if (!label) return false
+  const source = String(text || '')
+  const re = new RegExp(`(?<![\\p{L}])${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}])`, 'giu')
+  for (const match of source.matchAll(re)) {
+    if (!possessiveAt(source, match.index)) return true
+  }
+  return false
 }
 
 function whoFromPronoun(sentence, center) {
@@ -608,8 +632,9 @@ function kinshipMap(text, characters) {
       if (!word.test(sentence)) continue
       const named = names.filter(name => {
         const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-        const intro = new RegExp(`(?<![\\p{L}])${escaped}(?![\\p{L}]).{0,120}(?:${kin.word})|(?:${kin.word}).{0,40}(?<![\\p{L}])${escaped}(?![\\p{L}])|(?<![\\p{L}])${escaped}(?![\\p{L}])\\s+(?:é|e|is)\\s+(?:a|o|the|uma|um)\\s+(?:${kin.word})`, 'iu')
-        return intro.test(sentence) && !new RegExp(`(?:ajuda|helps?|chama|calls?)\\s+(?:a\\s+|o\\s+|the\\s+)?(?:${kin.word})`, 'iu').test(sentence)
+        if (new RegExp(`(?:${kin.word})\\s+(?:de|do|da|dos|das|of)\\s+(?:a\\s+|o\\s+|the\\s+)?(?<![\\p{L}])${escaped}(?![\\p{L}])`, 'iu').test(sentence)) return false
+        const intro = new RegExp(`(?<![\\p{L}])${escaped}(?![\\p{L}]).{0,160}(?:${kin.word})|(?:${kin.word}).{0,48}(?<![\\p{L}])${escaped}(?![\\p{L}])|(?<![\\p{L}])${escaped}(?![\\p{L}])\\s*,?\\s*(?:é|e|is)\\s+(?:a|o|the|uma|um)?\\s*(?:${kin.word})`, 'iu')
+        return intro.test(sentence) && !new RegExp(`(?:ajuda|helps?|chama|calls?|dança|danca|dances?)\\s+(?:a\\s+|o\\s+|the\\s+|com\\s+o\\s+|com\\s+a\\s+)?(?:${kin.word})`, 'iu').test(sentence)
       })
       if (named.length === 1) map.set(kin.id, named[0])
     }
@@ -617,12 +642,27 @@ function kinshipMap(text, characters) {
   return map
 }
 
-/** "Os dois" / "both" is every character when the cast is exactly two. */
-export function groupSubject(sentence, characters) {
+/** "Os dois" / "both" is the two people present. A cast of two is that pair. */
+export function groupSubject(sentence, characters, present = []) {
   const list = (characters || []).filter(person => person?.name)
-  if (list.length !== 2) return ''
+  if (!list.length) return ''
   if (!/(?<![\p{L}])(?:os dois|as duas|both(?:\s+of\s+them)?|the two(?:\s+of\s+them)?)(?![\p{L}])/iu.test(sentence)) return ''
-  return list.map(person => person.name).join(' and ')
+  const named = []
+  const push = person => {
+    if (!person?.name || named.some(item => foldName(item) === foldName(person.name))) return
+    named.push(person.name)
+  }
+  if (list.length === 2) {
+    list.forEach(push)
+    return named.join(' and ')
+  }
+  for (const name of [...present].reverse()) {
+    const person = list.find(item => foldName(item.name) === foldName(name) || item.name.split(/\s+/).some(part => foldName(part) === foldName(name) && foldName(name).length >= 3))
+    push(person)
+    if (named.length === 2) break
+  }
+  if (named.length === 2) return named.slice().reverse().join(' and ')
+  return ''
 }
 
 /** A kinship word such as "a avó" is the character introduced as that relation. */
@@ -638,16 +678,27 @@ export function kinshipSubject(sentence, characters, story) {
   return ''
 }
 
+function rememberPresent(present, who) {
+  String(who || '').split(/\s+\band\b\s+|\s+\be\b\s+/iu).forEach(name => {
+    const clean = cleanText(name)
+    if (!clean) return
+    const at = present.findIndex(item => foldName(item) === foldName(clean))
+    if (at >= 0) present.splice(at, 1)
+    present.push(clean)
+  })
+}
+
 function findScenes(text, lex, characters, places, language) {
   const warnings = []
   const scenes = []
+  const present = []
   let center = ''
   let lastWhere = ''
   let lastOutside = ''
   let light = ''
   sentences(text).forEach(sentence => {
     const wardrobeLater = scenes.length > 0 && isWardrobeSentence(sentence)
-    const storyAct = /(?<![\p{L}])(?:walks?|runs?|enters?|leaves?|opens?|pours?|sits?|stands?|reads?|gives?|hands?|waits?|abre|fecha|entra|sai|caminha|corre|espera|pega|lê|le|entrega|observa|acende|acendem|pinta|pintam|ajuda|ajudam|senta|sentam|acena|mostra|mostram|segura|seguram)(?![\p{L}])/iu.test(sentence)
+    const storyAct = /(?<![\p{L}])(?:walks?|runs?|enters?|leaves?|opens?|pours?|sits?|stands?|reads?|gives?|hands?|waits?|abre|fecha|entra|sai|caminha|corre|espera|pega|lê|le|entrega|observa|acende|acendem|pinta|pintam|ajuda|ajudam|senta|sentam|acena|mostra|mostram|segura|seguram|benze|benzem|reza|rezam|ora|oram|canta|cantam|dança|danca|dançam|dancam|fala|falam|olha|olham|abraça|abraca)(?![\p{L}])/iu.test(sentence)
     const described = !wardrobeLater && !storyAct && (isDescriptionSentence(sentence) || (/^[\p{Lu}][\p{L}'’-]+/u.test(sentence) && /(?:\d+\s*(?:Jahre|anni|anos|years)|cerca de\s+\d+|Anfang\s+\d+|poco più)/iu.test(sentence) && !/(?:^|[^\p{L}])(?:in|im|am|auf|bei|ins|zum|zur|dans|au|aux|nel|nella|nello|alla|al|sul|no|na|em|dentro|betritt|betrat|entra|entro|arriva|chega|espera|abre|lê|le)\b/iu.test(sentence)))
     if (described) {
       const headed = preferPlaceHead(locativeHeads(sentence, language).filter(item => item.moves !== false && !isNonPlaceNoun(item.lemma) && !isRejectedPlace(item.lemma) && mentionMovesScene(sentence, item.index, language)), sentence)
@@ -665,13 +716,14 @@ function findScenes(text, lex, characters, places, language) {
       else if (subject && (cueLight(sentence, language) || lastWhere)) lastWhere = subject
       const nextLight = lightAfterCue(sentence, language, light)
       if (nextLight) light = nextLight
+      characters.filter(person => nameInText(sentence, person.name)).forEach(person => rememberPresent(present, person.name))
       return
     }
     const action = cleanText(sentence).replace(/[.!?。！？]+$/, '')
     const foundNames = characters.filter(character => nameInText(action, character.name))
     let who = ''
     let whoFlag = ''
-    const grouped = groupSubject(action, characters)
+    const grouped = groupSubject(action, characters, present)
     const kin = kinshipSubject(action, characters, text)
     if (grouped) {
       who = grouped
@@ -731,8 +783,11 @@ function findScenes(text, lex, characters, places, language) {
     }
     const finished = finishCarriedPlace(action, where || lastWhere, lastWhere, lastOutside)
     where = finished.where
+    const flown = aircraftPlace(action, language)
+    if (flown) where = flown
     lastOutside = finished.outside
     lastWhere = where || ''
+    rememberPresent(present, who)
     const nextLight = lightAfterCue(sentence, language, light)
     if (nextLight !== light) light = nextLight
     else if (light && !cueLight(sentence, language)) flags.push({ field: 'light', code: 'light_carried' })

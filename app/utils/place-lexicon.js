@@ -619,6 +619,27 @@ function placeFromMoveWords(words, language) {
   return ''
 }
 
+function surePlaceWord(word, lang) {
+  const folded = String(word || '').toLowerCase()
+  if (!folded) return false
+  return placeTag(lang, folded) === 's' || placeTag('en', folded) === 's' || placeTag('pt', folded) === 's'
+}
+
+const FLIGHT_VERB = /(?<![\p{L}])(?:descol(?:a|am|ar|ou|ando|aram)|voa|voam|voar|voando|voou|take(?:s|n)?\s+off|took\s+off|taking\s+off|fl(?:y|ies|ew)|flying)(?![\p{L}])/iu
+const BOARD_VERB = /(?<![\p{L}])(?:board(?:s|ed|ing)?|embarc(?:a|am|ar|ou|ando|aram))(?![\p{L}])/iu
+const AIRCRAFT_NOUN = /(?<![\p{L}])(?:aviões|avioes|avião|aviao|aeronaves|aeronave|airplanes?|aircraft|planes?|jets?)(?![\p{L}])/iu
+const OTHER_VEHICLE = /(?<![\p{L}])(?:barcos?|boats?|ships?|navios?|helicópteros?|helicopteros?|helicopters?|comboios?|trains?|carros?|iate|yachts?|ferries|ferry)(?![\p{L}])/iu
+
+/** Takeoff, flight, or boarding puts the scene in the aircraft and keeps it there. A river underneath does not. */
+export function aircraftPlace(sentence, language = 'en') {
+  const text = String(sentence || '')
+  if (!text || (OTHER_VEHICLE.test(text) && !AIRCRAFT_NOUN.test(text))) return ''
+  const flight = FLIGHT_VERB.test(text)
+  const boardsCraft = BOARD_VERB.test(text) && AIRCRAFT_NOUN.test(text)
+  if (!flight && !boardsCraft) return ''
+  return language === 'pt' ? 'Avião' : 'Plane'
+}
+
 /** The place a movement verb reaches. A later path noun wins over the vehicle. "on a ladder" does not replace the glacier. */
 export function movementPlace(sentence, language = 'en') {
   const source = String(sentence || '')
@@ -802,7 +823,7 @@ export function locativeHeads(text, language) {
       if (words.length && isVerbHead(upcoming) && !placeTag(lang, `${words.map(item => item.word).join(' ')} ${word}`)) break
       const capitalName = word[0] !== word[0].toLowerCase() && word[0] === word[0].toUpperCase()
       if (!words.length && TIME_WORD.has(folded)) break
-      if (!words.length && (isVerbHead(folded, upcoming) || ARTICLE.has(folded) || isModifierWord(word, lang) || capitalName)) {
+      if (!words.length && (isVerbHead(folded, upcoming) || ARTICLE.has(folded) || isModifierWord(word, lang) || (capitalName && !surePlaceWord(folded, lang)))) {
         const sureStart = isModifierWord(word, lang) && placeTag(lang, [word, upcoming].filter(Boolean).join(' ')) === 's'
         if (!sureStart) continue
       }
@@ -820,7 +841,7 @@ export function locativeHeads(text, language) {
         if (words.length && /^(?:steps?|stairs?)$/i.test(folded)) words.push({ word, at: tokens[look].index })
         break
       }
-      if (capitalName || TIME_WORD.has(folded) || isVerbHead(folded, upcoming) || ARTICLE.has(folded) || NEVER_PLACE.has(folded) || word.length < 3) break
+      if ((capitalName && !surePlaceWord(folded, lang)) || TIME_WORD.has(folded) || isVerbHead(folded, upcoming) || ARTICLE.has(folded) || NEVER_PLACE.has(folded) || word.length < 3) break
       words.push({ word, at: tokens[look].index })
     }
     if (!words.length || possessive) continue
@@ -895,7 +916,7 @@ export function locativeHeads(text, language) {
       if (words.length && isVerbHead(upcoming) && !placeTag(lang, `${words.map(item => item.word).join(' ')} ${word}`)) break
       const capitalName = word[0] !== word[0].toLowerCase() && word[0] === word[0].toUpperCase()
       if (!words.length && TIME_WORD.has(folded)) break
-      if (!words.length && (isVerbHead(folded, upcoming) || ARTICLE.has(folded) || isModifierWord(word, lang) || capitalName)) {
+      if (!words.length && (isVerbHead(folded, upcoming) || ARTICLE.has(folded) || isModifierWord(word, lang) || (capitalName && !surePlaceWord(folded, lang)))) {
         const sureStart = isModifierWord(word, lang) && placeTag(lang, [word, upcoming].filter(Boolean).join(' ')) === 's'
         if (!sureStart) continue
       }
@@ -908,7 +929,7 @@ export function locativeHeads(text, language) {
         if (words.length && /^(?:steps?|stairs?)$/i.test(folded)) words.push({ word, at: tokens[look].index })
         break
       }
-      if (capitalName || TIME_WORD.has(folded) || isVerbHead(folded, upcoming) || ARTICLE.has(folded) || NEVER_PLACE.has(folded) || word.length < 3) break
+      if ((capitalName && !surePlaceWord(folded, lang)) || TIME_WORD.has(folded) || isVerbHead(folded, upcoming) || ARTICLE.has(folded) || NEVER_PLACE.has(folded) || word.length < 3) break
       words.push({ word, at: tokens[look].index })
     }
     if (!words.length) continue

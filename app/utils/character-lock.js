@@ -199,8 +199,15 @@ function localizeLockLine(line, character, lang) {
 function nameMentioned(text, name) {
   const needle = foldName(name)
   if (!needle) return false
+  const source = foldName(text)
   const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  return new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, 'iu').test(foldName(text))
+  const re = new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, 'giu')
+  for (const match of source.matchAll(re)) {
+    const before = source.slice(Math.max(0, match.index - 12), match.index)
+    if (/(?:de|do|da|dos|das|of)\s+$/iu.test(before)) continue
+    return true
+  }
+  return false
 }
 
 function characterNamedIn(text, character, characters) {
@@ -409,7 +416,7 @@ const VERB_RULES = Object.freeze([
   { op: 'wear', re: /(?<![\p{L}])(?:puts?\s+on|veste|vestem|põe|poe|põem|poem)(?![\p{L}])/iu },
   { op: 'remove', re: /(?<![\p{L}])(?:takes?\s+off|take\s+off|removes?|tira|tiram|despe|despem)(?![\p{L}])/iu },
   { op: 'pickup', re: /(?<![\p{L}])(?:picks?\s+up|pick\s+up|grabs?|pega|pegam|agarra|agarram|receives?|recebe|recebem)(?![\p{L}])/iu },
-  { op: 'drop', re: /(?<![\p{L}])(?:drops?|sets?\s+down|set\s+down|larga|largam|pousa|pousam|deixa(?:m)?\s+cair|perde|perdem|loses?|lose|hangs?|hang)(?![\p{L}])/iu },
+  { op: 'drop', re: /(?<![\p{L}])(?:drops?|sets?\s+down|set\s+down|larga|largam|pousa|pousam|deixa(?:m)?(?:\s+[\p{L}'’-]+){0,5}\s+cair|perde|perdem|loses?|lose|hangs?|hang)(?![\p{L}])/iu },
   { op: 'hand', re: /(?<![\p{L}])(?:hands?(?:\s+over)?|gives?|entrega|entregam)(?![\p{L}])/iu },
   { op: 'return', re: /(?<![\p{L}])(?:returns?|gives?\s+(?:[\p{L}'’-]+\s+){0,5}back|hands?\s+(?:[\p{L}'’-]+\s+){0,5}back|devolve|devolvem)(?![\p{L}])/iu },
   { op: 'carry', re: /(?<![\p{L}])(?:carries|carrying|carrega|carregam|leva|levam|traz|trazem)(?![\p{L}])/iu }
@@ -473,10 +480,22 @@ function related(text, value) {
 function fieldClauses(text) {
   const ageJoin = /^(?:vinte|trinta|quarenta|cinquenta|sessenta|setenta|oitenta|noventa|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)\b/iu
   const ageUnit = /^(?:um|dois|duas|três|tres|quatro|cinco|seis|sete|oito|nove|one|two|three|four|five|six|seven|eight|nine)\b/iu
+  const verbOnly = /^(?:põe|poe|põem|poem|veste|vestem|tira|tiram|despe|despem|puts?|takes?|wears?|wore|remove|removes|drops?|loses?|hangs?)$/iu
+  const tidyPiece = piece => {
+    let bit = cleanText(piece).replace(/^(?:de|do|da|dos|das|of)\s+/iu, '')
+    bit = bit.replace(/^(?:põe|poe|põem|poem|veste|vestem|tira|tiram|despe|despem|puts?(?:\s+on)?|takes?(?:\s+off)?|wears?|wore|drops?|loses?|hangs?)\s+/iu, '')
+    bit = bit.replace(/^(?:um|uma|uns|umas)\s+/iu, '').replace(/(?:\s+(?:um|uma|uns|umas))+$/iu, '')
+    if (!bit || verbOnly.test(bit)) return ''
+    return cleanText(bit)
+  }
+  const splitArticles = piece => {
+    if (ageJoin.test(piece) || /\b(?:anos|years)\b/iu.test(piece)) return [tidyPiece(piece)].filter(Boolean)
+    return piece.split(/\s+(?=(?:um|uma|uns|umas)\s+\p{L})/iu).map(tidyPiece).filter(Boolean)
+  }
   return cleanText(text).split(/\s*,\s*/).flatMap(part => {
     const pieces = part.split(/\s+\b(?:and|e)\b\s+/iu).map(piece => piece.trim()).filter(Boolean)
     if (pieces.length === 2 && ageJoin.test(pieces[0]) && ageUnit.test(pieces[1])) return [part.trim()]
-    return pieces
+    return pieces.flatMap(splitArticles)
   })
 }
 
@@ -485,7 +504,10 @@ function writeClauses(parts) {
 }
 
 function withoutRelated(text, value) {
-  return writeClauses(fieldClauses(text).filter(part => !related(part, value)))
+  const parts = fieldClauses(text)
+  const kept = parts.filter(part => !related(part, value))
+  if (kept.length === parts.length) return text || ''
+  return writeClauses(kept)
 }
 
 function withClause(text, value) {
@@ -532,7 +554,7 @@ const OBJECT_OF = new Set(['de', 'do', 'da', 'dos', 'das', 'of'])
 const ABSTRACT_NOUN = new Set(['hope', 'fear', 'love', 'hate', 'idea', 'thought', 'memory', 'dream', 'name', 'voice', 'courage', 'luck', 'truth', 'time', 'moment', 'chance', 'silence', 'light', 'darkness', 'distance', 'place', 'circle', 'way', 'joy', 'sorrow', 'anger', 'doubt', 'faith', 'peace', 'life', 'death', 'beauty', 'pain', 'wish', 'secret', 'reason', 'sense', 'feeling', 'meaning', 'purpose', 'pride', 'shame', 'guilt', 'trust', 'power', 'freedom', 'justice', 'soul', 'mind', 'rest', 'sleep', 'hurry', 'weather', 'fate', 'destiny', 'spirit', 'attention', 'trouble', 'help', 'honor', 'honour', 'esperanca', 'medo', 'amor', 'odio', 'ideia', 'pensamento', 'memoria', 'sonho', 'nome', 'voz', 'coragem', 'sorte', 'verdade', 'tempo', 'momento', 'silencio', 'luz', 'escuridao', 'distancia', 'lugar', 'circulo', 'caminho', 'alegria', 'tristeza', 'raiva', 'duvida', 'fe', 'paz', 'vida', 'morte', 'beleza', 'dor', 'segredo', 'razao', 'sentido', 'honra', 'orgulho', 'vergonha', 'culpa', 'confianca', 'poder', 'liberdade', 'justica', 'alma', 'mente', 'descanso', 'sono', 'pressa', 'vez', 'jeito', 'modo'])
 const BODY_NOUN = new Set(['hand', 'hands', 'head', 'arm', 'arms', 'leg', 'legs', 'foot', 'feet', 'finger', 'fingers', 'eye', 'eyes', 'face', 'hair', 'mouth', 'ear', 'ears', 'nose', 'shoulder', 'shoulders', 'mao', 'maos', 'rosto', 'cabelo', 'cabeca', 'braco', 'perna', 'olho', 'olhos', 'boca', 'nariz', 'pe', 'pes', 'dedo', 'dedos'])
 const ACTION_HEAD = new Set(['walks', 'runs', 'sits', 'waits', 'waves', 'opens', 'closes', 'reads', 'turns', 'enters', 'leaves', 'goes', 'comes', 'looks', 'stands', 'smiles', 'nods', 'bows', 'checks', 'taps', 'stacks', 'espera', 'acena', 'abre', 'fecha', 'senta', 'corre', 'caminha', 'entra', 'sai', 'le', 'olha'])
-const GARMENT_HEAD = /(?<![\p{L}])(?:cardigans?|waistcoats?|jumpers?|pullovers?|overalls|dungarees|gloves?|goggles|coletes?|vestidos?|casacos?|jaquetas?|blusas?|saias?|calças|calcas|camisas?|aprons?|coats?|jackets?|dresses?|shirts?|sweaters?|peacoats?|cloaks?|robes?|uniforms?|skirts?|blouses?|trousers|pants|hats?|caps?|scarves?|scarfs?|avental|aventais|jardineiras?|luvas?|camisolas?|macacões|macacoes|macacão|macacao|suits?|parkas?|anoraks?|fatos?|fardas?|lenços|lencos|lenço|lenco|cachecóis|cachecois|cachecol|chapéus|chapeus|chapéu|chapeu|impermeável|impermeavel|gabardinas?|hakama|hoodies?|boots?)(?![\p{L}])/iu
+const GARMENT_HEAD = /(?<![\p{L}])(?:cardigans?|waistcoats?|jumpers?|pullovers?|overalls|dungarees|gloves?|goggles|coletes?|vestidos?|casacos?|jaquetas?|blusas?|saias?|calças|calcas|camisas?|aprons?|coats?|jackets?|dresses?|shirts?|sweaters?|peacoats?|cloaks?|robes?|uniforms?|skirts?|blouses?|trousers|pants|hats?|caps?|scarves?|scarfs?|avental|aventais|jardineiras?|luvas?|camisolas?|macacões|macacoes|macacão|macacao|suits?|parkas?|anoraks?|fatos?|fardas?|lenços|lencos|lenço|lenco|cachecóis|cachecois|cachecol|chapéus|chapeus|chapéu|chapeu|impermeável|impermeavel|gabardinas?|hakama|hoodies?|boots?|tailleurs?|batina|batinas|pérolas|perolas|pearls|capas?)(?![\p{L}])/iu
 
 function isPlaceNoun(word) {
   const key = foldName(word)
@@ -560,7 +582,7 @@ function phraseFromObjectWords(words, characters) {
   let index = 0
   while (index < words.length) {
     const folded = foldName(words[index])
-    if (OBJECT_ARTICLE.has(folded) || OBJECT_PRONOUN.has(folded)) {
+    if (OBJECT_ARTICLE.has(folded) || OBJECT_PRONOUN.has(folded) || OBJECT_STOP.has(folded)) {
       index += 1
       continue
     }
@@ -576,7 +598,7 @@ function phraseFromObjectWords(words, characters) {
     const folded = foldName(word)
     if (!folded) break
     if (collected.length && (OBJECT_STOP.has(folded) || OBJECT_ARTICLE.has(folded) || OBJECT_PRONOUN.has(folded))) break
-    if (collected.length && (characters || []).some(person => foldName(person.name) === folded)) break
+    if (collected.length && (characters || []).some(person => foldName(person.name) === folded || person.name.split(/\s+/).some(part => foldName(part) === folded && folded.length >= 3))) break
     if (OBJECT_OF.has(folded)) {
       const next = words[index + 1]
       const nextFold = foldName(next)
@@ -654,7 +676,10 @@ function storyEvents(shots, characters) {
       verbs.forEach((verb, verbIndex) => {
         const before = sentence.text.slice(0, verb.index)
         const afterEnd = verbs[verbIndex + 1]?.index ?? sentence.text.length
-        const after = sentence.text.slice(verb.index + verb.length, afterEnd)
+        const matched = sentence.text.slice(verb.index, verb.index + verb.length)
+        const embedded = matched.match(/deixa(?:m)?\s+(.+)\s+cair$/iu) || matched.match(/(?:gives?|hands?)\s+(.+)\s+back$/iu)
+        const inner = embedded && !/^(?:cair|back)$/iu.test(embedded[1]) ? embedded[1] : ''
+        const after = `${inner} ${sentence.text.slice(verb.index + verb.length, afterEnd)}`.trim()
         const named = namesIn(before, characters)
         const who = singleWho(shot?.who, characters)
         let actor = ''
@@ -671,10 +696,11 @@ function storyEvents(shots, characters) {
           events.push({ order, op, actor: target, value: clean, field })
         }
         if (verb.op === 'wear' || verb.op === 'replace') {
-          objects.garments.forEach(value => push(verb.op, value, 'outfit', actor))
+          const worn = objects.garments.length ? objects.garments : objects.items
+          worn.forEach(value => push(verb.op, value, 'outfit', actor))
         } else if (verb.op === 'remove') {
-          objects.garments.forEach(value => push('remove', value, 'outfit', actor))
-          objects.items.forEach(value => push('remove', value, 'items', actor))
+          const values = [...objects.garments, ...objects.items]
+          values.forEach(value => push('remove', value, 'outfit', actor))
         } else if (verb.op === 'pickup') {
           objects.items.forEach(value => push('add', value, 'items', actor))
           objects.garments.forEach(value => push('wear', value, 'outfit', actor))
@@ -690,7 +716,7 @@ function storyEvents(shots, characters) {
           objects.items.forEach(value => { if (!sheetHasValue(actorSheet, value)) push('add', value, 'items', actor) })
           objects.garments.forEach(value => { if (!sheetHasValue(actorSheet, value)) push('wear', value, 'outfit', actor) })
         } else if (verb.op === 'return') {
-          let values = objects.items.filter(value => !/^(?:it|o|a|lo|la|isso|isto)$/iu.test(value))
+          let values = objects.items.filter(value => !/^(?:it|o|a|lo|la|isso|isto)$/iu.test(value) && !/^(?:to|para|for)\b/iu.test(value))
           if (!values.length) {
             const recent = [...events].reverse().find(item => item.field === 'items')
             if (recent) values = [recent.value]
@@ -698,9 +724,8 @@ function storyEvents(shots, characters) {
           values.forEach(value => {
             const prior = [...events].reverse().find(item => item.field === 'items' && foldName(item.actor) !== foldName(actor) && related(item.value, value))
             const holder = (characters || []).find(person => foldName(person.name) !== foldName(actor) && (sheetHasValue(person, value) || (prior && foldName(person.name) === foldName(prior.actor))))
-            const namedOwner = receiver && (sheetHasValue(receiver, value) || !holder) ? receiver.name : ''
-            const owner = namedOwner || holder?.name || prior?.actor || ''
-            const restored = originalClause(holder || (characters || []).find(person => foldName(person.name) === foldName(owner)), value) || value
+            const owner = receiver?.name || holder?.name || prior?.actor || ''
+            const restored = [actorSheet, holder, ...(characters || [])].map(person => originalClause(person, value)).filter(Boolean).sort((a, b) => b.length - a.length)[0] || value
             push('remove', value, 'items', actor)
             if (owner) push('add', restored, 'items', owner)
           })
@@ -805,6 +830,49 @@ export function ensureLockVersions(project) {
   appliedVersions.set(project, sign)
 }
 
+function tidySnapshot(snapshot) {
+  const next = { ...snapshot }
+  const messy = /(?:^|\s)(?:um|uma|uns|umas)\s+\p{L}|^(?:põe|poe|põem|poem|veste|vestem|tira|tiram|despe|despem|puts?|takes?|wears?)\b/iu
+  ;['look', 'outfit', 'items'].forEach(key => {
+    if (messy.test(next[key] || '')) next[key] = writeClauses(fieldClauses(next[key]))
+  })
+  return next
+}
+
+function mentionedBeforeFirstShot(story, shots, value) {
+  const folded = foldName(story)
+  const needle = foldName(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  if (!folded || !needle) return false
+  const at = folded.search(new RegExp(`(?<![\\p{L}\\p{N}])${needle}(?![\\p{L}\\p{N}])`, 'u'))
+  if (at < 0) return false
+  const first = foldName(shots?.[0]?.source || shots?.[0]?.what || '')
+  const shotAt = first ? folded.indexOf(first.slice(0, Math.min(60, first.length))) : -1
+  return shotAt < 0 || at < shotAt
+}
+
+const ACQUIRE_VERB = /(?<![\p{L}])(?:picks?\s+up|pick\s+up|opens?|checks?|finds?|grabs?|pega|abre|verifica|encontra)(?![\p{L}])/iu
+
+function demoteLaterTraits(current, shots, events, person, story = '') {
+  for (const field of ['outfit', 'items']) {
+    const kept = []
+    let changed = false
+    for (const clause of fieldClauses(current[field])) {
+      const index = (shots || []).findIndex(shot => related(shotPlain(shot), clause))
+      const shot = index >= 0 ? shots[index] : null
+      const order = shot ? (shot.order || index + 1) : 1
+      const acquiredLater = order > 1 && ACQUIRE_VERB.test(shotPlain(shot)) && !mentionedBeforeFirstShot(story, shots, clause)
+      if (!acquiredLater) {
+        kept.push(clause)
+        continue
+      }
+      changed = true
+      const scheduled = events.some(event => foldName(event.actor) === foldName(person.name) && related(event.value || event.items || event.outfit || '', clause))
+      if (!scheduled) events.push({ order, op: field === 'outfit' ? 'wear' : 'add', actor: person.name, value: clause, field })
+    }
+    if (changed) current[field] = writeClauses(kept)
+  }
+}
+
 function scrubChangeText(snapshot) {
   const cleanClause = part => {
     const text = cleanText(part)
@@ -843,7 +911,8 @@ function applyLockVersions(project) {
   characters.forEach(person => {
     if (!person?.name) return
     const declared = userLocks(person)
-    let current = scrubChangeText(snapshotOf(asCharacter(person)))
+    let current = tidySnapshot(scrubChangeText(snapshotOf(asCharacter(person))))
+    demoteLaterTraits(current, shots, events, person, project.storyText || project.premise || '')
     const additions = events.filter(event => foldName(event.actor) === foldName(person.name) && (event.op === 'wear' || event.op === 'add' || event.op === 'replace'))
     additions.forEach(event => {
       if (mentionedBefore(shots, event.order, event.value)) return

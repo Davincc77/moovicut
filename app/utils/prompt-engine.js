@@ -858,6 +858,7 @@ function createScenarioStoryboard(options) {
     sequenceMode: 'scenario',
     filmSheet,
     scenarioBudget: parsed.budget,
+    storyText: typeof options.storyText === 'string' ? options.storyText : '',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     generationMode: 'local',

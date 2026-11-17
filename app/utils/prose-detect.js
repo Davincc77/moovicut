@@ -5,7 +5,7 @@ import { flaggedNameKeys } from './shot-risk.js'
 import { splitActionText } from './action-split.js'
 import { detectLocalized, groupSubject, identityTraits, keptTrait, kinshipSubject } from './prose-extra.js'
 import { inNamedVenue, inSpans, isCueStopword, isFunctionWord, isNeverPlace, isNumberWord, isQuotedOrRemembered, isVenueType, mentionMovesScene, namedVenues, placeMentionIsReal, quoteSpans, splitNarrative } from './scene-split.js'
-import { enteredPlace, finishCarriedPlace, isNonPlaceNoun, isRejectedPlace, libraryHits, locativeHeads, movementPlace, normalizePlaceName, placeLexiconHas, placeTag, preferPlaceHead, settingName, tidyPlaceLemma } from './place-lexicon.js'
+import { aircraftPlace, enteredPlace, finishCarriedPlace, isNonPlaceNoun, isRejectedPlace, libraryHits, locativeHeads, movementPlace, normalizePlaceName, placeLexiconHas, placeTag, preferPlaceHead, settingName, tidyPlaceLemma } from './place-lexicon.js'
 
 const STOP = new Set(['the', 'a', 'an', 'he', 'she', 'they', 'it', 'his', 'her', 'their', 'then', 'when', 'after', 'before', 'later', 'next', 'once', 'this', 'that', 'there', 'here', 'un', 'une', 'le', 'la', 'les', 'il', 'elle', 'ils', 'elles', 'lui', 'leur', 'puis', 'quand', 'apres', 'avant', 'dans', 'sur', 'sous', 'avec', 'pour', 'par', 'chez', 'au', 'aux', 'du', 'des', 'en', 'et', 'mais', 'ou', 'ce', 'cette', 'ces', 'son', 'sa', 'ses', 'mon', 'ma', 'mes', 'je', 'tu', 'nous', 'vous', 'on', 'plus', 'tout', 'toute', 'tous', 'morning', 'evening', 'night', 'day', 'matin', 'soir', 'nuit', 'jour', 'aube', 'tard', 'lendemain', 'and', 'with', 'from', 'into', 'over', 'while', 'its', 'our', 'your'])
 
@@ -928,9 +928,19 @@ function splitBlocks(text) {
   return blocks
 }
 
+function possessiveAt(text, index) {
+  return /(?:de|do|da|dos|das|of)\s+$/iu.test(String(text || '').slice(Math.max(0, index - 12), index))
+}
+
 function namesIn(text, characters) {
   const source = String(text || '')
-  const hit = label => new RegExp(`(?<![\\p{L}])${escapeName(label)}(?![\\p{L}])`, 'iu').test(source)
+  const hit = label => {
+    const re = new RegExp(`(?<![\\p{L}])${escapeName(label)}(?![\\p{L}])`, 'giu')
+    for (const match of source.matchAll(re)) {
+      if (!possessiveAt(source, match.index)) return true
+    }
+    return false
+  }
   return characters.filter(character => {
     const name = character?.name
     if (!name) return false
@@ -1063,14 +1073,22 @@ function detectScenes(text, characters, places, language, flagged, options = {})
   })
   let carriedWhere = ''
   let carriedOutside = ''
+  const present = []
   const kinText = text
   const scenes = narrative.shots.map((shot, index) => {
     const foundNames = namesIn(shot.what, characters)
     const pronounWho = whoFromPronoun(shot.what, characters, genders, language)
-    const grouped = groupSubject(shot.what, characters)
+    const grouped = groupSubject(shot.what, characters, present)
     const kin = kinshipSubject(shot.what, characters, kinText)
     let who = canonicalWho(grouped || (foundNames.length ? foundNames.map(item => item.name).join(' and ') : (pronounWho || shot.who)), characters)
     if (kin && !foldName(who).split(/\s+/).includes(foldName(kin)) && !foldName(who).includes(foldName(kin))) who = who ? `${who} and ${kin}` : kin
+    String(who || '').split(/\s+\band\b\s+/iu).forEach(name => {
+      const clean = cleanText(name)
+      if (!clean) return
+      const at = present.findIndex(item => foldName(item) === foldName(clean))
+      if (at >= 0) present.splice(at, 1)
+      present.push(clean)
+    })
     const head = preferPlaceHead(locativeHeads(shot.what, language).filter(item => item.moves !== false && !isNonPlaceNoun(item.lemma) && !isRejectedPlace(item.lemma) && mentionMovesScene(shot.what, item.index, language)), shot.what)
     const genericWhere = /^(?:Le lieu|The setting|O lugar|Il luogo|場所|场景)$/u.test(shot.where || '')
     const flaggedOnly = riskNamesOnly(shot.what, flagged)
@@ -1116,6 +1134,8 @@ function detectScenes(text, characters, places, language, flagged, options = {})
         }
         const finished = finishCarriedPlace(shot.what, where || carriedWhere, carriedWhere, carriedOutside)
         where = finished.where
+        const flown = aircraftPlace(shot.what, language)
+        if (flown) where = flown
         carriedOutside = finished.outside
         carriedWhere = where || ''
         return where
