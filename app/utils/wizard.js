@@ -263,7 +263,7 @@ function shotGaps(state) {
   state.shots.forEach((shot, index) => {
     const skipWho = state.noCharacter || shot.noCharacter
     const who = (shot.whoIds || []).filter(id => state.characters.some(character => character.id === id && filled(character.name)))
-    if (!skipWho && !who.length) gaps.push(gap('shots', { targetId: shot.id, field: 'who', key: 'missing.who', name: wizardText('shot.count', { current: index + 1, total: state.shots.length }) }))
+    if (!skipWho && !who.length) gaps.push(gap('shots', { targetId: shot.id, field: 'who', key: 'missing.who', name: String(index + 1) }))
     const place = state.places.find(item => item.id === shot.placeId && acceptedPlaceName(item))
     if (!place) gaps.push(gap('shots', { targetId: shot.id, field: 'place', key: 'missing.place' }))
     const action = acceptedAction(state, shot)
@@ -300,7 +300,7 @@ export function gateGaps(state, stepId) {
 }
 
 /** First idea, character, place, or shot step that still has a strict gap. */
-function firstStrictGap(state) {
+export function firstIncompleteStep(state) {
   for (const step of WIZARD_STEPS) {
     if (step.id === 'check' || step.id === 'generate') return ''
     if (gapsFor(state, step.id).length) return step.id
@@ -378,6 +378,8 @@ export function canOpenStep(state, stepId) {
   const target = stepIndex(stepId)
   const current = stepIndex(state?.step)
   if (!state || target < 0 || current < 0) return false
+  // Check can be reopened after it was reached, so it can name the unfinished step. Generate stays closed.
+  if (stepId === 'check' && Number(state.maxReached) >= target && !gapBefore(state, stepIndex('shots'))) return true
   if (gapBefore(state, target)) return false
   if (stepId === 'generate') return canGenerate(state)
   return true
@@ -406,7 +408,7 @@ export function continueStep(state) {
 /** A restored guide opens on the first step that still has a strict gap. */
 export function clampWizardStep(state) {
   if (!state) return state
-  const gapId = firstStrictGap(state)
+  const gapId = firstIncompleteStep(state)
   if (!gapId) return state
   const limit = stepIndex(gapId)
   if (stepIndex(state.step) <= limit) return state

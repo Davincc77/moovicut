@@ -27,6 +27,7 @@ import {
   gateGaps,
   canGenerate,
   gapsFor,
+  firstIncompleteStep,
   splitOffer,
   acceptSplit,
   saveWizard,
@@ -352,6 +353,57 @@ test('a restored check step with strict gaps clamps to the first gap', () => {
   assert.equal(canOpenStep(back, 'characters'), true)
   assert.equal(canOpenStep(back, 'shots'), false)
 })
+
+test('a shot with nobody selected stays on Shots unless the story has no character', () => {
+  let state = completeBoard()
+  state = toggleShotCharacter(state, state.shots[0].id, state.characters[0].id)
+  assert.deepEqual(state.shots[0].whoIds, [])
+  const whoGaps = gapsFor(state, 'shots').filter(item => item.field === 'who')
+  assert.equal(whoGaps.length, 1)
+  assert.equal(whoGaps[0].key, 'missing.who')
+  assert.equal(whoGaps[0].name, '1')
+  assert.equal(continueStep({ ...state, step: 'shots' }).step, 'shots')
+  assert.equal(canOpenStep({ ...state, step: 'shots' }, 'check'), false)
+  assert.equal(canOpenStep({ ...state, step: 'shots', maxReached: 4 }, 'check'), true)
+  assert.equal(canOpenStep({ ...state, step: 'shots', maxReached: 4 }, 'generate'), false)
+  assert.equal(canGenerate(state), false)
+  state = setNoCharacter(state, true)
+  assert.equal(gapsFor(state, 'shots').some(item => item.field === 'who'), false)
+  const second = addWizardShot(setNoCharacter(completeBoard(), false))
+  const cleared = {
+    ...second,
+    step: 'shots',
+    shots: second.shots.map(shot => ({ ...shot, whoIds: [] }))
+  }
+  assert.equal(gapsFor(cleared, 'shots').filter(item => item.field === 'who').length, cleared.shots.length)
+  const onCheck = { ...cleared, step: 'check' }
+  assert.equal(firstIncompleteStep(onCheck), 'shots')
+  assert.equal(openStep(onCheck, 'shots').step, 'shots')
+  assert.equal(continueStep(onCheck).step, 'check')
+  assert.equal(canGenerate(onCheck), false)
+  assert.match(wizardText('check.needSteps', { step: 'Shots' }), /first incomplete step is Shots/)
+  assert.match(wizardText('missing.whoShot', { number: 2 }), /Shot 2/)
+})
+
+test('an idea plus No character cannot jump past the next incomplete step', () => {
+  for (const idea of ['A quiet moment unfolds slowly.', 'Ela espera no cais ao anoitecer.']) {
+    let state = setNoCharacter(continueStep(setIdea(blankWizard(), idea)), true)
+    assert.equal(cleanTextLength(state.idea) >= 8, true, idea)
+    assert.equal(gapsFor(state, 'characters').length, 0)
+    assert.equal(canOpenStep(state, 'places'), true)
+    assert.equal(canOpenStep(state, 'shots'), false)
+    assert.equal(canOpenStep(state, 'check'), false)
+    assert.equal(canOpenStep(state, 'generate'), false)
+    state = continueStep(state)
+    assert.equal(state.step, 'places')
+    assert.equal(continueStep(state).step, 'places')
+    assert.equal(firstIncompleteStep(state), 'places')
+  }
+})
+
+function cleanTextLength(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim().length
+}
 
 test('the studio opens on the guide and keeps the full editor', () => {
   const studio = readFileSync('app/pages/studio.vue', 'utf8')

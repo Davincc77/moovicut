@@ -1,8 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { mkdirSync, readFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 import { chromium, devices } from 'playwright'
 import { createProdServer } from '../server/prod-server.mjs'
 
@@ -355,6 +355,104 @@ async function checkLinks(page) {
   }
 }
 
+async function guideHeading(page) {
+  return (await page.locator('#wizard-step-heading').innerText()).replace(/\s+/g, ' ').trim()
+}
+
+async function openFreshGuide(page, lang) {
+  await page.goto(`${origin}/studio${lang}`, { waitUntil: 'domcontentloaded' })
+  await page.evaluate(() => {
+    localStorage.removeItem('moovicut.studio.experience')
+    localStorage.removeItem('moovicut.wizard.v1')
+  })
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.waitForSelector('#wizard-idea')
+}
+
+async function clickGuideNext(page) {
+  const button = page.getByRole('button', { name: /^(Next|Seguinte)(?::|$)/ })
+  await button.scrollIntoViewIfNeeded()
+  await button.click()
+}
+
+async function checkNoCharacterStops(page, lang) {
+  const pt = String(lang).includes('pt')
+  await openFreshGuide(page, lang)
+  await page.locator('#wizard-idea').fill(pt ? 'Ela espera no cais ao anoitecer.' : 'A quiet moment unfolds slowly.')
+  await clickGuideNext(page)
+  await page.locator('#wizard-no-character').click()
+  const shots = page.getByRole('button', { name: pt ? 'Ir para Planos' : 'Go to Shots', exact: true })
+  const check = page.getByRole('button', { name: pt ? 'Ir para Verificar' : 'Go to Check', exact: true })
+  assert.equal(await shots.isDisabled(), true, `${lang} shots opened after No character`)
+  assert.equal(await check.isDisabled(), true, `${lang} check opened after No character`)
+  await clickGuideNext(page)
+  assert.match(await guideHeading(page), /^3\./, `${lang} No character skipped places`)
+  await shots.click({ force: true })
+  assert.match(await guideHeading(page), /^3\./, `${lang} stepper jumped past places`)
+  await clickGuideNext(page)
+  assert.match(await guideHeading(page), /^3\./, `${lang} Next jumped past places`)
+  assert.doesNotMatch(await guideHeading(page), /^5\./, `${lang} reached check with an unfinished place`)
+}
+
+async function checkMissingWho(page, lang, viewportName) {
+  const pt = String(lang).includes('pt')
+  await openFreshGuide(page, lang)
+  await page.locator('#wizard-idea').fill(pt ? 'A Léa acende a lanterna no cais.' : 'Léa lights the lamp on the quay at dusk.')
+  await clickGuideNext(page)
+  await page.locator('#character-1-name').fill('Léa')
+  await page.locator('#character-1-age').fill('42')
+  await page.locator('#character-1-build').fill('tall')
+  await page.locator('#character-1-hair').fill('black braid')
+  await page.locator('#character-1-outfit').fill('wool coat')
+  await clickGuideNext(page)
+  await page.locator('#place-1-name').waitFor()
+  await page.locator('input[id$="-name"]').last().fill(pt ? 'Cais' : 'Quay')
+  await page.locator('textarea[id$="-description"]').last().fill(pt ? 'um cais de pedra molhada' : 'a wet stone quay')
+  await page.locator('#wizard-light').selectOption('dusk')
+  await page.locator('#wizard-mood').selectOption('quiet')
+  await clickGuideNext(page)
+  await page.locator('textarea[id$="-action"]').first().fill(pt ? 'A Léa acende a lanterna' : 'She lights the lamp')
+  await page.locator('select[id$="-place"]').first().selectOption({ index: 1 })
+  await page.locator('select[id$="-framing"]').first().selectOption('wide')
+  const who = page.getByRole('checkbox', { name: 'Léa' })
+  if (await who.isChecked()) await who.uncheck()
+  await clickGuideNext(page)
+  assert.match(await guideHeading(page), /^4\./, `${lang} ${viewportName} left Shots without a person`)
+  const whoError = page.locator('[id$="-who-error"]')
+  await whoError.waitFor()
+  assert.match(await whoError.innerText(), pt ? /Escolha quem está neste plano/ : /Choose who is in this shot/)
+  assert.match(await page.evaluate(() => document.activeElement?.id || ''), /-who$/, `${lang} ${viewportName} who focus`)
+  assert.equal(await page.getByRole('button', { name: pt ? 'Ir para Verificar' : 'Go to Check', exact: true }).isDisabled(), true)
+  const shotDir = process.env.WIZARD_SHOTS
+  if (shotDir) {
+    mkdirSync(shotDir, { recursive: true })
+    const code = pt ? 'pt' : 'en'
+    await page.screenshot({ path: join(shotDir, `wizard-who-step4-${code}-${viewportName}.png`), fullPage: true })
+  }
+  await who.check()
+  await clickGuideNext(page)
+  assert.match(await guideHeading(page), /^5\./, `${lang} ${viewportName} did not reach Check after choosing who`)
+  await page.getByRole('button', { name: pt ? 'Voltar' : 'Go back', exact: true }).click()
+  assert.match(await guideHeading(page), /^4\./, `${lang} ${viewportName} did not return to Shots`)
+  await who.uncheck()
+  const checkAgain = page.getByRole('button', { name: pt ? 'Ir para Verificar' : 'Go to Check', exact: true })
+  assert.equal(await checkAgain.isDisabled(), false, `${lang} ${viewportName} Check could not be reopened`)
+  await checkAgain.click()
+  assert.match(await guideHeading(page), /^5\./, `${lang} ${viewportName} did not reopen Check`)
+  await page.locator('#wizard-check-gap').waitFor()
+  assert.match(await page.locator('#wizard-check-gap').innerText(), pt ? /O primeiro passo incompleto é Planos/ : /The first incomplete step is Shots/)
+  const jump = page.locator('#wizard-check-jump')
+  assert.equal((await jump.innerText()).replace(/\s+/g, ' ').trim(), pt ? 'Ir para Planos' : 'Go to Shots')
+  assert.equal(await page.getByRole('button', { name: pt ? 'Seguinte: Gerar' : 'Next: Generate', exact: true }).isDisabled(), true)
+  if (shotDir) {
+    const code = pt ? 'pt' : 'en'
+    await page.screenshot({ path: join(shotDir, `wizard-who-step5-${code}-${viewportName}.png`), fullPage: true })
+  }
+  await jump.click()
+  assert.match(await guideHeading(page), /^4\./, `${lang} ${viewportName} jump did not open Shots`)
+  await page.locator('[id$="-who-error"]').waitFor()
+}
+
 test('every page responds in English and Portuguese on desktop and a phone', { timeout: 600000 }, async () => {
   const generated = spawnSync('npx', ['nuxt', 'generate'], {
     cwd: process.cwd(),
@@ -429,6 +527,21 @@ test('every page responds in English and Portuguese on desktop and a phone', { t
           }
         }
         assert.deepEqual(problems, [], `${viewport.name} ${lang} console errors`)
+        await context.close()
+      }
+    }
+    const wizardViews = [
+      { name: 'phone', context: { viewport: { width: 390, height: 844 } } },
+      { name: 'tablet-portrait', context: { viewport: { width: 820, height: 1180 } } },
+      { name: 'tablet-landscape', context: { viewport: { width: 1180, height: 820 } } },
+      { name: 'desktop', context: { viewport: { width: 1440, height: 900 } } }
+    ]
+    for (const viewport of wizardViews) {
+      for (const lang of ['?lang=en', '?lang=pt']) {
+        const context = await browser.newContext(viewport.context)
+        const page = await context.newPage()
+        await checkNoCharacterStops(page, lang)
+        await checkMissingWho(page, lang, viewport.name)
         await context.close()
       }
     }
