@@ -1,6 +1,6 @@
 /** Deterministic scene cuts. Closed word lists only. No model call. */
 import { cleanText } from './text.js'
-import { enteredPlace, extendsPlace, heldPlaceNoun, isNonPlaceNoun, isRejectedPlace, locativeHeads, movementPlace, placeTag, preferPlaceHead, settingName, tidyPlaceLemma } from './place-lexicon.js'
+import { enteredPlace, extendsPlace, finishCarriedPlace, heldPlaceNoun, isNonPlaceNoun, isRejectedPlace, locativeHeads, movementPlace, placeTag, preferPlaceHead, settingName, tidyPlaceLemma } from './place-lexicon.js'
 import { foldName } from './scenario.js'
 import { splitActionText } from './action-split.js'
 
@@ -115,7 +115,8 @@ const TIME_RULES = [
   { re: /(?<![\p{L}])(de madrugada|na madrugada|alta madrugada|pela madrugada|madrugada)(?![\p{L}])/iu, id: 'madrugada', jump: 'part', light: 'night' },
   { re: /(?<![\p{L}])(à noite|a noite|de noite|pela noite|na noite|à noitinha|a noitinha|de noitinha)(?![\p{L}])/iu, id: 'a-noite', jump: 'part', light: 'night' },
   { re: /(?<![\p{L}])(ao luar|à luz da lua|a luz da lua)(?![\p{L}])/iu, id: 'luar', jump: 'part', light: 'night' },
-  { re: /(?<![\p{L}])(ao anoitecer|no anoitecer|ao entardecer|no entardecer|ao crepúsculo|ao crepusculo|no crepúsculo|no crepusculo|pelo crepúsculo|pelo crepusculo|crepúsculo|crepusculo|anoitecer|entardecer)(?![\p{L}])/iu, id: 'pt-evening', jump: 'part', light: 'night' },
+  { re: /(?<![\p{L}])(ao entardecer|no entardecer|ao crepúsculo|ao crepusculo|no crepúsculo|no crepusculo|pelo crepúsculo|pelo crepusculo|crepúsculo|crepusculo|entardecer|ao pôr do sol|ao por do sol|pôr do sol|por do sol|at sunset)(?![\p{L}])/iu, id: 'pt-dusk', jump: 'part', light: 'dusk' },
+  { re: /(?<![\p{L}])(ao anoitecer|no anoitecer|anoitecer)(?![\p{L}])/iu, id: 'pt-nightfall', jump: 'part', light: 'night' },
   { re: /(?<![\p{L}])noite(?![\p{L}])/iu, id: 'noite', jump: 'part', light: 'night' },
   { re: /(?<![\p{L}])(the next morning|next morning|na manhã seguinte|na manha seguinte|manhã seguinte|manha seguinte|de manhã|de manha|pela manhã|pela manha|na manhã|na manha|esta manhã|esta manha|nessa manhã|nessa manha|ao raiar do dia|by morning)(?![\p{L}])/iu, id: 'next-morning', jump: 'part', light: 'dawn' },
   { re: /(?<![\p{L}])(amanhecer|manhã|manha|morning|sunrise|dawn)(?![\p{L}])/iu, id: 'morning-word', jump: 'part', light: 'dawn' }
@@ -440,7 +441,7 @@ function collectPlaceCues(sentence, language, places) {
         const afterKey = sentence.slice(index + key.length)
         const locative = clauseLooks(before, language, LOCATIVE) || (language === 'ja' && /^(?:で|に|へ|の中|を)/.test(afterKey)) || (language === 'zh-Hans' && (/^(?:里|上|中|内|边|旁)/.test(afterKey) || /(?:在|去|到|来到)/.test(before)))
         const towardOnly = /(?:^|[^\p{L}])(?:to|into|onto|zum|zur|ins|vers|para|verso)\s+(?:the\s+|a\s+|an\s+|der\s+|die\s+|das\s+|dem\s+|den\s+|o\s+|il\s+|lo\s+|la\s+|le\s+)?$/iu.test(before)
-        const arrived = /(?:go(?:es|ing|ne)?|went|walk(?:s|ed|ing)?|climb(?:s|ed|ing)?|enter(?:s|ed|ing)?|reach(?:es|ed|ing)?|come[s]?|came|arriv|step(?:s|ped)?|descend(?:s|ed|ing)?|crawl(?:s|ed|ing)?|creep(?:s|ing)?|crept|duck(?:s|ed|ing)?|squeeze[sd]?|squeezing|slide[sd]?|sliding|clamber(?:s|ed|ing)?|rasteja(?:m|r|ndo)?|geht|gehen|ging|komm(?:t|en)|kam|betritt|betrat|erreicht|entra|chega|vai|\bva\b|arrive|entre|monte)/iu.test(sentence.slice(Math.max(0, index - 48), index))
+        const arrived = /(?:go(?:es|ing|ne)?|went|return(?:s|ed|ing)?|board(?:s|ed|ing)?|pilot(?:s|ed|ing)?|pilota(?:m|r|ndo)?|embarca(?:m|r|ndo)?|walk(?:s|ed|ing)?|climb(?:s|ed|ing)?|enter(?:s|ed|ing)?|reach(?:es|ed|ing)?|come[s]?|came|arriv|step(?:s|ped)?|descend(?:s|ed|ing)?|crawl(?:s|ed|ing)?|creep(?:s|ing)?|crept|duck(?:s|ed|ing)?|squeeze[sd]?|squeezing|slide[sd]?|sliding|clamber(?:s|ed|ing)?|rasteja(?:m|r|ndo)?|geht|gehen|ging|komm(?:t|en)|kam|betritt|betrat|erreicht|entra|chega|vai|\bva\b|arrive|entre|monte)/iu.test(sentence.slice(Math.max(0, index - 48), index))
         if (heldPlaceNoun(sentence, index)) continue
         const opener = clauseLooks(before, language, OPEN_PLACE)
         const weak = clauseLooks(before, language, WEAK_PLACE)
@@ -559,7 +560,19 @@ function hasAction(sentence, language, extra) {
 
 const LOOK = new Set(['hair', 'cheveux', 'cabelo', 'haar', 'capelli', 'hoer', 'glasses', 'lunettes', 'oculos', 'brille', 'occhiali', 'beard', 'barbe', 'barba', 'bart', 'coat', 'manteau', 'casaco', 'mantel', 'cappotto', 'apron', 'tablier', 'avental', 'schuerze', 'grembiule', 'eyes', 'yeux', 'olhos', 'augen', 'occhi', 'face', 'visage', 'rosto', 'gesicht', 'viso', 'sweater', 'pull', 'pullover', 'maglione', 'shirt', 'chemise', 'camisa', 'hemd', 'camicia', 'dress', 'robe', 'vestido', 'kleid', 'vestito', 'hat', 'chapeau', 'hut', 'cappello', 'casquette', 'cap', 'scarf', 'echarpe', 'cachecol', 'schal', 'sciarpa', 'jacket', 'veste', 'boots', 'bottes', 'shoes', 'souliers'].map(word => foldName(word)))
 
-const STRONG_ACTION = /\b(walks?|runs?|enters?|leaves?|opens?|pours?|sits?|stands?|reads?|turns?|crosses?|gives?|hands?|waits?|checks?|lifts?|holds?|follows?|yawns?|leads?|practises?|practices?|writes?|comes?|entre|sort|ouvre|verse|marche|lit|regarde|attend|porte|prend|donne|revient|boceja|lava)\b/iu
+const STRONG_ACTION = /\b(walks?|runs?|enters?|leaves?|opens?|pours?|sits?|stands?|reads?|turns?|crosses?|gives?|hands?|waits?|checks?|lifts?|holds?|follows?|yawns?|leads?|practises?|practices?|writes?|comes?|entre|sort|ouvre|verse|marche|lit|regarde|attend|porte|prend|donne|revient|boceja|lava|acende|acendem|pinta|pintam|ajuda|ajudam|senta|sentam|mostra|mostram|segura|seguram|perde|perdem)\b/iu
+
+const WARDROBE_SENTENCE = /(?<![\p{L}])(?:veste|vestem|põe|poe|põem|poem|tira|tiram|despe|despem|vestir|despir|puts?\s+on|takes?\s+off|take\s+off)(?![\p{L}])/iu
+const WARDROBE_NOUN = /(?<![\p{L}])(?:impermeável|impermeavel|casaco|jaqueta|camisola|colete|vestido|camisa|blusa|saia|calças|calcas|avental|fato|farda|capa|gabardina|chapéu|chapeu|cachecol|lenço|lenco|coat|jacket|scarf|hat|cloak|apron|dress|shirt|sweater|parka|boots?)(?![\p{L}])/iu
+
+/** A put-on or take-off after the story has started. It versions the outfit instead of staying a portrait. */
+export function isWardrobeSentence(sentence) {
+  return WARDROBE_SENTENCE.test(sentence) && WARDROBE_NOUN.test(sentence)
+}
+
+function leaveChanges(sentence) {
+  return /(?<![\p{L}])(?:leaves?|leaving|left|exits?|sai|saem|saindo|sair)(?![\p{L}])/iu.test(sentence)
+}
 
 /** A sentence that only introduces a person. It fills the sheet and is not a shot. */
 export function isPortraitSentence(sentence) {
@@ -588,7 +601,7 @@ function isLookIntro(sentence) {
 const COPULA_SETTING = /(?<![\p{L}])(?:is|are|was|were|está|esta|estão|estao|são|sao|fica|ficam)(?![\p{L}])/iu
 const QUIET_SETTING = /(?<![\p{L}])(?:quiet|silent|still|empty|calm|calmo|calma|vazio|vazia|silencioso|silenciosa|escuro|escura|deserto|deserta)(?![\p{L}])/iu
 const APPEARANCE_LEAD = /^(?:she|he|they|ela|ele|eles|elas)\s+(?:has|have|had|wears?|wore|is wearing|carries|carrying|holds?|holding|veste|usam|usa|traz|tem|têm|leva|levam)\b/iu
-const STORY_ACT = /(?<![\p{L}])(?:walks?|runs?|enters?|leaves?|opens?|pours?|sits?|stands?|reads?|turns?|gives?|hands?|waits?|lifts?|follows?|arrives?|meets?|boards?|checks?|calls?|smiles?|says?|applauds?|bows?|kneels?|nods?|claps?|yawns?|leads?|practises?|practices?|writes?|pushes?|abre|fecha|entra|sai|caminha|corre|espera|pega|lê|le|diz|sorri|entrega|observa|acende|sobe|desce|chama|cumprimenta|acena|aplaude|ajoelha|senta|boceja|lava|lavam)(?![\p{L}])/iu
+const STORY_ACT = /(?<![\p{L}])(?:walks?|runs?|enters?|leaves?|opens?|pours?|sits?|stands?|reads?|turns?|gives?|hands?|waits?|lifts?|follows?|arrives?|meets?|boards?|checks?|calls?|smiles?|says?|applauds?|bows?|kneels?|nods?|claps?|yawns?|leads?|practises?|practices?|writes?|pushes?|abre|fecha|entra|sai|caminha|corre|espera|pega|lê|le|diz|sorri|entrega|observa|acende|acendem|pinta|pintam|ajuda|ajudam|sobe|desce|chama|cumprimenta|acena|aplaude|ajoelha|senta|sentam|boceja|lava|lavam|mostra|mostram|segura|seguram|perde|perdem)(?![\p{L}])/iu
 
 function isDefiniteDressing(sentence) {
   return /(?<![\p{L}])(?:veste|vestem)(?![\p{L}])\s+(?:o|a|os|as)\s+\p{L}/iu.test(sentence)
@@ -701,7 +714,7 @@ export function splitNarrative(text, options = {}) {
   const enabled = options.splitScenes !== false
   const shots = []
   const cuts = []
-  const state = { place: '', timeId: '', timeLabel: '', minutes: null, light: '', firstLight: '', started: false, sceneId: 0 }
+  const state = { place: '', outside: '', timeId: '', timeLabel: '', minutes: null, light: '', firstLight: '', started: false, sceneId: 0 }
   let pending = []
   const names = characters.map(item => item.name).filter(Boolean)
 
@@ -740,8 +753,9 @@ export function splitNarrative(text, options = {}) {
     const times = timeCues(sentence, language)
     const sequence = sequenceCue(sentence, language)
     const cast = isCastLine(sentence)
-    const portrait = isPortraitSentence(sentence)
-    const described = isDescriptionSentence(sentence)
+    const wardrobeLater = state.started && isWardrobeSentence(sentence)
+    const portrait = isPortraitSentence(sentence) && !wardrobeLater
+    const described = isDescriptionSentence(sentence) && !wardrobeLater
     const action = hasAction(sentence, language, extraVerbs) && !cast && !portrait && !described
     let firmPlace = place && !place.uncertain && !isRejectedPlace(place.name) ? place : null
     if (!firmPlace) {
@@ -760,8 +774,11 @@ export function splitNarrative(text, options = {}) {
     const cueOnly = !action && !cast && !firmPlace && (times.length > 0 || Boolean(sequence)) && words <= 5
     if (cast || portrait || described) {
       const subject = described ? subjectPlace(sentence, language, places) : ''
-      if (firmPlace && !isRejectedPlace(firmPlace.name)) state.place = firmPlace.name
-      else if (subject && (times.length || state.place)) state.place = subject
+      if (firmPlace && !isRejectedPlace(firmPlace.name)) {
+        const carried = finishCarriedPlace(sentence, firmPlace.name, state.place, state.outside)
+        state.place = carried.where
+        state.outside = carried.outside
+      } else if (subject && (times.length || state.place)) state.place = subject
       if (times.length) applyTime(times, state)
       return
     }
@@ -818,6 +835,16 @@ export function splitNarrative(text, options = {}) {
         reasons.push(`Place cue: ${bundledPlace.cue}`)
       }
     }
+    const adjusted = finishCarriedPlace(sentence, state.place, state.place, state.outside)
+    if (adjusted.where && !samePlace(adjusted.where, state.place)) {
+      sceneCut = true
+      state.place = adjusted.where
+      reasons.push(`Place cue: ${adjusted.where}`)
+    } else if (!adjusted.where && state.place && leaveChanges(sentence)) {
+      sceneCut = true
+      state.place = ''
+    }
+    state.outside = adjusted.outside
     if (bundledTimes.length) {
       const next = applyTime(bundledTimes, state)
       if (next.changed && enabled) {

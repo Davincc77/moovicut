@@ -28,7 +28,7 @@ const GARMENT_FAMILIES = Object.freeze([
   ['cap', /\b(?:caps?|hats?)\b/i],
   ['cloak', /\b(?:cloaks?|capas?)\b/i],
   ['blazer', /\bblazers?\b/i],
-  ['raincoat', /\b(?:raincoats?|impermeáveis|impermeaveis|gabardinas?)\b/i],
+  ['raincoat', /\b(?:raincoats?|impermeáveis|impermeaveis|impermeável|impermeavel|gabardinas?)\b/i],
   ['parka', /\bparkas?\b/i],
   ['cardigan', /\bcardigans?\b/i],
   ['waistcoat', /\bwaistcoats?\b/i],
@@ -409,9 +409,9 @@ const VERB_RULES = Object.freeze([
   { op: 'wear', re: /(?<![\p{L}])(?:puts?\s+on|veste|vestem|põe|poe|põem|poem)(?![\p{L}])/iu },
   { op: 'remove', re: /(?<![\p{L}])(?:takes?\s+off|take\s+off|removes?|tira|tiram|despe|despem)(?![\p{L}])/iu },
   { op: 'pickup', re: /(?<![\p{L}])(?:picks?\s+up|pick\s+up|grabs?|pega|pegam|agarra|agarram|receives?|recebe|recebem)(?![\p{L}])/iu },
-  { op: 'drop', re: /(?<![\p{L}])(?:drops?|sets?\s+down|set\s+down|larga|largam|pousa|pousam)(?![\p{L}])/iu },
-  { op: 'hand', re: /(?<![\p{L}])(?:hands?(?:\s+over)?|entrega|entregam)(?![\p{L}])/iu },
-  { op: 'return', re: /(?<![\p{L}])(?:returns?|gives?\s+back|hands?\s+back|devolve|devolvem)(?![\p{L}])/iu },
+  { op: 'drop', re: /(?<![\p{L}])(?:drops?|sets?\s+down|set\s+down|larga|largam|pousa|pousam|deixa(?:m)?\s+cair|perde|perdem|loses?|lose|hangs?|hang)(?![\p{L}])/iu },
+  { op: 'hand', re: /(?<![\p{L}])(?:hands?(?:\s+over)?|gives?|entrega|entregam)(?![\p{L}])/iu },
+  { op: 'return', re: /(?<![\p{L}])(?:returns?|gives?\s+(?:[\p{L}'’-]+\s+){0,5}back|hands?\s+(?:[\p{L}'’-]+\s+){0,5}back|devolve|devolvem)(?![\p{L}])/iu },
   { op: 'carry', re: /(?<![\p{L}])(?:carries|carrying|carrega|carregam|leva|levam|traz|trazem)(?![\p{L}])/iu }
 ])
 
@@ -527,12 +527,12 @@ function sentencesOf(text) {
 
 const OBJECT_ARTICLE = new Set(['the', 'a', 'an', 'his', 'her', 'their', 'its', 'this', 'that', 'these', 'those', 'my', 'your', 'our', 'o', 'os', 'as', 'um', 'uma', 'uns', 'umas', 'seu', 'sua', 'seus', 'suas', 'meu', 'minha', 'meus', 'minhas', 'este', 'esta', 'esse', 'essa', 'aquele', 'aquela'])
 const OBJECT_PRONOUN = new Set(['him', 'her', 'them', 'it', 'me', 'you', 'lhe', 'lo', 'la', 'ele', 'ela', 'eles', 'elas', 'isso', 'isto'])
-const OBJECT_STOP = new Set(['to', 'for', 'at', 'in', 'on', 'into', 'onto', 'from', 'over', 'with', 'upon', 'down', 'up', 'off', 'para', 'em', 'no', 'na', 'nos', 'nas', 'ao', 'à', 'aos', 'às', 'com', 'por', 'pelo', 'pela', 'sobre', 'até', 'ate', 'num', 'numa', 'and', 'e', 'then', 'while', 'before', 'after', 'quando', 'when'])
+const OBJECT_STOP = new Set(['to', 'for', 'at', 'in', 'on', 'into', 'onto', 'from', 'over', 'with', 'upon', 'down', 'up', 'off', 'back', 'again', 'para', 'em', 'no', 'na', 'nos', 'nas', 'ao', 'à', 'aos', 'às', 'com', 'por', 'pelo', 'pela', 'sobre', 'até', 'ate', 'num', 'numa', 'and', 'e', 'then', 'while', 'before', 'after', 'quando', 'when'])
 const OBJECT_OF = new Set(['de', 'do', 'da', 'dos', 'das', 'of'])
 const ABSTRACT_NOUN = new Set(['hope', 'fear', 'love', 'hate', 'idea', 'thought', 'memory', 'dream', 'name', 'voice', 'courage', 'luck', 'truth', 'time', 'moment', 'chance', 'silence', 'light', 'darkness', 'distance', 'place', 'circle', 'way', 'joy', 'sorrow', 'anger', 'doubt', 'faith', 'peace', 'life', 'death', 'beauty', 'pain', 'wish', 'secret', 'reason', 'sense', 'feeling', 'meaning', 'purpose', 'pride', 'shame', 'guilt', 'trust', 'power', 'freedom', 'justice', 'soul', 'mind', 'rest', 'sleep', 'hurry', 'weather', 'fate', 'destiny', 'spirit', 'attention', 'trouble', 'help', 'honor', 'honour', 'esperanca', 'medo', 'amor', 'odio', 'ideia', 'pensamento', 'memoria', 'sonho', 'nome', 'voz', 'coragem', 'sorte', 'verdade', 'tempo', 'momento', 'silencio', 'luz', 'escuridao', 'distancia', 'lugar', 'circulo', 'caminho', 'alegria', 'tristeza', 'raiva', 'duvida', 'fe', 'paz', 'vida', 'morte', 'beleza', 'dor', 'segredo', 'razao', 'sentido', 'honra', 'orgulho', 'vergonha', 'culpa', 'confianca', 'poder', 'liberdade', 'justica', 'alma', 'mente', 'descanso', 'sono', 'pressa', 'vez', 'jeito', 'modo'])
 const BODY_NOUN = new Set(['hand', 'hands', 'head', 'arm', 'arms', 'leg', 'legs', 'foot', 'feet', 'finger', 'fingers', 'eye', 'eyes', 'face', 'hair', 'mouth', 'ear', 'ears', 'nose', 'shoulder', 'shoulders', 'mao', 'maos', 'rosto', 'cabelo', 'cabeca', 'braco', 'perna', 'olho', 'olhos', 'boca', 'nariz', 'pe', 'pes', 'dedo', 'dedos'])
 const ACTION_HEAD = new Set(['walks', 'runs', 'sits', 'waits', 'waves', 'opens', 'closes', 'reads', 'turns', 'enters', 'leaves', 'goes', 'comes', 'looks', 'stands', 'smiles', 'nods', 'bows', 'checks', 'taps', 'stacks', 'espera', 'acena', 'abre', 'fecha', 'senta', 'corre', 'caminha', 'entra', 'sai', 'le', 'olha'])
-const GARMENT_HEAD = /(?<![\p{L}])(?:cardigans?|waistcoats?|jumpers?|pullovers?|overalls|dungarees|gloves?|goggles|coletes?|vestidos?|casacos?|jaquetas?|blusas?|saias?|calças|calcas|camisas?|aprons?|coats?|jackets?|dresses?|shirts?|sweaters?|peacoats?|cloaks?|robes?|uniforms?|skirts?|blouses?|trousers|pants|hats?|caps?|scarves?|scarfs?|avental|aventais|jardineiras?|luvas?|camisolas?|macacões|macacoes|macacão|macacao|suits?|parkas?|anoraks?|fatos?|fardas?|lenços|lencos|lenço|lenco|cachecóis|cachecois|cachecol|chapéus|chapeus|chapéu|chapeu|hakama|hoodies?|boots?)(?![\p{L}])/iu
+const GARMENT_HEAD = /(?<![\p{L}])(?:cardigans?|waistcoats?|jumpers?|pullovers?|overalls|dungarees|gloves?|goggles|coletes?|vestidos?|casacos?|jaquetas?|blusas?|saias?|calças|calcas|camisas?|aprons?|coats?|jackets?|dresses?|shirts?|sweaters?|peacoats?|cloaks?|robes?|uniforms?|skirts?|blouses?|trousers|pants|hats?|caps?|scarves?|scarfs?|avental|aventais|jardineiras?|luvas?|camisolas?|macacões|macacoes|macacão|macacao|suits?|parkas?|anoraks?|fatos?|fardas?|lenços|lencos|lenço|lenco|cachecóis|cachecois|cachecol|chapéus|chapeus|chapéu|chapeu|impermeável|impermeavel|gabardinas?|hakama|hoodies?|boots?)(?![\p{L}])/iu
 
 function isPlaceNoun(word) {
   const key = foldName(word)
@@ -646,10 +646,14 @@ function storyEvents(shots, characters) {
           if (match.index === re.lastIndex) re.lastIndex += 1
         }
       }
-      found.sort((a, b) => a.index - b.index)
-      found.forEach((verb, verbIndex) => {
+      found.sort((a, b) => a.index - b.index || a.length - b.length)
+      const verbs = found.filter((verb, index) => {
+        if (verb.op !== 'hand') return true
+        return !found.some(other => other.op === 'return' && other.index === verb.index)
+      })
+      verbs.forEach((verb, verbIndex) => {
         const before = sentence.text.slice(0, verb.index)
-        const afterEnd = found[verbIndex + 1]?.index ?? sentence.text.length
+        const afterEnd = verbs[verbIndex + 1]?.index ?? sentence.text.length
         const after = sentence.text.slice(verb.index + verb.length, afterEnd)
         const named = namesIn(before, characters)
         const who = singleWho(shot?.who, characters)
@@ -694,7 +698,8 @@ function storyEvents(shots, characters) {
           values.forEach(value => {
             const prior = [...events].reverse().find(item => item.field === 'items' && foldName(item.actor) !== foldName(actor) && related(item.value, value))
             const holder = (characters || []).find(person => foldName(person.name) !== foldName(actor) && (sheetHasValue(person, value) || (prior && foldName(person.name) === foldName(prior.actor))))
-            const owner = holder?.name || prior?.actor || ''
+            const namedOwner = receiver && (sheetHasValue(receiver, value) || !holder) ? receiver.name : ''
+            const owner = namedOwner || holder?.name || prior?.actor || ''
             const restored = originalClause(holder || (characters || []).find(person => foldName(person.name) === foldName(owner)), value) || value
             push('remove', value, 'items', actor)
             if (owner) push('add', restored, 'items', owner)

@@ -866,7 +866,7 @@ const SCENARIO_SCENE = {
     framing: { type: 'string', description: 'Framing term, such as close-up or 特写. A known term is written into the prompt. Unknown text is left off.' },
     light: { type: 'string', enum: [...LIGHT_VALUES], description: 'Lighting quality. evening, morning, afternoon, and midday are accepted and stored as time instead of a 400.' },
     lighting: { type: 'string', enum: [...LIGHT_VALUES], description: 'Alias of light. A time word is stored as time.' },
-    time: { type: 'string', enum: [...TIME_VALUES], description: 'Time of day for this scene: dawn, morning, midday, afternoon, dusk, evening, or night. It drives the light line and carries forward until a later scene changes it. When omitted, a time cue in the action is used, such as At night, The next morning, à tarde, De manhã, or à noite.' },
+    time: { type: 'string', enum: [...TIME_VALUES], description: 'Time of day for this scene: dawn, morning, midday, afternoon, dusk, evening, or night. It drives the light line and carries forward until a later scene changes it. When omitted, a time cue in the action is used, such as At night, The next morning, At midday, In the afternoon, à tarde, De manhã, à noite, ao entardecer, or ao pôr do sol. Prose uses the same carry. Entardecer, crepúsculo, and pôr do sol are dusk. A day jump such as The next day clears the carried time.' },
     mood: { type: 'string', enum: [...MOOD_VALUES] },
     duration: { type: 'integer', minimum: 2, maximum: 15 },
     s: { type: 'integer', minimum: 2, maximum: 15, description: 'Short alias of duration, in seconds.' },

@@ -73,7 +73,7 @@ test('D7 evening and sunrise set the light from that sentence on', () => {
   assert.equal(found.scenes[1].light, 'dawn')
   const planned = plan({ input: 'prose', prose: 'In the evening, Nia waits in the kitchen. At sunrise, Nia opens the door.', model: 'grok', compact: true })
   assert.equal(planned.status, 200)
-  assert.match(planned.body.shots[0].prompt, /dusk/i)
+  assert.match(planned.body.shots[0].prompt, /Evening light|dusk/i)
   assert.doesNotMatch(planned.body.shots[0].prompt, /soft window light/i)
   assert.match(planned.body.shots[1].prompt, /dawn/i)
   assert.doesNotMatch(planned.body.shots[1].prompt, /\bnight\b/i)

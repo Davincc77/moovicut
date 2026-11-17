@@ -3,9 +3,9 @@ import { cleanText } from './text.js'
 import { foldName, scenarioBudget, scenarioPremise, scenarioToFields } from './scenario.js'
 import { flaggedNameKeys } from './shot-risk.js'
 import { splitActionText } from './action-split.js'
-import { detectLocalized, identityTraits, keptTrait } from './prose-extra.js'
+import { detectLocalized, groupSubject, identityTraits, keptTrait, kinshipSubject } from './prose-extra.js'
 import { inNamedVenue, inSpans, isCueStopword, isFunctionWord, isNeverPlace, isNumberWord, isQuotedOrRemembered, isVenueType, mentionMovesScene, namedVenues, placeMentionIsReal, quoteSpans, splitNarrative } from './scene-split.js'
-import { enteredPlace, isNonPlaceNoun, isRejectedPlace, libraryHits, locativeHeads, normalizePlaceName, placeLexiconHas, placeTag, preferPlaceHead, settingName, tidyPlaceLemma } from './place-lexicon.js'
+import { enteredPlace, finishCarriedPlace, isNonPlaceNoun, isRejectedPlace, libraryHits, locativeHeads, movementPlace, normalizePlaceName, placeLexiconHas, placeTag, preferPlaceHead, settingName, tidyPlaceLemma } from './place-lexicon.js'
 
 const STOP = new Set(['the', 'a', 'an', 'he', 'she', 'they', 'it', 'his', 'her', 'their', 'then', 'when', 'after', 'before', 'later', 'next', 'once', 'this', 'that', 'there', 'here', 'un', 'une', 'le', 'la', 'les', 'il', 'elle', 'ils', 'elles', 'lui', 'leur', 'puis', 'quand', 'apres', 'avant', 'dans', 'sur', 'sous', 'avec', 'pour', 'par', 'chez', 'au', 'aux', 'du', 'des', 'en', 'et', 'mais', 'ou', 'ce', 'cette', 'ces', 'son', 'sa', 'ses', 'mon', 'ma', 'mes', 'je', 'tu', 'nous', 'vous', 'on', 'plus', 'tout', 'toute', 'tous', 'morning', 'evening', 'night', 'day', 'matin', 'soir', 'nuit', 'jour', 'aube', 'tard', 'lendemain', 'and', 'with', 'from', 'into', 'over', 'while', 'its', 'our', 'your'])
 
@@ -115,7 +115,7 @@ const PLACE_KEYS = placeLexicon()
 const NAME_STOP = new Set(['the', 'a', 'an', 'she', 'he', 'they', 'une', 'le', 'la', 'les', 'il', 'elle', 'un'])
 const LOOK_TRAIT = /\b(?:(?:early|mid|late)\s+)?\d{1,2}s\b|\b(?:short|long|curly|wavy|straight|black|brown|blonde|blond|red|grey|gray|silver|white|dark)\s+(?:black\s+|brown\s+|red\s+|grey\s+|gray\s+)?(?:pixie cut|bob|bangs|braid|hair)\b|\b(?:grey|gray|white|black|red|dark)\s+stubble\b|\bstubble\b|\bbeard\b|\bmoustache\b|\bmustache\b|\b(?:round\s+)?glasses\b|\b(?:blue|green|brown|amber|hazel)\s+eyes\b/giu
 const OUTFIT_TRAIT = /\b(?:[\p{L}'’-]+\s+){0,3}(?:peacoats?|overcoats?|coats?|jackets?|scarves|scarf|aprons?|sweaters?|boots?|dresses|dress|shirts?|suits?|hoodies?|cloaks?|robes?|uniforms?|jeans|skirts?|caps?|hats?|hakama|cardigans?|waistcoats?|vests?|blouses?|trousers|pants|jumpers?|pullovers?|overalls|dungarees|gloves)\b/giu
-const TRAIT_STOP = /\b(?:meets|sees|finds|wears|opens|walks|runs|enters|leaves|pours|hands|gives|sits|stands|laughs|reads|turns|crosses|follows|carries|holds|watches|mends|mend|yawns?|pulls?|takes?|practises?|practices?|writes?|pushes?|leads?|comes?|waits?|waves?|smiles?|says?|tira|tiram|veste|vestem|lava|lavam|boceja)\b/i
+const TRAIT_STOP = /\b(?:meets|sees|finds|wears|opens|walks|runs|enters|leaves|pours|hands|gives|sits|stands|laughs|reads|turns|crosses|follows|carries|holds|watches|mends|mend|yawns?|pulls?|takes?|practises?|practices?|writes?|pushes?|leads?|comes?|waits?|waves?|smiles?|says?|tira|tiram|veste|vestem|lava|lavam|boceja|loses?|lose|hangs?|hang|will|perde|perdem|deixa|deixam)\b/i
 
 function traitHits(clause) {
   const source = String(clause || '')
@@ -154,17 +154,23 @@ function tidyTrait(value) {
   return cleanText(bit)
 }
 
+function nameIsPossessive(text, index) {
+  return /(?:de|do|da|dos|das|of)\s+$/iu.test(String(text || '').slice(Math.max(0, index - 12), index))
+}
+
 function textAfterName(text, name, names) {
   const boundary = label => new RegExp(`(?<![\\p{L}])${escapeName(label)}(?![\\p{L}])`, 'giu')
   let best = ''
   for (const match of String(text || '').matchAll(boundary(name))) {
+    if (nameIsPossessive(text, match.index)) continue
     const after = text.slice(match.index + match[0].length)
     if (!/^\s*,/.test(after)) continue
     let nextAt = after.length
     names.forEach(other => {
       if (foldName(other) === foldName(name)) return
       const found = new RegExp(`(?<![\\p{L}])${escapeName(other)}(?![\\p{L}])`, 'iu').exec(after)
-      if (found) nextAt = Math.min(nextAt, found.index)
+      if (!found || nameIsPossessive(after, found.index)) return
+      nextAt = Math.min(nextAt, found.index)
     })
     const slice = cutTraits(after.slice(0, nextAt).replace(/^\s*,\s*/, ''))
     if (slice.length > best.length) best = slice
@@ -1056,10 +1062,15 @@ function detectScenes(text, characters, places, language, flagged, options = {})
     skip: sentence => isMeetIntro(sentence)
   })
   let carriedWhere = ''
+  let carriedOutside = ''
+  const kinText = text
   const scenes = narrative.shots.map((shot, index) => {
     const foundNames = namesIn(shot.what, characters)
     const pronounWho = whoFromPronoun(shot.what, characters, genders, language)
-    const who = canonicalWho(foundNames.length ? foundNames.map(item => item.name).join(' and ') : (pronounWho || shot.who), characters)
+    const grouped = groupSubject(shot.what, characters)
+    const kin = kinshipSubject(shot.what, characters, kinText)
+    let who = canonicalWho(grouped || (foundNames.length ? foundNames.map(item => item.name).join(' and ') : (pronounWho || shot.who)), characters)
+    if (kin && !foldName(who).split(/\s+/).includes(foldName(kin)) && !foldName(who).includes(foldName(kin))) who = who ? `${who} and ${kin}` : kin
     const head = preferPlaceHead(locativeHeads(shot.what, language).filter(item => item.moves !== false && !isNonPlaceNoun(item.lemma) && !isRejectedPlace(item.lemma) && mentionMovesScene(shot.what, item.index, language)), shot.what)
     const genericWhere = /^(?:Le lieu|The setting|O lugar|Il luogo|場所|场景)$/u.test(shot.where || '')
     const flaggedOnly = riskNamesOnly(shot.what, flagged)
@@ -1103,7 +1114,10 @@ function detectScenes(text, characters, places, language, flagged, options = {})
           const named = normalizePlaceName(where, language)
           where = named || (/^(?:água|agua|water|neve|snow|gelo|ice|areia|sand)$/iu.test(where) ? '' : where)
         }
-        if (where) carriedWhere = where
+        const finished = finishCarriedPlace(shot.what, where || carriedWhere, carriedWhere, carriedOutside)
+        where = finished.where
+        carriedOutside = finished.outside
+        carriedWhere = where || ''
         return where
       })(),
       what: shot.what,
