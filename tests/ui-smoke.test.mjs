@@ -74,11 +74,35 @@ async function clickButtons(page) {
   for (let index = 0; index < count; index += 1) {
     if (page.url() !== pageUrl) break
     const button = buttons.nth(index)
+    if (!(await button.isVisible().catch(() => false))) {
+      await button.evaluate(element => {
+        let hidden = element.closest('[hidden]')
+        while (hidden) {
+          const opener = hidden.id && document.querySelector(`[aria-controls="${CSS.escape(hidden.id)}"]`)
+          if (opener instanceof HTMLElement && opener.getAttribute('aria-expanded') !== 'true') opener.click()
+          else hidden.hidden = false
+          hidden = hidden.parentElement ? hidden.parentElement.closest('[hidden]') : null
+        }
+        let details = element.closest('details')
+        while (details) {
+          details.open = true
+          details = details.parentElement ? details.parentElement.closest('details') : null
+        }
+      }).catch(() => {})
+    }
     if (!(await button.isVisible().catch(() => false))) continue
     if (page.url() !== pageUrl) break
     const label = ((await button.getAttribute('aria-label')) || (await button.innerText()) || `button ${index}`).replace(/\s+/g, ' ').trim()
     if (page.url() !== pageUrl) break
     if (!(await button.isVisible().catch(() => false))) continue
+    // An open action menu is a top-layer popover. It stays up after its trigger is
+    // clicked and covers later controls such as "Open in Google", so close every
+    // menu that does not contain the button we are about to press.
+    await button.evaluate(element => {
+      document.querySelectorAll(':popover-open').forEach(menu => {
+        if (!menu.contains(element) && menu.hidePopover) menu.hidePopover()
+      })
+    }).catch(() => {})
     if (await button.isDisabled().catch(() => false)) {
       const cursor = await button.evaluate(element => getComputedStyle(element).cursor)
       assert.notEqual(cursor, 'wait', `disabled "${label}" still uses cursor wait`)
@@ -94,7 +118,19 @@ async function clickButtons(page) {
       }
       if (page.url() !== pageUrl) break
       if (!(await button.isVisible().catch(() => false))) continue
-      throw new Error(`"${label}" did not respond: ${error.message.split('\n')[0]}`)
+      await page.locator('.toast [aria-label="Dismiss notification"], .toast [aria-label="Dispensar a notificação"]').click({ timeout: 500 }).catch(() => {})
+      await button.evaluate(element => {
+        document.querySelectorAll(':popover-open').forEach(menu => {
+          if (!menu.contains(element) && menu.hidePopover) menu.hidePopover()
+        })
+        element.scrollIntoView({ block: 'center', inline: 'nearest' })
+      }).catch(() => {})
+      try {
+        await button.click({ timeout: 1500 })
+      } catch (retryError) {
+        if (page.url() !== pageUrl) break
+        throw new Error(`"${label}" did not respond: ${retryError.message.split('\n')[0]}`)
+      }
     }
     if (page.url() !== pageUrl) break
     if (await page.locator('.modal-panel').count()) {
@@ -258,8 +294,10 @@ async function checkAdvancedNoCharacter(page, lang) {
   assert.equal(await skip.getAttribute('aria-pressed'), 'true')
   await page.locator('#studio-idea').fill('Fog rolls across an empty city street at dusk.')
   await page.locator('.studio-generate').click()
-  await page.waitForSelector('textarea[aria-label^="Prompt"]')
-  const prompts = await page.locator('textarea[aria-label^="Prompt"]').evaluateAll(elements => elements.map(element => element.value).join('\n'))
+  await page.locator('.studio-preview-panel .shot-card-open').first().click()
+  const promptField = page.locator('dialog.side-sheet textarea[aria-label^="Prompt"]')
+  await promptField.waitFor({ state: 'visible' })
+  const prompts = await promptField.evaluateAll(elements => elements.map(element => element.value).join('\n'))
   assert.ok(prompts.length > 40, 'advanced no-character prompts were empty')
   assert.doesNotMatch(prompts, / — |People:|SUBJECT:|Same character:|Same wardrobe:|frame of Fog/)
 }
@@ -296,6 +334,9 @@ async function checkStudio(page, lang) {
 }
 
 async function checkLinks(page) {
+  // The generated pages are client-rendered. DOMContentLoaded can arrive before
+  // the shell mounts, so wait for the same landmark the first visit waits for.
+  await page.waitForSelector('#main-content')
   const hrefs = await page.locator('a[href]').evaluateAll(elements => elements.map(element => element.getAttribute('href') || ''))
   assert.ok(hrefs.includes('#main-content') || hrefs.some(href => href.endsWith('#main-content')))
   assert.equal(await page.locator('#main-content').count(), 1)

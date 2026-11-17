@@ -39,7 +39,7 @@ export default defineNuxtConfig({
       title: 'Moovicut — local storyboard studio',
       meta: [
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-        { name: 'theme-color', content: '#0a0a0f' },
+        { name: 'theme-color', content: '#0a0a0a' },
         { name: 'description', content: 'Turn a story premise into a free local storyboard. Copy the prompts into Grok Imagine, Google, or any other AI image or video model. Moovicut does not render video.' },
         { property: 'og:title', content: 'Moovicut — local storyboard studio' },
         { property: 'og:description', content: 'Turn a story premise into a free local storyboard. Copy the prompts into Grok Imagine, Google, or any other AI image or video model. Moovicut does not render video.' },

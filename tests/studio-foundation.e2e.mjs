@@ -47,7 +47,9 @@ const copy = {
     advanced: 'Advanced mode', back: 'Back to the guide', change: 'Change settings', idea: 'Idea',
     nextCharacters: 'Next: Characters', nextPlaces: 'Next: Places and style', goBack: 'Go back',
     name: 'Name', quick: 'Quick idea', scenario: 'Scenario', ad: 'Ad', series: 'Series', explainer: 'Explainer',
-    createBoard: 'Create storyboard', steps: 'Step-by-step storyboard', settings: 'Storyboard settings', undo: 'Undo', save: 'Save',
+    createBoard: 'Create storyboard', steps: 'Step-by-step storyboard', settings: 'More options',
+    shots: 'Number of shots', seconds: 'Duration in seconds', family: 'Style family', library: 'Import library',
+    undo: 'Undo', save: 'Save',
     export: 'Export',     close: 'Close dialog', exportJson: 'Export JSON', exportLibrary: 'Export library',
     importProject: 'Import project', saveProject: 'Save current project', prompt: 'Prompt target',
     aspect: 'Aspect ratio', length: 'Prompt length', dialog: 'Edit your local storyboard',
@@ -58,7 +60,9 @@ const copy = {
     advanced: 'Modo avançado', back: 'Voltar ao guia', change: 'Alterar', idea: 'Ideia',
     nextCharacters: 'Seguinte: Personagens', nextPlaces: 'Seguinte: Lugares e estilo', goBack: 'Voltar',
     name: 'Nome', quick: 'Ideia rápida', scenario: 'Cenário', ad: 'Anúncio', series: 'Série', explainer: 'Explicação',
-    createBoard: 'Criar storyboard', steps: 'Storyboard passo a passo', settings: 'Definições do storyboard', undo: 'Desfazer', save: 'Salvar',
+    createBoard: 'Criar storyboard', steps: 'Storyboard passo a passo', settings: 'Mais opções',
+    shots: 'Número de planos', seconds: 'Duração em segundos', family: 'Família de estilo', library: 'Importar a biblioteca',
+    undo: 'Desfazer', save: 'Salvar',
     export: 'Exportar', close: 'Fechar a caixa de diálogo', exportJson: 'Exportar JSON', exportLibrary: 'Exportar a biblioteca',
     importProject: 'Importar o projeto', saveProject: 'Salvar o projeto atual', prompt: 'Alvo do prompt',
     aspect: 'Proporção', length: 'Comprimento do prompt', dialog: 'Edite o storyboard local',
@@ -149,7 +153,13 @@ try {
       await expectNamed(page, 'button', text.series)
       await expectNamed(page, 'button', text.explainer)
       await expectNamed(page, 'button', text.createBoard)
-      await page.locator('summary').filter({ hasText: text.settings }).click()
+      await page.getByRole('button', { name: text.settings, exact: true }).click()
+      const morePanel = page.locator('#studio-more-panel')
+      await morePanel.waitFor({ state: 'visible' })
+      await morePanel.getByRole('spinbutton', { name: text.shots, exact: true }).waitFor()
+      await morePanel.getByRole('spinbutton', { name: text.seconds, exact: true }).waitFor()
+      await morePanel.getByLabel(text.family, { exact: true }).waitFor()
+      await morePanel.getByLabel(text.library, { exact: true }).waitFor()
       await expectNamed(page, 'button', text.steps)
       counts[`${key}:advanced`] = await page.locator('button, a, input, select, textarea').count()
       assert.ok(counts[`${key}:advanced`] >= 40, `${key} advanced count ${counts[`${key}:advanced`]}`)

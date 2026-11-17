@@ -99,7 +99,7 @@ export function statsPage(base) {
   p, li { color:#9a9486; }
   form { display:flex; gap:8px; flex-wrap:wrap; margin:24px 0; }
   input { min-width:240px; flex:1; padding:10px 12px; border:1px solid #eae7df1f; border-radius:8px; background:#141414; color:#eae7df; }
-  button { padding:10px 16px; border:0; border-radius:8px; background:#d4a054; color:#181818; font-weight:600; }
+  button { padding:10px 16px; border:0; border-radius:8px; background:#f0b429; color:#1a1408; font-weight:600; }
   table { width:100%; border-collapse:collapse; margin:0 0 28px; }
   th, td { padding:8px 10px; border-bottom:1px solid #eae7df1f; text-align:left; }
   .error { color:#ef4444; }

@@ -81,6 +81,23 @@ test('new studio strings exist in English and Portuguese with the same placehold
   }
 })
 
+test('the projects empty state names Write an idea once', () => {
+  const block = studio.match(/class="empty-state">([\s\S]*?)<\/p>/)
+  assert.ok(block, 'empty state')
+  const keys = [...block[1].matchAll(/\$t\('([^']+)'\)/g)].map(match => match[1])
+  const phrase = { en: /write an idea/gi, pt: /escrev\w* uma ideia/gi }
+  for (const code of ['en', 'pt']) {
+    const catalog = code === 'en' ? en : pt
+    const text = keys.map(key => catalog[key]).join(' ')
+    assert.equal((text.match(phrase[code]) || []).length, 1, `${code}: ${text}`)
+  }
+})
+
+test('sheet and dialog titles use the display face', () => {
+  assert.match(css, /dialog\.side-sheet h2,[\s\S]*font-family:var\(--display\)/)
+  assert.match(css, /dialog\.confirm-dialog h2/)
+})
+
 test('pre-existing studio controls stay in the source', () => {
   for (const [file, needles] of keptControls) {
     const source = read(file)
