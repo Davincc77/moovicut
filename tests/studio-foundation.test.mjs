@@ -52,7 +52,8 @@ test('the guide keeps every step and shows the idea error only after Next or blu
 test('Storyboard is the only name for the local editor', () => {
   assert.doesNotMatch(studio, /Board tools/)
   assert.doesNotMatch(sidebar, /Board tools/)
-  assert.match(studio, /eyebrow="Storyboard"/)
+  assert.match(read('app/components/StudioEditor.vue'), /id="storyboard-workspace"/)
+  assert.doesNotMatch(studio, /<AppModal[^>]*eyebrow="Storyboard"/)
   assert.match(sidebar, /\$t\('Storyboard'\)/)
   assert.equal(en['Storyboard'], 'Storyboard')
   assert.equal(pt['Storyboard'], 'Storyboard')

@@ -348,6 +348,21 @@ export function useProjectStore() {
     history.value.push(clone(project.value)); if (history.value.length > 40) history.value.shift()
     future.value = []; project.value = normalizeProject(clone(item)); persist(); notify(`Opened “${item.title}”`)
   }
+  function renameSavedProject(id, title) {
+    const name = String(title || '').trim().slice(0, 120)
+    if (!name) return false
+    if (project.value.id === id) {
+      commit({ ...project.value, title: name }, 'Project title saved')
+      return true
+    }
+    const next = savedProjects.value.map(item => item.id === id ? { ...item, title: name, updatedAt: new Date().toISOString() } : item)
+    savedProjects.value = next
+    if (hasLocalStorage()) {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)) } catch { return false }
+    }
+    notify('Project title saved')
+    return true
+  }
   function removeSavedProject(id) {
     savedProjects.value = savedProjects.value.filter(item => item.id !== id)
     if (project.value.id === id) {
@@ -405,7 +420,7 @@ export function useProjectStore() {
   function libraryFile() { return exportLibrary(personalLibrary.value) }
   function replaceLibrary(text) { return rememberLibrary(importLibrary(text), 'Library imported on this device.') }
   function agentBoard() { return exportAgentBoard(project.value) }
-  const api = { project, hydrated, saving, saveState, settings, setPreference, attachReference, history, future, shotCount, duration, canUndo, hydrate, persist, commit, mutate, createNew, selectModel, applyPromptSettings, updateShot, updateShotFields, updateContinuity, patchFilmSheet, setSequenceMode, setStylePreset, setFraming, applyShotFix, regenerateOne, resetShotPrompt, restorePromptUndo, removeShot, moveShot, insertShot, addShotAtEnd, undo, redo, loadProject, removeSavedProject, resetWorkspace, restoreBackup, setIdentity, saveLocalIdentity, setGuestIdentity, importProject, rememberCharacter, rememberPlace, rememberStyle, libraryFile, replaceLibrary, agentBoard, serialized: computed(() => serializeProject(project.value)) }
+  const api = { project, hydrated, saving, saveState, settings, setPreference, attachReference, history, future, shotCount, duration, canUndo, hydrate, persist, commit, mutate, createNew, selectModel, applyPromptSettings, updateShot, updateShotFields, updateContinuity, patchFilmSheet, setSequenceMode, setStylePreset, setFraming, applyShotFix, regenerateOne, resetShotPrompt, restorePromptUndo, removeShot, moveShot, insertShot, addShotAtEnd, undo, redo, loadProject, renameSavedProject, removeSavedProject, resetWorkspace, restoreBackup, setIdentity, saveLocalIdentity, setGuestIdentity, importProject, rememberCharacter, rememberPlace, rememberStyle, libraryFile, replaceLibrary, agentBoard, serialized: computed(() => serializeProject(project.value)) }
   Object.defineProperty(api, 'promptUndo', { enumerable: true, get: () => promptUndo.value })
   Object.defineProperty(api, 'personalLibrary', { enumerable: true, get: () => personalLibrary.value })
   Object.defineProperty(api, 'identity', { enumerable: true, get: () => identity.value })

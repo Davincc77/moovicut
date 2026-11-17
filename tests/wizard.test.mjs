@@ -17,12 +17,14 @@ import {
   setCharacterField,
   addCharacter,
   setPlaceField,
+  setNoCharacter,
   setShotField,
   toggleShotCharacter,
   addWizardShot,
   continueStep,
   openStep,
   canOpenStep,
+  gateGaps,
   canGenerate,
   gapsFor,
   splitOffer,
@@ -111,7 +113,8 @@ test('Generate stays off while a required field is empty and turns on when the b
 test('the wizard restores from browser storage and completed steps can be reopened', () => {
   const storage = memoryStorage()
   let state = setIdea(blankWizard(), 'A lighthouse keeper races the dusk to repair the beacon.')
-  assert.equal(canOpenStep(state, 'characters'), false)
+  assert.equal(canOpenStep(setIdea(blankWizard(), 'short'), 'characters'), false)
+  assert.equal(canOpenStep(state, 'characters'), true)
   state = continueStep(state)
   assert.equal(state.step, 'characters')
   assert.equal(saveWizard(storage, state), true)
@@ -221,6 +224,48 @@ test('the same inputs produce the same storyboard through the wizard and the exi
   stamped.shots = shots.map((shot, index) => refreshShotPrompt(shot, stamped, index))
   assert.equal(JSON.stringify(stable(fromWizard)), JSON.stringify(stable(stamped)))
   assert.equal(fromWizard.shots.map(shot => shot.prompt).join('\n'), stamped.shots.map(shot => shot.prompt).join('\n'))
+})
+
+test('Next stays on an incomplete step and advances when that step is complete', () => {
+  let state = blankWizard()
+  assert.equal(continueStep(state).step, 'idea')
+  assert.equal(gateGaps(state, 'idea')[0].key, 'missing.ideaShort')
+  assert.equal(canOpenStep(state, 'characters'), false)
+  state = setIdea(state, '1234567')
+  assert.equal(continueStep(state).step, 'idea')
+  state = setIdea(state, '12345678')
+  assert.equal(gateGaps(state, 'idea').length, 0)
+  state = continueStep(state)
+  assert.equal(state.step, 'characters')
+  assert.equal(continueStep(state).step, 'characters')
+  assert.equal(gateGaps(state, 'characters')[0].key, 'missing.name')
+  assert.equal(canOpenStep(state, 'places'), false)
+  assert.equal(openStep(state, 'idea').step, 'idea')
+  state = setNoCharacter(state, true)
+  assert.equal(gateGaps(state, 'characters').length, 0)
+  state = continueStep(state)
+  assert.equal(state.step, 'places')
+  state = setPlaceField(state, state.places[0].id, 'name', '')
+  assert.equal(continueStep(state).step, 'places')
+  assert.equal(gateGaps(state, 'places')[0].key, 'missing.placeName')
+  state = setPlaceField(state, state.places[0].id, 'name', 'Quay')
+  assert.equal(gateGaps(state, 'places').length, 0)
+  state = continueStep(state)
+  assert.equal(state.step, 'shots')
+  assert.equal(continueStep(state).step, 'shots')
+  assert.equal(gateGaps(state, 'shots')[0].key, 'missing.action')
+  state = setShotField(state, state.shots[0].id, 'action', 'She lights the lamp')
+  assert.equal(gateGaps(state, 'shots').length, 0)
+  state = continueStep(state)
+  assert.equal(state.step, 'check')
+  const filled = fillCharacter(blankWizard(), blankWizard().characters[0].id, {})
+  let cast = setIdea(blankWizard(), 'A keeper repairs the beacon at dusk.')
+  cast = continueStep(cast)
+  cast = fillCharacter(cast, cast.characters[0].id, { name: 'Léa', age: '40', build: 'tall', hair: 'black braid', outfit: 'wool coat' })
+  assert.equal(gateGaps(cast, 'characters').length, 0)
+  assert.equal(continueStep(cast).step, 'places')
+  assert.equal(canOpenStep(openStep(cast, 'idea'), 'places'), true)
+  assert.equal(filled.characters[0].name, '')
 })
 
 test('the studio opens on the guide and keeps the full editor', () => {

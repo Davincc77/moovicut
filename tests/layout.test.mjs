@@ -105,7 +105,8 @@ test('Check 33 Studio has a real two-column creation form and retained editor', 
   assert.match(creation,/URL\.revokeObjectURL\(referencePreview\.value\)/)
   assert.match(creation,/Upload reference image/)
   const editor=source('app/components/StudioEditor.vue')
-  for(const method of ['store.undo()','store.redo()','store.persist()','store.importProject','store.moveShot','store.removeShot','store.insertShot','store.addShotAtEnd','store.loadProject','store.removeSavedProject'])assert.ok(editor.includes(method),method)
+  const board=editor+studio
+  for(const method of ['store.undo()','store.redo()','store.persist()','store.importProject','store.moveShot','store.removeShot','store.insertShot','store.addShotAtEnd','store.loadProject','store.removeSavedProject'])assert.ok(board.includes(method),method)
   assert.match(editor,/<ShotCard/)
   assert.equal(STUDIO_INSPIRATIONS.length,8)
   assert.deepEqual(EXTERNAL_MODEL_DIRECTORY, ['Grok Imagine', 'Google (Veo / Gemini)'])

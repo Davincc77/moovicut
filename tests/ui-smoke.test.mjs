@@ -229,18 +229,17 @@ async function checkSidebarImages(page, lang) {
     }
   }
   await openWorkspaceTarget(page, 'storyboard')
-  await page.waitForSelector('.modal-panel .shot-thumbnail img')
-  const thumb = await page.locator('.modal-panel .shot-thumbnail img').first().boundingBox()
-  const panel = await page.locator('.modal-panel').boundingBox()
-  assert.ok(thumb && panel && thumb.width <= panel.width + 2 && thumb.height <= panel.height + 2 && thumb.height <= 180 + 2, 'storyboard still is larger than the dialog')
-  assert.deepEqual(await imageOverflows(page), [], 'storyboard dialog image overflow')
-  await page.keyboard.press('Escape')
-  await page.waitForFunction(() => !document.querySelector('.modal-panel'))
+  await page.waitForSelector('#storyboard-workspace .shot-thumbnail img')
+  const thumb = await page.locator('#storyboard-workspace .shot-thumbnail img').first().boundingBox()
+  const mainBox = await page.locator('main').boundingBox()
+  assert.ok(thumb && mainBox && thumb.width <= mainBox.width + 2 && thumb.height <= 180 + 2, 'storyboard still is larger than the page')
+  assert.deepEqual(await imageOverflows(page), [], 'storyboard image overflow')
   await openWorkspaceTarget(page, 'projects')
-  await page.waitForSelector('.modal-panel')
-  assert.equal(await page.locator('.modal-panel .shot-thumbnail').count(), 0)
-  assert.deepEqual(await imageOverflows(page), [], 'my projects dialog image overflow')
+  await page.waitForSelector('dialog.side-sheet')
+  assert.equal(await page.locator('dialog.side-sheet .shot-thumbnail').count(), 0)
+  assert.deepEqual(await imageOverflows(page), [], 'my projects sheet image overflow')
   await page.keyboard.press('Escape')
+  await page.waitForFunction(() => !document.querySelector('dialog.side-sheet'))
 }
 
 async function checkAdvancedNoCharacter(page, lang) {
@@ -280,10 +279,11 @@ async function checkStudio(page, lang) {
   const errors = await page.locator('.wizard-error').count()
   assert.ok(focused === 'wizard-idea' || errors > 0, 'Next did not show the missing idea')
   await page.getByRole('button', { name: /my projects|meus projetos/i }).first().click()
-  await page.waitForSelector('.modal-panel')
-  const background = await page.locator('.modal-panel').evaluate(element => getComputedStyle(element).backgroundColor)
+  await page.waitForSelector('dialog.side-sheet.modal-panel')
+  const background = await page.locator('dialog.side-sheet').evaluate(element => getComputedStyle(element).backgroundColor)
   assert.notEqual(background, 'rgba(0, 0, 0, 0)')
   assert.deepEqual(await imageOverflows(page), [], 'library dialog image overflow')
+  await page.locator('dialog.side-sheet summary').click()
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: /export json|exportar json/i }).click()
   const file = await download
@@ -292,7 +292,7 @@ async function checkStudio(page, lang) {
   assert.doesNotMatch(text, /\[object Object\]/)
   assert.match(text, /"schema"/)
   await page.keyboard.press('Escape')
-  await page.waitForFunction(() => !document.querySelector('.modal-panel'))
+  await page.waitForFunction(() => !document.querySelector('dialog.side-sheet'))
 }
 
 async function checkLinks(page) {

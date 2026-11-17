@@ -7,6 +7,7 @@ import { readFile } from 'node:fs/promises'
 import { extname, join, normalize } from 'node:path'
 import assert from 'node:assert/strict'
 import playwright from 'playwright'
+import { assertStudioFits } from './studio-fit.mjs'
 
 const { chromium } = playwright
 const root = new URL('../.output/public/', import.meta.url)
@@ -101,6 +102,7 @@ try {
       const key = `${lang}-${viewport.id}`
       await page.goto(`${base}/studio/?lang=${lang}`, { waitUntil: 'networkidle' })
       await page.locator('#wizard-idea').waitFor()
+      await assertStudioFits(page, `${key} guided`)
       const ideaError = page.locator('#wizard-idea-error')
       assert.equal(await ideaError.count(), 0, `${key} idea error before input`)
       if (viewport.id === 'desktop') {
@@ -136,6 +138,7 @@ try {
       await expectNamed(page, 'textbox', text.name)
       await expectNamed(page, 'button', text.goBack)
       await expectNamed(page, 'button', text.nextPlaces)
+      await assertStudioFits(page, `${key} characters`)
       counts[`${key}:characters`] = counts[`${key}:guided`]
 
       await page.getByRole('button', { name: text.advanced, exact: true }).click({ noWaitAfter: true })
@@ -151,28 +154,34 @@ try {
       counts[`${key}:advanced`] = await page.locator('button, a, input, select, textarea').count()
       assert.ok(counts[`${key}:advanced`] >= 40, `${key} advanced count ${counts[`${key}:advanced`]}`)
       assert.equal(await unnamedCount(page), 0, `${key} advanced unnamed`)
+      await assertStudioFits(page, `${key} advanced`)
 
       await openMenu(page, viewport.width, text)
       await page.getByRole('button', { name: text.storyboard, exact: true }).last().click()
-      await expectNamed(page, 'dialog', text.dialog)
+      await page.locator('#storyboard-workspace').waitFor()
       const meta = await page.locator('.studio-editor-heading p').innerText()
       assert.match(meta, text.meta, meta)
       assert.doesNotMatch(meta, /object Object/)
       await expectNamed(page, 'button', text.undo)
-      await expectNamed(page, 'button', text.save)
       await expectNamed(page, 'button', text.export)
-      await page.locator('.studio-dialog').evaluate(el => { el.scrollTop = 0 })
-      await expectNamed(page, 'button', text.close)
-      counts[`${key}:storyboard`] = await page.locator('.studio-dialog button, .studio-dialog a, .studio-dialog input, .studio-dialog select, .studio-dialog textarea').count()
-      await page.getByRole('button', { name: text.close }).click()
+      await expectNamed(page, 'button', lang === 'pt' ? 'Copiar todos os prompts' : 'Copy all prompts')
+      counts[`${key}:storyboard`] = await page.locator('#storyboard-workspace button, #storyboard-workspace a, #storyboard-workspace input, #storyboard-workspace select, #storyboard-workspace textarea').count()
+      await assertStudioFits(page, `${key} storyboard`)
+      await page.locator('.shot-card-open').first().click()
+      await page.locator('dialog.side-sheet').waitFor()
+      await assertStudioFits(page, `${key} shot sheet`)
+      await page.keyboard.press('Escape')
 
       await openMenu(page, viewport.width, text)
       await page.getByRole('button', { name: text.projectsPattern }).last().click()
+      await page.locator('dialog.side-sheet').waitFor()
+      await expectNamed(page, 'button', text.saveProject)
+      await page.locator('dialog.side-sheet summary').click()
       await expectNamed(page, 'button', text.exportJson)
       await expectNamed(page, 'button', text.exportLibrary)
       await expectNamed(page, 'button', text.importProject)
-      await expectNamed(page, 'button', text.saveProject)
-      counts[`${key}:projects`] = await page.locator('[role="dialog"] button, [role="dialog"] a, [role="dialog"] input').count()
+      counts[`${key}:projects`] = await page.locator('dialog.side-sheet button, dialog.side-sheet a, dialog.side-sheet input').count()
+      await assertStudioFits(page, `${key} projects`)
       await page.close()
     }
   }
