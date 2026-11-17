@@ -1,6 +1,6 @@
 /** Deterministic scene cuts. Closed word lists only. No model call. */
 import { cleanText } from './text.js'
-import { heldPlaceNoun, isNonPlaceNoun } from './place-lexicon.js'
+import { heldPlaceNoun, isNonPlaceNoun, isRejectedPlace, locativeHeads, placeTag, tidyPlaceLemma } from './place-lexicon.js'
 import { foldName } from './scenario.js'
 import { splitActionText } from './action-split.js'
 
@@ -102,7 +102,7 @@ const TIME_RULES = [
   { re: /(?<![\p{L}])(that morning|this morning|early that morning|ce matin-là|ce matin|esta manhã|hoje de manhã|heute morgen|stamattina|haut de moien|その朝|那天早上|那天早晨)(?![\p{L}])/iu, id: 'that-morning', jump: 'part', light: 'dawn' },
   { re: /(?<![\p{L}])(that afternoon|this afternoon|cet après-midi|cet apres-midi|à tarde|a tarde|heute nachmittag|nel pomeriggio|その午後|那天下午)(?![\p{L}])/iu, id: 'that-afternoon', jump: 'part', light: 'day' },
   { re: /(?<![\p{L}])(this evening|that evening|ce soir-là|ce soir|hoje à noite|heute abend|stasera|haut owes|その夕方|那天傍晚)(?![\p{L}])/iu, id: 'that-evening', jump: 'part', light: 'dusk' },
-  { re: /(?<![\p{L}])(le lendemain|au lendemain|the next day|the next morning|no dia seguinte|am nächsten tag|am naechsten tag|il giorno dopo|den aneren dag|次の日|翌日|第二天|次日)(?![\p{L}])/iu, id: 'next-day', jump: 'day' },
+  { re: /(?<![\p{L}])(le lendemain|au lendemain|the next day|no dia seguinte|am nächsten tag|am naechsten tag|il giorno dopo|den aneren dag|次の日|翌日|第二天|次日)(?![\p{L}])/iu, id: 'next-day', jump: 'day' },
   { re: /(?<![\p{L}])(trois jours plus tard|trois jours après|trois jours apres|three days later|três dias depois|tres dias depois|drei tage später|drei tage spater|tre giorni dopo|dräi deeg drop|dräi deeg méi spéit|三日後|三天后|三天之后)(?![\p{L}])/iu, id: 'plus-3d', jump: 'day' },
   { re: /(?<![\p{L}])(à l['’]aube|a l['’]aube|at dawn|au petit matin|en début de matinée|ao amanhecer|im morgengrauen|all['’]alba|am muergrauen|夜明け|黎明|拂晓)(?![\p{L}])/iu, id: 'dawn', jump: 'part', light: 'dawn' },
   { re: /(?<![\p{L}])(à la nuit tombée|a la nuit tombee|la nuit tombe|at nightfall|nightfall|ao anoitecer|bei einbruch der nacht|al calar della notte|bei der nuecht|夜になる|夜幕降临|入夜)(?![\p{L}])/iu, id: 'nightfall', jump: 'part', light: 'night' },
@@ -116,7 +116,9 @@ const TIME_RULES = [
   { re: /(?<![\p{L}])(à noite|a noite|de noite|pela noite|na noite|à noitinha|a noitinha|de noitinha)(?![\p{L}])/iu, id: 'a-noite', jump: 'part', light: 'night' },
   { re: /(?<![\p{L}])(ao luar|à luz da lua|a luz da lua)(?![\p{L}])/iu, id: 'luar', jump: 'part', light: 'night' },
   { re: /(?<![\p{L}])(ao anoitecer|no anoitecer|ao entardecer|no entardecer|ao crepúsculo|ao crepusculo|no crepúsculo|no crepusculo|pelo crepúsculo|pelo crepusculo|crepúsculo|crepusculo|anoitecer|entardecer)(?![\p{L}])/iu, id: 'pt-evening', jump: 'part', light: 'night' },
-  { re: /(?<![\p{L}])noite(?![\p{L}])/iu, id: 'noite', jump: 'part', light: 'night' }
+  { re: /(?<![\p{L}])noite(?![\p{L}])/iu, id: 'noite', jump: 'part', light: 'night' },
+  { re: /(?<![\p{L}])(the next morning|next morning|na manhã seguinte|na manha seguinte|manhã seguinte|manha seguinte|de manhã|de manha|pela manhã|pela manha|na manhã|na manha|esta manhã|esta manha|nessa manhã|nessa manha|ao raiar do dia|by morning)(?![\p{L}])/iu, id: 'next-morning', jump: 'part', light: 'dawn' },
+  { re: /(?<![\p{L}])(amanhecer|manhã|manha|morning|sunrise|dawn)(?![\p{L}])/iu, id: 'morning-word', jump: 'part', light: 'dawn' }
 ]
 
 const CLOCK = Object.freeze({
@@ -306,7 +308,7 @@ export function isCueStopword(token) {
 export function isNeverPlace(token) {
   const key = foldName(token)
   if (!key) return false
-  if (NOT_A_PLACE.has(key) || isNonPlaceNoun(token)) return true
+  if (NOT_A_PLACE.has(key) || isNonPlaceNoun(token) || isRejectedPlace(token)) return true
   return key.split(/\s+/).some(part => NOT_A_PLACE.has(part) || isNonPlaceNoun(part))
 }
 
@@ -567,7 +569,8 @@ export function isPortraitSentence(sentence) {
   if (/\b(?:\d{1,3}\s*(?:Jahre|anni|anos|ans|years)|岁|歲)\b/u.test(raw) && /[，,]/u.test(raw)) return true
   if (isLookIntro(raw)) return true
   if (/^\p{Lu}[\p{L}'’-]{1,40}(?:\s+\p{Lu}[\p{L}'’-]{1,40}){0,2}\s+is\s+/u.test(raw)) return true
-  if (/^(?:she|he|they|elle|il)\s+(?:has|have|had|wears?|wore|is wearing|a|porte)\b/iu.test(raw)) return true
+  if (/^(?:she|he|they|elle|il|ela|ele)\s+(?:has|have|had|wears?|wore|is wearing|carries|carrying|holds?|holding|veste|usa|traz|tem)\b/iu.test(raw)) return true
+  if (/^\p{Lu}[\p{L}'’-]{1,40}(?:\s+\p{Lu}[\p{L}'’-]{1,40}){0,2}\s+(?:tem|têm|veste|vestem|usa|usam|carrega|carregam|leva|levam|traz|has|have|wears?|wore|carries|carrying|holds?|holding)\b/iu.test(raw)) return true
   if (/\b(?:nephew|niece|brother|sister|cousin|son|daughter|mother|father|uncle|aunt|neveu|nièce|niece|cousine|frère|soeur|sœur)\s+(?:\p{Lu}[\p{L}'’-]+\s+){1,3}is\b/iu.test(raw)) return true
   return false
 }
@@ -614,6 +617,22 @@ function samePlace(a, b) {
   const left = foldName(a)
   const right = foldName(b)
   return left === right || left.includes(right) || right.includes(left)
+}
+
+const GENERIC_SUBJECT = new Set(['room', 'place', 'space', 'area', 'air', 'light', 'scene', 'sala', 'lugar', 'quarto', 'espaco', 'espaço', 'ar', 'luz', 'cena', 'setting'])
+
+/** The place a description sentence names as its subject. "The kitchen is quiet" keeps the kitchen. A bare "room" does not replace a place already set. */
+export function subjectPlace(sentence, language = 'en', places = []) {
+  const match = String(sentence || '').match(/^(?:the|a|an|o|os|as|um|uma)\s+(.+?)\s+(?:is|are|was|were|está|esta|estão|estao|fica|ficam)(?![\p{L}])/iu)
+  if (!match) return ''
+  const raw = tidyPlaceLemma(match[1])
+  if (!raw || isRejectedPlace(raw) || isNeverPlace(raw) || GENERIC_SUBJECT.has(foldName(raw))) return ''
+  const key = foldName(raw)
+  const known = (places || []).find(place => [place?.name, ...(place?.keys || [])].some(item => foldName(item) === key))
+  if (known?.name && !isRejectedPlace(known.name)) return known.name
+  const tag = placeTag(language, raw) || placeTag(language === 'pt' ? 'pt' : 'en', raw)
+  if (tag !== 's') return ''
+  return raw.replace(/^\p{Ll}/u, char => char.toUpperCase())
 }
 
 /** Light in effect after this sentence. A new time cue replaces the old light, and a cue with no light clears it. */
@@ -713,20 +732,32 @@ export function splitNarrative(text, options = {}) {
     const portrait = isPortraitSentence(sentence)
     const described = isDescriptionSentence(sentence)
     const action = hasAction(sentence, language, extraVerbs) && !cast && !portrait && !described
-    let firmPlace = place && !place.uncertain ? place : null
+    let firmPlace = place && !place.uncertain && !isRejectedPlace(place.name) ? place : null
+    if (!firmPlace) {
+      const headed = locativeHeads(sentence, language).find(item => item.moves !== false && !isRejectedPlace(item.lemma) && mentionMovesScene(sentence, item.index, language))
+      if (headed) firmPlace = { name: headed.name, key: headed.lemma, cue: headed.name, uncertain: false, unlisted: headed.tag === 'unlisted' }
+    }
     if (!firmPlace) {
       const venue = namedVenues(sentence, language).find(item => String(item.name || '').split(/\s+/).length > 1)
-      if (venue) firmPlace = { name: venue.name, key: venue.name, cue: venue.name, uncertain: false }
+      if (venue && !isRejectedPlace(venue.name)) firmPlace = { name: venue.name, key: venue.name, cue: venue.name, uncertain: false }
     }
     const words = verbTokens(sentence).length
     const cueOnly = !action && !cast && !firmPlace && (times.length > 0 || Boolean(sequence)) && words <= 5
     if (cast || portrait || described) {
-      if (firmPlace) state.place = firmPlace.name
+      const subject = described ? subjectPlace(sentence, language, places) : ''
+      if (firmPlace && !isRejectedPlace(firmPlace.name)) state.place = firmPlace.name
+      else if (subject && times.length) state.place = subject
       if (times.length) applyTime(times, state)
       return
     }
     if (cueOnly) {
-      pending.push({ place: null, times, sequence, sentence })
+      const headed = locativeHeads(sentence, language).find(item => item.moves !== false && !isRejectedPlace(item.lemma) && mentionMovesScene(sentence, item.index, language))
+      pending.push({
+        place: headed ? { name: headed.name, key: headed.lemma, cue: headed.name, uncertain: false } : null,
+        times,
+        sequence,
+        sentence
+      })
       return
     }
     if (!action && !firmPlace && !times.length && !sequence && (words < 3 || isLookIntro(sentence))) return
@@ -743,7 +774,7 @@ export function splitNarrative(text, options = {}) {
       const key = foldName(label)
       return key && (folded === key || folded.split(/\s+/).includes(key))
     })
-    if (bundledPlace && (personOwns(bundledPlace.name) || personOwns(bundledPlace.key))) bundledPlace = null
+    if (bundledPlace && (personOwns(bundledPlace.name) || personOwns(bundledPlace.key) || isRejectedPlace(bundledPlace.name))) bundledPlace = null
     if (bundledPlace && !samePlace(bundledPlace.name, state.place)) {
       if (bundledPlace.uncertain) {
         uncertain = true

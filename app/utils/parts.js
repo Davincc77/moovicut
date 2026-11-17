@@ -1,6 +1,7 @@
 /** Split a long board into parts of at most 40 shots. No model call. */
 import { cleanText } from './text.js'
 import { lockLineFor } from './character-lock.js'
+import { isRejectedPlace, tidyPlaceLemma } from './place-lexicon.js'
 
 export const PART_SHOT_LIMIT = 40
 
@@ -44,14 +45,20 @@ export function partitionShots(shots, limit = PART_SHOT_LIMIT) {
 function openingState(project) {
   const sheet = project?.filmSheet || {}
   const continuity = project?.continuitySheet || {}
-  const place = cleanText(sheet.places?.[0]?.name) || cleanText(continuity.place) || ''
+  const place = usablePlace(sheet.places?.[0]?.name) || usablePlace(continuity.place) || ''
   const time = cleanText(sheet.light) || cleanText(continuity.time) || ''
   return { place, time }
 }
 
+function usablePlace(value) {
+  const place = tidyPlaceLemma(cleanText(value))
+  if (!place || isRejectedPlace(place)) return ''
+  return place
+}
+
 function carry(state, shot) {
   const next = { ...state }
-  const place = cleanText(shot?.where)
+  const place = usablePlace(shot?.where)
   if (place) next.place = place
   const light = cleanText(shot?.light)
   if (light) next.time = light
@@ -72,7 +79,7 @@ export function partOpening(project, index) {
   const shot = project?.shots?.[index]
   const carried = stateAt(project, index)
   if (!shot) return carried
-  const place = cleanText(shot.where) || carried.place
+  const place = usablePlace(shot.where) || usablePlace(carried.place)
   const time = cleanText(shot.light) || carried.time
   return { place, time }
 }

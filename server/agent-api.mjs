@@ -401,7 +401,7 @@ function planProse(input, { origin, compact }) {
   if (warnings.length) body.warnings = warnings
   else delete body.warnings
   stripSceneKeys(project)
-  return body
+  return withShortBoardWarning(body, project, input)
 }
 
 function splitEnabled(input) {
@@ -527,7 +527,7 @@ function refuseUnplannedPremise(project, input) {
   for (const action of droppedActions) {
     errors.push({ section: 'premise', field: 'scenes', action, message: `This action was not planned: "${action}".` })
   }
-  errors.push({ section: 'premise', field: 'scenario', message: 'Send a scenario. who may be a string or a list of names. A plain premise that cannot keep those names and actions is not returned as a template board.' })
+  errors.push({ section: 'premise', field: 'scenario', message: 'Send the full story again. One action beat is one shot. Do not merge beats and do not shorten the story or drop actions. Send one scene per beat, or send the whole text as plain prose in premise (set input to "prose" for automatic splitting). A story longer than 40 shots is split into parts of at most 40. who may be a string or a list of names.' })
   const error = new Error(errors.map(item => item.message).join(' '))
   error.status = 400
   error.code = 'invalid_plan'
@@ -538,6 +538,29 @@ const PACKED_BEAT = /(?<![\p{L}])(?:pours?|walks?|runs?|opens?|enters?|leaves?|s
 
 function actionBeats(text) {
   return String(text || '').split(/(?<=[.!?。！？])\s+|\n+/u).map(part => cleanText(part)).filter(part => part && PACKED_BEAT.test(part))
+}
+
+/** The board kept far fewer shots than the premise's beats. A warning, not a rejection. */
+function shortBoardWarning(project, input) {
+  const premise = cleanText(project?.premise || input?.premise || input?.prose || input?.text || '')
+  const shots = project?.shots?.length || 0
+  if (!premise || shots < 1) return null
+  const beats = actionBeats(premise).length
+  const sentences = premise.split(/(?<=[.!?。！？])\s+/u).map(part => cleanText(part)).filter(part => part.length >= 8).length
+  const expected = Math.max(beats, sentences)
+  if (expected < shots * 2 || expected < shots + 8) return null
+  return {
+    code: 'short_board',
+    message: `This board has ${shots} shots and the premise has about ${expected} sentences or action beats. Send the full story again as one scene per beat, or as plain prose so every beat is split automatically. Do not shorten the story or drop actions. A story longer than 40 shots is split into parts of at most 40.`,
+    fix: 'Resubmit the full text as prose or as one scene per beat.'
+  }
+}
+
+function withShortBoardWarning(body, project, input) {
+  const warning = shortBoardWarning(project, input)
+  if (!warning) return body
+  body.warnings = [...(body.warnings || []), warning]
+  return body
 }
 
 /** A scenario that merges many action beats into few shots is not a board. */
@@ -551,7 +574,7 @@ function refusePackedScenario(scenario, premise, shots) {
   if (!collapsed) return
   const index = Math.max(0, counts.findIndex(list => list.length >= 2))
   const quoted = texts[index].slice(0, 180)
-  const message = `Give one action per shot. One action beat is one shot. Do not merge beats. A story longer than 40 shots is split into parts of at most 40. This shot packs several actions: "${quoted}".`
+  const message = `Give one action per shot. One action beat is one shot. Do not merge beats and do not shorten the story or drop actions. Send the full story again as one scene per beat, or as plain prose in premise (set input to "prose") so every beat is split automatically. A story longer than 40 shots is split into parts of at most 40. This shot packs several actions: "${quoted}".`
   const error = new Error(message)
   error.status = 400
   error.code = 'invalid_plan'
@@ -576,12 +599,12 @@ export function planFromInput(input, { origin = SITE, compact = false } = {}) {
   refuseUnplannedPremise(project, input)
   const link = boardLink(origin, project, options)
   if (input?.format === 'agent') {
-    const body = agentBody(project, link)
+    const body = withShortBoardWarning(agentBody(project, link), project, input)
     stripSceneKeys(project)
     return body
   }
   const body = compact ? compactStoryboard(project, link) : fullStoryboard(project, link)
-  const warned = attachWarnings(body, project)
+  const warned = withShortBoardWarning(attachWarnings(body, project), project, input)
   stripSceneKeys(project)
   return warned
 }
@@ -1009,7 +1032,7 @@ export function dispatchAgentRequest({ method = 'GET', pathname = '/', searchPar
     return mcp(body, origin)
   }
   if (pathname === '/api/v1/storyboard') {
-    if (verb !== 'POST') return json(405, { error: 'method_not_allowed' }, { allow: 'POST, OPTIONS' })
+    if (verb !== 'POST') return json(405, { error: 'method_not_allowed', message: 'Plan a board with POST /api/v1/storyboard. Put the full story in premise, or set input to "prose" and send the text as prose. One action beat is one shot. Do not shorten a long story or drop actions: more than 40 shots come back as parts. GET does not plan a board.' }, { allow: 'POST, OPTIONS' })
     if (Buffer.byteLength(body || '') > STORYBOARD_BODY_LIMIT) return json(413, { error: 'payload_too_large', message: 'The storyboard body is over 32 KB.' })
     let input
     try { input = JSON.parse(body || '') } catch { return json(400, { error: 'invalid_json', message: 'Send valid JSON.' }) }

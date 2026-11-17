@@ -2,8 +2,8 @@
 import { cleanText } from './text.js'
 import { foldName, scenarioBudget, scenarioPremise, scenarioToFields } from './scenario.js'
 import { cueLight, findPlaceCue, inNamedVenue, isDescriptionSentence, isFunctionWord, isNumberWord, isQuotedOrRemembered, isVenueType, lightAfterCue, mentionMovesScene, namedVenues } from './scene-split.js'
-import { isNonPlaceNoun, libraryHits, locativeHeads } from './place-lexicon.js'
-import { isNeverPlace } from './scene-split.js'
+import { isNonPlaceNoun, isRejectedPlace, libraryHits, locativeHeads, tidyPlaceLemma } from './place-lexicon.js'
+import { subjectPlace } from './scene-split.js'
 
 const LEX = {
   pt: {
@@ -137,6 +137,24 @@ function findCharacters(text, lex, places, language) {
     if (!outfit.length) warnings.push({ code: 'missing_outfit', message: `No outfit found for ${name}.`, target: 'characters', name })
     characters.push({ name, look: look.join(', '), outfit: outfit.join(', '), confidence })
   }
+  characters.forEach(person => {
+    const found = identityTraits(text, person.name)
+    const usable = bit => bit && !new RegExp(`^${person.name}\\b`, 'iu').test(bit) && !/\b(?:veste|vestem|carrega|carregam|wears?|carries|holds?)\b/iu.test(bit)
+    const looks = String(person.look || '').split(/,\s*/).filter(usable)
+    const outfits = String(person.outfit || '').split(/,\s*/).filter(usable)
+    const messy = value => /^(?:de|do|da)\s/iu.test(value) || /\b(?:e|and)\s+(?:uma|um|a|an)\b/iu.test(value) || foldName(value) === foldName(person.name)
+    const merge = (list, item) => {
+      if (!item || foldName(item) === foldName(person.name)) return
+      const index = list.findIndex(bit => foldName(bit).includes(foldName(item)) || foldName(item).includes(foldName(bit)))
+      if (index < 0) list.push(item)
+      else if (messy(list[index]) || item.length > list[index].length) list[index] = item
+    }
+    found.looks.forEach(item => merge(looks, item))
+    found.outfits.forEach(item => merge(outfits, item))
+    person.look = looks.filter(bit => bit && foldName(bit) !== foldName(person.name)).join(', ')
+    person.outfit = outfits.filter(bit => bit && foldName(bit) !== foldName(person.name)).join(', ')
+    if (person.look || person.outfit) person.confidence = person.confidence === 'low' ? 'medium' : person.confidence
+  })
   for (let index = characters.length - 1; index >= 0; index -= 1) {
     const name = characters[index].name
     if (characters.some(item => item.name !== name && item.name.split(/\s+/).includes(name))) characters.splice(index, 1)
@@ -220,6 +238,79 @@ function traitsFromWindow(window) {
   return { looks: unique(looks), outfits: unique(outfits) }
 }
 
+const AGE_BIT = /(?:\b(?:cerca de|com|de|tem|têm|has|is|aged)\s+)?(?:\b(?:early|mid|late)\s+)?(?:\d{1,3}\s+(?:anos|years old|years)|\b(?:doze|vinte|trinta|quarenta|cinquenta|sessenta|setenta|oitenta|noventa|twelve|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)(?:\s*-\s*[\p{L}]+|\s+e\s+[\p{L}]+)?(?:\s+(?:anos|years old|years))?|\b\d{1,2}s\b)/giu
+const HAIR_BIT = /(?:(?:short|long|curly|wavy|straight|auburn|brown|black|blonde|blond|gray|grey|salt|frozen|white|silver|red|dark|fine|thin|castanh[oa]s?|grisalh[oa]|pret[oa]|ruiv[oa]|loir[oa])\s+){1,3}(?:hair|braids?|beard|cabelo|tranças|trancas|barba|coque|bun|curls|locs)|(?:tranças|trancas|cabelo|barba|braids?|coque)\s+[\p{L}'’-]+(?:\s+[\p{L}'’-]+){0,3}/giu
+const GARMENT_BIT = /(?:[\p{L}'’-]+\s+){0,3}(?:cardigan|waistcoat|colete|vestido|casaco|jaqueta|blusa|saia|calças|calcas|camisa|apron|coat|jacket|dress|shirt|sweater|peacoat|cloak|robe|uniform|skirt|blouse|trousers|pants|hat|cap|scarf|avental|jaqueta)(?:\s+(?:de|do|da|[\p{L}'’-]+)){0,3}/giu
+const ITEM_BIT = /(?:uma|um|a|an)\s+((?:[\p{L}'’-]+\s+){0,2}(?:mochila|backpack|rucksack|locket|whistle|apito|key|chave|compass|bússola|bussola|lanterna|câmara|camera|leque|fan|binóculos|binoculos|punch|radio)(?:\s+[\p{L}'’-]+){0,2})/giu
+const ROLE_BIT = /(?:^|[^\p{L}])(?:é|e|is)\s+(?:um|uma|a|an|the|o|a)?\s*(aprendiz|arquivista|archivist|apprentice|pescadora|pescador|aluna|aluno|estudante|student|guarda|padeira|padeiro|professora|professor)/giu
+const WEAR_LEAD = /(?:veste|vestem|usa|usam|wears?|wore)\s+(?:um|uma|uns|umas|a|an|the|o|de\s+)?([^.,;]+)/giu
+const CARRY_LEAD = /(?:carrega|carregam|leva|levam|traz|carries|carrying|holds?|holding)\s+(?:um|uma|a|an|the|o)?\s*([^.,;]+)/giu
+
+function tidyAttribute(value) {
+  let bit = cleanText(value).replace(/[.,;]+$/g, '')
+  bit = bit.replace(/^(?:in|at|on|inside|into|em|no|na|nos|nas|dans|sur|ao|à)\s+/iu, '')
+  bit = bit.replace(/^(?:wears?|wore|veste|vestem|usa|usam|carrega|carregam|leva|levam|traz|carries|carrying|holds?|holding|has|have|tem|têm)\s+/iu, '')
+  bit = bit.replace(/^(?:é|e|is|de|do|da|um|uma|uns|umas|a|an|the|o|os|as)\s+/iu, '')
+  bit = bit.split(/\s+\b(?:e|and)\b\s+/i)[0]
+  bit = bit.split(/\s+\b(?:in|at|on|inside|into|em|no|na|nos|nas|dans|sur|ao|à)\b\s+/i)[0]
+  const words = []
+  for (const word of bit.split(/\s+/).filter(Boolean)) {
+    if (words.length && (/^\p{Lu}/u.test(word) || /^(?:veste|vestem|wears?|wore|waits?|espera|abre|opens?|carrega|carregam|carries|holds?|holding|walks?|sits?)$/iu.test(word))) break
+    words.push(word)
+  }
+  bit = words.join(' ')
+  bit = bit.replace(/(?:\s+(?:de|do|da|dos|das|em|no|na|com|with|por|para|ao|à|pelo|pela|and|e))+$/iu, '')
+  return cleanText(bit)
+}
+
+function pushUnique(list, value) {
+  const bit = tidyAttribute(value)
+  if (!bit || bit.length > 80 || bit.split(/\s+/).length > 8) return
+  if (/\b(?:espera|abre|walks?|opens?|sits?|stands?|reads?|acena|corre)\b/iu.test(bit)) return
+  const key = foldName(bit)
+  if (list.some(item => foldName(item) === key || foldName(item).includes(key) || key.includes(foldName(item)))) {
+    const index = list.findIndex(item => foldName(item) === key || foldName(item).includes(key) || key.includes(foldName(item)))
+    if (index >= 0 && bit.length > list[index].length) list[index] = bit
+    return
+  }
+  list.push(bit)
+}
+
+function identityWindow(text, name) {
+  const source = String(text || '')
+  const boundary = new RegExp(`(?<![\\p{L}])${String(name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}])`, 'giu')
+  const chunks = []
+  for (const match of source.matchAll(boundary)) {
+    let slice = source.slice(match.index, Math.min(source.length, match.index + 220))
+    const rest = slice.slice(match[0].length)
+    const cut = rest.search(/\bmeets\s+\p{Lu}|\.\s+\p{Lu}/u)
+    if (cut >= 0) slice = slice.slice(0, match[0].length + cut)
+    chunks.push(slice)
+  }
+  return chunks.join(' ')
+}
+
+/** Age, hair, outfit, carried item, and role stated for this person. Both site languages. */
+export function identityTraits(text, name) {
+  const looks = []
+  const outfits = []
+  const source = identityWindow(text, name)
+  if (!source) return { looks, outfits }
+  for (const match of source.matchAll(new RegExp(AGE_BIT.source, 'giu'))) pushUnique(looks, match[0])
+  for (const match of source.matchAll(new RegExp(HAIR_BIT.source, 'giu'))) pushUnique(looks, match[0])
+  for (const match of source.matchAll(new RegExp(ROLE_BIT.source, 'giu'))) pushUnique(looks, match[1])
+  for (const match of source.matchAll(new RegExp(GARMENT_BIT.source, 'giu'))) pushUnique(outfits, match[0])
+  for (const match of source.matchAll(new RegExp(ITEM_BIT.source, 'giu'))) pushUnique(outfits, match[1] || match[0])
+  for (const match of source.matchAll(new RegExp(WEAR_LEAD.source, 'giu'))) {
+    String(match[1] || '').split(/\s+\b(?:e|and)\b\s+/i).forEach(part => {
+      if (GARMENT_BIT.test(part) || /(?:vestido|casaco|coat|dress|cardigan|waistcoat|avental|apron|jaqueta|camisa)/iu.test(part)) pushUnique(outfits, part)
+      GARMENT_BIT.lastIndex = 0
+    })
+  }
+  for (const match of source.matchAll(new RegExp(CARRY_LEAD.source, 'giu'))) pushUnique(outfits, match[1])
+  return { looks, outfits }
+}
+
 function findAmbience(text, lex) {
   let light = ''
   let mood = ''
@@ -251,16 +342,19 @@ function findScenes(text, lex, characters, places, language) {
   sentences(text).forEach(sentence => {
     const described = isDescriptionSentence(sentence) || (/^[\p{Lu}][\p{L}'’-]+/u.test(sentence) && /(?:\d+\s*(?:Jahre|anni|anos|years)|cerca de\s+\d+|Anfang\s+\d+|poco più)/iu.test(sentence) && !/(?:^|[^\p{L}])(?:in|im|am|auf|bei|ins|zum|zur|dans|au|aux|nel|nella|nello|alla|al|sul|no|na|em|dentro|betritt|betrat|entra|entro|arriva|chega|espera|abre|lê|le)\b/iu.test(sentence))
     if (described) {
-      const headed = locativeHeads(sentence, language).find(item => item.moves !== false && !isNonPlaceNoun(item.lemma) && mentionMovesScene(sentence, item.index, language))
+      const headed = locativeHeads(sentence, language).find(item => item.moves !== false && !isNonPlaceNoun(item.lemma) && !isRejectedPlace(item.lemma) && mentionMovesScene(sentence, item.index, language))
+      const subject = subjectPlace(sentence, language, places)
       const records = places.map(place => ({
         name: place.name,
         keys: lex.places.filter(([, name]) => name === place.name).map(([key]) => key).concat(place.name),
         unlisted: place.unlisted === true
       }))
       const cue = headed
-        ? { name: headed.name, uncertain: false }
+        ? { name: tidyPlaceLemma(headed.name), uncertain: false }
         : findPlaceCue(sentence, language, records)
-      if (cue?.name && !cue.uncertain) lastWhere = cue.name
+      const named = cue?.name && !cue.uncertain && !isRejectedPlace(cue.name) ? tidyPlaceLemma(cue.name) : ''
+      if (named) lastWhere = named
+      else if (subject && cueLight(sentence, language)) lastWhere = subject
       const nextLight = lightAfterCue(sentence, language, light)
       if (nextLight) light = nextLight
       return
@@ -285,17 +379,18 @@ function findScenes(text, lex, characters, places, language) {
       keys: lex.places.filter(([, name]) => name === place.name).map(([key]) => key).concat(place.name),
       unlisted: place.unlisted === true
     }))
-    const headed = locativeHeads(action, language).find(item => item.moves !== false && !isNonPlaceNoun(item.lemma) && mentionMovesScene(action, item.index, language))
+    const headed = locativeHeads(action, language).find(item => item.moves !== false && !isNonPlaceNoun(item.lemma) && !isRejectedPlace(item.lemma) && mentionMovesScene(action, item.index, language))
     const cue = headed
-      ? { name: headed.name, key: headed.lemma, uncertain: false, unlisted: headed.tag === 'unlisted' }
+      ? { name: tidyPlaceLemma(headed.name), key: tidyPlaceLemma(headed.lemma), uncertain: false, unlisted: headed.tag === 'unlisted' }
       : findPlaceCue(action, language, records)
     const owned = cue && characters.some(item => foldName(item.name) === foldName(cue.name) || item.name.split(/\s+/).some(part => foldName(part) === foldName(cue.name)))
     const flags = []
     if (whoFlag) flags.push({ field: 'who', code: whoFlag })
     let where = lastWhere
     let whereFlag = where ? 'place_carried' : 'place_missing'
-    if (cue?.name && !cue.uncertain && !owned && !isNonPlaceNoun(cue.name)) {
-      where = cue.name
+    const cued = cue?.name ? tidyPlaceLemma(cue.name) : ''
+    if (cued && !cue.uncertain && !owned && !isNonPlaceNoun(cued) && !isRejectedPlace(cued)) {
+      where = cued
       whereFlag = cue.unlisted ? 'place_unlisted' : ''
     }
     if (whereFlag) flags.push({ field: 'where', code: whereFlag })
