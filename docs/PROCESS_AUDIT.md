@@ -95,7 +95,7 @@ Bug: none in the response shape.
 
 ## 11. Wizard and advanced editor
 
-Both call the same planner. The wizard is the six-step guide. Advanced mode keeps Step-by-step, scenario, ad, series, and explainer. Prompt text is built by `createPrompt` for either surface.
+Both call the same planner. The wizard is the six-step guide (breadcrumb Create / Guided, one stepper, settings behind Change settings). Advanced mode keeps Step-by-step, scenario, ad, series, and explainer. The local editor is named Storyboard. Prompt text is built by `createPrompt` for either surface.
 
 Checked: `tests/prompt-language.test.mjs` (“the wizard and the advanced editor build the same prompts in every language”), which passed. The studio screen was not clicked in a browser in this pass. The change is the planner, not the layout.
 

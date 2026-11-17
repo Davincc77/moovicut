@@ -1,5 +1,5 @@
 <script setup>
-import { ArrowUpRight } from 'lucide-vue-next'
+import { ArrowRight, ChevronDown } from 'lucide-vue-next'
 import { WIZARD_STRINGS, wizardText } from '~/utils/wizard-strings.js'
 import {
   WIZARD_STEPS,
@@ -64,8 +64,9 @@ function t(key, vars) {
 }
 const state = ref(blankWizard())
 const ready = ref(false)
-const heading = ref(null)
 const buildError = ref('')
+const settingsOpen = ref(false)
+const ideaFeedback = ref(false)
 const presets = listPresets()
 const optionalCharacterFields = new Set(['colors', 'mark'])
 const pendingFocusId = ref('')
@@ -88,7 +89,6 @@ onMounted(() => {
   if (saved) state.value = saved
   ready.value = true
   window.addEventListener('moovicut-focus-idea', onFocusIdea)
-  nextTick(() => heading.value?.focus())
 })
 onBeforeUnmount(() => window.removeEventListener('moovicut-focus-idea', onFocusIdea))
 
@@ -99,7 +99,6 @@ watch(state, value => {
 watch(() => state.value.step, () => {
   if (!ready.value) return
   buildError.value = ''
-  nextTick(() => heading.value?.focus())
 })
 
 watch(() => state.value.characterIndex, (index, previous) => {
@@ -114,6 +113,14 @@ const stepName = computed(() => t(stepMeta.value.label))
 const headingText = computed(() => `${stepNumber.value}. ${stepName.value}`)
 function numberedStep(step, index) { return `${index + 1}. ${t(step.label)}` }
 const gaps = computed(() => gapsFor(state.value, state.value.step))
+const showIdeaError = computed(() => state.value.step === 'idea' && ideaFeedback.value && gaps.value.some(item => item.field === 'idea'))
+const visibleGaps = computed(() => gaps.value.filter(item => item.field !== 'idea' || showIdeaError.value))
+const modelLabel = computed(() => MODEL_OPTIONS.find(item => item.id === state.value.model)?.label || MODEL_OPTIONS[0]?.label || '')
+const promptStyleLabel = computed(() => state.value.promptStyle === 'detailed' ? t('settings.detailed') : t('settings.short'))
+const settingsSummary = computed(() => t('settings.summary', { model: modelLabel.value, aspect: state.value.aspectRatio, style: promptStyleLabel.value }))
+const nextStepMeta = computed(() => WIZARD_STEPS[stepNumber.value] || null)
+const nextLabel = computed(() => nextStepMeta.value ? t('action.nextStep', { step: t(nextStepMeta.value.label) }) : t('action.next'))
+const compactStep = computed(() => t('progress.compact', { current: stepNumber.value, total: WIZARD_STEPS.length, label: stepName.value }))
 const report = computed(() => state.value.step === 'check' || state.value.step === 'generate' ? review(state.value) : null)
 const proseCuts = computed(() => {
   if (state.value.step !== 'check') return []
@@ -201,12 +208,14 @@ function moveTabs(event, kind) {
   nextTick(() => document.getElementById(`wizard-${kind}-${list[index].id}`)?.focus())
 }
 
+function onIdeaBlur() { ideaFeedback.value = true }
 function onSubmit() {
   if (state.value.step === 'generate') {
     generate()
     return
   }
   const blocking = gapsFor(state.value, state.value.step)
+  if (state.value.step === 'idea' && blocking.length) ideaFeedback.value = true
   if (state.value.step === 'check' && !generateEnabled.value) return
   if (blocking.length) {
     const target = gapFieldId(state.value, blocking[0])
@@ -241,26 +250,21 @@ function copyAgent() {
 
 <template>
   <div class="studio-wizard">
-    <div class="wizard-top">
-      <div>
-        <h2 id="wizard-step-heading" ref="heading" tabindex="-1">{{ headingText }}</h2>
-        <p class="wizard-lead">{{ t('wizard.lead') }}</p>
-      </div>
-      <button class="button button-secondary" type="button" @click="emit('advanced')">{{ t('advanced.enter') }} <ArrowUpRight :size="14" aria-hidden="true" /></button>
-    </div>
-
+    <h2 id="wizard-step-heading" class="sr-only">{{ headingText }}</h2>
     <div class="wizard-progress">
-      <progress :value="stepNumber" :max="WIZARD_STEPS.length" :aria-label="t('progress.label', { current: stepNumber, total: WIZARD_STEPS.length, label: stepName })"></progress>
+      <p class="wizard-step-compact">{{ compactStep }}</p>
       <ol class="wizard-steps" :aria-label="t('progress.nav')">
         <li v-for="(step, index) in WIZARD_STEPS" :key="step.id">
           <button
             type="button"
             :aria-current="step.id === state.step ? 'step' : undefined"
             :disabled="!canOpenStep(state, step.id)"
+            :aria-label="t('step.goto', { label: t(step.label) })"
             @click="state = openStep(state, step.id)"
-          >{{ numberedStep(step, index) }}</button>
+          ><span class="wizard-step-index" aria-hidden="true"><span class="wizard-step-num">{{ index + 1 }}.</span></span><span class="wizard-step-label">{{ t(step.label) }}</span></button>
         </li>
       </ol>
+      <progress :value="stepNumber" :max="WIZARD_STEPS.length" :aria-label="t('progress.label', { current: stepNumber, total: WIZARD_STEPS.length, label: headingText })"></progress>
     </div>
 
     <form class="wizard-form" aria-labelledby="wizard-step-heading" @submit.prevent="onSubmit">
@@ -268,11 +272,17 @@ function copyAgent() {
         <p>{{ t('idea.help') }}</p>
         <div class="wizard-field">
           <label for="wizard-idea">{{ t('idea.label') }}</label>
-          <textarea id="wizard-idea" name="idea" rows="5" required maxlength="6000" :value="state.idea" :aria-invalid="gaps.some(item => item.field === 'idea')" :aria-describedby="gaps.some(item => item.field === 'idea') ? 'wizard-idea-error' : undefined" @input="state = setIdea(state, $event.target.value)"></textarea>
-          <p v-if="gaps.some(item => item.field === 'idea')" id="wizard-idea-error" class="wizard-error">{{ t(gaps.find(item => item.field === 'idea').key) }}</p>
+          <textarea id="wizard-idea" name="idea" rows="5" required maxlength="6000" :value="state.idea" :aria-invalid="showIdeaError ? 'true' : 'false'" :aria-describedby="showIdeaError ? 'wizard-idea-error' : undefined" @input="state = setIdea(state, $event.target.value)" @blur="onIdeaBlur"></textarea>
+          <p v-if="showIdeaError" id="wizard-idea-error" class="wizard-error">{{ t(gaps.find(item => item.field === 'idea').key) }}</p>
           <p v-if="ideaHint" class="wizard-hint" role="status">{{ ideaHint }}</p>
           <CjkNameTip :locale="locale" />
         </div>
+        <div class="wizard-settings">
+          <div class="wizard-settings-summary">
+            <p>{{ settingsSummary }}</p>
+            <button class="button button-secondary" type="button" :aria-expanded="settingsOpen" aria-controls="wizard-settings-panel" @click="settingsOpen = !settingsOpen">{{ t('settings.change') }} <ChevronDown :size="14" aria-hidden="true" /></button>
+          </div>
+          <div v-show="settingsOpen" id="wizard-settings-panel" class="wizard-settings-panel">
         <div class="wizard-field">
           <label for="wizard-model">{{ t('idea.model') }}</label>
           <select id="wizard-model" name="model" :value="state.model" @change="state = setModel(state, $event.target.value)">
@@ -301,6 +311,8 @@ function copyAgent() {
             </label>
           </div>
         </fieldset>
+          </div>
+        </div>
       </section>
 
       <section v-else-if="state.step === 'characters'" class="wizard-panel" :aria-label="t('character.panel')">
@@ -560,14 +572,17 @@ function copyAgent() {
         <p v-else>{{ t('generate.waiting') }}</p>
       </section>
 
-      <ul v-if="gaps.length && state.step !== 'check'" id="wizard-gaps" class="wizard-gaps" role="status" :aria-label="t('gaps.heading')">
-        <li v-for="(item, index) in gaps" :key="`${item.step}-${item.targetId}-${item.field}-${item.key}-${index}`">{{ gapText(item) }}</li>
+      <ul v-if="visibleGaps.length && state.step !== 'check'" id="wizard-gaps" class="wizard-gaps" role="status" :aria-label="t('gaps.heading')">
+        <li v-for="(item, index) in visibleGaps" :key="`${item.step}-${item.targetId}-${item.field}-${item.key}-${index}`">{{ gapText(item) }}</li>
       </ul>
 
-      <div class="wizard-actions">
-        <button v-if="stepNumber > 1" class="button button-secondary" type="button" @click="state = openStep(state, WIZARD_STEPS[stepNumber - 2].id)">{{ t('action.back') }}</button>
-        <button v-if="state.step !== 'generate'" class="button button-primary" type="submit" :disabled="state.step === 'check' && !generateEnabled" :aria-describedby="gaps.length ? 'wizard-gaps' : undefined">{{ t('action.next') }}</button>
-        <button v-else class="button button-primary" type="submit" :disabled="!generateEnabled">{{ state.hasGenerated ? t('action.generateAgain') : t('action.generate') }}</button>
+      <div class="wizard-footer">
+        <p class="wizard-privacy">{{ t('wizard.lead') }}</p>
+        <div class="wizard-actions">
+          <button v-if="stepNumber > 1" class="button button-secondary" type="button" @click="state = openStep(state, WIZARD_STEPS[stepNumber - 2].id)">{{ t('action.back') }}</button>
+          <button v-if="state.step !== 'generate'" class="button button-primary" type="submit" :disabled="state.step === 'check' && !generateEnabled" :aria-describedby="visibleGaps.length ? 'wizard-gaps' : undefined">{{ nextLabel }} <ArrowRight :size="16" aria-hidden="true" /></button>
+          <button v-else class="button button-primary" type="submit" :disabled="!generateEnabled">{{ state.hasGenerated ? t('action.generateAgain') : t('action.generate') }}</button>
+        </div>
       </div>
     </form>
   </div>

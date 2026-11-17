@@ -13,6 +13,12 @@ function catalog(code) {
   return JSON.parse(readFileSync(`app/i18n/locales/${code}.json`, 'utf8'))
 }
 
+test('en.json and pt.json have identical key sets', () => {
+  const english = Object.keys(catalog('en')).sort()
+  const portuguese = Object.keys(catalog('pt')).sort()
+  assert.deepEqual(portuguese, english)
+})
+
 test('every language catalog has exactly the English keys', () => {
   const english = catalog('en')
   const expected = collectKeys()

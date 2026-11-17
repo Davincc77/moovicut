@@ -12,6 +12,7 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocumentClick))
  <header ref="bar" class="workspace-topbar">
   <button class="workspace-menu-button" type="button" :aria-label="menuOpen ? $t('Close workspace navigation') : $t('Open workspace navigation')" :aria-expanded="menuOpen" aria-controls="mobile-workspace-menu" @click="emit('menu')"><Menu :size="18" /></button>
   <p class="studio-local-badge">{{ $t('Free · Local · No account') }}</p>
+  <div class="workspace-tool"><slot name="tools" /></div>
   <SupportLink />
   <LanguageSwitcher />
   <InstallButton />
