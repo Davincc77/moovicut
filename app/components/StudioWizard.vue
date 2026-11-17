@@ -110,7 +110,9 @@ watch(() => state.value.characterIndex, (index, previous) => {
 
 const stepMeta = computed(() => WIZARD_STEPS.find(step => step.id === state.value.step) || WIZARD_STEPS[0])
 const stepNumber = computed(() => WIZARD_STEPS.findIndex(step => step.id === state.value.step) + 1)
-const headingText = computed(() => t(stepMeta.value.label))
+const stepName = computed(() => t(stepMeta.value.label))
+const headingText = computed(() => `${stepNumber.value}. ${stepName.value}`)
+function numberedStep(step, index) { return `${index + 1}. ${t(step.label)}` }
 const gaps = computed(() => gapsFor(state.value, state.value.step))
 const report = computed(() => state.value.step === 'check' || state.value.step === 'generate' ? review(state.value) : null)
 const proseCuts = computed(() => {
@@ -248,15 +250,15 @@ function copyAgent() {
     </div>
 
     <div class="wizard-progress">
-      <progress :value="stepNumber" :max="WIZARD_STEPS.length" :aria-label="t('progress.label', { current: stepNumber, total: WIZARD_STEPS.length, label: headingText })"></progress>
+      <progress :value="stepNumber" :max="WIZARD_STEPS.length" :aria-label="t('progress.label', { current: stepNumber, total: WIZARD_STEPS.length, label: stepName })"></progress>
       <ol class="wizard-steps" :aria-label="t('progress.nav')">
-        <li v-for="step in WIZARD_STEPS" :key="step.id">
+        <li v-for="(step, index) in WIZARD_STEPS" :key="step.id">
           <button
             type="button"
             :aria-current="step.id === state.step ? 'step' : undefined"
             :disabled="!canOpenStep(state, step.id)"
             @click="state = openStep(state, step.id)"
-          >{{ t(step.label) }}</button>
+          >{{ numberedStep(step, index) }}</button>
         </li>
       </ol>
     </div>
@@ -302,7 +304,7 @@ function copyAgent() {
       </section>
 
       <section v-else-if="state.step === 'characters'" class="wizard-panel" :aria-label="t('character.panel')">
-        <label class="wizard-checks"><input id="wizard-no-character" type="checkbox" :checked="state.noCharacter" @change="state = setNoCharacter(state, $event.target.checked)" /><span>{{ t('character.none') }}</span></label>
+        <button id="wizard-no-character" class="button button-secondary wizard-skip-characters" type="button" :aria-pressed="state.noCharacter" @click="state = setNoCharacter(state, !state.noCharacter)">{{ t('character.none') }}</button>
         <p v-if="state.noCharacter" class="wizard-hint" role="status">{{ t('character.noneHelp') }}</p>
         <p v-if="state.detection && !state.noCharacter" role="status">{{ t('detect.summary', { confidence: confidenceLabel(state.detection.confidence), language: languageLabel(state.detection.language) }) }}</p>
         <div v-if="!state.noCharacter" class="wizard-tabs" role="tablist" :aria-label="t('character.list')" @keydown="moveTabs($event, 'character')">

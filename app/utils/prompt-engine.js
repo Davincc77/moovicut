@@ -358,6 +358,20 @@ function stageBeat(stage, facts, genre) {
   const when = facts.time
   const pace = genre?.pace || 'measured visual storytelling'
   const line = facts.dialogue
+  if (!who) {
+    const empty = {
+      Opening: `A wide view of ${where} at ${when}.`,
+      Introduction: `A closer view of ${where}, one detail clear.`,
+      Discovery: `One new detail appears in ${where}.`,
+      Shift: `The situation in ${where} turns.`,
+      Response: `The view moves through ${where}.`,
+      Climax: `The result of that change is visible in ${where}.`,
+      Release: `A quiet hold on ${where} at ${when}.`,
+      Ending: `The last image stays on ${where}.`
+    }
+    if (empty[stage]) return empty[stage]
+    return `The ${String(stage || 'next').toLowerCase()} beat stays on ${where} at ${when}.`
+  }
   const core = {
     Opening: `A wide view of ${where} at ${when}, with ${who} entering the frame.`,
     Introduction: `${who} is readable in a closer frame, posture and expression clear.`,
@@ -373,9 +387,10 @@ function stageBeat(stage, facts, genre) {
 }
 function applyContinuousShot(shot, sheet, index, styleName) {
   const profile = SHOT_STYLE_PROFILES[styleName]
-  const appearance = sheet.appearance || appearanceFor(sheet.character)
+  const who = cleanText(sheet.character)
+  const appearance = who ? (sheet.appearance || appearanceFor(sheet.character)) : ''
   const genre = GENRES[shot.genre] || GENRES.cinematic
-  const beat = shot.fromPremise && shot.action ? shot.action : stageBeat(shot.stage, { ...sheet, appearance }, genre)
+  const beat = shot.fromPremise && shot.action ? shot.action : stageBeat(shot.stage, { ...sheet, character: who, appearance }, genre)
   const mood = styleName && styleName !== 'Normal' && profile ? `${profile.mood}: ` : ''
   const lighting = sheet.lighting || `${sheet.time}, ${sheet.palette}`
   return {
@@ -383,7 +398,9 @@ function applyContinuousShot(shot, sheet, index, styleName) {
     action: `${mood}${beat}`,
     lighting: profile ? `${lighting}. ${profile.lighting}` : lighting,
     directions: 'One clear action.',
-    continuity: `Same character: ${sheet.character}. Same wardrobe: ${appearance}. Same place: ${sheet.place}. Same time of day: ${sheet.time}.`
+    continuity: who
+      ? `Same character: ${who}. Same wardrobe: ${appearance}. Same place: ${sheet.place}. Same time of day: ${sheet.time}.`
+      : `Same place: ${sheet.place}. Same time of day: ${sheet.time}.`
   }
 }
 const VARIED_LIGHTING = [
@@ -409,16 +426,19 @@ function variedLocation(place, index) {
   ]
   return spots[index % spots.length]
 }
-function applyVariedShot(shot, premise, index) {
+function applyVariedShot(shot, premise, index, noCharacter = false) {
   const angle = VARIED_ANGLES[index % VARIED_ANGLES.length]
   const location = variedLocation(parsePlace(premise), index)
+  const subject = noCharacter ? '' : parseCharacter(premise)
   return {
     ...shot,
     title: angle.framing,
     stage: angle.framing,
     framing: angle.framing,
     camera: angle.camera,
-    action: `A standalone ${angle.mood} frame of ${parseCharacter(premise)} in ${location}, shot ${index + 1}.`,
+    action: subject
+      ? `A standalone ${angle.mood} frame of ${subject} in ${location}, shot ${index + 1}.`
+      : `A standalone ${angle.mood} frame of ${location}, shot ${index + 1}.`,
     directions: 'Vary the location, angle, and lighting for this frame only. Keep the idea and the locked style.',
     continuity: 'This shot stands alone and does not continue a previous shot',
     lighting: VARIED_LIGHTING[index % VARIED_LIGHTING.length]
@@ -517,12 +537,16 @@ export function createStoryboard(options = {}) {
     const sheet = { ...(options.continuitySheet || buildContinuitySheet(premise)) }
     if (!options.continuitySheet?.style) sheet.style = lockedStyle
     if (!sheet.lighting) sheet.lighting = `${sheet.time}, ${sheet.palette}`
-    if (!sheet.appearance) sheet.appearance = appearanceFor(sheet.character)
+    if (options.noCharacter === true) {
+      sheet.character = ''
+      sheet.appearance = ''
+      delete sheet.characters
+    } else if (!sheet.appearance) sheet.appearance = appearanceFor(sheet.character)
     project.continuitySheet = sheet
     project.continuityStrength = options.continuityStrength === 'strict' ? 'strict' : 'standard'
   }
   project.shots = breakdownPremise(premise, count, scenes.length === 0).map((shot, index) => ({ ...shot, duration: project.duration, duration_seconds: project.duration, palette: ['#b69263', '#7c99a1', '#a88a64', '#696b80', '#af8061', '#657b6f'][index % 6] }))
-  if (sequenceMode === 'varied') project.shots = project.shots.map((shot, index) => applyVariedShot(shot, premise, index))
+  if (sequenceMode === 'varied') project.shots = project.shots.map((shot, index) => applyVariedShot(shot, premise, index, options.noCharacter === true))
   if (shotStyle) project.shots = project.shots.map(shot => applyShotStyle(shot, shotStyle, sequenceMode === 'varied'))
   if (sequenceMode === 'continuous' && project.continuitySheet) project.shots = project.shots.map((shot, index) => applyContinuousShot(shot, project.continuitySheet, index, shotStyle))
   if (scenes.length) project.shots = project.shots.map((shot, index) => applySceneOverrides(shot, scenes[index]))
@@ -547,6 +571,12 @@ export function createStoryboard(options = {}) {
     }
     mergeDetectedSheet(project.filmSheet, detected, options.detectionLocks || {})
     if (isNamedTraitPremise(premise)) alignNamedSheet(project.filmSheet, detected)
+  }
+  if (options.noCharacter === true) {
+    project.noCharacter = true
+    if (project.filmSheet) project.filmSheet = { ...project.filmSheet, characters: [] }
+    if (project.continuitySheet) project.continuitySheet = { ...project.continuitySheet, character: '', appearance: '', characters: [] }
+    project.shots = project.shots.map(shot => ({ ...shot, noCharacter: true, who: '' }))
   }
   stampPreset(project, chosenPreset)
   stampPromptLanguage(project, readPromptLanguage(options.promptLanguage ?? options.prompt_language))

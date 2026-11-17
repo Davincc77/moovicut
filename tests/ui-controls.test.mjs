@@ -149,6 +149,16 @@ test('a story with no character generates in English and Portuguese without a lo
     assert.equal(direct.shots[0].noCharacter, true)
     assert.doesNotMatch(direct.shots[0].prompt, / — /)
   }
+  const advanced = createStoryboard({
+    premise: 'Fog rolls across an empty city street at dusk.',
+    model: 'grok',
+    sequenceMode: 'continuous',
+    noCharacter: true
+  })
+  assert.equal(advanced.noCharacter, true)
+  assert.equal(advanced.filmSheet.characters.length, 0)
+  const advancedPrompt = advanced.shots.map(shot => shot.prompt).join('\n')
+  assert.doesNotMatch(advancedPrompt, /Same character:|People:|SUBJECT:| — /)
 })
 
 test('one shot can omit the character while another shot keeps the lock line', () => {
@@ -214,4 +224,9 @@ test('header, footer, skip target, theme, install worker, and /en redirect are w
   assert.match(source('app/plugins/install.client.js'), /sw\.js/)
   assert.match(source('app/pages/studio.vue'), /moovicut-focus-idea/)
   assert.match(source('app/components/StudioWizard.vue'), /wizard-idea/)
+  assert.match(css, /\.shot-thumbnail \{[^}]*max-height:180px[^}]*overflow:hidden/)
+  assert.match(css, /\.modal-panel img,\s*\.modal-panel video \{[^}]*max-height:min\(200px,36vh\)/)
+  assert.match(source('app/pages/studio.vue'), /function openProjects\(\)\{showMoreTools\.value=false/)
+  assert.match(source('app/pages/studio.vue'), /function openEditor\(\)\{panel\.value=null/)
+  assert.match(source('app/components/StudioCreationPanel.vue'), /id="advanced-no-character"/)
 })

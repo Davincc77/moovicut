@@ -59,9 +59,9 @@ npm run dev -- --port 3001
 
 ### Quick start
 
-1. Open **Studio**. The guide is the default.
+1. Open **Studio**. The guide is the default. Its progress labels are numbered in the site language: 1. Idea, 2. Characters, 3. Places and style, 4. Shots, 5. Check, 6. Generate. Portuguese uses Ideia, Personagens, Lugares e estilo, Planos, Verificar, and Gerar.
 2. **Idea.** Write one sentence or a short paragraph. Detection fills the later steps when it can, and marks what it guessed.
-3. **Characters.** Each person needs a name, age, build or face, hair, and outfit. Colours and the distinctive feature are optional, and the guide says so. **No character** (Portuguese: Sem personagem) plans the story with no person: a place, an object, or an empty scene. The same choice exists on each shot. The lock line updates as you type. Add or remove people.
+3. **Characters.** Each person needs a name, age, build or face, hair, and outfit. Colours and the distinctive feature are optional, and the guide says so. The **No character** button (Portuguese: Sem personagem) skips the cast for the whole story: a place, an object, or an empty scene. Advanced mode has the same button. The same choice exists on each shot. The lock line updates as you type. Add or remove people.
 4. **Places and style.** Each place needs a description. Choose light and mood from the lists, and a style preset (anime / manga, cinema, or documentary, plus a genre). The preset locks the film sheet.
 5. **Shots.** One shot at a time: who (or **No character in this shot**), place, one action, and a framing term (wide shot, medium shot, close-up, high angle, over-the-shoulder, and the rest of that list). If the action line contains more than one action, split it. Next stays clickable: if something required is still empty, the guide names that field and moves focus to it.
 6. **Check.** Continuity and the risk check run here. Blocking issues have a one-click fix and must be cleared.

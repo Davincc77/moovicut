@@ -102,9 +102,161 @@ async function clickButtons(page) {
   }
 }
 
-async function checkStudio(page, lang) {
+const STEP_LABELS = {
+  en: ['1. Idea', '2. Characters', '3. Places and style', '4. Shots', '5. Check', '6. Generate'],
+  pt: ['1. Ideia', '2. Personagens', '3. Lugares e estilo', '4. Planos', '5. Verificar', '6. Gerar']
+}
+
+async function openGuidedStudio(page, lang) {
   await page.goto(`${origin}/studio${lang}`, { waitUntil: 'domcontentloaded' })
+  await page.evaluate(() => {
+    localStorage.removeItem('moovicut.studio.experience')
+    localStorage.removeItem('moovicut.wizard.v1')
+  })
+  await page.reload({ waitUntil: 'domcontentloaded' })
   await page.waitForSelector('#wizard-idea')
+}
+
+async function checkSimpleGuide(page, lang) {
+  const code = lang.includes('pt') ? 'pt' : 'en'
+  await openGuidedStudio(page, lang)
+  await page.waitForSelector('.wizard-steps button')
+  const steps = page.locator('.wizard-steps button')
+  assert.equal(await steps.count(), 6)
+  for (let index = 0; index < 6; index += 1) {
+    assert.equal((await steps.nth(index).innerText()).replace(/\s+/g, ' ').trim(), STEP_LABELS[code][index])
+  }
+  await page.locator('#wizard-idea').fill('Fog rolls across an empty city street at dusk.')
+  await page.getByRole('button', { name: /^(Next|Seguinte)$/ }).click()
+  await page.waitForSelector('#wizard-no-character')
+  const skip = page.locator('#wizard-no-character')
+  await skip.scrollIntoViewIfNeeded()
+  const box = await skip.boundingBox()
+  const viewport = page.viewportSize()
+  assert.ok(box && box.width >= 120 && box.height >= 40, 'No character button is not visible')
+  assert.ok(box.x >= 0 && box.x + box.width <= viewport.width + 2, 'No character button is off the side of the screen')
+  assert.ok(box.y >= 0 && box.y + box.height <= viewport.height + 2, 'No character button is outside the viewport')
+  assert.equal((await skip.innerText()).trim(), code === 'pt' ? 'Sem personagem' : 'No character')
+  await skip.click()
+  assert.equal(await skip.getAttribute('aria-pressed'), 'true')
+  await page.getByRole('button', { name: /^(Next|Seguinte)$/ }).click()
+  await page.waitForFunction(() => /^3\./.test(document.getElementById('wizard-step-heading')?.textContent || ''))
+  assert.equal(await page.getByText(/Add at least one character|Adicione pelo menos uma personagem/).count(), 0)
+  await page.locator('#place-1-name').fill('Empty city')
+  await page.locator('#place-1-description').fill('a wide empty street')
+  await page.locator('#wizard-light').selectOption('dusk')
+  await page.locator('#wizard-mood').selectOption('quiet')
+  await page.getByRole('button', { name: /^(Next|Seguinte)$/ }).click()
+  await page.waitForSelector('#shot-1-action')
+  await page.locator('#shot-1-place').selectOption({ index: 1 })
+  await page.locator('#shot-1-action').fill('Fog rolls across the empty street')
+  await page.locator('#shot-1-framing').selectOption('wide')
+  await page.getByRole('button', { name: /^(Next|Seguinte)$/ }).click()
+  await page.getByRole('button', { name: /^(Next|Seguinte)$/ }).click()
+  await page.getByRole('button', { name: /^(Generate prompts|Gerar os prompts)$/ }).click()
+  await page.waitForSelector('.wizard-shot pre')
+  const prompt = await page.locator('.wizard-shot pre').first().innerText()
+  assert.match(prompt, /Fog rolls across the empty street/)
+  assert.match(prompt, /Empty city/)
+  assert.doesNotMatch(prompt, / — |People:|SUBJECT:|Add at least one character/)
+}
+
+async function imageOverflows(page) {
+  return page.evaluate(() => {
+    const viewW = window.innerWidth
+    const viewH = window.innerHeight
+    const panel = document.querySelector('.modal-panel')
+    const limit = panel ? panel.getBoundingClientRect() : null
+    return [...document.querySelectorAll('img, svg')].flatMap(element => {
+      const style = getComputedStyle(element)
+      if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return []
+      const box = element.getBoundingClientRect()
+      if (box.width < 2 || box.height < 2) return []
+      const inDialog = Boolean(element.closest('.modal-panel'))
+      const widerThanView = box.width > viewW + 2
+      const tallerThanView = box.height > viewH + 2
+      const outsideDialog = inDialog && limit && (box.width > limit.width + 2 || box.height > limit.height + 2)
+      if (!widerThanView && !tallerThanView && !outsideDialog) return []
+      return [{ tag: element.tagName, w: Math.round(box.width), h: Math.round(box.height), alt: element.getAttribute('alt') || element.getAttribute('aria-label') || '' }]
+    })
+  })
+}
+
+async function openWorkspaceTarget(page, kind) {
+  const sidebar = page.locator('aside.workspace-sidebar')
+  if (await sidebar.isVisible().catch(() => false)) {
+    const name = kind === 'storyboard' ? /^storyboard$/i : /my projects|meus projetos/i
+    await sidebar.getByRole('button', { name }).click()
+    return
+  }
+  await page.locator('.workspace-menu-button').click()
+  const menu = page.locator('#mobile-workspace-menu')
+  await menu.waitFor({ state: 'visible' })
+  const name = kind === 'storyboard' ? /board tools|ferramentas do quadro/i : /my projects|meus projetos/i
+  await menu.getByRole('button', { name }).click()
+}
+
+async function checkSidebarImages(page, lang) {
+  await page.goto(`${origin}/${lang}`, { waitUntil: 'domcontentloaded' })
+  await page.waitForSelector('#main-content')
+  assert.deepEqual(await imageOverflows(page), [], `homepage images overflow ${lang || 'en'}`)
+  await page.goto(`${origin}/studio${lang}`, { waitUntil: 'domcontentloaded' })
+  await page.waitForSelector('#main-content')
+  const sidebar = page.locator('aside.workspace-sidebar')
+  if (await sidebar.isVisible().catch(() => false)) {
+    const labels = await sidebar.locator('a, button').evaluateAll(elements => elements.map(element => (element.getAttribute('aria-label') || element.textContent || '').replace(/\s+/g, ' ').trim()))
+    assert.ok(labels.some(label => /storyboard/i.test(label)), 'sidebar is missing Storyboard')
+    assert.ok(labels.some(label => /my projects|meus projetos/i.test(label)), 'sidebar is missing My Projects')
+    for (const label of labels) {
+      const control = sidebar.getByRole('link', { name: label }).or(sidebar.getByRole('button', { name: label }))
+      await control.first().click()
+      await page.waitForTimeout(200)
+      assert.deepEqual(await imageOverflows(page), [], `sidebar "${label}" image overflow`)
+      if (await page.locator('.modal-panel').count()) await page.keyboard.press('Escape')
+      if (!page.url().includes('/studio')) {
+        await page.goto(`${origin}/studio${lang}`, { waitUntil: 'domcontentloaded' })
+      }
+    }
+  }
+  await openWorkspaceTarget(page, 'storyboard')
+  await page.waitForSelector('.modal-panel .shot-thumbnail img')
+  const thumb = await page.locator('.modal-panel .shot-thumbnail img').first().boundingBox()
+  const panel = await page.locator('.modal-panel').boundingBox()
+  assert.ok(thumb && panel && thumb.width <= panel.width + 2 && thumb.height <= panel.height + 2 && thumb.height <= 180 + 2, 'storyboard still is larger than the dialog')
+  assert.deepEqual(await imageOverflows(page), [], 'storyboard dialog image overflow')
+  await page.keyboard.press('Escape')
+  await page.waitForFunction(() => !document.querySelector('.modal-panel'))
+  await openWorkspaceTarget(page, 'projects')
+  await page.waitForSelector('.modal-panel')
+  assert.equal(await page.locator('.modal-panel .shot-thumbnail').count(), 0)
+  assert.deepEqual(await imageOverflows(page), [], 'my projects dialog image overflow')
+  await page.keyboard.press('Escape')
+}
+
+async function checkAdvancedNoCharacter(page, lang) {
+  const code = lang.includes('pt') ? 'pt' : 'en'
+  await page.goto(`${origin}/studio${lang}`, { waitUntil: 'domcontentloaded' })
+  await page.getByRole('button', { name: /^(Advanced mode|Modo avançado)$/ }).click()
+  const skip = page.locator('#advanced-no-character')
+  await skip.waitFor({ state: 'visible' })
+  await skip.scrollIntoViewIfNeeded()
+  const box = await skip.boundingBox()
+  const viewport = page.viewportSize()
+  assert.ok(box && box.width >= 120 && box.height >= 40, 'advanced No character button is not visible')
+  assert.ok(box.x >= 0 && box.y >= 0 && box.x + box.width <= viewport.width + 2 && box.y + box.height <= viewport.height + 2)
+  assert.equal((await skip.innerText()).trim(), code === 'pt' ? 'Sem personagem' : 'No character')
+  await skip.click()
+  assert.equal(await skip.getAttribute('aria-pressed'), 'true')
+  await page.locator('#studio-idea').fill('Fog rolls across an empty city street at dusk.')
+  await page.locator('.studio-generate').click()
+  await page.waitForSelector('textarea[aria-label^="Prompt"]')
+  const prompts = await page.locator('textarea[aria-label^="Prompt"]').evaluateAll(elements => elements.map(element => element.value).join('\n'))
+  assert.ok(prompts.length > 40, 'advanced no-character prompts were empty')
+  assert.doesNotMatch(prompts, / — |People:|SUBJECT:|Same character:|Same wardrobe:|frame of Fog/)
+}
+
+async function checkStudio(page, lang) {
+  await openGuidedStudio(page, lang)
   const theme = page.locator('.theme-toggle')
   const before = await theme.getAttribute('aria-pressed')
   await theme.click()
@@ -118,6 +270,7 @@ async function checkStudio(page, lang) {
   await page.waitForSelector('.modal-panel')
   const background = await page.locator('.modal-panel').evaluate(element => getComputedStyle(element).backgroundColor)
   assert.notEqual(background, 'rgba(0, 0, 0, 0)')
+  assert.deepEqual(await imageOverflows(page), [], 'library dialog image overflow')
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: /export json|exportar json/i }).click()
   const file = await download
@@ -186,7 +339,7 @@ test('every page responds in English and Portuguese on desktop and a phone', { t
       { name: 'phone', context: { ...devices['iPhone 13'] } }
     ]
     for (const viewport of viewports) {
-      for (const lang of ['', '?lang=pt']) {
+        for (const lang of ['?lang=en', '?lang=pt']) {
         const context = await browser.newContext(viewport.context)
         const page = await context.newPage()
         const problems = []
@@ -197,7 +350,12 @@ test('every page responds in English and Portuguese on desktop and a phone', { t
           await page.waitForSelector('#main-content')
           const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
           assert.ok(overflow <= 1, `${viewport.name} ${path} ${lang} overflows by ${overflow}px`)
-          if (path === '/studio' && viewport.name === 'desktop') await checkStudio(page, lang)
+          if (path === '/studio') {
+            await checkSimpleGuide(page, lang)
+            await checkAdvancedNoCharacter(page, lang)
+            await checkSidebarImages(page, lang)
+            if (viewport.name === 'desktop') await checkStudio(page, lang)
+          }
           await fillFields(page)
           await clickButtons(page)
           await page.goto(origin + path + lang, { waitUntil: 'domcontentloaded' })
