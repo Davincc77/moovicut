@@ -26,5 +26,5 @@ useSeoMeta({
 })
 </script>
 <template>
- <div class="site-shell"><AppHeader /><main class="legal-page"><div class="container-docs"><div class="page-intro"><p class="eyebrow">{{ $t('FAQ') }}</p><h1>{{ $t('Questions, answered plainly') }}</h1><p>{{ $t('Free and local. Prompts work with Grok Imagine, Google, or any other AI image or video model.') }}</p></div><section v-for="[question, answer] in items" :key="question" class="legal-section"><h2>{{ $t(question) }}</h2><p>{{ $t(answer) }}</p></section></div></main><SiteFooter /></div>
+ <div class="site-shell"><AppHeader /><main id="main-content" class="legal-page"><div class="container-docs"><div class="page-intro"><p class="eyebrow">{{ $t('FAQ') }}</p><h1>{{ $t('Questions, answered plainly') }}</h1><p>{{ $t('Free and local. Prompts work with Grok Imagine, Google, or any other AI image or video model.') }}</p></div><section v-for="[question, answer] in items" :key="question" class="legal-section"><h2>{{ $t(question) }}</h2><p>{{ $t(answer) }}</p></section></div></main><SiteFooter /></div>
 </template>

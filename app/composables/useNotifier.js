@@ -1,4 +1,13 @@
 let notificationTimer
+
+/** String for a download. A Vue ref is unwrapped. Any other object is JSON, never "[object Object]". */
+export function downloadBody(text) {
+  const value = text && typeof text === 'object' && 'value' in text ? text.value : text
+  if (typeof value === 'string') return value
+  if (value == null) return ''
+  try { return JSON.stringify(value, null, 2) } catch { return String(value) }
+}
+
 export function useNotifier() {
   const notification = useState('notification', () => null)
   function notify(message, type = 'success', action = null) {
@@ -29,7 +38,7 @@ export function useNotifier() {
     }
   }
   function downloadText(name, text, type = 'application/json') {
-    const blob = new Blob([text], { type }); const url = URL.createObjectURL(blob)
+    const blob = new Blob([downloadBody(text)], { type }); const url = URL.createObjectURL(blob)
     const link = document.createElement('a'); link.href = url; link.download = name
     document.body.appendChild(link); link.click(); link.remove()
     setTimeout(() => URL.revokeObjectURL(url), 500); notify(`Saved ${name}`)

@@ -3,7 +3,7 @@ import { X } from 'lucide-vue-next'
 defineProps({ title:{type:String,required:true}, eyebrow:String, wide:Boolean })
 const emit=defineEmits(['close'])
 const route = useRoute()
-const onStudio = computed(() => route.path.startsWith('/dashboard'))
+const onStudio = computed(() => /^\/studio(?:\/|$)/.test(route.path || ''))
 const panel=ref(null)
 let releaseFocus=()=>{}
 onMounted(()=>{
@@ -27,4 +27,4 @@ onMounted(()=>{
 })
 onBeforeUnmount(()=>releaseFocus())
 </script>
-<template><Teleport to="body"><div class="moovicut-overlay modal-backdrop" @mousedown.self="emit('close')"><section ref="panel" class="modal" :class="{'modal-wide':wide,'studio-dialog':onStudio}" role="dialog" aria-modal="true" :aria-label="$t(title)" tabindex="-1"><header class="modal-header"><div><p v-if="eyebrow" class="eyebrow">{{ $t(eyebrow) }}</p><h2>{{ $t(title) }}</h2></div><button class="icon-button" :aria-label="$t('Close dialog')" @click="emit('close')"><X :size="20" /></button></header><div class="modal-content"><slot /></div></section></div></Teleport></template>
+<template><Teleport to="body"><div class="moovicut-overlay modal-backdrop" @mousedown.self="emit('close')"><section ref="panel" class="modal-panel" :class="{wide,'studio-dialog':onStudio}" role="dialog" aria-modal="true" :aria-label="$t(title)" tabindex="-1"><header class="modal-header"><div><p v-if="eyebrow" class="eyebrow">{{ $t(eyebrow) }}</p><h2>{{ $t(title) }}</h2></div><button class="icon-button" type="button" :aria-label="$t('Close dialog')" @click="emit('close')"><X :size="20" /></button></header><div class="modal-content"><slot /></div></section></div></Teleport></template>

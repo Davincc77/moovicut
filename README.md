@@ -59,11 +59,11 @@ npm run dev -- --port 3001
 
 ### Quick start
 
-1. Open **Studio**. The guide is the default.
+1. Open **Studio**. The guide is the default. Its progress labels are numbered in the site language: 1. Idea, 2. Characters, 3. Places and style, 4. Shots, 5. Check, 6. Generate. Portuguese uses Ideia, Personagens, Lugares e estilo, Planos, Verificar, and Gerar.
 2. **Idea.** Write one sentence or a short paragraph. Detection fills the later steps when it can, and marks what it guessed.
-3. **Characters.** Each person needs a name, age, build or face, hair, outfit, colours, and one distinctive feature. The lock line updates as you type. Add or remove people.
+3. **Characters.** Each person needs a name, age, build or face, hair, and outfit. Colours and the distinctive feature are optional, and the guide says so. The **No character** button (Portuguese: Sem personagem) skips the cast for the whole story: a place, an object, or an empty scene. Advanced mode has the same button. The same choice exists on each shot. The lock line updates as you type. Add or remove people.
 4. **Places and style.** Each place needs a description. Choose light and mood from the lists, and a style preset (anime / manga, cinema, or documentary, plus a genre). The preset locks the film sheet.
-5. **Shots.** One shot at a time: who, place, one action, and a framing term (wide shot, medium shot, close-up, high angle, over-the-shoulder, and the rest of that list). If the action line contains more than one action, split it.
+5. **Shots.** One shot at a time: who (or **No character in this shot**), place, one action, and a framing term (wide shot, medium shot, close-up, high angle, over-the-shoulder, and the rest of that list). If the action line contains more than one action, split it. Next stays clickable: if something required is still empty, the guide names that field and moves focus to it.
 6. **Check.** Continuity and the risk check run here. Blocking issues have a one-click fix and must be cleared.
 7. **Generate prompts.** The button stays off until every required field is filled and the check has no blocking issue. Then copy a shot prompt, copy the compact agent JSON, export the character sheet, or regenerate one shot.
 
@@ -75,7 +75,7 @@ Projects stay in this browser. They are not synced to another browser or compute
 
 Planning, editing, reordering, undo and redo, local projects, JSON import and export, and the CLI are free. There is no account and no subscription.
 
-**Dark mode** in the studio header is saved on this device. **Support the project** opens https://buymeacoffee.com/enzoc1977r in a new tab.
+**Dark mode** in the header is saved on this device. **Install app** appears when the browser offers to install Moovicut. The service worker only exists so that offer can fire: it does not cache pages or assets, and a new deploy is still loaded through the normal HTTP cache. **Support the project** opens https://buymeacoffee.com/enzoc1977r in a new tab. The footer links to Privacy, Terms, and the content policy.
 
 ## Tests and production build
 
@@ -84,7 +84,7 @@ npm test
 NUXT_APP_BASE_URL=/ npm run build
 ```
 
-`npm test` runs the prompt engine, CLI, project store, Vue checks, and redirect checks.
+`npm test` runs the prompt engine, CLI, project store, Vue checks, redirect checks, and a Playwright smoke test. The smoke test builds the static site, opens every page in English and Portuguese on a desktop window and an iPhone-sized window, fills the fields, and clicks the buttons. It fails on an uncaught page error, a dead in-site link, a transparent dialog, an export that is not JSON, a dark-mode toggle that does not change, or a wizard Next that does not point at the missing field. It uses the installed Chrome, or Playwright’s Chromium when Chrome is not on the machine (`npx playwright install chromium`).
 
 `npm run build` and `npm run generate` both run `nuxt generate`. Nuxt writes the static site to `.output/public/`. That folder is generated output. Railway uses `NUXT_APP_BASE_URL=/ npm run build`, then `node server/prod-server.mjs`.
 
@@ -97,7 +97,7 @@ These addresses answer **301** and keep the query string:
 - `/shotboard` and `/shotboard/...` go to the same path at the site root. `npm start` applies the same redirects.
 - `/dashboard/ai-video/home` goes to `/studio`, including locale copies such as `/ja/dashboard/ai-video/home`.
 - `/pricing`, `/profile`, `/developers`, `/login`, `/signin`, `/auth/...`, and `/desktop` go to `/studio`, including locale copies such as `/ja/desktop`.
-- Locale copies of FAQ, privacy, terms, and content policy go to the English page. A locale root such as `/de` goes to `/`.
+- Locale copies of FAQ, privacy, terms, and content policy go to the English page. A locale root such as `/en`, `/pt`, or `/de` goes to `/`.
 
 `shotboard.v1`, `shotboard.backup.v1`, the `shotboard` CLI name, `window.Shotboard`, and the `/shotboard` redirects stay as they are.
 

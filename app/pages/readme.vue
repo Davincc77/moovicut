@@ -12,7 +12,7 @@ useSeoMeta({
 })
 </script>
 <template>
- <div class="site-shell"><AppHeader /><main class="legal-page"><div class="container-docs">
+ <div class="site-shell"><AppHeader /><main id="main-content" class="legal-page"><div class="container-docs">
   <div class="page-intro"><p class="eyebrow">README</p><h1>{{ $t('Project README') }}</h1><p>{{ $t('This page is the repository README. The raw Markdown file is served at /README.md.') }} <a href="/README.md">{{ $t('Raw README') }}</a></p></div>
   <pre class="readme-source">{{ readme }}</pre>
  </div></main><SiteFooter /></div>

@@ -231,6 +231,7 @@ function personFromWho(name, characters, project) {
 
 /** People actually in this shot. A name in the action counts, not only the `who` subject. */
 export function charactersInShot(shot, project = {}) {
+  if (shot?.noCharacter || project?.noCharacter) return []
   const characters = project.filmSheet?.characters || []
   const named = nameParts(shot?.who)
   const source = [shot?.action, shot?.what, shot?.title].filter(Boolean).join(' ')

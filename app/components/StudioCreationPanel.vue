@@ -13,6 +13,7 @@ import { assessProject } from '~/utils/shot-risk.js'
 import { exportAgentBoard } from '~/utils/agent-board.js'
 import { takeStudioHandoff } from '~/utils/studio-handoff.js'
 import { textLanguageHint } from '~/utils/prose-detect.js'
+import { downloadBody } from '~/composables/useNotifier.js'
 const store = useProjectStore()
 const { locale, t } = useI18n()
 const LANGUAGE_NAMES = { en: 'English', pt: 'Portuguese' }
@@ -49,6 +50,7 @@ function storyboardOptions(mode = sequenceMode.value, overrides = {}) {
       duration: overrides.duration ?? duration.value,
       sequenceMode: mode,
       scenes: overrides.scenes,
+      ...(noCharacter.value ? { noCharacter: true } : {}),
       ...sitePromptLanguage(),
       ...(appliedPreset.value ? { style: appliedPreset.value.family, genre: appliedPreset.value.genre } : {})
     }
@@ -97,6 +99,7 @@ const promptStyle = ref(remembered.promptStyle === 'detailed' ? 'detailed' : 'sh
 const activePreset = ref('15s')
 const tipsOpen = ref(false)
 const stepByStep = ref(false)
+const noCharacter = ref(false)
 const draftScenes = ref([])
 const shortIdea = computed(() => { const words = premise.value.trim().split(/\s+/).filter(Boolean); return words.length > 0 && words.length < 4 })
 watch([style, model, sequenceMode, aspect, continuityStrength, density, promptStyle], () => { if (import.meta.client) writeStudioChoices(localStorage, { style: style.value, model: model.value, sequenceMode: sequenceMode.value, aspectRatio: aspect.value, continuityStrength: continuityStrength.value, promptDensity: density.value, promptStyle: promptStyle.value }) })
@@ -348,7 +351,7 @@ async function createStoryboard(){
   finally { creating.value = false }
   return
  }
- if (sequenceMode.value === 'scenario') {
+ if (sequenceMode.value === 'scenario' && !noCharacter.value) {
   const draft = scenarioForm.value?.draft?.()
   if (!draft?.ok) { uploadError.value = draft?.errors?.map(item => item.message).join('\n') || 'Fix the highlighted scenario lines, then create the board.'; return }
   if (!referenceReady.value) { uploadError.value = 'Wait for the reference image to finish loading.'; return }
@@ -420,9 +423,8 @@ function useMention(name){
 }
 function exportStoryboardJson(){
  if(!boardReady.value){uploadError.value='Create a local storyboard before exporting JSON.';return}
- const payload=store.serialized?.value??store.serialized
  const name=`${(project.value.title||'moovicut').replace(/[^a-z0-9]+/gi,'-').toLowerCase()}.json`
- downloadText(name,typeof payload==='string'?payload:JSON.stringify(payload))
+ downloadText(name, downloadBody(store.serialized))
 }
 function useStudy(study){premise.value=study.premise;style.value=study.genre==='Experimental'?'Fun':'Normal'}
 function flashCopied(key){copiedKey.value=key;clearTimeout(copiedTimer);copiedTimer=setTimeout(()=>{copiedKey.value=''},1600)}
@@ -463,6 +465,7 @@ onBeforeUnmount(()=>{clearTimeout(copiedTimer);if(referencePreview.value)URL.rev
    <fieldset v-if="boardKind==='ad' || boardKind==='series' || boardKind==='explainer'" class="studio-sequence-mode"><legend>{{ $t('Shot length') }}</legend><label>{{ $t('Seconds') }}<input v-model.number="duration" type="number" min="2" max="15" :aria-label="$t('Shot length in seconds')" /></label><p>{{ $t('Each shot snaps to the selected model.') }}</p></fieldset>
    <fieldset v-else class="studio-sequence-mode studio-duration-presets"><legend>{{ $t('Total duration') }}</legend><div><button v-for="preset in plans" :key="preset.id" type="button" :aria-pressed="activePreset===preset.id" @click="choosePreset(preset)"><span>{{ preset.label }}</span><small>{{ preset.count }} × {{ preset.duration }}s</small></button></div></fieldset>
    <StudioScenario v-if="sequenceMode==='scenario'" ref="scenarioForm" :idea="premise" :duration="duration" :total="filmSeconds" />
+   <button id="advanced-no-character" class="button button-secondary wizard-skip-characters" type="button" :aria-pressed="noCharacter" @click="noCharacter=!noCharacter">{{ $t('No character') }}</button>
    <div class="studio-generate-row"><button class="studio-generate" type="submit" :disabled="creating"><Plus :size="16" />{{ creating ? $t('Creating storyboard…') : $t('Create storyboard') }}</button><button type="button" class="studio-tips-button" :aria-expanded="tipsOpen" aria-controls="studio-tips" :aria-label="$t('Storyboard tips')" @click="tipsOpen=!tipsOpen">?</button></div>
    <section v-if="tipsOpen" id="studio-tips" class="studio-tips" :aria-label="$t('Storyboard tips')"><h2>{{ $t('Tips') }}</h2><ol><li>{{ $t('Name a subject, a place, an action, and a medium or style.') }}</li><li>{{ $t('Continuous story keeps one world. Varied shots are separate angles.') }}</li><li>{{ $t('Short is the video prompt. Detailed pastes the full sheet into every shot.') }}</li><li>{{ $t('Aspect presets: 9:16 for vertical, 16:9 for wide.') }}</li></ol></section>
    <p v-if="uploadError" class="studio-error" role="alert"><span v-for="(line, lineIndex) in String(uploadError).split('\n')" :key="lineIndex">{{ $t(line) }} </span></p>
