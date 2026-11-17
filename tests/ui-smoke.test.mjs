@@ -334,6 +334,9 @@ async function checkStudio(page, lang) {
 }
 
 async function checkLinks(page) {
+  // The generated pages are client-rendered. DOMContentLoaded can arrive before
+  // the shell mounts, so wait for the same landmark the first visit waits for.
+  await page.waitForSelector('#main-content')
   const hrefs = await page.locator('a[href]').evaluateAll(elements => elements.map(element => element.getAttribute('href') || ''))
   assert.ok(hrefs.includes('#main-content') || hrefs.some(href => href.endsWith('#main-content')))
   assert.equal(await page.locator('#main-content').count(), 1)
