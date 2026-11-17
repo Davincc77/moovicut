@@ -41,7 +41,11 @@ const EXPLICIT_NON_PLACES = new Set([
   'watch', 'watches', 'watching', 'relógio', 'relogio', 'relógios', 'relogios',
   'distance', 'light', 'darkness', 'silence', 'low', 'drawing', 'distancia', 'luz', 'silencio', 'silêncio',
   'french', 'english', 'portuguese', 'spanish', 'german', 'italian', 'japanese', 'chinese',
-  'francês', 'frances', 'inglês', 'ingles', 'português', 'portugues', 'espanhol', 'alemão', 'alemao', 'japonês', 'japones', 'chinês', 'chines'
+  'francês', 'frances', 'inglês', 'ingles', 'português', 'portugues', 'espanhol', 'alemão', 'alemao', 'japonês', 'japones', 'chinês', 'chines',
+  'mirror', 'mirrors', 'espelho', 'espelhos', 'crowd', 'crowds', 'multidão', 'multidao', 'plateia',
+  'sand', 'sands', 'areia', 'desk', 'desks', 'escrivaninha', 'secretária', 'secretaria',
+  'trapeze', 'trapézio', 'trapezio', 'carriage', 'carruagem', 'air', 'ar', 'snow', 'neve', 'ice', 'gelo',
+  'base', 'bases', 'board', 'boards', 'quadro'
 ].map(word => word.toLowerCase().replace(/’/g, "'")))
 
 /** Sure places the WordNet walk does not list. A locative still accepts other unlisted nouns. */
@@ -69,7 +73,113 @@ const SUPPLEMENT = new Map([
     ['church', 's'],
     ['stage', 's'],
     ['sleeper car', 's'],
-    ['cellar', 's']
+    ['cellar', 's'],
+    ['stables', 's'],
+    ['stable', 's'],
+    ['big top', 's'],
+    ['hall', 's'],
+    ['lake', 's'],
+    ['yard', 's'],
+    ['hut', 's'],
+    ['cabin', 's'],
+    ['cottage', 's'],
+    ['shack', 's'],
+    ['barn', 's'],
+    ['paddock', 's'],
+    ['cave', 's'],
+    ['cavern', 's'],
+    ['grotto', 's'],
+    ['glacier', 's'],
+    ['helipad', 's'],
+    ['suite', 's'],
+    ['beach', 's'],
+    ['shore', 's'],
+    ['coast', 's'],
+    ['bay', 's'],
+    ['island', 's'],
+    ['pier', 's'],
+    ['quay', 's'],
+    ['dock', 's'],
+    ['wharf', 's'],
+    ['harbor', 's'],
+    ['harbour', 's'],
+    ['marina', 's'],
+    ['runway', 's'],
+    ['tarmac', 's'],
+    ['hangar', 's'],
+    ['warehouse', 's'],
+    ['factory', 's'],
+    ['mill', 's'],
+    ['bakery', 's'],
+    ['tavern', 's'],
+    ['inn', 's'],
+    ['lobby', 's'],
+    ['corridor', 's'],
+    ['hallway', 's'],
+    ['staircase', 's'],
+    ['balcony', 's'],
+    ['terrace', 's'],
+    ['porch', 's'],
+    ['patio', 's'],
+    ['garden', 's'],
+    ['orchard', 's'],
+    ['field', 's'],
+    ['meadow', 's'],
+    ['pasture', 's'],
+    ['forest', 's'],
+    ['woods', 's'],
+    ['park', 's'],
+    ['square', 's'],
+    ['plaza', 's'],
+    ['alley', 's'],
+    ['bridge', 's'],
+    ['tower', 's'],
+    ['castle', 's'],
+    ['chapel', 's'],
+    ['cemetery', 's'],
+    ['office', 's'],
+    ['study', 's'],
+    ['studio', 's'],
+    ['gallery', 's'],
+    ['workshop', 's'],
+    ['forge', 's'],
+    ['attic', 's'],
+    ['basement', 's'],
+    ['kitchen', 's'],
+    ['bedroom', 's'],
+    ['bathroom', 's'],
+    ['nursery', 's'],
+    ['classroom', 's'],
+    ['museum', 's'],
+    ['theatre', 's'],
+    ['theater', 's'],
+    ['arena', 's'],
+    ['stadium', 's'],
+    ['library', 's'],
+    ['school', 's'],
+    ['hospital', 's'],
+    ['clinic', 's'],
+    ['station', 's'],
+    ['platform', 's'],
+    ['market', 's'],
+    ['courtyard', 's'],
+    ['rooftop', 's'],
+    ['clearing', 's'],
+    ['ridge', 's'],
+    ['valley', 's'],
+    ['canyon', 's'],
+    ['desert', 's'],
+    ['dune', 's'],
+    ['jungle', 's'],
+    ['swamp', 's'],
+    ['marsh', 's'],
+    ['pond', 's'],
+    ['waterfall', 's'],
+    ['river', 's'],
+    ['mountain', 's'],
+    ['hill', 's'],
+    ['farm', 's'],
+    ['circus', 's']
   ])],
   ['pt', new Map([
     ['farol', 's'],
@@ -99,7 +209,103 @@ const SUPPLEMENT = new Map([
     ['fornalha', 's'],
     ['palco', 's'],
     ['igreja', 's'],
-    ['adega', 's']
+    ['adega', 's'],
+    ['estábulos', 's'],
+    ['estabulos', 's'],
+    ['estábulo', 's'],
+    ['estabulo', 's'],
+    ['cavalariça', 's'],
+    ['cavalariça', 's'],
+    ['picadeiro', 's'],
+    ['circo', 's'],
+    ['lona', 's'],
+    ['salão', 's'],
+    ['salao', 's'],
+    ['lago', 's'],
+    ['lagos', 's'],
+    ['lagoa', 's'],
+    ['quintal', 's'],
+    ['pátio', 's'],
+    ['patio', 's'],
+    ['cabana', 's'],
+    ['choupana', 's'],
+    ['palhoça', 's'],
+    ['palhoca', 's'],
+    ['glaciar', 's'],
+    ['geleira', 's'],
+    ['gruta', 's'],
+    ['caverna', 's'],
+    ['heliporto', 's'],
+    ['suíte', 's'],
+    ['suite', 's'],
+    ['praia', 's'],
+    ['costa', 's'],
+    ['baía', 's'],
+    ['baia', 's'],
+    ['ilha', 's'],
+    ['cais', 's'],
+    ['doca', 's'],
+    ['porto', 's'],
+    ['marina', 's'],
+    ['hangar', 's'],
+    ['armazém', 's'],
+    ['armazem', 's'],
+    ['moinho', 's'],
+    ['padaria', 's'],
+    ['taberna', 's'],
+    ['estalagem', 's'],
+    ['cozinha', 's'],
+    ['quarto', 's'],
+    ['corredor', 's'],
+    ['varanda', 's'],
+    ['terraço', 's'],
+    ['terraco', 's'],
+    ['jardim', 's'],
+    ['pomar', 's'],
+    ['campo', 's'],
+    ['prado', 's'],
+    ['floresta', 's'],
+    ['parque', 's'],
+    ['praça', 's'],
+    ['praca', 's'],
+    ['ponte', 's'],
+    ['torre', 's'],
+    ['castelo', 's'],
+    ['capela', 's'],
+    ['cemitério', 's'],
+    ['cemiterio', 's'],
+    ['galeria', 's'],
+    ['oficina', 's'],
+    ['celeiro', 's'],
+    ['tenda', 's'],
+    ['estufa', 's'],
+    ['telhado', 's'],
+    ['biblioteca', 's'],
+    ['museu', 's'],
+    ['teatro', 's'],
+    ['arena', 's'],
+    ['estádio', 's'],
+    ['estadio', 's'],
+    ['escola', 's'],
+    ['hospital', 's'],
+    ['clínica', 's'],
+    ['clinica', 's'],
+    ['mercado', 's'],
+    ['estação', 's'],
+    ['estacao', 's'],
+    ['plataforma', 's'],
+    ['aeroporto', 's'],
+    ['rio', 's'],
+    ['ribeira', 's'],
+    ['cascata', 's'],
+    ['deserto', 's'],
+    ['vale', 's'],
+    ['duna', 's'],
+    ['clareira', 's'],
+    ['montanha', 's'],
+    ['colina', 's'],
+    ['quinta', 's'],
+    ['pasto', 's']
   ])]
 ])
 
@@ -118,7 +324,12 @@ export function isNonPlaceNoun(lemma) {
   const key = keyOf(text)
   if (NON_PLACE_NOUN.has(text) || NEVER_PLACE.has(key) || EXPLICIT_NON_PLACES.has(key)) return true
   const bits = text.split(/[\sの]+/).map(bit => bit.trim()).filter(Boolean)
-  if (bits.length > 1 && bits.some(bit => NON_PLACE_NOUN.has(bit) || NEVER_PLACE.has(keyOf(bit)) || EXPLICIT_NON_PLACES.has(keyOf(bit)))) return true
+  const surface = new Set(['ice', 'snow', 'sand', 'air', 'neve', 'gelo', 'areia', 'ar', 'base', 'board'])
+  if (bits.length > 1 && bits.some(bit => {
+    const folded = keyOf(bit)
+    if (surface.has(folded)) return false
+    return NON_PLACE_NOUN.has(bit) || NEVER_PLACE.has(folded) || EXPLICIT_NON_PLACES.has(folded)
+  })) return true
   return [...NON_PLACE_NOUN].some(word => word.length >= 2 && text.endsWith(word) && text.length === word.length + 1)
 }
 
@@ -211,9 +422,9 @@ export function heldPlaceNoun(sentence, index) {
 }
 
 const STRONG = Object.freeze({
-  en: ['in', 'at', 'on', 'onto', 'upon', 'inside', 'into', 'within', 'through', 'to', 'outside', 'reaches', 'reach'],
+  en: ['in', 'at', 'on', 'onto', 'upon', 'inside', 'into', 'within', 'through', 'to', 'outside', 'reaches', 'reach', 'by', 'near', 'beside', 'under', 'beneath'],
   fr: ['dans', 'au', 'aux', 'à', 'chez', 'sur'],
-  pt: ['em', 'no', 'na', 'nos', 'nas', 'num', 'numa', 'ao', 'à', 'aos', 'às', 'dentro', 'entra', 'chega', 'até', 'ate', 'para'],
+  pt: ['em', 'no', 'na', 'nos', 'nas', 'num', 'numa', 'ao', 'à', 'aos', 'às', 'dentro', 'entra', 'chega', 'até', 'ate', 'para', 'sob', 'junto'],
   it: ['in', 'nel', 'nello', 'nella', 'negli', 'nelle', 'sul', 'sullo', 'sulla', 'sui', 'sugli', 'sulle', 'al', 'allo', 'alla', 'ai', 'agli', 'alle', 'dentro', 'entra', 'entro', 'arriva', 'apre']
 })
 const ARTICLE = new Set(['the', 'a', 'an', 'le', 'la', 'les', 'un', 'une', 'des', 'du', 'o', 'os', 'as', 'um', 'uma', 'der', 'die', 'das', 'dem', 'den', 'ein', 'eine', 'einem', 'einer', 'einen', 'il', 'lo', 'gli', 'i', 'del', 'della', 'dei', 'delle', 'his', 'her', 'their', 'its', 'son', 'sa', 'ses', 'mon', 'ma', 'mes', 'seu', 'sua', 'suo', 'mio', 'mia', 'l', 'd'])
@@ -265,7 +476,9 @@ const OBJECT_HEAD = /^(?:[\p{L}'’-]+\s+){0,3}(?:watch(?:es)?|relógio|relogio|
 const VERB_PLACE = /^(?:correr|corre|correndo|running|runs|run|tests?|testing|stepping|arrives?|arriving|walks?|walking|waits?|waiting|hurrying|hurry)$/iu
 const LOCATION_HEAD = /(?:room|house|hall|shop|yard|barn|stable|stables|cottage|station|kitchen|deck|quay|pier|dock|warehouse|office|studio|gallery|church|caravan|vineyard|compartment|lighthouse|market|forest|beach|cafe|café|loft|attic|cellar|basement|porch|balcony|terrace|garden|courtyard|plaza|square|street|bridge|tower|museum|library|theatre|theater|cinema|hotel|hangar|garage|workshop|factory|farm|field|cliff|shore|harbour|harbor|port|marina|yacht|ship|boat|ferry|platform|lobby|corridor|hallway|gate|store|bakery|bar|pub|school|hospital|clinic|archive|cave|tunnel|cabin|hut|tent|camp|villa|apartment|flat|conservatory|atrium|study|pantry|greenhouse|sea|ocean|kiln|stage|sala|varanda|conves|convés|cais|loja|armazem|armazém|floresta|mercado|oficina|igreja|estacao|estação|falesia|falésia|cozinha|patio|pátio|quintal|galpao|galpão|adega|biblioteca|teatro|porao|porão|sotao|sótão|praia|miradouro|vinha|estabulo|estábulo|iate|navio|barco|galeria|estalagem|estufa|celeiro|tombadilho|camarote|vagao|vagão|carruagem|doca|atelier|ateliê|porteira|portao|portão|bilheteira|mar|átrio|atrio|palco|forno|fornalha|olaria|steps|stairs)$/iu
 /** Locatives that can name an unlisted setting, not only to/into/na/no. */
-const LOOSE_LOCATIVE = new Set(['in', 'at', 'on', 'inside', 'through', 'within', 'em', 'na', 'no', 'nos', 'nas', 'num', 'numa', 'ao', 'à', 'aos', 'às', 'dentro'])
+const LOOSE_LOCATIVE = new Set(['in', 'at', 'on', 'inside', 'through', 'within', 'em', 'na', 'no', 'nos', 'nas', 'num', 'numa', 'ao', 'à', 'aos', 'às', 'dentro', 'sob'])
+const SOFT_PREP = new Set(['by', 'near', 'beside', 'under', 'beneath', 'sob', 'junto'])
+const CONTRACT = new Set(['do', 'da', 'dos', 'das', 'del', 'della', 'dello', 'dei', 'du', 'des'])
 
 function placeWords(lemma) {
   return keyOf(lemma).split(/\s+/).filter(Boolean)
@@ -359,6 +572,21 @@ export function isRejectedPlace(lemma) {
   return false
 }
 
+/** The first real place in the sentence. Leaving one place and entering another keeps the destination. */
+export function preferPlaceHead(heads, sentence = '') {
+  const list = (heads || []).filter(Boolean)
+  if (!list.length) return null
+  const leaving = /(?<![\p{L}])(?:leaves?|leaving|left|exits?|sai|saem|deixa|deixam)(?![\p{L}])/iu
+  if (leaving.test(sentence)) {
+    const dest = list.filter(head => {
+      const before = String(sentence).slice(Math.max(0, (head.index || 0) - 56), head.index || 0)
+      return /(?<![\p{L}])(?:enter|enters|entered|entering|into|onto|entra|entram|para|até|ate)(?![\p{L}])/iu.test(before)
+    })
+    if (dest.length) return dest[dest.length - 1]
+  }
+  return list[0]
+}
+
 /** The noun phrase after a strong preposition. A compound stays whole. A time word or a verb is never the place. */
 export function locativeHeads(text, language) {
   const lang = language === 'zh' ? 'zh-Hans' : language
@@ -373,15 +601,18 @@ export function locativeHeads(text, language) {
     let possessive = false
     let indefinite = false
     let definite = false
-    while (cursor < tokens.length && (ARTICLE.has(bareToken(tokens[cursor][0]).toLowerCase()) || preps.has(tokens[cursor][0].toLowerCase()))) {
+    while (cursor < tokens.length && (ARTICLE.has(bareToken(tokens[cursor][0]).toLowerCase()) || preps.has(tokens[cursor][0].toLowerCase()) || CONTRACT.has(tokens[cursor][0].toLowerCase()))) {
       const article = bareToken(tokens[cursor][0])
       if (/^(?:son|sa|ses|his|her|their|its|seu|sua|suo|mio|mia|mon|ma|mes)$/i.test(article)) possessive = true
+      if (CONTRACT.has(article.toLowerCase())) definite = true
       if (indefiniteArticle(article, lang)) indefinite = true
       if (definiteArticle(article, lang)) definite = true
       cursor += 1
     }
     let modifiers = 0
     while (cursor < tokens.length && modifiers < 3 && isModifierWord(bareToken(tokens[cursor][0]), lang)) {
+      const ahead = [0, 1].map(offset => bareToken(tokens[cursor + offset]?.[0] || '')).filter(Boolean).join(' ')
+      if (ahead && placeTag(lang, ahead) === 's') break
       cursor += 1
       modifiers += 1
     }
@@ -396,13 +627,21 @@ export function locativeHeads(text, language) {
       if (words.length && isVerbHead(upcoming) && !placeTag(lang, `${words.map(item => item.word).join(' ')} ${word}`)) break
       const capitalName = word[0] !== word[0].toLowerCase() && word[0] === word[0].toUpperCase()
       if (!words.length && TIME_WORD.has(folded)) break
-      if (!words.length && (isVerbHead(folded, upcoming) || ARTICLE.has(folded) || isModifierWord(word, lang) || capitalName)) continue
+      if (!words.length && (isVerbHead(folded, upcoming) || ARTICLE.has(folded) || isModifierWord(word, lang) || capitalName)) {
+        const sureStart = isModifierWord(word, lang) && placeTag(lang, [word, upcoming].filter(Boolean).join(' ')) === 's'
+        if (!sureStart) continue
+      }
       if (POSITIONAL.has(folded)) {
         const onlyModifiers = words.length > 0 && words.every(item => MODIFIER.has(item.word.toLowerCase()) || STATE_ADJ.has(item.word.toLowerCase()))
         if (onlyModifiers) words.push({ word, at: tokens[look].index })
         break
       }
       if (SKIP_HEAD.has(folded)) {
+        const phrase = [...words.map(item => item.word), word].join(' ')
+        if (placeTag(lang, phrase) === 's') {
+          words.push({ word, at: tokens[look].index })
+          continue
+        }
         if (words.length && /^(?:steps?|stairs?)$/i.test(folded)) words.push({ word, at: tokens[look].index })
         break
       }
@@ -410,7 +649,10 @@ export function locativeHeads(text, language) {
       words.push({ word, at: tokens[look].index })
     }
     if (!words.length || possessive) continue
-    if (words.some(item => isNonPlaceNoun(item.word))) continue
+    if (words.some(item => isNonPlaceNoun(item.word))) {
+      const phrase = words.map(item => item.word).join(' ')
+      if (placeTag(lang, phrase) !== 's' && !locationShaped(phrase)) continue
+    }
     if (words.some(item => {
       const folded = item.word.toLowerCase()
       return PRONOUN.has(folded) || TIME_WORD.has(folded) || isVerbHead(item.word)
@@ -430,10 +672,12 @@ export function locativeHeads(text, language) {
       if (namedPerson) continue
       tag = 'unlisted'
     }
+    if (SOFT_PREP.has(prep) && tag !== 's' && !locationShaped(lemma)) continue
     const toward = new Set(['to', 'into', 'onto', 'zum', 'zur', 'ins', 'vers', 'para', 'verso', 'até', 'ate'])
-    const arrived = /(?:^|[^\p{L}])(?:go(?:es|ing|ne)?|went|walk(?:s|ed|ing)?|climb(?:s|ed|ing)?|enter(?:s|ed|ing)?|reach(?:es|ed|ing)?|come[s]?|came|arriv(?:e|es|ed|ing)|step(?:s|ped)?|descend(?:s|ed|ing)?|wade(?:s|d|ing)?|cross(?:es|ed|ing)?|head(?:s|ed|ing)?|swim(?:s|ming)?|sail(?:s|ed|ing)?|float(?:s|ed|ing)?|geht|gehen|ging|komm(?:t|en)|kam|betritt|betrat|erreicht|entra(?:r|ndo)?|chega|vai|va|arrive|entre|descend|monte|caminha(?:m|r|ndo)?|anda(?:m|r|ndo)?|corre(?:m|r|ndo)?|volta(?:m|r|ndo)?|segue(?:m)?|sobe(?:m)?|desce(?:m)?|nada(?:m|r|ndo)?|atravessa(?:m|r|ndo)?|carrega(?:m|r|ndo)?|leva(?:m|r|ndo)?|traz|carries|carrying|brings|bring|走进|来到|回到|进了)(?![\p{L}])/iu
+    const arrived = /(?:^|[^\p{L}])(?:go(?:es|ing|ne)?|went|walk(?:s|ed|ing)?|climb(?:s|ed|ing)?|enter(?:s|ed|ing)?|reach(?:es|ed|ing)?|come[s]?|came|lead(?:s|ing)?|climb(?:s|ed|ing)?|arriv(?:e|es|ed|ing)|step(?:s|ped)?|descend(?:s|ed|ing)?|wade(?:s|d|ing)?|cross(?:es|ed|ing)?|head(?:s|ed|ing)?|swim(?:s|ming)?|sail(?:s|ed|ing)?|float(?:s|ed|ing)?|geht|gehen|ging|komm(?:t|en)|kam|betritt|betrat|erreicht|entra(?:r|ndo)?|chega|vai|va|arrive|entre|descend|monte|caminha(?:m|r|ndo)?|anda(?:m|r|ndo)?|corre(?:m|r|ndo)?|volta(?:m|r|ndo)?|segue(?:m)?|sobe(?:m)?|desce(?:m)?|nada(?:m|r|ndo)?|atravessa(?:m|r|ndo)?|carrega(?:m|r|ndo)?|leva(?:m|r|ndo)?|traz|carries|carrying|brings|bring|走进|来到|回到|进了)(?![\p{L}])/iu
     const moves = !toward.has(prep) || arrived.test(source.slice(Math.max(0, tokens[index].index - 48), words.at(-1).at + words.at(-1).word.length))
-    heads.push({ lemma, name: displayName(lemma), tag, index: words[0].at, locative: true, moves })
+    const beside = /^(?:by|near|beside)$/i.test(prep)
+    heads.push({ lemma, name: displayName(lemma), tag, index: words[0].at, locative: true, moves, soft: beside })
     index = cursor
   }
   const directMove = new Set(['enter', 'enters', 'entered', 'entering', 'arrive', 'arrives', 'arrived', 'arriving', 'reach', 'reaches', 'reached', 'board', 'boards', 'boarded', 'boarding', 'entra', 'entram', 'entrou', 'entrar', 'entrando', 'chega', 'chegam', 'chegou', 'chegar', 'chegando'])
@@ -466,7 +710,10 @@ export function locativeHeads(text, language) {
       if (words.length && isVerbHead(upcoming) && !placeTag(lang, `${words.map(item => item.word).join(' ')} ${word}`)) break
       const capitalName = word[0] !== word[0].toLowerCase() && word[0] === word[0].toUpperCase()
       if (!words.length && TIME_WORD.has(folded)) break
-      if (!words.length && (isVerbHead(folded, upcoming) || ARTICLE.has(folded) || isModifierWord(word, lang) || capitalName)) continue
+      if (!words.length && (isVerbHead(folded, upcoming) || ARTICLE.has(folded) || isModifierWord(word, lang) || capitalName)) {
+        const sureStart = isModifierWord(word, lang) && placeTag(lang, [word, upcoming].filter(Boolean).join(' ')) === 's'
+        if (!sureStart) continue
+      }
       if (POSITIONAL.has(folded)) {
         const onlyModifiers = words.length > 0 && words.every(item => MODIFIER.has(item.word.toLowerCase()) || STATE_ADJ.has(item.word.toLowerCase()))
         if (onlyModifiers) words.push({ word, at: tokens[look].index })
@@ -479,7 +726,11 @@ export function locativeHeads(text, language) {
       if (capitalName || TIME_WORD.has(folded) || isVerbHead(folded, upcoming) || ARTICLE.has(folded) || NEVER_PLACE.has(folded) || word.length < 3) break
       words.push({ word, at: tokens[look].index })
     }
-    if (!words.length || words.some(item => isNonPlaceNoun(item.word))) continue
+    if (!words.length) continue
+    if (words.some(item => isNonPlaceNoun(item.word))) {
+      const phrase = words.map(item => item.word).join(' ')
+      if (placeTag(lang, phrase) !== 's' && !locationShaped(phrase)) continue
+    }
     const lemma = tidyPlaceLemma(words.map(item => item.word).join(' '))
     if (!lemma || isRejectedPlace(lemma) || /^(?:com|with|wearing)\b/iu.test(lemma)) continue
     if (words.length === 1 && BARE_VERB_NOUN.has(words[0].word.toLowerCase()) && !definite) continue

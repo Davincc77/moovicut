@@ -5,7 +5,7 @@ import { flaggedNameKeys } from './shot-risk.js'
 import { splitActionText } from './action-split.js'
 import { detectLocalized, identityTraits } from './prose-extra.js'
 import { inNamedVenue, inSpans, isCueStopword, isFunctionWord, isNeverPlace, isNumberWord, isQuotedOrRemembered, isVenueType, mentionMovesScene, namedVenues, placeMentionIsReal, quoteSpans, splitNarrative } from './scene-split.js'
-import { isNonPlaceNoun, isRejectedPlace, libraryHits, locativeHeads, placeLexiconHas, placeTag, tidyPlaceLemma } from './place-lexicon.js'
+import { isNonPlaceNoun, isRejectedPlace, libraryHits, locativeHeads, placeLexiconHas, placeTag, preferPlaceHead, tidyPlaceLemma } from './place-lexicon.js'
 
 const STOP = new Set(['the', 'a', 'an', 'he', 'she', 'they', 'it', 'his', 'her', 'their', 'then', 'when', 'after', 'before', 'later', 'next', 'once', 'this', 'that', 'there', 'here', 'un', 'une', 'le', 'la', 'les', 'il', 'elle', 'ils', 'elles', 'lui', 'leur', 'puis', 'quand', 'apres', 'avant', 'dans', 'sur', 'sous', 'avec', 'pour', 'par', 'chez', 'au', 'aux', 'du', 'des', 'en', 'et', 'mais', 'ou', 'ce', 'cette', 'ces', 'son', 'sa', 'ses', 'mon', 'ma', 'mes', 'je', 'tu', 'nous', 'vous', 'on', 'plus', 'tout', 'toute', 'tous', 'morning', 'evening', 'night', 'day', 'matin', 'soir', 'nuit', 'jour', 'aube', 'tard', 'lendemain', 'and', 'with', 'from', 'into', 'over', 'while', 'its', 'our', 'your'])
 
@@ -44,7 +44,7 @@ const NOT_A_PLACE = new Set(['window', 'door', 'table', 'glass', 'cup', 'bottle'
 const ROLE_WORDS = /\b(baker|boulanger|boulangère|keeper|gardien|neighbour|neighbor|courier|detective|astronaut|painter|explorer)\b/iu
 
 const EN_MARK = /(?<![\p{L}\p{N}])(the|and|she|he|with|on|in|at|her|his|is)(?![\p{L}\p{N}])/giu
-const PT_MARK = /(?<![\p{L}\p{N}])(ela|ele|eles|elas|uma|não|nao|com|seu|sua|num|numa|pelo|pela|está|esta|encontra|entrega|dele|dela|cais|lê|le|tem|anos|entra|na|ao|à|do|da|dos|das|noite|madrugada|farol|mercado|casaco|cabelo|barba|avental|espera|cozinha|praia|chega|camisa|vestido|binóculos|binoculos|grisalho|pescadora|pescador|xaile|parede|chão|chao|testa|ombros|luar|crepúsculo|crepusculo|anoitecer|meia-noite)(?![\p{L}\p{N}])/giu
+const PT_MARK = /(?<![\p{L}\p{N}])(ela|ele|eles|elas|uma|não|nao|com|seu|sua|num|numa|pelo|pela|está|esta|encontra|entrega|dele|dela|cais|lê|le|tem|anos|entra|na|ao|à|do|da|dos|das|noite|madrugada|farol|mercado|casaco|cabelo|barba|avental|espera|cozinha|praia|chega|camisa|vestido|binóculos|binoculos|grisalho|pescadora|pescador|xaile|parede|chão|chao|testa|ombros|luar|crepúsculo|crepusculo|anoitecer|meia-noite|acena|veste|tira|traz|leva|caminha|boceja|forno|igreja)(?![\p{L}\p{N}])/giu
 
 function markCount(text, pattern) {
   pattern.lastIndex = 0
@@ -56,7 +56,8 @@ function languageScores(text) {
   const pt = markCount(source, PT_MARK)
   const en = markCount(source, EN_MARK)
   const accent = /[àáâãéêíóôõúç]/i.test(source)
-  if ((pt >= 2 && pt > en) || (pt > en && accent && pt >= 1)) return { language: 'pt', score: pt, second: en }
+  const ptLocative = /(?<![\p{L}])(?:no|na|nos|nas|num|numa)\s+\p{L}/iu.test(source)
+  if ((pt >= 2 && pt > en) || (pt > en && accent && pt >= 1) || (en === 0 && pt >= 1 && ptLocative)) return { language: 'pt', score: Math.max(pt, 2), second: en }
   return { language: 'en', score: en, second: pt }
 }
 
@@ -114,7 +115,7 @@ const PLACE_KEYS = placeLexicon()
 const NAME_STOP = new Set(['the', 'a', 'an', 'she', 'he', 'they', 'une', 'le', 'la', 'les', 'il', 'elle', 'un'])
 const LOOK_TRAIT = /\b(?:(?:early|mid|late)\s+)?\d{1,2}s\b|\b(?:short|long|curly|wavy|straight|black|brown|blonde|blond|red|grey|gray|silver|white|dark)\s+(?:black\s+|brown\s+|red\s+|grey\s+|gray\s+)?(?:pixie cut|bob|bangs|braid|hair)\b|\b(?:grey|gray|white|black|red|dark)\s+stubble\b|\bstubble\b|\bbeard\b|\bmoustache\b|\bmustache\b|\b(?:round\s+)?glasses\b|\b(?:blue|green|brown|amber|hazel)\s+eyes\b/giu
 const OUTFIT_TRAIT = /\b(?:[\p{L}'’-]+\s+){0,3}(?:peacoats?|overcoats?|coats?|jackets?|scarves|scarf|aprons?|sweaters?|boots?|dresses|dress|shirts?|suits?|hoodies?|cloaks?|robes?|uniforms?|jeans|skirts?|caps?|hats?|hakama|cardigans?|waistcoats?|vests?|blouses?|trousers|pants|jumpers?|pullovers?|overalls|dungarees|gloves)\b/giu
-const TRAIT_STOP = /\b(?:meets|sees|finds|wears|opens|walks|runs|enters|leaves|pours|hands|gives|sits|stands|laughs|reads|turns|crosses|follows|carries|holds|watches)\b/i
+const TRAIT_STOP = /\b(?:meets|sees|finds|wears|opens|walks|runs|enters|leaves|pours|hands|gives|sits|stands|laughs|reads|turns|crosses|follows|carries|holds|watches|mends|mend|yawns?|pulls?|takes?|practises?|practices?|writes?|pushes?|leads?|comes?|waits?|waves?|smiles?|says?|tira|tiram|veste|vestem|lava|lavam|boceja)\b/i
 
 function traitHits(clause) {
   const source = String(clause || '')
@@ -208,7 +209,9 @@ function commaTraits(text, name, names) {
   const outfits = []
   if (!slice) return { looks, outfits }
   slice.split(',').forEach(part => {
-    part.split(/\s+\b(?:and|e)\b\s+/i).forEach(piece => {
+    const pieces = part.split(/\s+\b(?:and|e)\b\s+/i)
+    const kept = pieces.length === 2 && /^(?:vinte|trinta|quarenta|cinquenta|sessenta|setenta|oitenta|noventa|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)\b/iu.test(pieces[0].trim()) && /^(?:um|dois|duas|três|tres|quatro|cinco|seis|sete|oito|nove|one|two|three|four|five|six|seven|eight|nine)\b/iu.test(pieces[1].trim()) ? [part] : pieces
+    kept.forEach(piece => {
       const found = traitHits(piece)
       if (found.looks.length || found.outfits.length) {
         found.looks.forEach(item => absorbTrait(looks, item))
@@ -351,6 +354,10 @@ function properNames(text, language) {
     }
     const placeWord = Boolean(placeTag(language, parts[0])) || PLACE_KEYS.has(foldName(parts[0]))
     const introduced = placeWord && introducedPerson(source, parts[0])
+    if (/year-old$/i.test(parts[0])) {
+      index = next
+      continue
+    }
     if ((introduced || !isNameNoise(parts[0], language)) && !STREET_WORD.has(foldName(parts[0])) && !/^(?:l|d|j|n|qu)['’]/i.test(parts[0])) {
       const usable = []
       for (const part of parts) {
@@ -605,7 +612,7 @@ function detectCharacters(text, places = [], language = 'en') {
     const absorbOutfit = value => absorbTrait(outfits, trimLead(value))
     String(person.outfit || '').split(/,\s*|\s+\band\b\s+/i).forEach(part => {
       const bit = trimLead(part)
-      if (!bit) return
+      if (!bit || TRAIT_STOP.test(bit)) return
       if (GARMENT_WORD.test(bit) || CARRIED_ITEM.test(bit)) absorbOutfit(bit)
       else absorbTrait(looks, bit)
     })
@@ -622,7 +629,7 @@ function detectCharacters(text, places = [], language = 'en') {
   })
   characters.forEach(person => {
     const found = identityTraits(text, person.name, characters.map(item => item.name))
-    const usable = bit => bit && !new RegExp(`^${person.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'iu').test(bit) && !/\b(?:veste|vestem|carrega|carregam|wears?|carries|holds?)\b/iu.test(bit)
+    const usable = bit => bit && !new RegExp(`^${person.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'iu').test(bit) && !/\b(?:veste|vestem|tira|tiram|despe|carrega|carregam|wears?|carries|holds?|pulls?|takes?\s+off|yawns?|lava|lavam)\b/iu.test(bit)
     const looks = String(person.look || '').split(/,\s*/).filter(usable)
     const outfits = String(person.outfit || '').split(/,\s*/).filter(usable)
     const messy = value => /^(?:de|do|da)\s/iu.test(value) || /\b(?:e|and)\s+(?:uma|um|a|an)\b/iu.test(value) || foldName(value) === foldName(person.name)
@@ -1049,7 +1056,7 @@ function detectScenes(text, characters, places, language, flagged, options = {})
     const foundNames = namesIn(shot.what, characters)
     const pronounWho = whoFromPronoun(shot.what, characters, genders, language)
     const who = canonicalWho(foundNames.length ? foundNames.map(item => item.name).join(' and ') : (pronounWho || shot.who), characters)
-    const head = locativeHeads(shot.what, language).find(item => item.moves !== false && !isNonPlaceNoun(item.lemma) && !isRejectedPlace(item.lemma) && mentionMovesScene(shot.what, item.index, language))
+    const head = preferPlaceHead(locativeHeads(shot.what, language).filter(item => item.moves !== false && !isNonPlaceNoun(item.lemma) && !isRejectedPlace(item.lemma) && mentionMovesScene(shot.what, item.index, language)), shot.what)
     const genericWhere = /^(?:Le lieu|The setting|O lugar|Il luogo|場所|场景)$/u.test(shot.where || '')
     const flaggedOnly = riskNamesOnly(shot.what, flagged)
     let confidence = 'high'
@@ -1075,7 +1082,7 @@ function detectScenes(text, characters, places, language, flagged, options = {})
           if (!where || !same || narrated.length > where.length) where = narrated
         }
         if (venue?.name && !isRejectedPlace(venue.name)) where = venue.name
-        if (head && !venue) {
+        if (head && !venue && !(head.soft && where)) {
           const left = foldName(where)
           const right = foldName(head.name)
           if (!left || left === right) where = head.name

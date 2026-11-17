@@ -403,7 +403,69 @@ function planProse(input, { origin, compact }) {
   if (warnings.length) body.warnings = warnings
   else delete body.warnings
   stripSceneKeys(project)
-  return withShortBoardWarning(body, project, input)
+  return withSheetsMissing(withShortBoardWarning(body, project, input), project, input)
+}
+
+function sheetClauses(text) {
+  return cleanText(text).split(/\s*,\s*/).map(part => part.trim()).filter(Boolean)
+}
+
+function addedSheetClauses(before, after) {
+  const prev = sheetClauses(before)
+  return sheetClauses(after).filter(part => !prev.some(item => foldName(item) === foldName(part)))
+}
+
+/** Base sheets the rules engine could read, so an agent can resubmit them instead of prose. */
+function suggestedSheets(project) {
+  return (project?.filmSheet?.characters || []).filter(person => cleanText(person?.name)).map(person => {
+    const versions = Array.isArray(person.locks) ? person.locks.filter(item => Number(item?.fromOrder) > 0) : []
+    const base = versions[0] || person
+    const sheet = { name: person.name }
+    const age = cleanText(base.age || person.age)
+    const look = cleanText(base.look || person.look)
+    const outfit = cleanText(base.outfit || person.outfit)
+    const items = cleanText(base.items || person.items)
+    if (age) sheet.age = age
+    if (look) sheet.look = look
+    if (outfit) sheet.outfit = outfit
+    if (items) sheet.items = items
+    const locks = []
+    for (let index = 1; index < versions.length; index += 1) {
+      const prev = versions[index - 1]
+      const cur = versions[index]
+      const entry = { fromOrder: cur.fromOrder }
+      const outfit = addedSheetClauses(prev.outfit, cur.outfit).join(', ')
+      const itemsAdded = addedSheetClauses(prev.items, cur.items).join(', ')
+      if (outfit) entry.outfit = outfit
+      if (itemsAdded) entry.items = itemsAdded
+      if (entry.outfit || entry.items) locks.push(entry)
+    }
+    if (locks.length) sheet.locks = locks
+    return sheet
+  })
+}
+
+/**
+ * Prose hides the sheet from the calling model. A 200 with the board still plans,
+ * and sheets_missing is the first warning, with the sheets to paste into scenario.characters.
+ * A 400 would drop the board. The skill tells the agent not to send prose in the first place.
+ */
+function withSheetsMissing(body, project, input) {
+  if (input?.format !== 'agent') return body
+  const sheets = suggestedSheets(project)
+  if (!sheets.length) return body
+  const message = 'You sent prose for a story with named characters. Resubmit the same story as scenario.characters using the sheets in this response. Do not send input "prose". Each sheet needs name, age, every garment in outfit, carried items, and distinctive features in look. A garment or item that appears later is a locks entry with fromOrder, not part of the starting outfit.'
+  const warning = {
+    code: 'sheets_missing',
+    message,
+    fix: 'Resubmit scenario.characters with these sheets, and one scene per beat. Do not send input prose.',
+    sheets
+  }
+  body.sheets_missing = true
+  body.sheets = sheets
+  body.message = message
+  body.warnings = [warning, ...(body.warnings || [])]
+  return body
 }
 
 function splitEnabled(input) {
@@ -536,7 +598,7 @@ function refuseUnplannedPremise(project, input) {
   error.errors = errors
   throw error
 }
-const PACKED_BEAT = /(?<![\p{L}])(?:pours?|walks?|runs?|opens?|enters?|leaves?|sits?|stands?|reads?|gives?|hands?|waits?|lifts?|holds?|turns?|takes?|puts?|calls?|checks?|follows?|arrives?|smiles?|says?|meets?|boards?|crosses?|applauds?|bows?|kneels?|nods?|claps?|abre|fecha|entra|sai|caminha|corre|espera|pega|l[eê]|diz|sorri|entrega|observa|acende|sobe|desce|chama|verifica|cumprimenta|acena|aplaude|veste|senta|levanta)(?![\p{L}])/iu
+const PACKED_BEAT = /(?<![\p{L}])(?:pours?|walks?|runs?|opens?|enters?|leaves?|sits?|stands?|reads?|gives?|hands?|waits?|lifts?|holds?|turns?|takes?|puts?|calls?|checks?|follows?|arrives?|smiles?|says?|meets?|boards?|crosses?|applauds?|bows?|kneels?|nods?|claps?|yawns?|leads?|practises?|practices?|writes?|comes?|watches?|abre|fecha|entra|sai|caminha|corre|espera|pega|l[eê]|diz|sorri|entrega|observa|acende|sobe|desce|chama|verifica|cumprimenta|acena|aplaude|veste|senta|levanta|boceja|lava|lavam)(?![\p{L}])/iu
 
 function actionBeats(text) {
   return String(text || '').split(/(?<=[.!?。！？])\s+|\n+/u).map(part => cleanText(part)).filter(part => part && PACKED_BEAT.test(part))
@@ -840,7 +902,7 @@ const STORYBOARD_SCHEMA = {
     splitScenes: { type: 'boolean', default: true, description: 'Free prose only. Default true. Place and time cues open a scene; a sequence word alone opens a shot in the current scene. At most one cut per sentence. The response cuts array gives each cut cue, reason, kind (scene or shot), place, time, and uncertain. Set false to omit that cut list. Dialogue, memory, body parts, clothing, and abstract nouns still do not move the scene. split_scenes is the same field.' },
     strict_sheet: { type: 'boolean', default: false, description: 'When true, a character sheet that omits an age, garment, or carried item named in the story is HTTP 400 invalid_scenario. When false or omitted, Moovicut fills those fields from the text and returns 200 with a sheet_filled warning for each addition. Nothing is invented.' },
     strictSheet: { type: 'boolean', description: 'Alias of strict_sheet.' },
-    format: { type: 'string', enum: ['agent'], description: 'Return shotboard.compact.v1 for every mode: title, premise, model, aspect, mode, style, genre, film sheet (with each character lockLine and character sheet), shots, and warnings when a shot looks risky. Minified JSON, with no extra whitespace, is the token-efficient way to send that document back. The default compact plan response stays the short payload.' },
+    format: { type: 'string', enum: ['agent'], description: 'Return shotboard.compact.v1 for every mode: title, premise, model, aspect, mode, style, genre, film sheet (with each character lockLine and character sheet), shots, and warnings when a shot looks risky. Minified JSON, with no extra whitespace, is the token-efficient way to send that document back. The default compact plan response stays the short payload. On input prose with named characters, the response stays HTTP 200 and adds sheets_missing, message, and sheets (name, age, look, outfit, items, and locks with fromOrder) so the caller resubmits scenario.characters instead of prose.' },
     schema: { type: 'string', enum: ['shotboard.compact.v1'], description: 'Send a shotboard.compact.v1 document back to resume it. Prompts marked promptEdited stay as written unless overwritePrompt is true, which regenerates them.' },
     regenerateShot: { type: 'string', description: 'Shot id to rebuild. Send project or storyboard with it. Other shots stay unchanged. A hand-edited prompt is kept unless overwritePrompt is true.' },
     shotId: { type: 'string', description: 'Alias of regenerateShot.' },
