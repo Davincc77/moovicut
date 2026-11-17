@@ -18,7 +18,7 @@ function lightOf(prompt) {
 }
 
 test('Portuguese night, dusk, and evening cues set night light and carry it forward', () => {
-  const cues = ['à noite', 'perto da meia-noite', 'na madrugada', 'de noite', 'ao anoitecer', 'ao crepúsculo', 'ao luar']
+  const cues = ['à noite', 'perto da meia-noite', 'na madrugada', 'de noite', 'ao anoitecer', 'ao luar']
   for (const cue of cues) {
     const text = `Inês, 54 anos, cabelo preto, casaco azul, espera no cais ${cue}. Inês abre a porta.`
     const found = detectProse(text)
@@ -32,6 +32,13 @@ test('Portuguese night, dusk, and evening cues set night light and carry it forw
       assert.doesNotMatch(lightOf(shot.prompt), /luz do dia/i, shot.prompt)
     }
   }
+  const duskCue = 'ao crepúsculo'
+  const duskText = `Inês, 54 anos, cabelo preto, casaco azul, espera no cais ${duskCue}. Inês abre a porta.`
+  const duskFound = detectProse(duskText)
+  assert.ok(duskFound.scenes.every(scene => scene.light === 'dusk'), duskFound.scenes.map(scene => scene.light).join(','))
+  const duskPlan = plan({ premise: duskText, model: 'grok', compact: true, promptLanguage: 'pt' })
+  assert.equal(duskPlan.status, 200, duskPlan.body.message)
+  for (const shot of duskPlan.body.shots) assert.match(lightOf(shot.prompt), /crepúsculo/i)
   const carried = detectProse('Ao amanhecer, Inês espera no cais. À noite, Inês abre a porta. Inês lê uma carta.')
   assert.deepEqual(carried.scenes.map(scene => scene.light), ['dawn', 'night', 'night'])
 })

@@ -140,7 +140,7 @@ test('N7 time of day starts at the cue and does not leak backward', () => {
     })
     assert.equal(response.status, 200)
     const body = JSON.parse(response.body)
-    assert.match(body.shots[0].prompt, /dawn/i)
+    assert.match(body.shots[0].prompt, /At dawn/i.test(text) ? /Dawn light/i : /Morning light/i)
     assert.doesNotMatch(body.shots[0].prompt, /\bnight\b/i)
     assert.match(body.shots.at(-1).prompt, /\bnight\b/i)
   }

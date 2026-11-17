@@ -72,20 +72,21 @@ const TIME_ALIAS = Object.freeze({
   manha: 'morning',
   'manhã': 'morning',
   tarde: 'afternoon',
-  entardecer: 'evening',
+  entardecer: 'dusk',
   amanhecer: 'dawn',
   crepusculo: 'dusk',
   'crepúsculo': 'dusk',
   'meio-dia': 'midday',
   'meio dia': 'midday'
 })
+const DAY_JUMP = /(?<![\p{L}])(?:the next day|no dia seguinte|le lendemain|plus tard|later|mais tarde)(?![\p{L}])/iu
 const TIME_CUES = Object.freeze([
   [/the next morning|next morning|in the morning|this morning|that morning|one morning|early morning|de manh[ãa]|pela manh[ãa]|na manh[ãa]|manh[ãa] seguinte|by morning/iu, 'morning'],
   [/at dawn|ao amanhecer|ao raiar do dia|\bdawn\b|\bsunrise\b/iu, 'dawn'],
   [/at noon|at midday|\bmidday\b|\bnoon\b|ao meio-dia|ao meio dia|meio-dia/iu, 'midday'],
   [/in the afternoon|this afternoon|that afternoon|à tarde|a tarde|de tarde|pela tarde|\bafternoon\b/iu, 'afternoon'],
-  [/at dusk|ao crepúsculo|ao crepusculo|\bdusk\b/iu, 'dusk'],
-  [/in the evening|this evening|that evening|early evening|ao entardecer|\bentardecer\b|\bevening\b/iu, 'evening'],
+  [/at dusk|ao crepúsculo|ao crepusculo|ao entardecer|no entardecer|\bentardecer\b|\bdusk\b|ao pôr do sol|ao por do sol|pôr do sol|por do sol|at sunset|\bsunset\b/iu, 'dusk'],
+  [/in the evening|this evening|that evening|early evening|\bevening\b/iu, 'evening'],
   [/at night|in the night|by night|\btonight\b|à noite|a noite|de noite|pela noite|na noite|meia-noite|meia noite|\bmadrugada\b|ao anoitecer|ao luar|\bnight\b|\bnoite\b/iu, 'night'],
   [/\bmorning\b|\bmanh[ãa]\b/iu, 'morning']
 ])
@@ -610,18 +611,20 @@ function parseScenarioObject(input, options = {}) {
       scenes.push(scene)
     }
   })
+  const coarseLight = new Set(['day', 'dawn', 'dusk', 'night'])
   let carriedTime = ''
   scenes.forEach(scene => {
-    if (scene.rulesLight) {
-      delete scene.rulesLight
-      delete scene.time
-      return
-    }
-    const stated = scene.time || timeInText(scene.what)
+    const rules = scene.rulesLight === true
+    delete scene.rulesLight
+    const stated = scene.time || timeInText(scene.what) || timeInText(scene.timeLabel)
     if (stated) {
       scene.time = stated
       carriedTime = stated
+    } else if (DAY_JUMP.test(`${scene.what || ''} ${scene.timeLabel || ''}`)) {
+      scene.time = ''
+      carriedTime = ''
     } else if (carriedTime) scene.time = carriedTime
+    if (rules && scene.time && coarseLight.has(scene.light || '')) scene.light = ''
   })
   const canonical = formatScenario({ characters, places, scenes, light, mood })
   return finish(characters, places, scenes, light, mood, errors, canonical)
