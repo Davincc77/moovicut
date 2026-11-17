@@ -15,7 +15,7 @@ const css = source('app/assets/css/main.css')
 const store = source('app/composables/useProjectStore.js')
 const openingSource = source('app/components/StudioCreationPanel.vue')
 
-test('core tools are free, support opens Buy Me a Coffee and dark mode is saved', () => {
+test('core tools are free and support opens Buy Me a Coffee', () => {
   const support=source('app/components/SupportLink.vue')
   assert.match(support,/Support the project/)
   assert.match(support,/href="https:\/\/buymeacoffee.com\/enzoc1977r"/)
@@ -29,9 +29,11 @@ test('core tools are free, support opens Buy Me a Coffee and dark mode is saved'
   assert.match(source('app/components/WorkspaceHeader.vue'),/<SupportLink \/>/)
   const preferences=source('app/utils/preferences.js')
   assert.match(preferences,/shotboard.preferences.v1/)
-  assert.match(preferences,/darkMode:false/)
+  assert.match(preferences,/autoSave:true, notifications:false, emailUpdates:false/)
+  assert.doesNotMatch(preferences,/darkMode\s*:/)
   assert.match(source('app/composables/usePreferences.js'),/useProjectStore/)
-  assert.match(css,/\.moovicut-dark \.studio-shell \{/)
+  assert.doesNotMatch(source('app/composables/usePreferences.js'),/darkMode|moovicut-dark/)
+  assert.doesNotMatch(css,/\.moovicut-dark|\.theme-toggle|\.workspace-theme/)
   assert.doesNotMatch(css,/\.profile-layout|\.pricing-page|\.auth-shell|\.apple-language/)
 })
 
