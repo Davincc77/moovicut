@@ -512,10 +512,10 @@ export function sentenceHasTimeCue(sentence, language = 'en') {
   return timeCues(sentence, language).length > 0
 }
 
-/** A handshake or "mão de Name" names the other person. "pai de Name" does not. */
+/** A handshake, a body part, or "mão de Name" names the other person. "pai de Name" does not. */
 export function interactionPossessive(before) {
   const text = foldName(before)
-  return /(?:mao|maos|hand|hands|abraco|beijo|aperto|handshake)\s+(?:de|do|da|dos|das|of)\s*$/iu.test(text)
+  return /(?<![\p{L}])(?:mao|maos|hand|hands|testa|forehead|rosto|face|ombro|ombros|shoulder|shoulders|braco|bracos|arm|arms|cabeca|head|colo|lap|bochecha|cheek|olho|olhos|eye|eyes|abraco|beijo|aperto|handshake)\s+(?:de|do|da|dos|das|of)\s*$/iu.test(text)
 }
 
 export function opensParagraph(text, sentence) {

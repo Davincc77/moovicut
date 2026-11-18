@@ -1095,5 +1095,10 @@
   "{shots} shots · {seconds}s · {family} / {genre} · {reference}": "{shots} planos · {seconds}s · {family} / {genre} · {reference}",
   "{title} storyboard study": "Estudo de storyboard {title}",
   "{title} — Moovicut": "{title} — Moovicut",
-  "“{trait}” is repeated in the same line.": "“{trait}” está repetido na mesma linha."
+  "“{trait}” is repeated in the same line.": "“{trait}” está repetido na mesma linha.",
+  "{name} is named in the story and has no character sheet.": "{name} aparece na história e não tem ficha de personagem.",
+  "Scenes {list}.": "Cenas {list}.",
+  "Did you mean {name}?": "Quis dizer {name}?",
+  "Create sheet": "Criar ficha",
+  "Not a name, ignore": "Não é um nome, ignorar"
 }

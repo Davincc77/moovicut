@@ -1095,5 +1095,10 @@
   "{shots} shots · {seconds}s · {family} / {genre} · {reference}": "{shots} shots · {seconds}s · {family} / {genre} · {reference}",
   "{title} storyboard study": "{title} storyboard study",
   "{title} — Moovicut": "{title} — Moovicut",
-  "“{trait}” is repeated in the same line.": "“{trait}” is repeated in the same line."
+  "“{trait}” is repeated in the same line.": "“{trait}” is repeated in the same line.",
+  "{name} is named in the story and has no character sheet.": "{name} is named in the story and has no character sheet.",
+  "Scenes {list}.": "Scenes {list}.",
+  "Did you mean {name}?": "Did you mean {name}?",
+  "Create sheet": "Create sheet",
+  "Not a name, ignore": "Not a name, ignore"
 }

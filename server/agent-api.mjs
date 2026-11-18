@@ -1134,7 +1134,10 @@ function callTool(name, args, origin) {
     const document = input.storyboard || input.project || input
     try {
       const validated = validateProject(document)
-      return toolResult(JSON.stringify({ ok: true, shots: validated.project.shots.length, model: validated.project.model }))
+      const nameWarnings = assessProject(validated.project).filter(item => item.code === 'name_without_sheet')
+      const payload = { ok: true, shots: validated.project.shots.length, model: validated.project.model }
+      if (nameWarnings.length) payload.warnings = nameWarnings
+      return toolResult(JSON.stringify(payload))
     } catch (error) {
       return toolResult(JSON.stringify({ ok: false, message: error.message }), true)
     }

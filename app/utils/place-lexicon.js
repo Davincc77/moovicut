@@ -549,6 +549,13 @@ export function possessivePlace(sentence, language = 'en') {
   let best = ''
   const re = /(?<![\p{L}])(?:dos|das|do|da)\s+([\p{L}'’-]+(?:\s+[\p{L}'’-]+){0,2})|(?<![\p{L}])of\s+the\s+([\p{L}'’-]+(?:\s+[\p{L}'’-]+){0,2})/giu
   for (const match of source.matchAll(re)) {
+    const before = source.slice(Math.max(0, match.index - 40), match.index)
+    const head = before.match(/([\p{L}'’-]+)\s+$/u)
+    if (head) {
+      const word = head[1]
+      const placeHead = placeIsSure(language, word) || placeIsSure('en', word) || placeIsSure('pt', word) || locationShaped(word)
+      if (placeHead && !SURFACE_HEAD.test(word)) continue
+    }
     const words = String(match[1] || match[2] || '').split(/\s+/).filter(Boolean)
     const content = []
     for (const word of words) {
@@ -700,6 +707,9 @@ export function aircraftPlace(sentence, language = 'en') {
   const flight = FLIGHT_VERB.test(text)
   const boardsCraft = BOARD_VERB.test(text) && AIRCRAFT_NOUN.test(text)
   if (!flight && !boardsCraft) return ''
+  const overLand = /(?<![\p{L}])(?:fl(?:y|ies|ew)|flying|voa|voam|voar|voando|voou)(?![\p{L}])(?:\s+[\p{L}'’-]+){0,4}\s+(?:over|sobre)\s+/iu.test(text)
+  const takeoff = /(?<![\p{L}])(?:descol(?:a|am|ar|ou|ando|aram)|take(?:s|n)?\s+off|took\s+off|taking\s+off)(?![\p{L}])/iu.test(text)
+  if (overLand && !takeoff && !AIRCRAFT_NOUN.test(text)) return ''
   return language === 'pt' ? 'Avião' : 'Plane'
 }
 

@@ -181,7 +181,8 @@ const shotGroups = computed(() => {
 function partPrompt(part) { return partShotPrompts(project.value, part) }
 const showOutputs = computed(() => state.value.hasGenerated && project.value?.id && project.value.id !== 'starter-project')
 const stale = computed(() => showOutputs.value && state.value.generatedSignature && state.value.generatedSignature !== optionsSignature(state.value, locale.value))
-const notes = computed(() => (report.value?.warnings || []).filter(item => !report.value.blocking.some(block => block.code === item.code && block.shotId === item.shotId && block.message === item.message)))
+const notes = computed(() => (report.value?.warnings || []).filter(item => item.code !== 'name_without_sheet' && !report.value.blocking.some(block => block.code === item.code && block.shotId === item.shotId && block.message === item.message)))
+const nameSheetWarnings = computed(() => (report.value?.warnings || []).filter(item => item.code === 'name_without_sheet'))
 
 function describedBy(owner, field, empty, detected) {
   if (detected) return `${owner}-${field}-hint`
@@ -557,6 +558,7 @@ function copyAgent() {
               </li>
             </ul>
           </template>
+          <NameSheetNotice :warnings="nameSheetWarnings" @create="state = applyCheckFix(state, { ...$event, fixId: 'create-sheet' })" @ignore="state = applyCheckFix(state, { ...$event, fixId: 'ignore-name' })" />
           <template v-if="notes.length">
             <h3>{{ t('check.notes') }}</h3>
             <p>{{ t('check.notesHelp') }}</p>

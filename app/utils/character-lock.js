@@ -2,7 +2,8 @@
 import { cleanText } from './text.js'
 import { findByName, foldName, nameParts } from './scenario.js'
 import { phrase } from './prompt-lang.js'
-import { keptTrait, namedWornAndCarried } from './prose-extra.js'
+import { keptTrait, kinshipSubject, namedWornAndCarried } from './prose-extra.js'
+import { unsheetedActors } from './name-sheet.js'
 import { placeIsSure, settingName } from './place-lexicon.js'
 import { interactionPossessive, isHonorificStop } from './scene-split.js'
 
@@ -205,7 +206,7 @@ function nameMentioned(text, name) {
   const re = new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, 'giu')
   for (const match of source.matchAll(re)) {
     const before = source.slice(Math.max(0, match.index - 32), match.index)
-    if (/(?:de|do|da|dos|das|of)\s+$/iu.test(before) && !interactionPossessive(before)) continue
+    if (/(?<![\p{L}])(?:de|do|da|dos|das|of)\s+$/iu.test(before) && !interactionPossessive(before)) continue
     return true
   }
   return false
@@ -251,7 +252,14 @@ export function charactersInShot(shot, project = {}) {
   characters.forEach(character => {
     if (characterNamedIn(source, character, characters)) add(character)
   })
+  const story = [project.storyText, project.premise, source].filter(Boolean).join('\n')
+  const kin = kinshipSubject(source, characters, story)
+  if (kin) {
+    const person = findByName(characters, kin) || characters.find(item => String(item.name || '').split(/\s+/).some(part => foldName(part) === foldName(kin) && foldName(kin).length >= 3))
+    if (person) add(person)
+  }
   if (found.length) return found
+  if (unsheetedActors(source, characters).length) return []
   if (characters.length === 1) return [characters[0]]
   const leadName = project.continuitySheet?.character
   if (leadName) return [findByName(characters, leadName) || { name: leadName, look: '', outfit: project.continuitySheet.appearance || '' }]
@@ -423,7 +431,7 @@ const VERB_RULES = Object.freeze([
   { op: 'remove', re: /(?<![\p{L}])(?:takes?\s+off|take\s+off|removes?|tira|tiram|despe|despem)(?![\p{L}])/iu },
   { op: 'pickup', re: /(?<![\p{L}])(?:picks?\s+up|pick\s+up|grabs?|pega|pegam|agarra|agarram|receives?|recebe|recebem)(?![\p{L}])/iu },
   { op: 'drop', re: /(?<![\p{L}])(?:drops?|sets?\s+down|set\s+down|larga|largam|pousa|pousam|deixa(?:m)?(?:\s+[\p{L}'’-]+){0,5}\s+cair|perde|perdem|loses?|lose|hangs?|hang)(?![\p{L}])/iu },
-  { op: 'hand', re: /(?<![\p{L}])(?:hands?(?:\s+over)?|gives?|entrega|entregam)(?![\p{L}])/iu },
+  { op: 'hand', re: /(?<![\p{L}])(?:hands?(?:\s+over)?|gives?|entrega|entregam|dá|dão)(?![\p{L}])/iu },
   { op: 'return', re: /(?<![\p{L}])(?:returns?|gives?\s+(?:[\p{L}'’-]+\s+){0,5}back|hands?\s+(?:[\p{L}'’-]+\s+){0,5}back|devolve|devolvem)(?![\p{L}])/iu },
   { op: 'carry', re: /(?<![\p{L}])(?:carries|carrying|carrega|carregam|leva|levam|traz|trazem|holds?|holding|segura|seguram|mostra|mostram|shows?)(?![\p{L}])/iu }
 ])
@@ -642,6 +650,12 @@ function concreteObjectPhrases(text, characters) {
   return found
 }
 
+function giftRecipient(after, characters) {
+  const marked = String(after || '').match(/(?:^|[^\p{L}])(?:a|ao|à|para|to|for)\s+((?:\p{Lu}[\p{L}'’-]+)(?:\s+\p{Lu}[\p{L}'’-]+){0,2})/u)
+  if (!marked) return ''
+  return namesIn(marked[1], characters)[0]?.name || ''
+}
+
 function objectsAfterVerb(after, characters) {
   const listed = namedWornAndCarried(after)
   concreteObjectPhrases(after, characters).forEach(phrase => {
@@ -721,9 +735,11 @@ function storyEvents(shots, characters) {
           objects.items.forEach(value => push('remove', value, 'items', actor))
           objects.garments.forEach(value => push('remove', value, 'outfit', actor))
         } else if (verb.op === 'hand') {
+          const gifted = giftRecipient(after, characters)
+          const holder = receiver?.name || gifted
           ;[...objects.items.map(value => ({ value, field: 'items' })), ...objects.garments.map(value => ({ value, field: 'outfit' }))].forEach(item => {
-            if (sheetHasValue(actorSheet, item.value)) push('remove', item.value, item.field, actor)
-            if (receiver) push('add', item.value, item.field, receiver.name)
+            if (holder) push('add', item.value, item.field, holder)
+            if (sheetHasValue(actorSheet, item.value) && (!holder || foldName(actor) !== foldName(holder))) push('remove', item.value, item.field, actor)
           })
         } else if (verb.op === 'carry') {
           objects.items.forEach(value => { if (!sheetHasValue(actorSheet, value)) push('add', value, 'items', actor) })
@@ -864,6 +880,20 @@ function mentionedBeforeFirstShot(story, shots, value) {
 }
 
 const LATER_GAIN = /(?<![\p{L}])(?:picks?\s+up|pick\s+up|opens?|checks?|finds?|grabs?|pega|abre|verifica|encontra|holds?|holding|segura|seguram|mostra|mostram|shows?)(?![\p{L}])/iu
+
+function verbBeforeTrait(plain, clause, pattern) {
+  const source = String(plain || '')
+  const raw = cleanText(clause)
+  if (!raw) return false
+  const tail = raw.split(/\s+/).filter(word => foldName(word).length >= 4).at(-1) || ''
+  const candidates = tail && foldName(tail) !== foldName(raw) ? [raw, tail] : [raw]
+  for (const candidate of candidates) {
+    const match = new RegExp(`(?<![\\p{L}])${candidate.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'iu').exec(source)
+    if (!match) continue
+    return pattern.test(source.slice(0, match.index))
+  }
+  return pattern.test(source)
+}
 const LATER_LOSS = /(?<![\p{L}])(?:drops?|loses?|lose|hangs?|hang|perde|perdem|deixa(?:m)?(?:\s+[\p{L}'’-]+){0,5}\s+cair)(?![\p{L}])/iu
 
 function demoteLaterTraits(current, shots, events, person, story = '') {
@@ -875,8 +905,8 @@ function demoteLaterTraits(current, shots, events, person, story = '') {
       const shot = index >= 0 ? shots[index] : null
       const order = shot ? (shot.order || index + 1) : 1
       const plain = shot ? shotPlain(shot) : ''
-      const gained = LATER_GAIN.test(plain)
-      const lost = LATER_LOSS.test(plain) && !gained
+      const gained = verbBeforeTrait(plain, clause, LATER_GAIN)
+      const lost = verbBeforeTrait(plain, clause, LATER_LOSS) && !gained
       const declared = fieldClauses(person.declaredItems || '')
       const declaredKept = field === 'items' && person.declaredItems != null && declared.some(part => related(part, clause) || related(clause, part))
       const introducedLater = !declaredKept && order > 1 && !mentionedBeforeFirstShot(story, shots, clause) && (gained || lost)
