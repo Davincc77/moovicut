@@ -2,7 +2,7 @@
 import { cleanText } from './text.js'
 import { findByName, foldName, nameParts } from './scenario.js'
 import { phrase } from './prompt-lang.js'
-import { keptTrait, kinshipSubject, namedWornAndCarried } from './prose-extra.js'
+import { keptTrait, kinshipSubject, namedWornAndCarried, sheetKinshipLines } from './prose-extra.js'
 import { unsheetedActors } from './name-sheet.js'
 import { placeIsSure, settingName } from './place-lexicon.js'
 import { interactionPossessive, isHonorificStop } from './scene-split.js'
@@ -252,12 +252,13 @@ export function charactersInShot(shot, project = {}) {
   characters.forEach(character => {
     if (characterNamedIn(source, character, characters)) add(character)
   })
-  const story = [project.storyText, project.premise, source].filter(Boolean).join('\n')
+  const shots = (project.shots || []).map(shot => [shot?.source, shot?.what, shot?.action].filter(Boolean).join(' ')).filter(Boolean)
+  const story = [project.storyText, project.premise, sheetKinshipLines(characters), ...shots, source].filter(Boolean).join('\n')
   const kin = kinshipSubject(source, characters, story)
-  if (kin) {
-    const person = findByName(characters, kin) || characters.find(item => String(item.name || '').split(/\s+/).some(part => foldName(part) === foldName(kin) && foldName(kin).length >= 3))
+  String(kin || '').split(/\s+\band\b\s+/iu).forEach(name => {
+    const person = findByName(characters, name) || characters.find(item => String(item.name || '').split(/\s+/).some(part => foldName(part) === foldName(name) && foldName(name).length >= 3))
     if (person) add(person)
-  }
+  })
   if (found.length) return found
   if (unsheetedActors(source, characters).length) return []
   if (characters.length === 1) return [characters[0]]
