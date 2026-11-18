@@ -641,30 +641,283 @@ function whoFromPronoun(sentence, center) {
   return { who: center, flag: 'who_pronoun' }
 }
 
-const KINSHIP = Object.freeze([
-  { id: 'grandmother', word: 'avó|avo|grandmother|grandma' },
-  { id: 'grandfather', word: 'avô|grandfather|grandpa' },
-  { id: 'mother', word: 'mãe|mae|mother' },
-  { id: 'father', word: 'pai|father' }
+const KINSHIP_ROLES = Object.freeze([
+  { id: 'granddaughter', re: 'granddaughter|neta', gender: 'f', inverse: { m: 'grandfather', f: 'grandmother' } },
+  { id: 'grandson', re: 'grandson|neto', gender: 'm', inverse: { m: 'grandfather', f: 'grandmother' } },
+  { id: 'grandmother', re: 'grandmother|grandma|avó|avo', gender: 'f', inverse: { m: 'grandson', f: 'granddaughter' } },
+  { id: 'grandfather', re: 'grandfather|grandpa|avô', gender: 'm', inverse: { m: 'grandson', f: 'granddaughter' } },
+  { id: 'daughter', re: 'daughter|filha', gender: 'f', inverse: { m: 'father', f: 'mother' } },
+  { id: 'son', re: 'son|filho', gender: 'm', inverse: { m: 'father', f: 'mother' } },
+  { id: 'mother', re: 'mother|mãe|mae', gender: 'f', inverse: { m: 'son', f: 'daughter' } },
+  { id: 'father', re: 'father|pai', gender: 'm', inverse: { m: 'son', f: 'daughter' } },
+  { id: 'sister', re: 'sister|irmã|irma', gender: 'f', inverse: { m: 'brother', f: 'sister' } },
+  { id: 'brother', re: 'brother|irmão|irmao', gender: 'm', inverse: { m: 'brother', f: 'sister' } },
+  { id: 'husband', re: 'husband|marido|esposo', gender: 'm', inverse: { m: 'husband', f: 'wife' } },
+  { id: 'wife', re: 'wife|esposa|mulher', gender: 'f', inverse: { m: 'husband', f: 'wife' } }
 ])
 
-function kinshipMap(text, characters) {
-  const map = new Map()
-  const names = (characters || []).map(person => person.name).filter(Boolean)
-  for (const kin of KINSHIP) {
-    const word = new RegExp(`(?<![\\p{L}])(?:${kin.word})(?![\\p{L}])`, 'iu')
-    for (const sentence of sentences(text)) {
-      if (!word.test(sentence)) continue
-      const named = names.filter(name => {
-        const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-        if (new RegExp(`(?:${kin.word})\\s+(?:de|do|da|dos|das|of)\\s+(?:a\\s+|o\\s+|the\\s+)?(?<![\\p{L}])${escaped}(?![\\p{L}])`, 'iu').test(sentence)) return false
-        const intro = new RegExp(`(?<![\\p{L}])${escaped}(?![\\p{L}]).{0,160}(?:${kin.word})|(?:${kin.word}).{0,48}(?<![\\p{L}])${escaped}(?![\\p{L}])|(?<![\\p{L}])${escaped}(?![\\p{L}])\\s*,?\\s*(?:é|e|is)\\s+(?:a|o|the|uma|um)?\\s*(?:${kin.word})`, 'iu')
-        return intro.test(sentence) && !new RegExp(`(?:ajuda|helps?|chama|calls?|dança|danca|dances?)\\s+(?:a\\s+|o\\s+|the\\s+|com\\s+o\\s+|com\\s+a\\s+)?(?:${kin.word})`, 'iu').test(sentence)
-      })
-      if (named.length === 1) map.set(kin.id, named[0])
+const ROLE_PATTERN = KINSHIP_ROLES.map(role => role.re).join('|')
+const ROLE_WORD = new RegExp(`^(?:${ROLE_PATTERN})$`, 'iu')
+const KIN_DET = 'their|his|her|seus|suas|seu|sua|the|umas|uma|uns|dum|duma|num|numa|pelos|pelas|pelo|pela|dos|das|nos|nas|aos|um|ao|do|da|no|na|os|as|an|o|à|às|a'
+
+function escapeReg(value) {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function roleByWord(word) {
+  return KINSHIP_ROLES.find(role => new RegExp(`^(?:${role.re})$`, 'iu').test(word)) || null
+}
+
+function roleGender(roleId) {
+  return KINSHIP_ROLES.find(role => role.id === roleId)?.gender || ''
+}
+
+function assumedLanguage(text, language) {
+  if (language === 'pt' || language === 'en') return language
+  if (/(?<![\p{L}])(?:é|não|nao|uma|dele|dela|cabelo|anos|você|voce)(?![\p{L}])/iu.test(text)) return 'pt'
+  return 'en'
+}
+
+function nameLabels(person) {
+  const name = cleanText(person?.name)
+  if (!name) return []
+  const labels = [name]
+  name.split(/\s+/).forEach(part => {
+    if (foldName(part).length >= 3) labels.push(part)
+  })
+  return labels
+}
+
+function resolveCast(label, characters) {
+  const clean = cleanText(label)
+  if (!clean) return null
+  const exact = (characters || []).filter(person => foldName(person?.name) === foldName(clean))
+  if (exact.length === 1) return exact[0]
+  const bits = clean.split(/\s+/).filter(Boolean)
+  if (bits.length !== 1) return null
+  const key = foldName(bits[0])
+  if (key.length < 3) return null
+  const owners = (characters || []).filter(person => String(person?.name || '').split(/\s+/).some(part => foldName(part) === key))
+  return owners.length === 1 ? owners[0] : null
+}
+
+function castHits(sentence, characters) {
+  const hits = []
+  for (const person of characters || []) {
+    for (const label of nameLabels(person)) {
+      const re = new RegExp(`(?<![\\p{L}])${escapeReg(label)}(?![\\p{L}])`, 'giu')
+      for (const match of String(sentence || '').matchAll(re)) hits.push({ person, index: match.index, length: label.length })
     }
   }
-  return map
+  return hits
+}
+
+function lastCastBefore(sentence, index, characters) {
+  const hits = castHits(sentence, characters).filter(hit => hit.index < index)
+  if (!hits.length) return null
+  hits.sort((a, b) => b.index - a.index || b.length - a.length)
+  const best = hits[0]
+  const end = best.index + best.length
+  const covering = hits.filter(hit => hit.index <= best.index && hit.index + hit.length >= end)
+  covering.sort((a, b) => b.length - a.length || a.index - b.index)
+  return covering[0]?.person || best.person
+}
+
+function readCast(text, index, characters) {
+  const slice = String(text || '').slice(index)
+  const match = slice.match(/^(\p{Lu}[\p{L}'’-]*(?:\s+\p{Lu}[\p{L}'’-]*){0,2})/u)
+  if (!match) return null
+  const words = match[1].split(/\s+/)
+  for (let size = words.length; size >= 1; size -= 1) {
+    const person = resolveCast(words.slice(0, size).join(' '), characters)
+    if (person) return person
+  }
+  return null
+}
+
+function textGender(person, text, characters) {
+  if (!person?.name) return ''
+  let male = 0
+  let female = 0
+  for (const sentence of sentences(text)) {
+    const hits = castHits(sentence, [person])
+    if (!hits.length) continue
+    const start = Math.min(...hits.map(hit => hit.index))
+    const ownEnd = Math.max(...hits.map(hit => hit.index + hit.length))
+    const later = castHits(sentence, characters).filter(hit => hit.index >= ownEnd && foldName(hit.person.name) !== foldName(person.name))
+    const end = later.length ? Math.min(...later.map(hit => hit.index)) : sentence.length
+    const window = sentence.slice(start, end)
+    if (/(?<![\p{L}])é\s+uma(?![\p{L}])/iu.test(window)) female += 2
+    if (/(?<![\p{L}])é\s+um(?![\p{L}])/iu.test(window)) male += 2
+    if (/\bis\s+an?\s+(?:[\p{L}\d'’-]+\s+){0,8}(?:fisherwoman|woman|girl|mother|wife)\b/iu.test(window)) female += 2
+    if (/\bis\s+an?\s+(?:[\p{L}\d'’-]+\s+){0,8}(?:fisherman|man|boy|father|husband)\b/iu.test(window)) male += 2
+    if (/(?<![\p{L}])pescadora(?![\p{L}])/iu.test(window)) female += 2
+    else if (/(?<![\p{L}])(?:pescador|homem)(?![\p{L}])/iu.test(window)) male += 2
+  }
+  if (male > female) return 'm'
+  if (female > male) return 'f'
+  return ''
+}
+
+function genderOf(person, text, characters, relations, forced) {
+  const key = foldName(person?.name)
+  if (!key) return ''
+  if (forced?.get(key)) return forced.get(key)
+  const held = (relations || []).find(item => foldName(item.holder) === key && roleGender(item.role))
+  if (held) return roleGender(held.role)
+  return textGender(person, text, characters)
+}
+
+function inverseRole(roleId, gender) {
+  const role = KINSHIP_ROLES.find(item => item.id === roleId)
+  if (!role || (gender !== 'm' && gender !== 'f')) return ''
+  return role.inverse[gender] || ''
+}
+
+function linkPair(relations, holder, role, other, text, characters, forced) {
+  if (!holder?.name || !role) return
+  if (other && foldName(holder.name) === foldName(other.name)) return
+  const ofName = other?.name || ''
+  const key = `${foldName(holder.name)}|${role}|${foldName(ofName)}`
+  if (!relations.some(item => item.key === key)) relations.push({ key, holder: holder.name, role, of: ofName })
+  if (!other) return
+  const back = inverseRole(role, genderOf(other, text, characters, relations, forced))
+  if (!back) return
+  const backKey = `${foldName(other.name)}|${back}|${foldName(holder.name)}`
+  if (relations.some(item => item.key === backKey)) return
+  relations.push({ key: backKey, holder: other.name, role: back, of: holder.name })
+}
+
+function introAnchor(previous, want, text, characters, relations, forced) {
+  if (!previous) return null
+  if (want !== 'm' && want !== 'f') return previous
+  const known = textGender(previous, text, characters) || roleGender((relations.find(item => foldName(item.holder) === foldName(previous.name)) || {}).role)
+  if (want === 'm' && known === 'f') return null
+  if (want === 'f' && known === 'm') return null
+  if (!known) forced.set(foldName(previous.name), want)
+  return previous
+}
+
+function definiteIntroArticle(article, language) {
+  const word = foldName(article)
+  if (['his', 'her', 'their', 'seu', 'sua', 'seus', 'suas', 'the', 'o', 'os', 'as'].includes(word)) return true
+  return word === 'a' && language === 'pt'
+}
+
+function skipWife(role, article, language) {
+  if (!role || (role.id !== 'wife' && role.id !== 'husband')) return false
+  if (role.id === 'husband') return false
+  const word = foldName(article || '')
+  if (word === 'uma' || word === 'um' || word === 'an') return true
+  return word === 'a' && language !== 'pt'
+}
+
+/** Introductions such as "A filha, Marta" and "Rui é o pai de Marta", stored in both directions. */
+function kinshipRelations(text, characters, language) {
+  const relations = []
+  const forced = new Map()
+  const cast = (characters || []).filter(person => person?.name)
+  let previous = null
+  const wantOf = pronoun => {
+    const word = foldName(pronoun)
+    if (word === 'his' || word === 'dele') return 'm'
+    if (word === 'her' || word === 'dela') return 'f'
+    return ''
+  }
+  const copula = new RegExp(`(?<![\\p{L}])(?:é|is)\\s+(um|uma|a|o|os|as|the|an|his|her|their|seu|sua)?\\s*(${ROLE_PATTERN})(?![\\p{L}])\\s+(?:de|do|da|dos|das|of)\\s+(?:a\\s+|o\\s+|the\\s+)?`, 'giu')
+  const bare = new RegExp(`(?<![\\p{L}])(?:é|is)\\s+(um|uma|a|o|os|as|the|an)?\\s*(${ROLE_PATTERN})(?![\\p{L}])(?!\\s+(?:de|do|da|dos|das|of)\\b)`, 'giu')
+  const namedOf = new RegExp(`(?<![\\p{L}])(${ROLE_PATTERN})(?![\\p{L}])\\s+(?:de|do|da|dos|das|of)\\s+(?:a\\s+|o\\s+|the\\s+)?`, 'giu')
+  const appositive = new RegExp(`,\\s*(a|o|the)\\s+(${ROLE_PATTERN})(?![\\p{L}])(?!\\s+(?:de|do|da|dos|das|of)\\b)`, 'giu')
+  const leading = new RegExp(`(?<![\\p{L}])(his|her|their|seu|sua|seus|suas|the|um|uma|o|os|as|a)\\s+(${ROLE_PATTERN})(?:\\s+(dele|dela|deles|delas))?\\s*,\\s*`, 'giu')
+  const owned = new RegExp(`['’]s\\s+(${ROLE_PATTERN})(?![\\p{L}])\\s*,?\\s*`, 'giu')
+  for (const sentence of sentences(text)) {
+    for (const match of sentence.matchAll(copula)) {
+      const role = roleByWord(match[2])
+      const holder = lastCastBefore(sentence, match.index, cast)
+      const other = readCast(sentence, match.index + match[0].length, cast)
+      if (role && holder && other) linkPair(relations, holder, role.id, other, text, cast, forced)
+    }
+    for (const match of sentence.matchAll(bare)) {
+      const role = roleByWord(match[2])
+      if (!role || skipWife(role, match[1], language)) continue
+      const holder = lastCastBefore(sentence, match.index, cast)
+      if (!holder) continue
+      const other = previous && foldName(previous.name) !== foldName(holder.name) ? previous : null
+      linkPair(relations, holder, role.id, other, text, cast, forced)
+    }
+    for (const match of sentence.matchAll(namedOf)) {
+      if (/(?<![\p{L}])(?:é|is)\s+(?:um|uma|a|o|os|as|the|an|his|her|their|seu|sua)?\s*$/iu.test(sentence.slice(Math.max(0, match.index - 24), match.index))) continue
+      const role = roleByWord(match[1])
+      const other = readCast(sentence, match.index + match[0].length, cast)
+      const after = sentence.slice(match.index + match[0].length)
+      const comma = after.match(/^(?:\p{Lu}[\p{L}'’-]*\s+){0,3}\p{Lu}[\p{L}'’-]*\s*,\s*/u)
+      const holder = comma ? readCast(sentence, match.index + match[0].length + comma[0].length, cast) : null
+      if (role && holder && other) linkPair(relations, holder, role.id, other, text, cast, forced)
+    }
+    for (const match of sentence.matchAll(appositive)) {
+      const role = roleByWord(match[2])
+      if (!role || skipWife(role, match[1], language)) continue
+      const holder = lastCastBefore(sentence, match.index, cast)
+      if (!holder) continue
+      const other = previous && foldName(previous.name) !== foldName(holder.name) ? previous : null
+      linkPair(relations, holder, role.id, other, text, cast, forced)
+    }
+    for (const match of sentence.matchAll(leading)) {
+      if (!definiteIntroArticle(match[1], language) && !match[3]) continue
+      const role = roleByWord(match[2])
+      const holder = readCast(sentence, match.index + match[0].length, cast)
+      const other = introAnchor(previous, wantOf(match[3] || match[1]), text, cast, relations, forced)
+      if (!role || !holder) continue
+      if (other) linkPair(relations, holder, role.id, other, text, cast, forced)
+    }
+    for (const match of sentence.matchAll(owned)) {
+      const role = roleByWord(match[1])
+      const other = lastCastBefore(sentence, match.index, cast)
+      const holder = readCast(sentence, match.index + match[0].length, cast)
+      if (role && holder && other) linkPair(relations, holder, role.id, other, text, cast, forced)
+    }
+    const seen = lastCastBefore(sentence, sentence.length + 1, cast)
+    if (seen) previous = seen
+  }
+  return relations
+}
+
+function mentionOwner(det, trailing, language) {
+  const word = foldName(trailing || det)
+  if (word === 'her' || word === 'dela') return 'f'
+  if (word === 'his' || word === 'dele') return 'm'
+  if (word === 'their' || word === 'deles' || word === 'delas') return 'group'
+  const article = foldName(det)
+  if (['um', 'uma', 'uns', 'umas', 'dum', 'duma', 'num', 'numa', 'an'].includes(article)) return 'indefinite'
+  if (article === 'a' && language !== 'pt') return 'indefinite'
+  return ''
+}
+
+function isIntroMention(sentence, roleIndex) {
+  const before = sentence.slice(Math.max(0, roleIndex - 48), roleIndex)
+  const after = sentence.slice(roleIndex)
+  const role = after.match(new RegExp(`^(?:${ROLE_PATTERN})`, 'iu'))
+  if (!role) return false
+  const rest = after.slice(role[0].length)
+  if (/(?<![\p{L}])(?:é|is)\s+(?:um|uma|uns|umas|a|o|os|as|the|an|his|her|their|seu|sua|seus|suas)?\s*$/iu.test(before)) return true
+  if (/^\s*(?:de|do|da|dos|das|of)\b/iu.test(rest)) return true
+  if (/^\s*,\s*\p{Lu}/u.test(rest)) return true
+  return false
+}
+
+function kinshipMentions(sentence, language) {
+  const mentions = []
+  const re = new RegExp(`(?<![\\p{L}])(${KIN_DET})(?:\\s+(seu|sua|seus|suas))?\\s+(${ROLE_PATTERN})(?![\\p{L}])(?:\\s+(dele|dela|deles|delas))?`, 'giu')
+  for (const match of String(sentence || '').matchAll(re)) {
+    const role = roleByWord(match[3])
+    if (!role || !ROLE_WORD.test(match[3])) continue
+    const roleIndex = match.index + match[0].length - match[3].length - (match[4] ? match[4].length + 1 : 0)
+    const owner = mentionOwner(match[2] || match[1], match[4] || '', language)
+    if (owner === 'indefinite') continue
+    if (isIntroMention(sentence, roleIndex)) continue
+    mentions.push({ role: role.id, owner: match[4] ? mentionOwner(match[4], match[4], language) : (match[2] ? '' : owner) })
+  }
+  return mentions
 }
 
 /** "Os dois" / "both" is the two people present. A cast of two is that pair. */
@@ -690,17 +943,57 @@ export function groupSubject(sentence, characters, present = []) {
   return ''
 }
 
-/** A kinship word such as "a avó" is the character introduced as that relation. */
-export function kinshipSubject(sentence, characters, story) {
-  const map = kinshipMap(story || sentence, characters)
-  for (const kin of KINSHIP) {
-    const owner = map.get(kin.id)
-    if (!owner) continue
-    if (!new RegExp(`(?<![\\p{L}])(?:${kin.word})(?![\\p{L}])`, 'iu').test(sentence)) continue
-    if (new RegExp(`(?<![\\p{L}])${owner.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}])`, 'iu').test(sentence)) continue
-    return owner
+function relativesOf(relations, role, anchor) {
+  const specific = relations.filter(item => item.role === role && anchor?.name && foldName(item.of) === foldName(anchor.name) && foldName(item.holder) !== foldName(anchor.name))
+  if (specific.length) return specific
+  return relations.filter(item => item.role === role && !item.of && (!anchor?.name || foldName(item.holder) !== foldName(anchor.name)))
+}
+
+function anchorsFor(mention, named, text, characters, relations) {
+  if (!named.length) return []
+  const gender = person => genderOf(person, text, characters, relations, null)
+  if (mention.owner === 'group') return named
+  if (mention.owner === 'f' || mention.owner === 'm') {
+    const fits = person => mention.owner === 'f' ? gender(person) !== 'm' : gender(person) !== 'f'
+    if (named.length === 1) return named.filter(fits)
+    const known = named.filter(person => (mention.owner === 'f' ? gender(person) === 'f' : gender(person) === 'm'))
+    return known.length === 1 ? known : []
   }
-  return ''
+  return named.length === 1 ? named : []
+}
+
+/** A possessive kinship word such as "com o pai" or "with her father" names that relative when exactly one sheeted character matches. */
+export function kinshipSubject(sentence, characters, story, language = '') {
+  const lang = assumedLanguage(`${story || ''}\n${sentence || ''}`, language)
+  const relations = kinshipRelations(story || sentence, characters, lang)
+  const named = castInText(sentence, characters)
+  const added = []
+  for (const mention of kinshipMentions(sentence, lang)) {
+    const anchors = anchorsFor(mention, named, story || sentence, characters, relations)
+    if (!anchors.length) continue
+    const holders = []
+    anchors.forEach(anchor => {
+      relativesOf(relations, mention.role, anchor).forEach(item => {
+        if (!holders.some(name => foldName(name) === foldName(item.holder))) holders.push(item.holder)
+      })
+    })
+    if (holders.length !== 1) continue
+    if (named.some(person => foldName(person.name) === foldName(holders[0]))) continue
+    if (!added.some(name => foldName(name) === foldName(holders[0]))) added.push(holders[0])
+  }
+  return added.join(' and ')
+}
+
+export function applyKinship(who, sentence, characters, story, language) {
+  let next = who || ''
+  String(kinshipSubject(sentence, characters, story, language) || '').split(/\s+\band\b\s+/iu).forEach(name => {
+    const clean = cleanText(name)
+    if (!clean) return
+    const key = foldName(clean).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    if (new RegExp(`(?<![\\p{L}])${key}(?![\\p{L}])`, 'iu').test(foldName(next))) return
+    next = next ? `${next} and ${clean}` : clean
+  })
+  return next
 }
 
 function rememberPresent(present, who) {
@@ -749,7 +1042,6 @@ function findScenes(text, lex, characters, places, language) {
     let who = ''
     let whoFlag = ''
     const grouped = groupSubject(action, characters, present)
-    const kin = kinshipSubject(action, characters, text)
     if (grouped) {
       who = grouped
       center = ''
@@ -764,7 +1056,7 @@ function findScenes(text, lex, characters, places, language) {
       who = pronoun.who
       whoFlag = pronoun.flag
     }
-    if (kin && !foldName(who).includes(foldName(kin))) who = who ? `${who} and ${kin}` : kin
+    who = applyKinship(who, action, characters, text, language)
     const records = places.map(place => ({
       name: place.name,
       keys: lex.places.filter(([, name]) => name === place.name).map(([key]) => key).concat(place.name),

@@ -207,7 +207,7 @@ test('p3 full story keeps Dona Celeste weighing the sardines and locks both peop
     [/grelha sardinhas na taberna/, 'night', /Taberna/],
     [/serve vinho tinto/, 'night', /Taberna/],
     [/toca acordeão/, 'night', /Taberna/, ['Dona Celeste']],
-    [/dança com o pai/, 'night', /Taberna/],
+    [/dança com o pai/, 'night', /Taberna/, ['Marta Costa', 'Rui Costa']],
     [/adormece na cadeira/, 'night', /Taberna/]
   ].map(([action, time, place, who]) => ({ action, time, place, who }))
   assertShots(planned, rows)
@@ -216,6 +216,81 @@ test('p3 full story keeps Dona Celeste weighing the sardines and locks both peop
   assert.match(lockOf(weigh, 'Dona Celeste'), /avental de plástico/)
   assert.doesNotMatch(planned.body.shots[12].prompt, /pesa as sardinhas/)
   assert.doesNotMatch(planned.body.shots[14].prompt, /pesa as sardinhas/)
+  const dance = planned.body.shots.find(shot => /dança com o pai/.test(shot.prompt))
+  assert.match(lockOf(dance, 'Marta Costa'), /impermeável amarelo/)
+  assert.match(lockOf(dance, 'Rui Costa'), /camisola/)
+  assert.equal(lockOf(dance, 'Dona Celeste'), '')
+})
+
+test('English her father and his mother lock the related person', () => {
+  const planned = plan({
+    input: 'prose',
+    prose: 'Tom Reed is a fifty-eight-year-old fisherman with a grey beard, a navy wool sweater and a pipe. His daughter, Amy Reed, is twenty-eight, with short black hair, a yellow raincoat and rubber boots. At dawn Tom unties the ropes on the quay. Amy carries the nets to the boat. At night Amy grills sardines in the tavern. Amy dances with her father. Tom sleeps in the chair.',
+    promptLanguage: 'en',
+    model: 'grok',
+    compact: true
+  })
+  assert.equal(planned.status, 200, planned.body.message)
+  const dance = planned.body.shots.find(shot => /dances with her father/.test(shot.prompt))
+  assert.ok(dance, planned.body.shots.map(shot => shot.prompt.split('\n')[0]).join('\n'))
+  assert.match(lockOf(dance, 'Amy Reed'), /yellow raincoat/)
+  assert.match(lockOf(dance, 'Tom Reed'), /navy wool sweater/)
+  const mother = plan({
+    input: 'prose',
+    prose: 'Ana Cole is a forty-year-old teacher with short hair and a blue coat. Her son, Leo Cole, is ten, with black hair and a green sweater. Leo waits on the quay. Leo calls his mother.',
+    promptLanguage: 'en',
+    model: 'grok',
+    compact: true
+  })
+  assert.equal(mother.status, 200, mother.body.message)
+  const call = mother.body.shots.find(shot => /calls his mother/.test(shot.prompt))
+  assert.match(lockOf(call, 'Leo Cole'), /green sweater/)
+  assert.match(lockOf(call, 'Ana Cole'), /blue coat/)
+})
+
+test('two possible fathers lock no extra character on com o pai', () => {
+  const planned = plan({
+    input: 'prose',
+    prose: 'Rui Costa é um pescador de cinquenta e oito anos, de barba grisalha, com uma camisola azul e um cachimbo. Nuno Silva é um homem de sessenta anos, de barba curta, com um casaco castanho e um boné. Marta Costa tem vinte e oito anos, cabelo preto curto, um impermeável amarelo e botas. Rui é o pai de Marta. Nuno é o pai de Marta. Marta espera no cais. Marta dança com o pai.',
+    promptLanguage: 'pt',
+    model: 'grok',
+    compact: true
+  })
+  assert.equal(planned.status, 200, planned.body.message)
+  const dance = planned.body.shots.find(shot => /dança com o pai/.test(shot.prompt))
+  assert.ok(dance, planned.body.shots.map(shot => shot.prompt.split('\n')[0]).join('\n'))
+  assert.match(lockOf(dance, 'Marta Costa'), /impermeável/)
+  assert.equal(lockOf(dance, 'Rui Costa'), '')
+  assert.equal(lockOf(dance, 'Nuno Silva'), '')
+})
+
+test('a son of Ana locks Ana as the mother', () => {
+  const planned = plan({
+    input: 'prose',
+    prose: 'Ana Silva é uma professora de quarenta anos, de cabelo curto, com um casaco azul. O filho, Leo Silva, tem dez anos, cabelo preto e uma camisola verde. Leo espera no cais. Leo caminha com a mãe.',
+    promptLanguage: 'pt',
+    model: 'grok',
+    compact: true
+  })
+  assert.equal(planned.status, 200, planned.body.message)
+  const walk = planned.body.shots.find(shot => /caminha com a mãe/.test(shot.prompt))
+  assert.ok(walk, planned.body.shots.map(shot => shot.prompt.split('\n')[0]).join('\n'))
+  assert.match(lockOf(walk, 'Leo Silva'), /camisola verde/)
+  assert.match(lockOf(walk, 'Ana Silva'), /casaco azul/)
+})
+
+test('um pai passeia na praia locks nobody extra', () => {
+  const planned = plan({
+    input: 'prose',
+    prose: 'Marta Costa tem vinte e oito anos, cabelo preto curto, um impermeável amarelo e botas. Rui Costa é um pescador de cinquenta e oito anos, de barba grisalha, com uma camisola azul e um cachimbo. Rui é o pai de Marta. Marta espera no cais. Um pai passeia na praia.',
+    promptLanguage: 'pt',
+    model: 'grok',
+    compact: true
+  })
+  assert.equal(planned.status, 200, planned.body.message)
+  const walk = planned.body.shots.find(shot => /passeia na praia/.test(shot.prompt))
+  assert.ok(walk, planned.body.shots.map(shot => shot.prompt.split('\n')[0]).join('\n'))
+  assert.equal(lockOf(walk, 'Rui Costa'), '')
 })
 
 test('an Iracema introduction with an action stays its own shot beside Lia bebe o chá', () => {

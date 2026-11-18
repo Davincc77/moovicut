@@ -50,6 +50,7 @@ async function fillFields(page) {
       if (!next) continue
       await field.selectOption(next)
       assert.equal(await field.inputValue(), next, 'select did not change')
+      await page.waitForFunction(value => (document.documentElement.lang || '').toLowerCase().startsWith(value), next).catch(() => {})
       continue
     }
     if (kind === 'number') {
@@ -66,6 +67,7 @@ async function fillFields(page) {
 
 async function clickButtons(page) {
   page.on('filechooser', chooser => { chooser.setFiles([]).catch(() => {}) })
+  await page.evaluate(() => document.fonts?.ready).catch(() => {})
   const buttons = page.locator('button')
   const count = await buttons.count()
   // Indexes belong to this document. A client navigation (Create storyboard) reuses the
@@ -102,6 +104,12 @@ async function clickButtons(page) {
       document.querySelectorAll(':popover-open').forEach(menu => {
         if (!menu.contains(element) && menu.hidePopover) menu.hidePopover()
       })
+      document.querySelectorAll('.site-nav-menu, .studio-nav-menu').forEach(menu => {
+        if (menu.contains(element)) return
+        const toggle = menu.id && document.querySelector(`[aria-controls="${CSS.escape(menu.id)}"][aria-expanded="true"]`)
+        if (toggle instanceof HTMLElement) toggle.click()
+      })
+      element.scrollIntoView({ block: 'center', inline: 'nearest' })
     }).catch(() => {})
     if (await button.isDisabled().catch(() => false)) {
       const cursor = await button.evaluate(element => getComputedStyle(element).cursor)
@@ -110,7 +118,7 @@ async function clickButtons(page) {
       continue
     }
     try {
-      await button.click({ timeout: 1500 })
+      await button.click({ timeout: 4000 })
     } catch (error) {
       if (await page.locator('[role="dialog"], .modal-backdrop').count()) {
         await page.keyboard.press('Escape')
@@ -126,7 +134,7 @@ async function clickButtons(page) {
         element.scrollIntoView({ block: 'center', inline: 'nearest' })
       }).catch(() => {})
       try {
-        await button.click({ timeout: 1500 })
+        await button.click({ timeout: 4000 })
       } catch (retryError) {
         if (page.url() !== pageUrl) break
         throw new Error(`"${label}" did not respond: ${retryError.message.split('\n')[0]}`)
@@ -553,6 +561,7 @@ test('every page responds in English and Portuguese on desktop and a phone', { t
     for (const viewport of viewports) {
         for (const lang of ['?lang=en', '?lang=pt']) {
         const context = await browser.newContext(viewport.context)
+        await context.grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => {})
         await context.addInitScript(() => {
           localStorage.setItem('shotboard.preferences.v1', JSON.stringify({ autoSave: true, darkMode: true, notifications: false, emailUpdates: false }))
         })

@@ -3,7 +3,7 @@ import { cleanText } from './text.js'
 import { foldName, scenarioBudget, scenarioPremise, scenarioToFields } from './scenario.js'
 import { flaggedNameKeys } from './shot-risk.js'
 import { splitActionText } from './action-split.js'
-import { detectLocalized, groupSubject, identityTraits, keptTrait, kinshipSubject } from './prose-extra.js'
+import { applyKinship, detectLocalized, groupSubject, identityTraits, keptTrait } from './prose-extra.js'
 import { inNamedVenue, inSpans, interactionPossessive, isCueStopword, isFunctionWord, isHonorificStop, isNeverPlace, isNumberWord, isQuotedOrRemembered, isVenueType, mentionMovesScene, namedVenues, opensParagraph, placeMentionIsReal, quoteSpans, sentenceHasTimeCue, splitNarrative } from './scene-split.js'
 import { aircraftPlace, enteredPlace, finishCarriedPlace, inspectedPlace, isNonPlaceNoun, isRejectedPlace, libraryHits, locativeHeads, movementPlace, normalizePlaceName, placeLexiconHas, placeTag, possessivePlace, preferPlaceHead, settingName, tidyPlaceLemma } from './place-lexicon.js'
 
@@ -1095,9 +1095,8 @@ function detectScenes(text, characters, places, language, flagged, options = {})
     const foundNames = namesIn(shot.what, characters)
     const pronounWho = whoFromPronoun(shot.what, characters, genders, language)
     const grouped = groupSubject(shot.what, characters, present)
-    const kin = kinshipSubject(shot.what, characters, kinText)
     let who = canonicalWho(grouped || (foundNames.length ? foundNames.map(item => item.name).join(' and ') : (pronounWho || shot.who)), characters)
-    if (kin && !foldName(who).split(/\s+/).includes(foldName(kin)) && !foldName(who).includes(foldName(kin))) who = who ? `${who} and ${kin}` : kin
+    who = applyKinship(who, shot.what, characters, kinText, language)
     String(who || '').split(/\s+\band\b\s+/iu).forEach(name => {
       const clean = cleanText(name)
       if (!clean) return
