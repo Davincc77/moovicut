@@ -697,9 +697,9 @@ button.text-link:disabled { cursor:not-allowed;opacity:.4;color:var(--text-secon
 .agent-capability-grid { grid-template-columns:repeat(3,minmax(0,1fr));margin:0 0 32px; }
 .docs-page .card,.legal-page .legal-section { padding:20px;border:1px solid #eae7df1f;border-radius:12px;background:#141414; }
 .docs-section { margin:0 0 40px; }
-.code-sample { margin:16px 0;border:1px solid #eae7df1f;border-radius:12px;background:#0f0f0f;overflow:auto; }
-.code-sample-header { display:flex;align-items:center;justify-content:space-between;padding:8px 12px;color:#9a9486; }
-.code-sample pre,.docs-page pre,.readme-source { margin:0;padding:16px;color:#eae7df;font-size:13px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;max-width:100%; }
+.code-sample { margin:16px 0;border:1px solid #eae7df1f;border-radius:12px;background:#0f0f0f; }
+.code-sample-header { display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:8px 12px;color:#9a9486; }
+.code-sample pre,.docs-page pre,.readme-source { margin:0;padding:16px;color:#eae7df;font-size:13px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;max-width:100%;overflow:auto; }
 .docs-boundaries { margin:0;padding:0;list-style:none; }
 .docs-boundaries li { display:flex;gap:8px;align-items:flex-start;margin:0 0 8px; }
 .docs-next { display:flex;flex-wrap:wrap;gap:16px;align-items:center;margin-top:24px; }
@@ -735,7 +735,7 @@ button.text-link:disabled { cursor:not-allowed;opacity:.4;color:var(--text-secon
 .studio-step-actions button,.studio-step-builder > button.button { min-height:44px; background:var(--surface); color:var(--text); border:1px solid var(--border); }
 .studio-step-heading h2 { margin:0; font-size:16px; }
 .studio-step-heading p { margin:4px 0 0; font-size:13px; }
-.code-sample-header button { border:0; background:transparent; color:#f0b429; font-weight:600; }
+.code-sample-header button { border:0; background:transparent; color:#f0b429; font-weight:600; scroll-margin-top:96px; }
 .open-in-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; width:100%; margin-top:8px; }
 .open-in-button { min-height:44px; padding:8px 10px; border:1px solid var(--border); border-radius:8px; background:transparent; color:inherit; font:inherit; font-size:13px; font-weight:600; line-height:1.3; text-align:center; }
 .studio-shell .open-in-button { border-color:var(--border); background:transparent; color:var(--text); }
