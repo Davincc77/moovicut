@@ -93,7 +93,8 @@ function findPlaces(text, lex, language) {
     })) return
     places.push({ name: hit.name, description: hit.name, confidence: hit.tag === 's' ? 'high' : hit.tag === 'unlisted' ? 'low' : 'medium', ...(hit.tag === 'unlisted' ? { unlisted: true } : {}) })
   })
-  return places
+  const props = wornPropKeys(text)
+  return places.filter(place => !isLookPropPlace(place.name, props))
 }
 
 function findCharacters(text, lex, places, language) {
@@ -176,7 +177,7 @@ function findCharacters(text, lex, places, language) {
     if (characters.some(item => item.name !== name && item.name.split(/\s+/).includes(name))) characters.splice(index, 1)
   }
   if (!characters.length) warnings.push({ code: 'missing_character', message: 'No character name found.', target: 'characters' })
-  return { characters, warnings }
+  return { characters, warnings: dropResolvedLookWarnings(characters, warnings) }
 }
 
 function nameIsPossessive(text, index) {
@@ -556,6 +557,43 @@ export function namedWornAndCarried(text) {
   return { garments: worn, items }
 }
 
+const PROP_HEAD = new RegExp(`^(?:${ITEM_WORD}|${GARMENT_WORD})$`, 'iu')
+
+/** Garments and carried items named in the text. A place candidate must not be one of these. */
+export function wornPropKeys(text) {
+  const worn = namedWornAndCarried(text)
+  const keys = new Set()
+  for (const item of [...worn.garments, ...worn.items]) {
+    const clean = foldName(keptTrait(item) || item)
+    if (!clean) continue
+    keys.add(clean)
+    const head = clean.split(/\s+/).filter(Boolean).at(-1) || ''
+    if (PROP_HEAD.test(head)) keys.add(foldName(head))
+  }
+  return keys
+}
+
+/** True when this place name is a garment or prop taken from a character look. */
+export function isLookPropPlace(name, keys) {
+  const key = foldName(name)
+  if (!key || !keys?.size) return false
+  if (keys.has(key)) return true
+  const bits = key.split(/\s+/).filter(Boolean)
+  return bits.length === 1 && keys.has(bits[0])
+}
+
+/** Drop missing_look once the sheet or the story has filled a description, including a merged alias. */
+export function dropResolvedLookWarnings(characters, warnings) {
+  const people = characters || []
+  return (warnings || []).filter(item => {
+    if (item?.code !== 'missing_look' || !item.name) return true
+    const exact = people.find(person => foldName(person.name) === foldName(item.name))
+    if (exact) return !cleanText(exact.look)
+    const owners = people.filter(person => cleanText(person.look) && String(person.name || '').split(/\s+/).some(part => foldName(part) === foldName(item.name) && foldName(item.name).length >= 3))
+    return owners.length !== 1
+  })
+}
+
 function sheetBlob(entry) {
   return foldName([entry?.look, entry?.l, entry?.outfit, entry?.o, entry?.age, entry?.years, entry?.items, entry?.props, entry?.carried, entry?.marks, entry?.hair, entry?.role].map(value => cleanText(value)).filter(Boolean).join(' '))
 }
@@ -751,8 +789,9 @@ function textGender(person, text, characters) {
     if (/(?<![\p{L}])é\s+um(?![\p{L}])/iu.test(window)) male += 2
     if (/\bis\s+an?\s+(?:[\p{L}\d'’-]+\s+){0,8}(?:fisherwoman|woman|girl|mother|wife)\b/iu.test(window)) female += 2
     if (/\bis\s+an?\s+(?:[\p{L}\d'’-]+\s+){0,8}(?:fisherman|man|boy|father|husband)\b/iu.test(window)) male += 2
-    if (/(?<![\p{L}])pescadora(?![\p{L}])/iu.test(window)) female += 2
-    else if (/(?<![\p{L}])(?:pescador|homem)(?![\p{L}])/iu.test(window)) male += 2
+    if (/(?<![\p{L}])(?:pescadora|fisherwoman|mulher)(?![\p{L}])/iu.test(window)) female += 2
+    else if (/(?<![\p{L}])(?:pescador|homem|fisherman)(?![\p{L}])/iu.test(window)) male += 2
+    if (/(?<![\p{L}])(?:barba|beard)(?![\p{L}])/iu.test(window)) male += 2
   }
   if (male > female) return 'm'
   if (female > male) return 'f'
@@ -949,6 +988,23 @@ function relativesOf(relations, role, anchor) {
   return relations.filter(item => item.role === role && !item.of && (!anchor?.name || foldName(item.holder) !== foldName(anchor.name)))
 }
 
+/** The named parent of a child link, when the stored inverse is missing and the gender does not contradict. */
+function parentByChildLink(relations, role, anchor, text, characters) {
+  const childRoles = KINSHIP_ROLES.filter(item => item.inverse.m === role || item.inverse.f === role).map(item => item.id)
+  if (!childRoles.length || !anchor?.name) return []
+  const want = roleGender(role)
+  const found = []
+  for (const item of relations) {
+    if (!childRoles.includes(item.role) || foldName(item.holder) !== foldName(anchor.name) || !item.of) continue
+    const other = resolveCast(item.of, characters)
+    if (!other) continue
+    const gender = genderOf(other, text, characters, relations, null)
+    if (want && gender && gender !== want) continue
+    if (!found.some(name => foldName(name) === foldName(other.name))) found.push(other.name)
+  }
+  return found
+}
+
 function anchorsFor(mention, named, text, characters, relations) {
   if (!named.length) return []
   const gender = person => genderOf(person, text, characters, relations, null)
@@ -972,11 +1028,18 @@ export function kinshipSubject(sentence, characters, story, language = '') {
     const anchors = anchorsFor(mention, named, story || sentence, characters, relations)
     if (!anchors.length) continue
     const holders = []
+    const pushHolder = name => {
+      if (!name || holders.some(item => foldName(item) === foldName(name))) return
+      holders.push(name)
+    }
     anchors.forEach(anchor => {
-      relativesOf(relations, mention.role, anchor).forEach(item => {
-        if (!holders.some(name => foldName(name) === foldName(item.holder))) holders.push(item.holder)
-      })
+      relativesOf(relations, mention.role, anchor).forEach(item => pushHolder(item.holder))
     })
+    if (!holders.length) {
+      anchors.forEach(anchor => {
+        parentByChildLink(relations, mention.role, anchor, story || sentence, characters).forEach(pushHolder)
+      })
+    }
     if (holders.length !== 1) continue
     if (named.some(person => foldName(person.name) === foldName(holders[0]))) continue
     if (!added.some(name => foldName(name) === foldName(holders[0]))) added.push(holders[0])
@@ -994,6 +1057,128 @@ export function applyKinship(who, sentence, characters, story, language) {
     next = next ? `${next} and ${clean}` : clean
   })
   return next
+}
+
+const PT_ROLE_WORD = /^(?:filha|filho|pai|mãe|mae|irmã|irma|irmão|irmao|avó|avo|avô|marido|esposa|mulher|neta|neto)$/iu
+const DEFINITE_ROLE = new RegExp(`(?<![\\p{L}])(his|her|their|seu|sua|seus|suas|the|o|os|as|a)\\s+(${ROLE_PATTERN})(?![\\p{L}])(?!\\s+(?:de|do|da|dos|das|of)\\b)`, 'giu')
+const OWNED_ROLE = new RegExp(`(?<![\\p{L}])([\\p{L}'’-]+(?:\\s+[\\p{L}'’-]+){0,2})['’]s\\s+(${ROLE_PATTERN})(?![\\p{L}])`, 'giu')
+const OF_ROLE = new RegExp(`(?<![\\p{L}])(${ROLE_PATTERN})(?![\\p{L}])\\s+(?:de|do|da|dos|das|of)\\s+(?:a\\s+|o\\s+|the\\s+)?([\\p{L}'’-]+(?:\\s+[\\p{L}'’-]+){0,2})`, 'giu')
+
+function kinshipSheetText(person) {
+  return [person?.look, person?.l, person?.outfit, person?.o, person?.role, person?.age, person?.items, person?.props, person?.carried, person?.notes]
+    .map(value => cleanText(value))
+    .filter(Boolean)
+    .join('. ')
+}
+
+function roleIsPortuguese(word) {
+  return PT_ROLE_WORD.test(word)
+}
+
+function definiteSheetRole(article, word) {
+  const kind = foldName(article)
+  if (['his', 'her', 'their', 'the', 'o', 'os'].includes(kind)) return true
+  if ((kind === 'a' || kind === 'as') && roleIsPortuguese(word)) return true
+  if ((kind === 'seu' || kind === 'sua' || kind === 'seus' || kind === 'suas') && roleIsPortuguese(word)) return true
+  return false
+}
+
+function canonicalKinship(holder, word, other) {
+  const role = roleByWord(word)
+  if (!role || !holder?.name || !other?.name) return ''
+  if (foldName(holder.name) === foldName(other.name)) return ''
+  if (roleIsPortuguese(word)) {
+    const article = role.gender === 'f' ? 'a' : 'o'
+    return `${holder.name} é ${article} ${word.toLowerCase()} de ${other.name}.`
+  }
+  return `${holder.name} is the ${word.toLowerCase()} of ${other.name}.`
+}
+
+function sheetRest(blob) {
+  const article = new RegExp(`(?<![\\p{L}])(?:his|her|their|seu|sua|seus|suas|the|um|uma|uns|umas|o|os|as|an|a)\\s+(?=(?:${ROLE_PATTERN})(?![\\p{L}]))`, 'giu')
+  const stripped = String(blob || '')
+    .replace(OWNED_ROLE, ' ')
+    .replace(article, ' ')
+    .replace(OF_ROLE, ' ')
+    .replace(DEFINITE_ROLE, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/^[,.\s]+|[,.\s]+$/g, '')
+  return cleanText(stripped)
+}
+
+function singleOther(person, characters, want) {
+  const rest = (characters || []).filter(item => item?.name && foldName(item.name) !== foldName(person?.name))
+  if (!rest.length) return null
+  const gender = item => textGender(item, kinshipSheetText(item) ? `${item.name}, ${kinshipSheetText(item)}.` : item.name, characters)
+  if (want === 'm' || want === 'f') {
+    const known = rest.filter(item => gender(item) === want)
+    if (known.length === 1) return known[0]
+    const open = rest.filter(item => gender(item) !== (want === 'm' ? 'f' : 'm'))
+    return rest.length === 1 && open.length === 1 ? rest[0] : null
+  }
+  return rest.length === 1 ? rest[0] : null
+}
+
+function pronounWant(article) {
+  const kind = foldName(article)
+  if (kind === 'his') return 'm'
+  if (kind === 'her') return 'f'
+  return ''
+}
+
+/**
+ * Kinship that lives only on a character sheet, written as the sentences the prose rules already read.
+ * A bare "A filha" names the other person only when the cast has exactly one other character.
+ */
+export function sheetKinshipLines(characters) {
+  const cast = (characters || []).filter(person => person?.name)
+  const lines = []
+  const seen = new Set()
+  const push = line => {
+    const clean = cleanText(line)
+    const key = foldName(clean)
+    if (!key || seen.has(key)) return
+    seen.add(key)
+    lines.push(clean.endsWith('.') ? clean : `${clean}.`)
+  }
+  const resetRoles = () => {
+    OWNED_ROLE.lastIndex = 0
+    OF_ROLE.lastIndex = 0
+    DEFINITE_ROLE.lastIndex = 0
+  }
+  cast.forEach(person => {
+    resetRoles()
+    const rest = sheetRest(kinshipSheetText(person))
+    if (rest) push(`${person.name}, ${rest}.`)
+  })
+  cast.forEach(person => {
+    resetRoles()
+    const blob = kinshipSheetText(person)
+    if (!blob) return
+    const explicit = []
+    const addExplicit = (word, label) => {
+      const other = resolveCast(label, cast)
+      const line = canonicalKinship(person, word, other)
+      if (line) explicit.push(line)
+    }
+    for (const match of blob.matchAll(OWNED_ROLE)) addExplicit(match[2], match[1])
+    for (const match of blob.matchAll(OF_ROLE)) addExplicit(match[1], match[2])
+    if (explicit.length) {
+      explicit.forEach(push)
+      return
+    }
+    const bare = [...blob.matchAll(DEFINITE_ROLE)].filter(match => definiteSheetRole(match[1], match[2]))
+    if (bare.length !== 1) return
+    const word = bare[0][2]
+    const other = singleOther(person, cast, pronounWant(bare[0][1]))
+    const line = canonicalKinship(person, word, other)
+    if (!line) return
+    push(line)
+    const want = pronounWant(bare[0][1])
+    if (want === 'm') push(`${other.name}. His ${word.toLowerCase()}, ${person.name}.`)
+    if (want === 'f') push(`${other.name}. Her ${word.toLowerCase()}, ${person.name}.`)
+  })
+  return lines.join('\n')
 }
 
 function rememberPresent(present, who) {

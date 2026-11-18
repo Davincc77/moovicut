@@ -3,7 +3,7 @@ import { cleanText } from './text.js'
 import { foldName, scenarioBudget, scenarioPremise, scenarioToFields } from './scenario.js'
 import { flaggedNameKeys } from './shot-risk.js'
 import { splitActionText } from './action-split.js'
-import { applyKinship, detectLocalized, groupSubject, identityTraits, keptTrait } from './prose-extra.js'
+import { applyKinship, detectLocalized, dropResolvedLookWarnings, groupSubject, identityTraits, isLookPropPlace, keptTrait, wornPropKeys } from './prose-extra.js'
 import { inNamedVenue, inSpans, interactionPossessive, isCueStopword, isFunctionWord, isHonorificStop, isNeverPlace, isNumberWord, isQuotedOrRemembered, isVenueType, mentionMovesScene, namedVenues, opensParagraph, placeMentionIsReal, quoteSpans, sentenceHasTimeCue, splitNarrative } from './scene-split.js'
 import { aircraftPlace, enteredPlace, finishCarriedPlace, inspectedPlace, isNonPlaceNoun, isRejectedPlace, libraryHits, locativeHeads, movementPlace, normalizePlaceName, placeLexiconHas, placeTag, possessivePlace, preferPlaceHead, settingName, tidyPlaceLemma } from './place-lexicon.js'
 
@@ -671,7 +671,7 @@ function detectCharacters(text, places = [], language = 'en') {
   })
   const people = mergeAliases(characters)
   if (!people.length && !skippedFlagged) warnings.push({ code: 'missing_character', message: 'No character name found.', target: 'characters' })
-  return { characters: people, warnings, skippedFlagged }
+  return { characters: people, warnings: dropResolvedLookWarnings(people, warnings), skippedFlagged }
 }
 
 function matchOne(text, pattern) {
@@ -866,6 +866,8 @@ function detectPlaces(text, language, people = new Set()) {
     const keys = known ? known.keys : [place.name]
     return keys.some(key => placeMentionIsReal(source, key, language))
   })
+  const lookProps = wornPropKeys(source)
+  visible = visible.filter(place => !isLookPropPlace(place.name, lookProps))
   if (!visible.length) {
     const generic = genericPlace(language)
     visible = [{ ...generic, confidence: 'low', trusted: true }]

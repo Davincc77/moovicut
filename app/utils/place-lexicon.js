@@ -46,7 +46,8 @@ const EXPLICIT_NON_PLACES = new Set([
   'sand', 'sands', 'areia', 'desk', 'desks', 'escrivaninha', 'secretária', 'secretaria',
   'trapeze', 'trapézio', 'trapezio', 'carriage', 'carruagem', 'air', 'ar', 'snow', 'neve', 'ice', 'gelo', 'água', 'agua', 'water',
   'base', 'bases', 'board', 'boards', 'quadro',
-  'piano', 'pianos', 'lid', 'lids', 'tampa', 'tampas'
+  'piano', 'pianos', 'lid', 'lids', 'tampa', 'tampas',
+  'cachimbo', 'cachimbos'
 ].map(word => word.toLowerCase().replace(/’/g, "'")))
 
 /** Sure places the WordNet walk does not list. A locative still accepts other unlisted nouns. */
