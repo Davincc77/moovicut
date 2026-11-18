@@ -945,7 +945,7 @@ function splitBlocks(text) {
 function possessiveAt(text, index) {
   const before = String(text || '').slice(Math.max(0, index - 32), index)
   if (interactionPossessive(before)) return false
-  return /(?:de|do|da|dos|das|of)\s+$/iu.test(before)
+  return /(?<![\p{L}])(?:de|do|da|dos|das|of)\s+$/iu.test(before)
 }
 
 function namesIn(text, characters) {

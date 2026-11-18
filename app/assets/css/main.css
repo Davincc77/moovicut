@@ -534,6 +534,15 @@ button.text-link:disabled { cursor:not-allowed;opacity:.4;color:var(--text-secon
 .studio-scenario-example, .studio-scenario-confidence, .studio-scenario-budget { margin:0; color:var(--text-secondary); font-size:13px; }
 .studio-scenario-warnings { margin:0; padding-left:18px; color:var(--error); }
 .studio-risk-summary,.studio-risk-list { margin:8px 0; padding:10px 12px; border:1px solid #ef444455; border-radius:10px; background:#ef444414; color:var(--error); }
+.name-sheet-notices { list-style:none; margin:8px 0; padding:0; display:grid; gap:8px; }
+.name-sheet-notice { margin:0; padding:10px 12px; border:1px solid var(--error); border-radius:10px; background:var(--surface); color:var(--text); }
+.name-sheet-notice p { margin:0 0 8px; }
+.name-sheet-actions { display:flex; flex-wrap:wrap; gap:8px; }
+.name-sheet-actions .button { min-height:44px; }
+@media (max-width:767px) {
+  .name-sheet-actions { flex-direction:column; }
+  .name-sheet-actions .button { width:100%; }
+}
 .studio-risk-list { padding-left:28px; }
 .studio-risk-list li { margin:6px 0; }
 .studio-soft-hint { margin:8px 0; color:var(--text-secondary); font-size:13px; }

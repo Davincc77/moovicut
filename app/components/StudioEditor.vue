@@ -5,7 +5,7 @@ import { joinAppPath } from '~/utils/urls.js'
 import { STUDIO_INSPIRATIONS, promptImageSrc } from '~/utils/reference-content.js'
 import { combinedShotPrompts, partShotPrompts, runOpenTarget } from '~/utils/open-targets.js'
 import { asCharacter, lockLineFor } from '~/utils/character-lock.js'
-import { assessShot } from '~/utils/shot-risk.js'
+import { assessProject, assessShot } from '~/utils/shot-risk.js'
 import { downloadBody } from '~/composables/useNotifier.js'
 const store = useProjectStore()
 const { locale, t } = useI18n()
@@ -34,6 +34,7 @@ const shotGroups = computed(() => {
   return parts.map(part => ({ key: `part-${part.index}`, part, shots: shots.filter(shot => shot.order >= part.from && shot.order <= part.to) }))
 })
 const shotRisks = computed(() => activeShot.value ? assessShot(activeShot.value, project.value) : [])
+const boardWarnings = computed(() => assessProject(project.value))
 const cast = computed(() => (project.value.filmSheet?.characters || []).map(character => {
   const person = asCharacter(character)
   return { name: person.name, line: lockLineFor(character, activeShot.value?.order || 1, locale.value || 'en') }
@@ -138,6 +139,7 @@ function onExport(id) {
         <span>{{ $t('{count} visible shots', { count: filteredShots.length }) }}</span>
       </div>
       <p v-if="project.parts && project.parts.length > 1" class="board-parts-note">{{ $t('Verified continuity up to 40 shots') }}</p>
+      <NameSheetNotice :warnings="boardWarnings" @create="store.applyShotFix($event)" @ignore="store.applyShotFix({ ...$event, fixId: 'ignore-name' })" />
       <template v-for="group in shotGroups" :key="group.key">
         <section v-if="group.part" class="board-part" :aria-label="$t('Part {index}', { index: group.part.index })">
           <header class="board-part-heading">

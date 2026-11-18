@@ -180,7 +180,7 @@ function findCharacters(text, lex, places, language) {
 }
 
 function nameIsPossessive(text, index) {
-  return /(?:de|do|da|dos|das|of)\s+$/iu.test(String(text || '').slice(Math.max(0, index - 12), index))
+  return /(?<![\p{L}])(?:de|do|da|dos|das|of)\s+$/iu.test(String(text || '').slice(Math.max(0, index - 16), index))
 }
 
 function traitWindow(text, name, names) {
@@ -213,7 +213,7 @@ const PT_AGE = new RegExp(`^(?:cerca de\\s+)?(?:tem\\s+|têm\\s+)?(?:\\d{1,3}|${
 const PT_ROLE = /(?<![\p{L}])(pescadora|pescador|padeira|padeiro|professora|professor|cozinheira|cozinheiro|enfermeira|enfermeiro|agricultora|agricultor|marinheira|marinheiro|guarda|aprendiz|arquivista|aluna|aluno|estudante|pintora|pintor)(?![\p{L}])/iu
 const PT_LOOK = /(?<![\p{L}])(cabelo|cabelos|barba|bigode|olhos|rosto|pele|coque|caracóis|caracois|tranças|trancas|franja|madeixas|binóculos|binoculos|óculos|oculos|careca|calvo|calva|bald|rastas|dreadlocks|dreads)(?![\p{L}])/iu
 const PT_WEAR = /(?<![\p{L}])(impermeável|impermeavel|gabardina|capa|casaco|avental|vestido|camiseta|camisetas|camisa|t-shirt|jaqueta|blusa|saia|calças|calcas|chapéu|chapeu|boné|bonés|botas|lenço|lenco|xaile|uniforme|jardineira|jardineiras|luvas|luva|camisola|colete|macacão|macacao|pulôver|pullover|fato-macaco|fato|farda|tailleur|batina|bata|batas|pérolas|perolas)(?![\p{L}])/iu
-const PT_PROP = /(?<![\p{L}])((?:um|uma|uns|umas)\s+(?:apito|lanterna|chave|carta|bússola|bussola|martelo|câmara|camera|leque|flauta|pincel|caderno|cadernos|mochila|prancha|facão|facao|machado|microfone|estetoscópio|estetoscopio|anel|conchas|concha|terço|terco)|binóculos(?:\s+ao\s+pescoço)?|binoculos(?:\s+ao\s+pescoco)?|lanterna|apito|câmara|camera|leque|flauta|pincel|caderno|cadernos|mochila|violino|giz|prancha|facão|facao|conchas|concha|microfone|terço|terco)(?![\p{L}])/iu
+const PT_PROP = /(?<![\p{L}])((?:um|uma|uns|umas)\s+(?:apito|lanterna|chave|carta|bússola|bussola|martelo|câmara|camera|leque|flauta|pincel|caderno|cadernos|mochila|prancha|facão|facao|machado|microfone|estetoscópio|estetoscopio|anel|conchas|concha|terço|terco|colar|colares)|binóculos(?:\s+ao\s+pescoço)?|binoculos(?:\s+ao\s+pescoco)?|lanterna|apito|câmara|camera|leque|flauta|pincel|caderno|cadernos|mochila|violino|giz|prancha|facão|facao|conchas|concha|microfone|terço|terco|colar|colares)(?![\p{L}])/iu
 const PT_DANGLING = /(?:\s+(?:de|do|da|dos|das|em|no|na|nos|nas|num|numa|com|por|para|ao|à|aos|às|pelo|pela|preso|presa|um|uma|o|a))+$/iu
 const PT_FEMININE = new Map([
   ['pescador', 'pescadora'],
@@ -297,7 +297,7 @@ const HAIR_BIT = new RegExp(`(?<![\\p{L}])(?:slicked-back\\s+)?(?:(?:short|long|
 const MARK_BIT = /(?<![\p{L}])((?:red|white|round|rubber)\s+nose|(?:nariz)(?:\s+vermelho|\s+de\s+palhaço|\s+de\s+palhaco)?)(?![\p{L}])/giu
 const GARMENT_WORD = 't-shirt|tee-shirt|sweatshirt|raincoat|peacoat|overcoat|waistcoat|cardigan|blazer|anorak|parka|hoodie|jumper|pullover|overalls|dungarees|impermeável|impermeavel|gabardina|casaco|jaqueta|camisola|camiseta|camisetas|colete|vestido|camisa|blusa|saia|calças|calcas|avental|jardineira|macacão|macacao|farda|fato-macaco|fato|capa|cape|cloak|robe|uniform|apron|coat|jacket|dress|shirt|sweater|skirt|blouse|trousers|pants|scarf|gloves|luvas|goggles|óculos|oculos|hat|cap|boné|bonés|boots|botas|suit|cachecol|cachecóis|cachecois|chapéu|chapeu|lenço|lenco|xaile|xale|shawl|tailleur|batina|bata|batas|pérolas|perolas|pearls'
 const GARMENT_BIT = new RegExp(`(?<![\\p{L}])((?:[\\p{L}'’-]+\\s+){0,3}(?:${GARMENT_WORD}))(?![\\p{L}])(?:\\s+(?!e\\b|and\\b|com\\b|with\\b|e\\b)(?:de|do|da|dos|das|of|[\\p{L}'’-]+)){0,3}`, 'giu')
-const ITEM_WORD = 'mochila|backpack|rucksack|locket|whistle|apito|key|chave|compass|bússola|bussola|lanterna|câmara|camera|leque|fan|binóculos|binoculos|punch|radio|flauta|flute|pincel|brush|caderno|cadernos|notebook|violino|axe|machado|picareta|cane|bengala|goggles|facão|facao|machete|prancha|surfboard|conchas|concha|shells|shell|microphone|microfone|stethoscope|estetoscópio|estetoscopio|anel|ring|rings|nariz|nose|lápis|lapis|pencil|pencils|argola|argolas|brinco|brincos|earring|earrings|cachimbo|cachimbos|pipe|pipes|terço|terco|rosary|rosaries'
+const ITEM_WORD = 'mochila|backpack|rucksack|locket|whistle|apito|key|chave|compass|bússola|bussola|lanterna|câmara|camera|leque|fan|binóculos|binoculos|punch|radio|flauta|flute|pincel|brush|caderno|cadernos|notebook|violino|axe|machado|picareta|cane|bengala|goggles|facão|facao|machete|prancha|surfboard|conchas|concha|shells|shell|microphone|microfone|stethoscope|estetoscópio|estetoscopio|anel|ring|rings|nariz|nose|lápis|lapis|pencil|pencils|argola|argolas|brinco|brincos|earring|earrings|cachimbo|cachimbos|pipe|pipes|colar|colares|necklace|necklaces|terço|terco|rosary|rosaries'
 const ITEM_TAIL = '(?:\\s+(?:de|do|da|of)\\s+[\\p{L}\'’-]+|\\s+(?!e\\b|and\\b|um\\b|uma\\b|com\\b|with\\b|back\\b|to\\b|para\\b|for\\b|up\\b|down\\b|off\\b|a\\b|the\\b|his\\b|her\\b|their\\b|under\\b|over\\b|beneath\\b|behind\\b|from\\b|in\\b|at\\b|on\\b|into\\b|onto\\b)[\\p{L}\'’-]+)'
 const ITEM_PREFIX = '(?:(?!e\\b|and\\b|com\\b|with\\b|ou\\b|or\\b|shows?\\b|holds?\\b|holding\\b|segura\\b|seguram\\b|mostra\\b|mostram\\b|the\\b|an\\b|a\\b|o\\b|os\\b|as\\b|um\\b|uma\\b)[\\p{L}\'’-]+\\s+){0,2}'
 const ITEM_BIT = new RegExp(`(?<![\\p{L}])(?:uma|um|uns|umas|an|a)(?![\\p{L}])\\s+(${ITEM_PREFIX}(?:${ITEM_WORD})(?![\\p{L}])${ITEM_TAIL}{0,2})`, 'giu')
@@ -607,7 +607,7 @@ function findAmbience(text, lex) {
 function possessiveAt(text, index) {
   const before = String(text || '').slice(Math.max(0, index - 32), index)
   if (interactionPossessive(before)) return false
-  return /(?:de|do|da|dos|das|of)\s+$/iu.test(before)
+  return /(?<![\p{L}])(?:de|do|da|dos|das|of)\s+$/iu.test(before)
 }
 
 function nameInText(text, name) {

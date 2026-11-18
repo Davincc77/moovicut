@@ -158,7 +158,8 @@ export function blankWizard() {
     places: [blankPlace('place-1')],
     shots: [blankShot('shot-1')],
     hasGenerated: false,
-    generatedSignature: ''
+    generatedSignature: '',
+    ignoredNames: []
   }
 }
 
@@ -869,6 +870,24 @@ export function acceptSplit(state, id) {
 
 export function applyCheckFix(state, warning) {
   if (!warning) return state
+  if (warning.fixId === 'create-sheet' && warning.name) {
+    const next = clone(state)
+    if (!next.characters.some(item => foldName(item.name) === foldName(warning.name))) {
+      const character = blankCharacter(nextId('character', next.characters))
+      character.name = warning.name
+      next.characters.push(character)
+    }
+    next.characterIndex = Math.max(0, next.characters.findIndex(item => foldName(item.name) === foldName(warning.name)))
+    next.step = 'characters'
+    next.maxReached = Math.max(next.maxReached || 0, stepIndex('characters'))
+    return next
+  }
+  if (warning.fixId === 'ignore-name' && warning.name) {
+    const next = clone(state)
+    const names = Array.isArray(next.ignoredNames) ? next.ignoredNames : []
+    if (!names.some(item => foldName(item) === foldName(warning.name))) next.ignoredNames = [...names, warning.name]
+    return next
+  }
   const index = Math.max(0, (Number(warning.order) || 1) - 1)
   const shot = state.shots[index]
   if (!shot) return state
@@ -981,6 +1000,7 @@ export function projectFromWizard(state, { id, promptLanguage = 'en' } = {}) {
     return { ...shot, framingTerm: term.id, framingChosen: true, framing: term.label }
   })
   const next = { ...project, shots }
+  if (Array.isArray(state.ignoredNames) && state.ignoredNames.length) next.ignoredNames = state.ignoredNames.slice()
   next.shots = shots.map((shot, index) => refreshShotPrompt(shot, next, index))
   if (next.shots.length > 40) throw new Error('Moovicut is built for up to 40 shots (a short or medium film, or one chapter). Split the story into chapters and send them one by one, reusing the exported character sheet so faces stay consistent.')
   return next
@@ -1115,6 +1135,7 @@ export function normalizeWizard(value) {
   next.shotIndex = Math.max(0, Math.min(next.shots.length - 1, Number(value.shotIndex) || 0))
   next.hasGenerated = value.hasGenerated === true
   next.generatedSignature = typeof value.generatedSignature === 'string' ? value.generatedSignature.slice(0, 200000) : ''
+  next.ignoredNames = Array.isArray(value.ignoredNames) ? value.ignoredNames.map(item => cleanText(item).slice(0, 80)).filter(Boolean).slice(0, 40) : []
   return clampWizardStep(next)
 }
 

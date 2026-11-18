@@ -242,8 +242,24 @@ export function useProjectStore() {
     }, 'Framing updated. The English term is in the generated prompt.')
   }
   function applyShotFix(warning) {
-    if (!warning?.shotId) return
+    if (!warning) return
     const fix = warning.fixId
+    if ((fix === 'create-sheet' || fix === 'ignore-name') && warning.name) {
+      mutate(next => {
+        next.filmSheet = next.filmSheet || { characters: [], places: [], style: next.filmSheet?.style, light: next.filmSheet?.light }
+        if (fix === 'ignore-name') {
+          const names = Array.isArray(next.ignoredNames) ? next.ignoredNames : []
+          if (!names.some(item => foldName(item) === foldName(warning.name))) next.ignoredNames = [...names, warning.name]
+          return
+        }
+        const characters = next.filmSheet.characters || []
+        if (!findByName(characters, warning.name)) {
+          next.filmSheet = { ...next.filmSheet, characters: [...characters, { name: warning.name, look: '', outfit: '' }] }
+        }
+      }, fix === 'ignore-name' ? 'Ignored a word that is not a name.' : 'Character sheet created.')
+      return
+    }
+    if (!warning.shotId) return
     if (fix === 'split-shot') {
       const next = splitShotByAction(project.value, warning.shotId)
       if (!next) { notify('This shot is already one action.', 'info'); return }

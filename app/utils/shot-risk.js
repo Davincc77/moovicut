@@ -2,6 +2,7 @@
 import { findByName, foldName, nameParts } from './scenario.js'
 import { isNonPlaceNoun, isRejectedPlace } from './place-lexicon.js'
 import { warningAction } from './warning-action.js'
+import { nameWithoutSheetWarnings } from './name-sheet.js'
 import { cleanText } from './text.js'
 import { allowedDurations, profileFor, snapAspect } from './model-profiles.js'
 import { continuityWarnings } from './continuity-check.js'
@@ -214,6 +215,7 @@ export function assessProject(project) {
   const warnings = ranges.flatMap(range => shots.slice(range.start, range.end).flatMap(shot => assessShot(shot, project)))
   warnings.push(...emptyCastWarnings(project))
   warnings.push(...partJoinWarnings(project))
+  warnings.push(...nameWithoutSheetWarnings(project))
   const seen = new Set()
   return warnings.filter(item => {
     if (item.code !== 'sora_long_clip') return true
