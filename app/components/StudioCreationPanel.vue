@@ -24,7 +24,10 @@ function sitePromptLanguage() {
 const project = store.project
 const { notify, copyText, downloadText } = useNotifier()
 const remembered = readStudioChoices(import.meta.client ? localStorage : null)
-const handoff = import.meta.client ? takeStudioHandoff(sessionStorage) : { premise: '', model: '' }
+// studio.vue takes the sessionStorage handoff once and passes it down; the
+// local take stays only for standalone mounts (tests, direct renders)
+const props = defineProps({ handoff: { type: Object, default: null } })
+const handoff = props.handoff || (import.meta.client ? takeStudioHandoff(sessionStorage) : { premise: '', model: '' })
 const premise = ref(handoff.premise || '')
 const model = ref(canonicalModel(handoff.model) || remembered.model || canonicalModel(project.value.target_model) || 'grok')
 watch(() => project.value.target_model, value => { const next = canonicalModel(value); if (next) model.value = next })
