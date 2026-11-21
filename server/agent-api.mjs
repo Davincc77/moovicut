@@ -63,11 +63,11 @@ export function clientAddress(headers = {}, fallback = '') {
 }
 
 export function isLimitedPath(pathname) {
-  return pathname === '/mcp' || pathname.startsWith('/api/')
+  return pathname === '/mcp' || pathname === '/a2a' || pathname.startsWith('/api/')
 }
 
 export function isAgentPath(pathname) {
-  return pathname === '/mcp' || pathname === '/openapi.json' || pathname.startsWith('/api/v1/')
+  return pathname === '/mcp' || pathname === '/a2a' || pathname === '/openapi.json' || pathname.startsWith('/api/v1/')
 }
 
 function json(status, body, extra = {}) {
@@ -1208,6 +1208,108 @@ export function mcpInfo(origin = SITE) {
   }
 }
 
+export function a2aInfo(origin = SITE) {
+  return {
+    name: 'moovicut',
+    protocol: 'a2a',
+    protocolVersion: '0.3',
+    url: `${origin}/a2a`,
+    card: `${origin}/.well-known/agent-card.json`,
+    transport: 'JSON-RPC 2.0 over HTTPS',
+    authentication: 'none',
+    rateLimit: `${RATE_LIMIT.limit} requests per minute per IP`,
+    storage: 'none',
+    video: false,
+    methods: ['message/send'],
+    note: 'One synchronous call per message. No task state and no streaming: moovicut plans and answers in the same response.'
+  }
+}
+
+function a2aError(id, code, message, data) {
+  const error = { code, message }
+  if (data !== undefined) error.data = data
+  return json(200, { jsonrpc: '2.0', id: id ?? null, error })
+}
+
+function a2aSummary(name, doc) {
+  if (name === 'plan_storyboard') {
+    const count = Array.isArray(doc.shots) ? doc.shots.length : 0
+    const extra = Array.isArray(doc.parts) ? `, ${doc.parts.length} parts` : ''
+    const link = doc.studioUrl ? ` Open in the studio: ${doc.studioUrl}` : ''
+    return `${count} shots planned${extra}.${link} Moovicut does not render video.`
+  }
+  if (name === 'export_prompts') return `${Array.isArray(doc.shots) ? doc.shots.length : 0} shot prompts exported.`
+  return doc.ok ? `Valid board: ${doc.shots} shots.` : `Invalid board: ${doc.message || 'see the error data.'}`
+}
+
+/**
+ * A2A v0.3 over JSON-RPC 2.0, the same honesty as the MCP surface: one
+ * synchronous method, nothing stored, the planner's named errors carried as
+ * error data so a weak model gets the repair prompt instead of a shrug.
+ * A data part is the full request (or {tool, args}); text parts are the story.
+ */
+export function a2a(body, origin = SITE) {
+  let message
+  try { message = JSON.parse(body || '') } catch { return a2aError(null, -32700, 'Parse error') }
+  if (!message || typeof message !== 'object' || Array.isArray(message)) return a2aError(null, -32600, 'Invalid request')
+  const { id, method, params } = message
+  if (message.jsonrpc !== '2.0' || typeof method !== 'string') return a2aError(id ?? null, -32600, 'Invalid request')
+  if (method === 'ping') return rpcResult(id, {})
+  if (method === 'message/stream') return a2aError(id, -32601, 'Streaming is not supported. message/send answers in the same response.')
+  if (method.startsWith('tasks/') && method !== 'tasks/send') return a2aError(id, -32601, 'No task state: nothing is stored. Use message/send.')
+  if (method !== 'message/send' && method !== 'tasks/send') return a2aError(id, -32601, 'Method not found')
+  const parts = Array.isArray(params?.message?.parts) ? params.message.parts : []
+  const texts = parts.filter(part => part?.kind === 'text' && String(part.text || '').trim()).map(part => String(part.text).trim())
+  const datas = parts.filter(part => part?.kind === 'data' && part.data && typeof part.data === 'object' && !Array.isArray(part.data))
+  if (!texts.length && !datas.length) return a2aError(id, -32602, 'Send at least one part: a text part with the story, or a data part with the request.')
+  let toolName = 'plan_storyboard'
+  let input
+  if (datas.length) {
+    const data = datas[0].data
+    if (typeof data.tool === 'string') {
+      toolName = data.tool
+      input = data.args && typeof data.args === 'object' && !Array.isArray(data.args)
+        ? data.args
+        : Object.fromEntries(Object.entries(data).filter(([key]) => key !== 'tool'))
+    } else {
+      input = data
+    }
+  } else {
+    input = { premise: texts.join('\n\n') }
+  }
+  if (!TOOLS.some(tool => tool.name === toolName)) {
+    return a2aError(id, -32602, `Unknown tool: ${toolName}. Tools: ${TOOLS.map(tool => tool.name).join(', ')}.`)
+  }
+  const fail = error => a2aError(id, -32602, String(error.message || 'The request was rejected.'), {
+    ...(error.code ? { error: error.code } : {}),
+    ...(Array.isArray(error.errors) && error.errors.length ? { errors: error.errors } : {})
+  })
+  let result
+  try {
+    result = callTool(toolName, input, origin)
+  } catch (error) {
+    if (toolName === 'plan_storyboard' && !datas.length && texts.length && error.code === 'invalid_plan') {
+      try { result = callTool(toolName, { input: 'prose', prose: texts.join('\n\n') }, origin) }
+      catch (second) { return fail(second) }
+    } else return fail(error)
+  }
+  const raw = result.content?.[0]?.text ?? ''
+  if (result.isError) {
+    const doc = safeJson(raw)
+    return a2aError(id, -32602, doc.message || raw || 'The tool rejected the document', {
+      ...(doc.error ? { error: doc.error } : {}),
+      ...(Array.isArray(doc.errors) ? { errors: doc.errors } : {})
+    })
+  }
+  const doc = safeJson(raw)
+  return rpcResult(id, {
+    kind: 'message',
+    role: 'agent',
+    messageId: `moovicut-${Date.now()}`,
+    parts: [{ kind: 'data', data: doc }, { kind: 'text', text: a2aSummary(toolName, doc) }]
+  })
+}
+
 export function dispatchAgentRequest({ method = 'GET', pathname = '/', searchParams, headers = {}, body = '', origin = SITE, limiter, ip = '' } = {}) {
   if (!isAgentPath(pathname)) return null
   const verb = String(method || 'GET').toUpperCase()
@@ -1223,6 +1325,12 @@ export function dispatchAgentRequest({ method = 'GET', pathname = '/', searchPar
   if (pathname === '/mcp' && verb === 'POST') {
     if (Buffer.byteLength(body || '') > MCP_BODY_LIMIT) return json(413, { error: 'payload_too_large', message: 'The MCP body is over 128 KB.' })
     return mcp(body, origin)
+  }
+  if (pathname === '/a2a') {
+    if (verb === 'GET') return json(200, a2aInfo(origin))
+    if (verb !== 'POST') return json(405, { error: 'method_not_allowed', message: 'GET describes /a2a. POST JSON-RPC with message/send. The card is at /.well-known/agent-card.json.' }, { allow: 'GET, POST, OPTIONS' })
+    if (Buffer.byteLength(body || '') > MCP_BODY_LIMIT) return json(413, { error: 'payload_too_large', message: 'The A2A body is over 128 KB.' })
+    return a2a(body, origin)
   }
   if (pathname === '/api/v1/storyboard') {
     if (verb !== 'POST') return json(405, { error: 'method_not_allowed', message: 'Plan a board with POST /api/v1/storyboard. Put the full story in premise, or set input to "prose" and send the text as prose. One action beat is one shot. Do not shorten a long story or drop actions: more than 40 shots come back as parts. GET does not plan a board.' }, { allow: 'POST, OPTIONS' })
@@ -1270,7 +1378,7 @@ export async function handleAgentHttp(request, response, { pathname, searchParam
   const verb = request.method || 'GET'
   let body = ''
   if (verb !== 'GET' && verb !== 'HEAD' && verb !== 'OPTIONS') {
-    try { body = await readLimitedBody(request, bodyLimit || (pathname === '/mcp' ? MCP_BODY_LIMIT : STORYBOARD_BODY_LIMIT)) }
+    try { body = await readLimitedBody(request, bodyLimit || (pathname === '/mcp' || pathname === '/a2a' ? MCP_BODY_LIMIT : STORYBOARD_BODY_LIMIT)) }
     catch (error) {
       const payload = json(error.status || 413, { error: 'payload_too_large', message: 'The request body is too large.' })
       response.writeHead(payload.status, payload.headers)

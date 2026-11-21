@@ -26,7 +26,7 @@ Use `POST /mcp` when the client speaks MCP (Cursor, Claude, and other JSON-RPC t
 
 The agent skill is `SKILL.md`, served at `/skill` and `/SKILL.md`. Use `POST /api/v1/storyboard` for a plain JSON request. Send `compact: true` or `?compact=1` when you want only `title`, `premise`, `model`, `aspectRatio`, `studioUrl`, and `shots` of `{ order, duration, prompt }`. A story longer than 40 shots returns `parts`. Each part has at most 40 shots and reuses the same character sheet and place sheet.
 
-Use `GET /openapi.json` for an OpenAPI 3.1 document. `GET /.well-known/mcp.json` is the discovery file. `GET /mcp` describes the endpoint.
+Use `GET /openapi.json` for an OpenAPI 3.1 document. `GET /.well-known/mcp.json` is the discovery file. `GET /mcp` describes the endpoint. `POST /a2a` is A2A v0.3 `message/send` (synchronous, no task state); the card is `GET /.well-known/agent-card.json`.
 
 `studioUrl` is a `/studio#board=` link. The board is in the URL fragment, so opening it does not send the premise to the server again. Very large boards fall back to `/studio` without the fragment; export JSON in that case.
 
