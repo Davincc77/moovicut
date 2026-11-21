@@ -1,0 +1,33 @@
+{
+  "protocolVersion": "0.3",
+  "name": "Moovicut",
+  "description": "Free, deterministic storyboard planner for AI agents: a premise or story prose in, an editable shotboard.v1 out with a short video prompt per shot. No API key, no account, nothing stored. Moovicut does not render video.",
+  "version": "1.0.0",
+  "url": "https://moovicut.studio/a2a",
+  "provider": { "organization": "Davincc", "url": "https://moovicut.studio" },
+  "icon": "https://moovicut.studio/icon-512.png",
+  "documentation": "https://moovicut.studio/llms.txt",
+  "capabilities": { "streaming": false, "pushNotifications": false, "stateTransitionHistory": false },
+  "defaultInputModes": ["text/plain", "application/json"],
+  "defaultOutputModes": ["application/json"],
+  "skills": [
+    {
+      "id": "plan_storyboard",
+      "name": "Plan a storyboard",
+      "description": "Plan a deterministic board from a premise, story prose, or a scenario. Default 5 scenes of 3 seconds, one short video prompt per shot, lock lines for characters, and a studio link. Accepts shots, duration, scenes, scenario, mode ad, series, or explainer, style presets, prompt_style, and a model profile.",
+      "tags": ["storyboard", "planning", "video prompts"]
+    },
+    {
+      "id": "export_prompts",
+      "name": "Export shot prompts",
+      "description": "Return the per-shot video prompts for a premise or for an existing shots array.",
+      "tags": ["prompts", "export"]
+    },
+    {
+      "id": "validate_storyboard",
+      "name": "Validate a storyboard",
+      "description": "Validate a shotboard.v1 document. Returns ok and the shot count, or a named error message. Nothing is stored.",
+      "tags": ["validation"]
+    }
+  ]
+}
