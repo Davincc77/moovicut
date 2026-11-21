@@ -7,6 +7,7 @@ Prompts work with Grok Imagine, Google, or any other AI image or video model. Mo
 - [Product guide](product.md): local planning, storage, and output.
 - [FAQ](faq.md): models, local work, export, and storage.
 - [Full agent guide](llms-full.txt): document contract, browser automation, and CLI examples.
+- [Output map](agents.md): which request body for which film — start there.
 - [Site index](index.md): routes and local workflow. The studio is `/studio`.
 - [Agents](agents.md): `/mcp`, `GET /openapi.json`, `POST /api/v1/storyboard`, and `/agents`.
 - [README](README.md): the project README, also at `/readme`. Raw Markdown is `/README.md`.

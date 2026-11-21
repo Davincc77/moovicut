@@ -4,6 +4,22 @@ Moovicut plans an editable storyboard. It does not render video, it does not req
 
 The human site stays at `/`. Agent instructions live here, at `/agents`, and at `/agents.md`.
 
+## Start from the output you want
+
+Choose the request by the film, not by the vocabulary. Every line is one `POST /api/v1/storyboard` body; the same body answers identically on `/mcp` and `/a2a`.
+
+- **A 15-second clip from one idea** — `{ "premise": "…" }`. Default: 5 scenes × 3s, short prompts.
+- **Exact beats you already wrote** — `{ "premise": "…", "scenes": [{ "who": ["…"], "where": "…", "what": "…", "time": "dusk" }] }`. One beat per scene; nothing merged, nothing dropped.
+- **A named cast and fixed places** — a `scenario` object with `characters`, `places`, and `scenes` inside `scenario`, never at the top level.
+- **Raw story text you have not structured** — `{ "input": "prose", "prose": "…" }` (English, Portuguese, or Simplified Chinese). With `format: "agent"`, a story that names people returns `sheets_missing` and the sheets to resubmit.
+- **A product spot** — `{ "mode": "ad", "product": "…", "benefit": "…", "cta": "…" }`: hook, hero, proof, and pack shot, 9:16.
+- **Vertical episodes** — `{ "mode": "series", "seriesTitle": "…", "hook": "…", "episodes": 4 }`: 3 to 8 episodes, three shots each.
+- **A numbered tutorial** — `{ "mode": "explainer", "topic": "…", "steps": ["…", "…"] }`: one shot per step, durations snapped to the model profile.
+- **The smallest payload to carry in context** — add `format: "agent"` anywhere: `shotboard.compact.v1`, minified, re-postable as-is.
+- **Re-editing one shot of an existing board** — post the compact board back with `regenerateShot`, a new `prompt`, and `overwritePrompt: true`; every other shot stays byte-stable.
+
+A refused body names the field to repair (`misplaced_scenario_fields`, `invalid_scenario`, `invalid_series`, `invalid_explainer`, `invalid_preset`). Fix that field and resend the whole story — do not paraphrase it shorter.
+
 ## Default board
 
 Out of the box, a plan is **5 scenes × 3 seconds (15s total)**.
