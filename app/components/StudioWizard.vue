@@ -63,6 +63,7 @@ function t(key, vars) {
   if (!template) return key
   return translate(template, vars)
 }
+const props = defineProps({ handoff: { type: Object, default: () => ({ premise: '', model: '' }) } })
 const state = ref(blankWizard())
 const ready = ref(false)
 const buildError = ref('')
@@ -88,6 +89,7 @@ function onFocusIdea() {
 onMounted(() => {
   const saved = loadWizard(localStorage)
   if (saved) state.value = saved
+  if (props.handoff?.premise) state.value = setIdea(openStep(state.value, 'idea'), props.handoff.premise)
   ready.value = true
   window.addEventListener('moovicut-focus-idea', onFocusIdea)
 })

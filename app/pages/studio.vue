@@ -3,7 +3,12 @@ import { Check, Ellipsis, FolderOpen } from 'lucide-vue-next'
 import { socialPreviewSeo } from '~/utils/social-preview.js'
 import { wizardText } from '~/utils/wizard-strings.js'
 import { downloadBody } from '~/composables/useNotifier.js'
+import { takeStudioHandoff } from '~/utils/studio-handoff.js'
 const store = useProjectStore()
+// the home page saves one handoff per visit; take it here, once, and share it
+// with both creation panes — a v-show pane mounted at page creation would
+// otherwise eat the handoff while the visible pane stays blank
+const handoff = import.meta.client ? takeStudioHandoff(sessionStorage) : { premise: '', model: '' }
 const { t } = useI18n()
 const runtimeConfig = useRuntimeConfig()
 const appBaseURL = runtimeConfig.app.baseURL
@@ -110,10 +115,10 @@ useSeoMeta({
           <button type="button" class="text-button" @click="openProjects"><FolderOpen :size="14" aria-hidden="true" />{{ $t('My Projects') }}</button>
           <button class="text-button studio-open-editor" type="button" @click="openEditor">{{ $t('Storyboard') }}</button>
         </nav>
-        <div v-show="workspace==='create' && experience==='guided'"><StudioWizard @advanced="setExperience('advanced')" /></div>
+        <div v-show="workspace==='create' && experience==='guided'"><StudioWizard :handoff="handoff" @advanced="setExperience('advanced')" /></div>
         <div v-show="workspace==='create' && experience==='advanced'" class="studio-advanced">
           <p class="studio-advanced-bar"><button class="button button-secondary" type="button" @click="setExperience('guided')">{{ $t(wizardText('advanced.back')) }}</button></p>
-          <StudioCreationPanel />
+          <StudioCreationPanel :handoff="handoff" />
         </div>
         <div v-show="workspace==='storyboard'"><StudioEditor /></div>
       </div>
