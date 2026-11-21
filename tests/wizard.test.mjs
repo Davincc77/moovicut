@@ -409,7 +409,7 @@ test('the studio opens on the guide and keeps the full editor', () => {
   const studio = readFileSync('app/pages/studio.vue', 'utf8')
   assert.match(studio, /experience = ref\('guided'\)/)
   assert.match(studio, /<StudioWizard/)
-  assert.match(studio, /<StudioCreationPanel \/>/)
+  assert.match(studio, /<StudioCreationPanel\b[^>]*\/>/)
   assert.match(studio, /<StudioEditor \/>/)
   assert.match(readFileSync('app/components/StudioWizard.vue', 'utf8'), /wizardText|from '~\/utils\/wizard-strings\.js'/)
   assert.match(readFileSync('README.md', 'utf8'), /Advanced mode/)

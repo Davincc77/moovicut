@@ -93,7 +93,7 @@ test('Check 33 Studio has a real two-column creation form and retained editor', 
   assert.doesNotMatch(studio,/Board tools/)
   assert.match(studio,/<WorkspaceSidebar/)
   assert.match(studio,/<WorkspaceHeader/)
-  assert.match(studio,/<StudioCreationPanel \/>/)
+  assert.match(studio,/<StudioCreationPanel\b[^>]*\/>/)
   assert.match(studio,/<StudioEditor \/>/)
   assert.match(studio,/importProject/)
   assert.match(studio,/exportJson/)

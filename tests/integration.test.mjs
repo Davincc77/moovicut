@@ -25,7 +25,7 @@ test('the restored creation form generates one editable storyboard per submit', 
   const studio = readFileSync('app/pages/studio.vue', 'utf8')
   assert.doesNotMatch(studio, /useAssetUrls/)
   const creation = readFileSync('app/components/StudioCreationPanel.vue', 'utf8')
-  assert.match(studio, /<StudioCreationPanel \/>/)
+  assert.match(studio, /<StudioCreationPanel\b[^>]*\/>/)
   assert.match(creation, /<form[^>]*@submit\.prevent="createStoryboard"/)
   assert.match(creation, /<form class="studio-create-form"[\s\S]*<\/form><\/div>[\s\S]*<form class="studio-bottom-composer"/)
   const template = creation.match(/<template>([\s\S]*)<\/template>/)[1]
