@@ -1289,7 +1289,7 @@ export function a2a(body, origin = SITE) {
     result = callTool(toolName, input, origin)
   } catch (error) {
     if (toolName === 'plan_storyboard' && !datas.length && texts.length && error.code === 'invalid_plan') {
-      try { result = callTool(toolName, { input: 'prose', prose: texts.join('\n\n') }, origin) }
+      try { result = callTool(toolName, { input: 'prose', prose: texts.join('\n\n'), format: 'agent' }, origin) }
       catch (second) { return fail(second) }
     } else return fail(error)
   }
