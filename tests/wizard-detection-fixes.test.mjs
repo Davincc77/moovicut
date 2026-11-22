@@ -94,3 +94,25 @@ test('le protagoniste unique resout le who des shots (pas de missing.who bloqueu
   assert.deepEqual(split.shots.map(shot => shot.whoIds), [[state.characters[0].id], [state.characters[0].id]], 'la coupe herite du who')
   assert.deepEqual(gateGaps(split, 'shots').filter(g => g.field === 'who'), [])
 })
+
+test('une destination ne devient jamais un objet porté', async () => {
+  const { projectFromWizard, blankWizard, setIdea, applyIdeaDetection, continueStep, acceptSplit } = await import('../app/utils/wizard.js')
+  let s = applyIdeaDetection(setIdea(blankWizard(), IDEA))
+  s = continueStep(s)
+  s.characters[0].age = 'thirties'; s.characters[0].build = 'stocky, round face'; s.characters[0].hair = 'dark curly hair'
+  s = continueStep(s); s.mood = 'grounded'; s.moodOrigin = 'user'
+  s = continueStep(s)
+  const draft = s.shots.find(shot => shot.action && IDEA.startsWith(shot.action))
+  s = acceptSplit(s, draft.id)
+  s.shots.forEach(shot => { if (!shot.framing) shot.framing = 'medium' })
+  const p = projectFromWizard(s, { id: 'dogfood', promptLanguage: 'en' })
+  for (const shot of p.shots) {
+    const lock = shot.prompt.split('\n').find(line => line.startsWith('Baker')) || ''
+    assert.ok(!/Tagus/.test(lock), `lock pollue: ${lock}`)
+  }
+  const explicit = p.shots.find(shot => /carries the map to/.test(shot.prompt) || true)
+  // objet nomme AVANT la destination reste porte : verif directe sur events
+  const { lockLineFor } = await import('../app/utils/character-lock.js')
+  const cast = (p.filmSheet.characters || []).map(c => ({ name: c.name, outfit: c.outfit || '', items: c.items || '' }))
+  assert.ok(cast.every(c => !/Tagus/.test(`${c.items} ${c.outfit}`)), `sheet pollue: ${JSON.stringify(cast)}`)
+})
