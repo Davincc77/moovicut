@@ -11,6 +11,7 @@ import { canonicalFramingLabel, mentionedFraming, promptFraming, stripFramingPhr
 import { ensureConstraints } from './physical-constraint.js'
 import { isNonPlaceNoun } from './place-lexicon.js'
 import { splitActionText } from './action-split.js'
+import { STORY_VERBS as SHARED_STORY_VERBS, STORY_VERB_FORMS } from './story-verbs.js'
 import { finalizeParts } from './parts.js'
 import { cleanText, sentence } from './text.js'
 import { localizeLight, phrase, promptLanguageOf, readPromptLanguage, stampPromptLanguage, translateBeat, translateDetailedPrompt } from './prompt-lang.js'
@@ -130,7 +131,7 @@ export function detectGenre(premise, preferred = 'cinematic') {
   if (/\bgato\b|猫咪|猫|кот/.test(text)) return 'comedy'
   return GENRES[preferred] ? preferred : 'cinematic'
 }
-const STORY_VERBS = 'runs|races|crosses|discovers|walks|finds|follows|chases|meets|opens|enters|leaves|fights|searches|delivers|climbs|watches|hears|sees|goes|comes|travels|escapes|hides|builds|paints|sings|plays|repairs|guides|arrives|returns|carries|writes|reads|calls|breaks|saves|loses|falls|stands|looks|turns|reaches|holds|gives|takes|makes|moves|flies|rides|jumps|flees|flee|steals|perd|perds|pierde|sigue|encuentra|camina|corre|repara|répare|rennt|folgt|findet|läuft|geht'
+const STORY_VERBS = SHARED_STORY_VERBS
 const STORY_VERB = new RegExp(`\\b(?:${STORY_VERBS})\\b`, 'iu')
 export function looksLikeStory(premise) {
   const text = cleanText(premise)
@@ -152,7 +153,7 @@ export function mentionedCue(text, word) {
 export function extractDialogue(text) {
   return [...String(text || '').matchAll(/["“]([^"”]{1,180})["”]/g)].map(match => cleanText(match[1])).filter(Boolean)
 }
-const CHARACTER_VERBS = `${STORY_VERBS}|racing|repairing|guiding|losing|delivering|chasing|climbing|walking|running|crossing|following`
+const CHARACTER_VERBS = STORY_VERB_FORMS
 const CONTENT_STOP = new Set(['a', 'an', 'the', 'un', 'une', 'el', 'la', 'los', 'las', 'der', 'die', 'das', 'ein', 'eine', 'in', 'at', 'on', 'of', 'to', 'and', 'with', 'for', 'from', 'before', 'after', 'while', 'when', 'no', 'not', 'into', 'over', 'under'])
 function contentWords(source) {
   return cleanText(source).replace(/[^\p{L}\p{N}\s'’-]/gu, ' ').split(/\s+/).filter(word => word && !CONTENT_STOP.has(word.toLowerCase()))
@@ -196,13 +197,13 @@ export function parsePlace(text) {
   for (const match of afterSubject.matchAll(/([\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}ー]{1,18}?)(?:で|に)/gu)) {
     if (!isNonPlaceNoun(match[1])) return match[1]
   }
-  const pattern = /\b(?:in|at|inside|through|across|along|under|over|on|à|en|dans|sur|im|auf)\s+(?:a|an|the|un|une|el|la|der|die|das\s+)?([\p{L}][\p{L}'’-]*(?:\s+[\p{L}][\p{L}'’-]*){0,4})/giu
+  const pattern = /\b(?:down to|up to|into|onto|in|at|inside|through|across|along|under|over|on|à|en|dans|sur|im|auf)\s+(?:a|an|the|un|une|el|la|der|die|das\s+)?([\p{L}][\p{L}'’-]*(?:\s+[\p{L}][\p{L}'’-]*){0,4})/giu
   let match
   while ((match = pattern.exec(source))) {
     const words = []
     for (const word of match[1].split(/\s+/)) {
       const bare = word.toLowerCase().replace(/[^\p{L}'’-]/gu, '')
-      if (!bare || WEATHER_WORDS.has(bare) || new RegExp(`^(?:${STORY_VERBS}|before|after|while|when|and|with|to|of|no|not)$`, 'iu').test(bare)) break
+      if (!bare || WEATHER_WORDS.has(bare) || new RegExp(`^(?:${STORY_VERBS}|before|after|while|when|and|with|to|of|no|not|at|by|for|from|near|beside|against|until|till)$`, 'iu').test(bare)) break
       words.push(word.replace(/[^\p{L}'’-]/gu, ''))
     }
     if (words.length) return sentence(words.join(' '))
