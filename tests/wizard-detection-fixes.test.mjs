@@ -72,3 +72,12 @@ test('les prépositions de mouvement nomment la place, pas les destinateurs', ()
   assert.match(parsePlace('A sailor climbs down to the deck at dawn.'), /deck/i)
   assert.doesNotMatch(parsePlace('A boy talks to mother about lessons at home.'), /mother/i)
 })
+
+test('le wizard préremplit le protagoniste nom commun, sans jamais inventer', () => {
+  const seeded = applyIdeaDetection(setIdea(blankWizard(), IDEA))
+  assert.deepEqual(seeded.characters.map(c => c.name), ['Baker'])
+  const nobody = applyIdeaDetection(setIdea(blankWizard(), 'Waves fold over an empty harbour at dawn.'))
+  assert.deepEqual(nobody.characters.map(c => c.name), [''], 'pas de protagoniste = ligne vierge, pas de mot volé')
+  const compound = applyIdeaDetection(setIdea(blankWizard(), 'A lighthouse keeper races the dusk to repair a failing beacon.'))
+  assert.deepEqual(compound.characters.map(c => c.name), ['Lighthouse keeper'])
+})

@@ -4,7 +4,7 @@
  */
 import { cleanText } from './text.js'
 import { wizardText } from './wizard-strings.js'
-import { createStoryboard, refreshShotPrompt, canonicalModel, canonicalAspect } from './prompt-engine.js'
+import { createStoryboard, refreshShotPrompt, canonicalModel, canonicalAspect, buildContinuitySheet } from './prompt-engine.js'
 import { termById, suggestFraming } from './framing.js'
 import { foldName, findByName, nameParts, LIGHT_VALUES, MOOD_VALUES } from './scenario.js'
 import { canonicalStyleFamily, presetGenres } from './presets/index.js'
@@ -494,7 +494,25 @@ function userTouchedShot(shot) {
 
 function applyCharacters(state, detected) {
   const incoming = detected.characters || []
-  if (!incoming.length) return
+  if (!incoming.length) {
+    // Same fallback as the planner: a common-noun protagonist ('a baker') seeds the row
+    // so step 2 is prefilled exactly with who the prompts will name. Short names only.
+    const sheet = buildContinuitySheet(cleanText(state.idea))
+    const people = (sheet.characters && sheet.characters.length) ? sheet.characters : [{ name: sheet.character, look: '', outfit: sheet.appearance || '' }]
+    const ideaText = cleanText(state.idea)
+    const fallback = people.filter(item => {
+      if (!item || !item.name || item.name.split(/\s+/).length > 3) return false
+      // Le nom doit être le nom commun introduit par un article dans l'idée ('a baker'),
+      // jamais un reste de phrase. 'An uncertain reading is not used to fill names.'
+      const safe = item.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      return new RegExp(`\\b(?:a|an|the|o|os|as|um|uma|un|una|le|la|el)\\s+${safe}\\b`, 'iu').test(ideaText)
+    })
+    if (fallback.length && state.characters.every(character => !userTouchedCharacter(character))) {
+      state.characters = fallback.map((record, index) => detectedCharacter(record, `character-${index + 1}`))
+      state.characterIndex = 0
+    }
+    return
+  }
   const untouched = state.characters.every(character => !userTouchedCharacter(character) && CHARACTER_FIELDS.every(field => !filled(character[field]) || character.origin[field] === 'detected'))
   if (untouched) {
     state.characters = incoming.map((record, index) => detectedCharacter(record, `character-${index + 1}`))
