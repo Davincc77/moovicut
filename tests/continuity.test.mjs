@@ -97,7 +97,7 @@ test('one compact agent board resumes every mode', async () => {
     body: JSON.stringify({ premise, compact: true })
   })
   const compact = JSON.parse(response.body)
-  assert.deepEqual(Object.keys(compact).sort(), ['aspectRatio', 'model', 'premise', 'shots', 'studioUrl', 'title'])
+  assert.deepEqual(Object.keys(compact).sort(), ['aspectRatio', 'model', 'premise', 'sha256', 'shots', 'studioUrl', 'title'])
   const agent = await dispatchAgentRequest({
     method: 'POST',
     pathname: '/api/v1/storyboard',

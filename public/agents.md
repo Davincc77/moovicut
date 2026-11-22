@@ -54,6 +54,25 @@ Use `GET /openapi.json` for an OpenAPI 3.1 document. `GET /.well-known/mcp.json`
 - Premise: 8 to 6,000 characters.
 - Nothing is written to a database.
 
+## Verifying a response
+
+Every success payload carries `sha256`: a hash of its own content, canonical form, computed after removing `sha256` and the top-level `id`, `createdAt`, `updatedAt`. The board content is deterministic — same request bytes, same sha256 — while id and timestamps are envelope metadata, excluded by design. Verify without trusting the transport:
+
+```js
+import { createHash } from 'node:crypto'
+const canonical = v => Array.isArray(v) ? `[${v.map(canonical).join(',')}]`
+  : v && typeof v == 'object'
+    ? `{${Object.keys(v).filter(k => v[k] !== undefined).sort().map(k => `${JSON.stringify(k)}:${canonical(v[k])}`).join(',')}}`
+    : JSON.stringify(v)
+const o = await response.json()
+const claimed = o.sha256
+delete o.sha256
+for (const k of ['id', 'createdAt', 'updatedAt']) delete o[k]
+const verified = createHash('sha256').update(canonical(o), 'utf8').digest('hex') === claimed
+```
+
+The machine-readable contract is `GET /api/v1/manifest`. It is itself self-certified and carries no timestamps: its bytes are stable, so you can cache it and pin its sha256. Error payloads carry no sha — failures are named in `error` and `message` instead.
+
 ## Custom scenes
 
 Humans use Step-by-step mode in `/studio`. Agents pass `shots` or `scenes` to `POST /api/v1/storyboard`, the `plan_storyboard` tool, or a `/studio#board=` link.

@@ -220,7 +220,7 @@ test('the API accepts scenario JSON, prose, and keeps a supplied prompt', () => 
     body: JSON.stringify({ premise: 'A lighthouse keeper races the dusk to repair a failing beacon before the boats arrive.', compact: true })
   })
   const plain = JSON.parse(ordinary.body)
-  assert.deepEqual(Object.keys(plain).sort(), ['aspectRatio', 'model', 'premise', 'shots', 'studioUrl', 'title'])
+  assert.deepEqual(Object.keys(plain).sort(), ['aspectRatio', 'model', 'premise', 'sha256', 'shots', 'studioUrl', 'title'])
   assert.equal(plain.shots.length, 5)
 })
 

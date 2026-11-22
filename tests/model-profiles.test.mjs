@@ -113,7 +113,7 @@ test('the API accepts a target model and keeps the default compact keys', async 
     body: JSON.stringify({ premise, compact: true })
   })
   const short = JSON.parse(compact.body)
-  assert.deepEqual(Object.keys(short).sort(), ['aspectRatio', 'model', 'premise', 'shots', 'studioUrl', 'title'])
+  assert.deepEqual(Object.keys(short).sort(), ['aspectRatio', 'model', 'premise', 'sha256', 'shots', 'studioUrl', 'title'])
   const refused = await dispatchAgentRequest({
     method: 'POST',
     pathname: '/api/v1/storyboard',

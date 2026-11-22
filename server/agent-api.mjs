@@ -15,6 +15,7 @@ import { cleanText } from '../app/utils/text.js'
 import { readPromptLanguage } from '../app/utils/prompt-lang.js'
 import { isFountain, parseFountain } from '../app/utils/fountain.js'
 import { translate } from '../app/i18n/index.js'
+import { withSelfSha } from './self-cert.mjs'
 
 export const RATE_LIMIT = Object.freeze({ limit: 30, windowMs: 60_000 })
 export const STORYBOARD_BODY_LIMIT = 32 * 1024
@@ -1002,6 +1003,13 @@ export function openApiDocument() {
           }
         }
       },
+      '/api/v1/manifest': {
+        get: {
+          operationId: 'manifest',
+          summary: 'Self-certified contract: surfaces, tools, integrity rules. Its own bytes are stable and it carries a re-computable sha256.',
+          responses: { '200': { description: 'Manifest, self-certified' } }
+        }
+      },
       '/mcp': {
         get: {
           operationId: 'mcpInfo',
@@ -1120,15 +1128,15 @@ function callTool(name, args, origin) {
   const input = args && typeof args === 'object' && !Array.isArray(args) ? args : {}
   if (name === 'plan_storyboard') {
     const planned = planFromInput(input, { origin, compact: input.compact !== false })
-    return toolResult(JSON.stringify(planned))
+    return toolResult(JSON.stringify(withSelfSha(planned)))
   }
   if (name === 'export_prompts') {
     if (input.storyboard && Array.isArray(input.storyboard.shots) && input.storyboard.shots.length && !input.premise) {
       const prompts = input.storyboard.shots.map((shot, index) => ({ order: index + 1, prompt: String(shot.prompt || '') }))
-      return toolResult(JSON.stringify({ shots: prompts }))
+      return toolResult(JSON.stringify(withSelfSha({ shots: prompts })))
     }
     const planned = planFromInput({ ...input, compact: true }, { origin, compact: true })
-    return toolResult(JSON.stringify({ shots: planned.shots.map(shot => ({ order: shot.order, prompt: shot.prompt })) }))
+    return toolResult(JSON.stringify(withSelfSha({ shots: planned.shots.map(shot => ({ order: shot.order, prompt: shot.prompt })) })))
   }
   if (name === 'validate_storyboard') {
     const document = input.storyboard || input.project || input
@@ -1137,7 +1145,7 @@ function callTool(name, args, origin) {
       const nameWarnings = assessProject(validated.project).filter(item => item.code === 'name_without_sheet')
       const payload = { ok: true, shots: validated.project.shots.length, model: validated.project.model }
       if (nameWarnings.length) payload.warnings = nameWarnings
-      return toolResult(JSON.stringify(payload))
+      return toolResult(JSON.stringify(withSelfSha(payload)))
     } catch (error) {
       return toolResult(JSON.stringify({ ok: false, message: error.message }), true)
     }
@@ -1339,7 +1347,7 @@ export function dispatchAgentRequest({ method = 'GET', pathname = '/', searchPar
     try { input = JSON.parse(body || '') } catch { return json(400, { error: 'invalid_json', message: 'Send valid JSON.' }) }
     try {
       const planned = planFromInput(input, { origin, compact: wantsCompact(input, searchParams) })
-      return json(200, planned)
+      return json(200, withSelfSha(planned))
     } catch (error) {
       const status = error.status || 400
       const body = { error: error.code || 'invalid_request', message: error.message }
@@ -1347,7 +1355,40 @@ export function dispatchAgentRequest({ method = 'GET', pathname = '/', searchPar
       return json(status, body)
     }
   }
+  if (pathname === '/api/v1/manifest') {
+    if (verb !== 'GET') return json(405, { error: 'method_not_allowed', message: 'GET describes the surfaces and their integrity contract.', }, { allow: 'GET' })
+    return json(200, buildManifest(origin))
+  }
   return json(404, { error: 'not_found' })
+}
+
+function buildManifest(origin) {
+  const body = {
+    name: 'moovicut',
+    contract: 'Deterministic storyboard prompts from plain language. Nothing stored. No API key. Every success payload carries sha256 over its own canonical form without the sha256 field.',
+    surfaces: [
+      { path: '/api/v1/storyboard', method: 'POST', role: 'plan a board (REST)' },
+      { path: '/api/v1/manifest', method: 'GET', role: 'this document, self-certified' },
+      { path: '/mcp', method: 'POST', role: 'MCP tools: plan_storyboard, export_prompts, validate_storyboard' },
+      { path: '/a2a', method: 'POST', role: 'A2A JSON-RPC message/send over the same tools' },
+      { path: '/.well-known/agent-card.json', method: 'GET', role: 'agent card' },
+      { path: '/.well-known/mcp.json', method: 'GET', role: 'MCP discovery' },
+      { path: '/openapi.json', method: 'GET', role: 'OpenAPI spec' },
+      { path: '/agents.md', method: 'GET', role: 'agent instructions' },
+      { path: '/llms.txt', method: 'GET', role: 'llms guide' }
+    ],
+    tools: ['plan_storyboard', 'export_prompts', 'validate_storyboard'],
+    integrity: {
+      field: 'sha256',
+      algorithm: 'sha256 hex over canonicalJson(payload without sha256)',
+      canonical_json: 'objects: keys sorted lexicographically, undefined values dropped; arrays: order kept; primitives: JSON.stringify; UTF-8 bytes',
+      excluded_keys: 'top-level id, createdAt and updatedAt are metadata, not content: the sha covers everything else, recursively',
+      deterministic: 'same request bytes yield the same sha256 (the board content is deterministic; only id and timestamps vary and they are outside the hash)',
+      verify: `fetch(${origin}/api/v1/storyboard, { method: 'POST', body: JSON.stringify(input) }) -> async r => { const o = await r.json(); const s = o.sha256; delete o.sha256; for (const k of ['id', 'createdAt', 'updatedAt']) delete o[k]; return sha256hex(canonicalJson(o)) === s }`
+    },
+    limits: { rate: '30 requests per minute per IP on /mcp, /a2a, /api/*', body: 'plan 32 KB, mcp/a2a 128 KB' }
+  }
+  return withSelfSha(body)
 }
 
 export function readLimitedBody(request, limit) {

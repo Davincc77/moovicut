@@ -9,7 +9,7 @@ Prompts work with Grok Imagine, Google, or any other AI image or video model. Mo
 - [Full agent guide](llms-full.txt): document contract, browser automation, and CLI examples.
 - [Output map](agents.md): which request body for which film — start there.
 - [Site index](index.md): routes and local workflow. The studio is `/studio`.
-- [Agents](agents.md): `/mcp`, `GET /openapi.json`, `POST /api/v1/storyboard`, and `/agents`.
+- [Agents](agents.md): `/mcp`, `GET /openapi.json`, `POST /api/v1/storyboard`, `/agents`, and `GET /api/v1/manifest` — the self-certified contract: every success payload carries a re-computable `sha256`.
 - [README](README.md): the project README, also at `/readme`. Raw Markdown is `/README.md`.
 - [Skill](SKILL.md): the agent skill, also at `/skill`. Raw Markdown is `/SKILL.md`.
 - [Credits](credits): place-library sources and the CC BY-SA 4.0 compilation licence.

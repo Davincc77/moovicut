@@ -145,7 +145,7 @@ test('the API keeps English output unless promptLanguage is set', () => {
   assert.equal(plain.status, 200)
   const plainBody = JSON.parse(plain.body)
   const englishBody = JSON.parse(english.body)
-  assert.deepEqual(Object.keys(plainBody).sort(), ['aspectRatio', 'model', 'premise', 'shots', 'studioUrl', 'title'])
+  assert.deepEqual(Object.keys(plainBody).sort(), ['aspectRatio', 'model', 'premise', 'sha256', 'shots', 'studioUrl', 'title'])
   assert.equal(plainBody.shots[0].prompt, englishBody.shots[0].prompt)
   assert.equal(plainBody.shots[0].prompt, ENGLISH_SHOT)
   const rejected = dispatchAgentRequest({ method: 'POST', pathname: '/api/v1/storyboard', body: JSON.stringify({ ...base, promptLanguage: 'es' }) })

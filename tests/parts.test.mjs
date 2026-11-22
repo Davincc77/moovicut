@@ -26,6 +26,7 @@ function plan(body) {
 function withoutStudio(body) {
   const copy = { ...body }
   delete copy.studioUrl
+  delete copy.sha256 // envelope metadata, like studioUrl: the golden pins content
   return JSON.stringify(copy)
 }
 
