@@ -1,6 +1,7 @@
 <script setup>
 import { Copy, Plus, Redo2, Undo2 } from 'lucide-vue-next'
 import { MODEL_OPTIONS, formatContinuitySheet } from '~/utils/prompt-engine.js'
+import { shotProvenance } from '~/utils/story-provenance.js'
 import { joinAppPath } from '~/utils/urls.js'
 import { STUDIO_INSPIRATIONS, promptImageSrc } from '~/utils/reference-content.js'
 import { combinedShotPrompts, partShotPrompts, runOpenTarget } from '~/utils/open-targets.js'
@@ -196,7 +197,8 @@ function onExport(id) {
       </details>
       <div v-if="activeShot" class="studio-shot-detail">
         <p v-if="activeShot.stage">{{ $t(activeShot.stage) }}</p>
-        <p v-if="activeShot.source" class="shot-source">{{ activeShot.source }}</p>
+        <p v-if="activeShot.source" class="shot-source"><span class="shot-provenance">{{ $t('From your story') }}</span> {{ activeShot.source }}</p>
+        <p v-else-if="shotProvenance(activeShot, { idea: project.premise }) === 'suggested'" class="shot-source"><span class="shot-provenance">{{ $t('Suggested') }}</span></p>
         <p v-if="activeShot.flags?.length" class="shot-source">{{ activeShot.flags.map(flag => `${flag.field}: ${flag.code}`).join(', ') }}</p>
         <FramingPicker :shot="activeShot" label="Framing" />
         <p>{{ $t('Changes save locally and can be undone.') }}</p>

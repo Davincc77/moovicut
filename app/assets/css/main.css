@@ -834,6 +834,10 @@ button.wizard-skip-characters[aria-pressed="true"] { border-color:var(--accent);
 .studio-wizard .wizard-tabs button[aria-selected="true"] { border-color:var(--accent); background:#f0b42922; }
 .studio-wizard .wizard-sheet { display:flex; flex-direction:column; gap:16px; }
 .studio-wizard .wizard-hint { color:#f6c85a; font-size:.92rem; }
+.studio-wizard .wizard-coverage { color:var(--text-secondary); font-size:.92rem; margin:.2rem 0 .6rem; }
+.studio-wizard .wizard-provenance { color:var(--text-secondary); font-size:.86rem; margin:.1rem 0; }
+.studio-wizard .wizard-shot[data-provenance=suggested] .wizard-provenance { color:var(--accent-hover); }
+.studio-shot-detail .shot-provenance { color:var(--text-secondary); font-size:.82rem; text-transform:uppercase; letter-spacing:.04em; margin-right:.4rem; }
 .studio-wizard .wizard-error { color:var(--error); font-size:.92rem; }
 .studio-wizard .wizard-lock { margin:0; padding:12px 14px; border:1px solid var(--border); border-radius:8px; background:var(--bg-alt); }
 .studio-wizard .wizard-lock span { display:block; margin-bottom:4px; color:var(--text-secondary); font-size:.85rem; }
