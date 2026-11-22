@@ -24,3 +24,4 @@ jobs:
       - run: node tests/studio-wizard-gates.e2e.mjs
       - run: node tests/studio-handoff.e2e.mjs
       - run: node tests/story-page.e2e.mjs
+      - run: node tests/long-page.e2e.mjs
