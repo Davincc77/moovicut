@@ -617,6 +617,22 @@ function applyShots(state, detected) {
   state.shotIndex = 0
 }
 
+/**
+ * A shot with no resolved 'who' when the idea seeded exactly one protagonist belongs to
+ * that protagonist. detectProse only names proper-noun 'who', so a common-noun Baker
+ * would otherwise leave every shot blocking on missing.who. Only untouched shots move.
+ */
+function applyWho(state) {
+  if (state.noCharacter || state.characters.length !== 1) return
+  const id = state.characters[0].id
+  state.shots.forEach(shot => {
+    if (shot.whoIds.length) return
+    if (shot.origin.who === 'user') return
+    shot.whoIds = [id]
+    shot.origin = { ...shot.origin, who: 'detected' }
+  })
+}
+
 /** Fill empty or still-detected fields from the existing prose detector. */
 export function applyIdeaDetection(state) {
   const idea = cleanText(state.idea)
@@ -643,6 +659,7 @@ export function applyIdeaDetection(state) {
     next.moodOrigin = 'detected'
   }
   applyShots(next, detected)
+  applyWho(next) // after applyShots: it rebuilds whoIds from scenes (proper names only)
   next.detection = {
     language: detected.language || 'en',
     confidence: detected.confidence || 'low',

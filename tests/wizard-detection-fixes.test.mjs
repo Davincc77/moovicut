@@ -83,3 +83,14 @@ test('le wizard préremplit le protagoniste nom commun, sans jamais inventer', (
   const quiet = applyIdeaDetection(setIdea(blankWizard(), 'A quiet moment unfolds slowly.'))
   assert.deepEqual(quiet.characters.map(c => c.name), [''], 'une ambiance nest jamais un personnage (idée épinglée par studio-wizard-gates.e2e)')
 })
+
+test('le protagoniste unique resout le who des shots (pas de missing.who bloqueur)', () => {
+  const state = applyIdeaDetection(setIdea(blankWizard(), IDEA))
+  assert.deepEqual(state.shots[0].whoIds, [state.characters[0].id], 'la shot doit porter Baker')
+  const keys = gateGaps(state, 'shots').filter(g => g.field === 'who').map(g => g.key)
+  assert.deepEqual(keys, [], 'aucun missing.who quand un seul protagoniste existe')
+  const draft = state.shots.find(shot => IDEA.startsWith(shot.action))
+  const split = acceptSplit(state, draft.id)
+  assert.deepEqual(split.shots.map(shot => shot.whoIds), [[state.characters[0].id], [state.characters[0].id]], 'la coupe herite du who')
+  assert.deepEqual(gateGaps(split, 'shots').filter(g => g.field === 'who'), [])
+})
