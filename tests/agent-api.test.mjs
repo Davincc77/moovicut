@@ -103,7 +103,7 @@ test('storyboard API returns full and compact boards and a studio hash link', as
     })
     assert.equal(compact.status, 200)
     const short = await compact.json()
-    assert.deepEqual(Object.keys(short).sort(), ['aspectRatio', 'model', 'premise', 'shots', 'studioUrl', 'title', 'warnings'])
+    assert.deepEqual(Object.keys(short).sort(), ['aspectRatio', 'model', 'premise', 'sha256', 'shots', 'studioUrl', 'title', 'warnings'])
     assert.equal(short.warnings[0].code, 'hands_or_held_object')
     assert.equal(short.shots.length, 2)
     assert.equal(short.shots[0].duration, 4)

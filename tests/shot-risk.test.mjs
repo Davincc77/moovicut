@@ -15,7 +15,7 @@ test('a default board has no risk warnings', () => {
     body: JSON.stringify({ premise, compact: true })
   })
   const body = JSON.parse(response.body)
-  assert.deepEqual(Object.keys(body).sort(), ['aspectRatio', 'model', 'premise', 'shots', 'studioUrl', 'title'])
+  assert.deepEqual(Object.keys(body).sort(), ['aspectRatio', 'model', 'premise', 'sha256', 'shots', 'studioUrl', 'title'])
 })
 
 test('risk checks warn and never block', () => {
