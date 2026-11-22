@@ -37,7 +37,7 @@ const PLACES = [
 
 const TIME_BLOCK = new Set(['matin', 'morning', 'soir', 'evening', 'nuit', 'night', 'jour', 'day', 'aube', 'dawn', 'dusk', 'soleil', 'sun', 'pluie', 'rain', 'tard', 'lendemain', 'petit', 'late', 'inside', 'outside', 'suddenly', 'finally', 'soon', 'meanwhile', 'tonight', 'yesterday', 'tomorrow', 'across', 'behind', 'above', 'below', 'under', 'near', 'around', 'during', 'upon', 'within', 'along', 'toward', 'towards', 'soudain', 'ensuite', 'dedans', 'dehors', 'hier', 'demain', 'alors', 'enfin', 'pendant', 'derriere', 'dessus', 'dessous', 'dentro', 'fora', 'ontem', 'amanha', 'entao', 'depois', 'plotzlich', 'drinnen', 'draussen', 'gestern', 'heute', 'spater', 'wahrend', 'improvvisamente', 'infine', 'stasera', 'bannen', 'baussen', 'geschter', 'muer', 'noon', 'afternoon', 'midnight', 'sundown', 'sunrise', 'sunset', 'nightfall', 'pomeriggio', 'mattina', 'mattino', 'serata', 'tramonto', 'mezzogiorno', 'coucher', 'midi', 'morgens', 'mittags', 'nachmittags', 'vormittags', 'abends', 'nachts', 'meio', 'fim', 'manha', 'tarde', 'noite', 'madrugada', 'luar', 'anoitecer', 'entardecer', 'crepusculo', 'noitinha'])
 const CALENDAR_WORD = new Set(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche', 'montag', 'dienstag', 'mittwoch', 'donnerstag', 'freitag', 'samstag', 'sonntag', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo', 'lunedi', 'martedi', 'mercoledi', 'giovedi', 'venerdi', 'sabato', 'january', 'february', 'march', 'april', 'june', 'july', 'august', 'september', 'october', 'november', 'december', 'janvier', 'fevrier', 'mars', 'avril', 'juin', 'juillet', 'aout', 'septembre', 'octobre', 'novembre', 'decembre', 'januar', 'februar', 'marz', 'juni', 'juli', 'oktober', 'dezember', 'gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre', 'janeiro', 'fevereiro', 'marco', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'])
-const NOT_A_PERSON = new Set(['together', 'early', 'late', 'suddenly', 'finally', 'meanwhile', 'soon', 'inside', 'outside', 'later', 'yesterday', 'tomorrow', 'tonight', 'across', 'behind', 'above', 'below', 'under', 'near', 'today', 'once', 'still', 'already', 'sawdust', 'steam', 'water', 'smoke', 'dust', 'fire', 'rain', 'snow', 'wind', 'mud', 'ash', 'oil', 'flour', 'sand', 'fog', 'mist', 'frost', 'flame', 'flames', 'flamingo', 'flamingos', 'seagull', 'seagulls', 'pigeon', 'pigeons', 'sparrow', 'sparrows', 'horse', 'horses', 'dog', 'dogs', 'cat', 'cats', 'bird', 'birds', 'fish', 'gull', 'gulls', 'fox', 'foxes', 'wolf', 'wolves', 'sheep', 'goat', 'goats', 'cow', 'cows', 't-shirt', 'shirt', 'apron', 'jacket', 'dress', 'hat', 'cap', 'boots', 'scarf', 'sweater', 'saint', 'sainte', 'ao', 'morgens', 'mittags', 'nachmittags', 'vormittags', 'abends', 'nachts', 'pomeriggio', 'tramonto', 'mezzogiorno', 'coucher', 'nephew', 'niece', 'neffe', 'nichte', 'enkel', 'enkelin', 'bruder', 'schwester', 'sohn', 'tochter', 'onkel', 'tante', 'vetter', 'cousin', 'schwager', 'brother', 'sister', 'uncle', 'aunt', 'grandson', 'granddaughter', 'nipote', 'neto', 'sobrinho', 'sobrinha', 'neveu'])
+const NOT_A_PERSON = new Set(['it', 'its', 'he', 'him', 'his', 'she', 'her', 'hers', 'they', 'them', 'theirs', 'this', 'that', 'these', 'those', 'someone', 'anyone', 'nobody', 'something', 'anything', 'nothing', 'everything', 'each', 'both', 'ele', 'ela', 'eles', 'elas', 'isso', 'este', 'esta', 'esse', 'essa', 'ello', 'ella', 'ellas', 'il', 'elle', 'ils', 'elles', 'cet', 'ihm', 'ihn', 'together', 'early', 'late', 'suddenly', 'finally', 'meanwhile', 'soon', 'inside', 'outside', 'later', 'yesterday', 'tomorrow', 'tonight', 'across', 'behind', 'above', 'below', 'under', 'near', 'today', 'once', 'still', 'already', 'sawdust', 'steam', 'water', 'smoke', 'dust', 'fire', 'rain', 'snow', 'wind', 'mud', 'ash', 'oil', 'flour', 'sand', 'fog', 'mist', 'frost', 'flame', 'flames', 'flamingo', 'flamingos', 'seagull', 'seagulls', 'pigeon', 'pigeons', 'sparrow', 'sparrows', 'horse', 'horses', 'dog', 'dogs', 'cat', 'cats', 'bird', 'birds', 'fish', 'gull', 'gulls', 'fox', 'foxes', 'wolf', 'wolves', 'sheep', 'goat', 'goats', 'cow', 'cows', 't-shirt', 'shirt', 'apron', 'jacket', 'dress', 'hat', 'cap', 'boots', 'scarf', 'sweater', 'saint', 'sainte', 'ao', 'morgens', 'mittags', 'nachmittags', 'vormittags', 'abends', 'nachts', 'pomeriggio', 'tramonto', 'mezzogiorno', 'coucher', 'nephew', 'niece', 'neffe', 'nichte', 'enkel', 'enkelin', 'bruder', 'schwester', 'sohn', 'tochter', 'onkel', 'tante', 'vetter', 'cousin', 'schwager', 'brother', 'sister', 'uncle', 'aunt', 'grandson', 'granddaughter', 'nipote', 'neto', 'sobrinho', 'sobrinha', 'neveu'])
 const JUMP = /\b(plus tard|le lendemain|au lendemain|le matin suivant|the next morning|next morning|the next day|later)\b/i
 const VERBS = new Set(['entre', 'sort', 'verse', 'renverse', 'rit', 'rire', 'marche', 'court', 'revient', 'ouvre', 'ferme', 'regarde', 'sourit', 'prend', 'donne', 'boit', 'parle', 'dit', 'va', 'vient', 'arrive', 'part', 'tourne', 'tend', 'attrape', 'pose', 'voit', 'pleure', 'crie', 'attend', 'sert', 'quitte', 'traverse', 'monte', 'descend', 'pousse', 'tombe', 'lance', 'vole', 'porte', 'opens', 'open', 'pours', 'pour', 'laughs', 'laugh', 'walks', 'walk', 'returns', 'return', 'rides', 'ride', 'stops', 'stop', 'enters', 'enter', 'leaves', 'leave', 'sits', 'sit', 'stands', 'stand', 'looks', 'look', 'turns', 'turn', 'smiles', 'smile', 'spills', 'spill', 'runs', 'run', 'flies', 'fly', 'hits', 'hit', 'watches', 'watch', 'finds', 'find', 'follows', 'follow', 'crosses', 'cross', 'drinks', 'drink', 'waits', 'wait', 'closes', 'close', 'unlocks', 'unlock', 'meets', 'meet', 'boards', 'board', 'knocks', 'knock', 'hands', 'hand', 'gives', 'give', 'opens', 'reads', 'read'])
 const NOT_A_PLACE = new Set(['window', 'door', 'table', 'glass', 'cup', 'bottle', 'hand', 'hands', 'umbrella', 'pastry', 'apron', 'hair', 'face', 'eye', 'eyes'])
@@ -157,6 +157,8 @@ function absorbTrait(list, value) {
   else if (clean.length > list[index].length) list[index] = clean
 }
 
+const BARE_PRONOUN = /^(?:it|its|he|him|his|she|her|they|them|this|that|these|those|someone|anyone|nobody|something|anything|nothing|everything|each|both)$/i
+
 function tidyTrait(value) {
   let bit = cleanText(value).replace(/[.,;]+$/g, '')
   bit = bit.replace(/^(?:who|that|which)\s+(?:is|are|was|were)\s+/i, '')
@@ -165,7 +167,8 @@ function tidyTrait(value) {
   bit = bit.replace(/^(?:in|at|on|inside|into|beside|near)\s+/i, '')
   while (/^(?:with|and|an|a|the|un|une)\s+/i.test(bit)) bit = bit.replace(/^(?:with|and|an|a|the|un|une)\s+/i, '')
   bit = bit.replace(/(?:\s+(?:of|de|do|da|dos|das|in|on|at|with|num|numa|no|na|em|ao|à|por|para|com|pelo|pela|preso|presa))+$/iu, '')
-  return cleanText(bit)
+  const clean = cleanText(bit)
+  return BARE_PRONOUN.test(clean) ? '' : clean
 }
 
 function nameIsPossessive(text, index) {
@@ -373,12 +376,13 @@ function properNames(text, language) {
       next += 1
     }
     const placeWord = Boolean(placeTag(language, parts[0])) || PLACE_KEYS.has(foldName(parts[0]))
+    const articleLed = /(?:^|[\s,;:(])the\s+$/i.test(source.slice(Math.max(0, first.index - 6), first.index))
     const introduced = placeWord && introducedPerson(source, parts[0])
     if (/year-old$/i.test(parts[0])) {
       index = next
       continue
     }
-    if ((introduced || !isNameNoise(parts[0], language)) && !STREET_WORD.has(foldName(parts[0])) && !/^(?:l|d|j|n|qu)['’]/i.test(parts[0])) {
+    if ((introduced || !isNameNoise(parts[0], language)) && !articleLed && !STREET_WORD.has(foldName(parts[0])) && !/^(?:l|d|j|n|qu)['’]/i.test(parts[0])) {
       const usable = []
       for (const part of parts) {
         if (/^(?:l|d|j|n|qu)['’]/i.test(part)) break

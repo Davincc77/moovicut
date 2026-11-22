@@ -1,20 +1,34 @@
 /** One action per shot. Deterministic splits, no model call. */
 import { cleanText } from './text.js'
 import { hasConstraint, joinConstraint } from './physical-constraint.js'
+import { STORY_VERB_FORMS } from './story-verbs.js'
 
-const ACTION_VERB = /\b(pours?|spills?|runs?|opens?|walks?|enters?|leaves?|rides?|turns?|hands?|gives?|takes?|sits?|stands?|looks?|knocks?|returns?|climbs?|fights?|repairs?|guides?|delivers?|laughs?|reads?|writes?|calls?|falls?|jumps?|flies|holds?|lifts?|removes?|puts?|picks?|grabs?|throws?|catches?|hugs?|waves?|points?|steps?|stops?|starts?|begins?|closes?|cuts?|slices?|serves?|washes?|rinses?|offers?|waits?|follows?|chases?)\b/i
+const ACTION_VERB_LIST = 'pours?|spills?|runs?|opens?|walks?|enters?|leaves?|rides?|turns?|hands?|gives?|takes?|sits?|stands?|looks?|knocks?|returns?|climbs?|fights?|repairs?|guides?|delivers?|laughs?|reads?|writes?|calls?|falls?|jumps?|flies|holds?|lifts?|removes?|puts?|picks?|grabs?|throws?|catches?|hugs?|waves?|points?|steps?|stops?|starts?|begins?|closes?|cuts?|slices?|serves?|washes?|rinses?|offers?|waits?|follows?|chases?'
+const ACTION_VERB = new RegExp(`\\b(?:${ACTION_VERB_LIST})\\b`, 'i')
 
-function hasVerb(text) {
-  return ACTION_VERB.test(String(text || ''))
+const LAX_VERB = new RegExp(`\\b(?:${STORY_VERB_FORMS}|${ACTION_VERB_LIST})\\b`, 'i')
+const LAX_INFLECTION = /\b\p{L}{3,}(?:s|es|ed|ing|d)\b/iu
+
+/**
+ * Strict mode keeps the historical closed vocabulary: the planner segments
+ * prose with it and its output must not drift. Lenient mode adds the shared
+ * story verbs and an English inflection fallback; only the wizard's split
+ * offer uses it, so a multi-beat idea is never a dead end there.
+ */
+function hasVerb(text, lax = false) {
+  const clean = String(text || '')
+  if (ACTION_VERB.test(clean)) return true
+  if (!lax) return false
+  return LAX_VERB.test(clean) || LAX_INFLECTION.test(clean)
 }
 
-function clauseParts(text) {
+function clauseParts(text, lax) {
   const clean = cleanText(text).replace(/[.!?]+$/, '')
   if (!clean) return []
   const timed = clean.split(/\s+\b(?:and then|then|while)\b\s+/i).map(part => part.trim()).filter(Boolean)
-  if (timed.length >= 2 && timed.filter(hasVerb).length >= 2) return timed
+  if (timed.length >= 2 && timed.filter(part => hasVerb(part, lax)).length >= 2) return timed
   const joined = clean.split(/\s+\band\b\s+/i).map(part => part.trim()).filter(Boolean)
-  if (joined.length >= 2 && joined.every(hasVerb)) return joined
+  if (joined.length >= 2 && joined.every(part => hasVerb(part, lax))) return joined
   return [clean]
 }
 
@@ -41,7 +55,8 @@ function inheritSubject(parts) {
 }
 
 /** Clauses that should become separate shots. Empty when the line is already one action. */
-export function splitActionText(text) {
+export function splitActionText(text, options = {}) {
+  const lenient = options.lenient === true
   const clean = cleanText(text)
   if (!clean) return []
   const sentences = clean.split(/(?<=[.!?。！？])\s+/u).map(part => part.trim()).filter(Boolean)
@@ -51,14 +66,14 @@ export function splitActionText(text) {
     pending = pending ? joinConstraint(pending, sentence) : cleanText(sentence).replace(/[.!?。！？]+$/u, '')
   }
   sentences.forEach(sentence => {
-    if (!hasVerb(sentence)) {
+    if (!hasVerb(sentence, lenient)) {
       if (hasConstraint(sentence)) {
         if (pieces.length) pieces[pieces.length - 1] = joinConstraint(pieces[pieces.length - 1], sentence)
         else hold(sentence)
       }
       return
     }
-    const parts = inheritSubject(clauseParts(sentence))
+    const parts = inheritSubject(clauseParts(sentence, lenient))
     if (pending) {
       parts[0] = joinConstraint(parts[0], pending)
       pending = ''

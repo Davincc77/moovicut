@@ -268,8 +268,11 @@ function shotGaps(state) {
     const place = state.places.find(item => item.id === shot.placeId && acceptedPlaceName(item))
     if (!place) gaps.push(gap('shots', { targetId: shot.id, field: 'place', key: 'missing.place' }))
     const action = acceptedAction(state, shot)
-    if (!action) gaps.push(gap('shots', { targetId: shot.id, field: 'action', key: 'missing.action' }))
-    else if (splitOffer(action)) gaps.push(gap('shots', { targetId: shot.id, field: 'action', key: 'split.pending' }))
+    if (!action) {
+      const draft = cleanText(shot?.action)
+      if (draft && splitOffer(draft)) gaps.push(gap('shots', { targetId: shot.id, field: 'action', key: 'split.pending' }))
+      else gaps.push(gap('shots', { targetId: shot.id, field: 'action', key: 'missing.action' }))
+    } else if (splitOffer(action)) gaps.push(gap('shots', { targetId: shot.id, field: 'action', key: 'split.pending' }))
     if (!termById(shot.framing)) gaps.push(gap('shots', { targetId: shot.id, field: 'framing', key: 'missing.framing' }))
     const duration = Number(shot.duration)
     if (!Number.isInteger(duration) || duration < 2 || duration > 15) gaps.push(gap('shots', { targetId: shot.id, field: 'duration', key: 'missing.duration' }))
@@ -363,7 +366,7 @@ export function revealGap(state, gap) {
 }
 
 export function splitOffer(action) {
-  const parts = splitActionText(action)
+  const parts = splitActionText(action, { lenient: true })
   return parts.length >= 2 ? parts : null
 }
 
