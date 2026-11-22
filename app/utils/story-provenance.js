@@ -8,6 +8,7 @@ import { cleanText } from './text.js'
 import { detectProse } from './prose-detect.js'
 import { parseScenario } from './scenario.js'
 import { createStoryboard, buildContinuitySheet } from './prompt-engine.js'
+import { STORY_VERB_FORMS } from './story-verbs.js'
 
 export function shotProvenance(shot, context = {}) {
   if (shot?.promptEdited === true || shot?.origin?.prompt === 'user') return 'edited'
@@ -69,22 +70,53 @@ export function storyScenes(detected) {
   }).filter(scene => scene.what)
 }
 
+/**
+ * Shared prose cast rule for /story AND the API prose path: when detectProse found no
+ * proper names, the continuity sheet's protagonist (a common noun introduced by an
+ * article, or the sentence subject like 'Marta kept...') becomes the single cast member.
+ * A landscape story stays uncast and keeps the honest 'missing who' advice.
+ */
+const SKY_WORDS = new Set(['sunset', 'sunrise', 'dusk', 'dawn', 'midnight', 'morning', 'evening', 'night', 'twilight', 'storm', 'silence', 'darkness', 'light'])
+
+export function storyCast(text, detected = detectProse(String(text || ''))) {
+  const found = (detected && detected.characters) || []
+  if (found.length) return found
+  const body = String(text || '')
+  if (!PERSON_EVIDENCE.test(body)) return []
+  const sheet = buildContinuitySheet(body)
+  const name = sheet.character
+  const genericLook = /^the same clothes/i.test(sheet.appearance || '')
+  const usableName = name && name.split(/\s+/).length <= 3 && (!genericLook || /^[\p{Lu}][\p{L}'’-]{1,40}$/u.test(name))
+  if (usableName) return [{ name, look: sheet.appearance || 'as written in your story', outfit: sheet.appearance || 'as written in your story' }]
+  const subject = firstSubject(body)
+  if (subject && !SKY_WORDS.has(subject.toLowerCase())) return [{ name: subject, look: 'as written in your story', outfit: 'as written in your story' }]
+  return []
+}
+
+const PERSON_EVIDENCE = /\b(?:she|he|they|her|him|their|ela|ele|eles|elas|elle|il)\b/i
+
+/** The capitalized sentence-initial subject ('Marta kept...') when the pronoun trail proves a person exists. */
+function firstSubject(body) {
+  const match = String(body).match(/(?:^|[.!?]\s+)([\p{Lu}][\p{L}'’-]{2,40})(?=\s+[\p{L}])/u)
+  return match ? match[1] : ''
+}
+
+/** One cast member means every unattributed beat is theirs — server and preview agree. */
+export function applyCastWho(scenes, cast) {
+  if (cast.length !== 1) return scenes
+  scenes.forEach(scene => { if (!scene.who) scene.who = cast[0].name })
+  return scenes
+}
+
 export function storyToBoard(text, { model = 'grok' } = {}) {
   const clean = String(text || '')
   const detected = detectProse(clean)
   // Same shared fallback as the wizard: a story without proper names still has a
   // protagonist ('a baker') that the prompts will lock. Ambiance stays uncast.
   const sheet = buildContinuitySheet(clean)
-  const cast = (detected.characters && detected.characters.length)
-    ? detected.characters
-    : (sheet.character && sheet.character.split(/\s+/).length <= 3 && /\b(?:a|an|the|o|os|as|um|uma|un|una|le|la|el)\s+[^.!?]{0,48}?\b(?:runs?|races?|crosses|discovers|walks|finds|follows|chases|meets|opens|enters|leaves|fights|searches|delivers|climbs|watches|hears|sees)\b/iu.test(clean)
-      ? [{ name: sheet.character, look: sheet.appearance || 'as written in your story', outfit: sheet.appearance || 'as written in your story' }]
-      : [])
+  const cast = storyCast(clean, detected)
   const scenes = storyScenes(detected)
-  // Engine rule mirrored: with exactly one cast member, every scene belongs to them
-  // (same as the premise path). Multiple people stay scene-scoped; unnamed scenes
-  // would be a guess, so they surface as the familiar 'missing who' advice.
-  if (cast.length === 1) scenes.forEach(scene => { if (!scene.who) scene.who = cast[0].name })
+  if (!(detected.characters && detected.characters.length)) applyCastWho(scenes, cast)
   const scenario = { ...detected.scenario, characters: cast.length && !detected.characters?.length ? cast : detected.scenario?.characters, scenes }
   const parsed = parseScenario(scenario, { allowIncompleteCast: true, allowMissingWhere: true, allowMissingWho: true })
   const board = createStoryboard({ premise: clean, model, sequenceMode: 'scenario', scenario: parsed })
