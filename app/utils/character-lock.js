@@ -599,10 +599,24 @@ function rejectedObject(phrase) {
   return false
 }
 
+/**
+ * 'carries it down to the Tagus' must not make Tagus a carried item: when the
+ * only material before the noun is a destination preposition, the noun is
+ * where, not what. Objects collected before any destination stay valid
+ * ('carries the map to Lisbon' -> map).
+ */
+const DESTINATION_PREP = new Set(['to', 'into', 'onto', 'toward', 'towards', 'para', 'vers', 'até', 'ate', 'ao', 'à', 'aos', 'às', 'nach', 'zu'])
+
 function phraseFromObjectWords(words, characters) {
   let index = 0
+  let destinationSeen = false
   while (index < words.length) {
     const folded = foldName(words[index])
+    if (DESTINATION_PREP.has(folded)) {
+      destinationSeen = true
+      index += 1
+      continue
+    }
     if (OBJECT_ARTICLE.has(folded) || OBJECT_PRONOUN.has(folded) || OBJECT_STOP.has(folded)) {
       index += 1
       continue
@@ -613,6 +627,10 @@ function phraseFromObjectWords(words, characters) {
     }
     break
   }
+  // Reached a noun only after crossing a destination preposition ('carries it down to the
+  // Tagus'): the noun is where the pronoun is taken, not a new carried item. No explicit
+  // object survives, so carry adds nothing. Objects named before any 'to' still collect.
+  if (destinationSeen) return ''
   const collected = []
   while (index < words.length && collected.length < 5) {
     const word = words[index]
