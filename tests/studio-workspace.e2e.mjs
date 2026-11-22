@@ -45,7 +45,7 @@ const copy = {
   en: {
     nextIdea: 'Next: Characters', nextPlaces: 'Next: Places and style', nextShots: 'Next: Shots', nextCheck: 'Next: Check', nextGenerate: 'Next: Generate',
     ideaError: 'Add a little more detail. The idea needs at least 8 characters.',
-    nameError: 'Add a name.', placeError: 'Add a place name.', actionError: 'Describe one action.',
+    nameError: 'Add a name.', ageError: 'Add an age.', placeError: 'Add a place name.', actionError: 'Describe one action.',
     none: 'No character', back: 'Go back', storyboard: 'Storyboard', projects: 'My Projects',
     menu: /Open workspace navigation/, export: 'Export', save: 'Save current project',
     backup: 'Backup & transfer', exportJson: 'Export JSON', move: 'Move earlier',
@@ -54,7 +54,7 @@ const copy = {
   pt: {
     nextIdea: 'Seguinte: Personagens', nextPlaces: 'Seguinte: Lugares e estilo', nextShots: 'Seguinte: Planos', nextCheck: 'Seguinte: Verificar', nextGenerate: 'Seguinte: Gerar',
     ideaError: 'Acrescente um pouco mais. A ideia precisa de pelo menos 8 caracteres.',
-    nameError: 'Adicione um nome.', placeError: 'Adicione o nome do lugar.', actionError: 'Descreva uma só ação.',
+    nameError: 'Adicione um nome.', ageError: 'Adicione uma idade.', placeError: 'Adicione o nome do lugar.', actionError: 'Descreva uma só ação.',
     none: 'Sem personagem', back: 'Voltar', storyboard: 'Storyboard', projects: 'Meus projetos',
     menu: /Abrir a navegação do estúdio/, export: 'Exportar', save: 'Guardar o projeto atual',
     backup: 'Cópia e transferência', exportJson: 'Exportar JSON', move: 'Mover para antes',
@@ -93,7 +93,10 @@ try {
       await assertStudioFits(page, `${key} step 2`)
       await page.getByRole('button', { name: text.nextPlaces }).click()
       await page.locator('#wizard-gaps').waitFor()
-      assert.match(await page.locator('#wizard-gaps').innerText(), new RegExp(text.nameError))
+      const gaps2 = await page.locator('#wizard-gaps').innerText()
+      // #58: the idea's protagonist is seeded like the planner names it; the block moves to the look fields.
+      assert.match(gaps2, new RegExp(text.ageError))
+      assert.equal(await page.locator('input[id$="-name"]').first().inputValue(), 'Lighthouse keeper')
       assert.equal(await page.locator('#wizard-no-character').count(), 1)
       const name = page.locator('input[id$="-name"]').first()
       await name.fill('Léa')
