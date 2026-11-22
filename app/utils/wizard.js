@@ -120,6 +120,7 @@ function blankShot(id) {
     framing: '',
     duration: 3,
     prompt: '',
+    source: '',
     origin: { who: '', place: '', action: '', framing: '' },
     confidence: { who: '', place: '', action: '', framing: '' }
   }
@@ -591,6 +592,7 @@ function shotFromScene(state, scene, id) {
     whoIds,
     placeId,
     action: scene.what || '',
+    source: clip(cleanText(scene.source), FIELD_LIMITS.action),
     framing,
     duration: Number.isInteger(scene.duration) ? scene.duration : 3,
     prompt: '',
@@ -1001,6 +1003,7 @@ export function wizardScenario(state) {
         duration: Number(shot.duration) || 3
       }
       if (skip) scene.noCharacter = true
+      if (shot.source) scene.source = clip(cleanText(shot.source), FIELD_LIMITS.action)
       if (shot.prompt) scene.prompt = shot.prompt
       return scene
     })
@@ -1120,6 +1123,7 @@ function restoreShot(value, index) {
   const shot = blankShot(typeof source.id === 'string' && source.id ? source.id : `shot-${index + 1}`)
   shot.whoIds = asArray(source.whoIds)?.filter(id => typeof id === 'string').slice(0, 12) || []
   shot.noCharacter = source.noCharacter === true
+  shot.source = clip(String(source.source || ''), FIELD_LIMITS.action)
   shot.placeId = typeof source.placeId === 'string' ? source.placeId : ''
   shot.action = clip(source.action, FIELD_LIMITS.action)
   shot.framing = termById(source.framing) ? source.framing : ''

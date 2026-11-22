@@ -47,6 +47,7 @@ import {
   markGenerated,
   optionsSignature
 } from '~/utils/wizard.js'
+import { shotProvenance, coverage } from '~/utils/story-provenance.js'
 import { MODEL_OPTIONS, ASPECT_RATIOS } from '~/utils/prompt-engine.js'
 import { FRAMING_TERMS, framingOptionLabel } from '~/utils/framing.js'
 import { LIGHT_VALUES, MOOD_VALUES } from '~/utils/scenario.js'
@@ -174,6 +175,7 @@ const genres = computed(() => {
   return family?.genres || []
 })
 const project = computed(() => store.project.value)
+const storyCoverage = computed(() => coverage(project.value?.shots || [], state.value.idea))
 const shotGroups = computed(() => {
   const shots = project.value?.shots || []
   const parts = project.value?.parts
@@ -583,6 +585,7 @@ function copyAgent() {
         <p v-if="stale" role="status">{{ t('generate.stale') }}</p>
         <div v-if="showOutputs" class="wizard-output">
           <p>{{ t('generate.ready') }}</p>
+          <p class="wizard-coverage">{{ $t('{from} of {total} shots come from your story', { from: storyCoverage.fromText, total: storyCoverage.total }) }}</p>
           <div class="wizard-actions">
             <button class="button button-secondary" type="button" @click="copyText(combinedShotPrompts(project), wizardText('generate.copiedAll'))">{{ t('action.copyAll') }}</button>
             <button class="button button-secondary" type="button" @click="copyAgent">{{ t('action.copyAgent') }}</button>
@@ -597,9 +600,12 @@ function copyAgent() {
                 <OpenInButtons :prompt="partPrompt(group.part)" :seed="group.part.index" />
               </div>
             </header>
-            <article v-for="(item, index) in group.shots" :key="item.id" class="wizard-shot">
+            <article v-for="(item, index) in group.shots" :key="item.id" class="wizard-shot" :data-provenance="shotProvenance(item, { idea: state.idea })">
               <h3>{{ t('generate.shotLabel', { number: item.order || index + 1 }) }}</h3>
               <p v-if="item.promptEdited" class="wizard-hint">{{ t('generate.edited') }}</p>
+              <p v-else-if="shotProvenance(item, { idea: state.idea }) === 'extracted'" class="wizard-provenance">{{ $t('From your story') }}</p>
+              <p v-else-if="shotProvenance(item, { idea: state.idea }) === 'suggested'" class="wizard-provenance">{{ $t('Suggested') }}</p>
+              <p v-else-if="shotProvenance(item, { idea: state.idea }) === 'yours'" class="wizard-provenance">{{ $t('Your words') }}</p>
               <pre>{{ item.prompt }}</pre>
               <div class="wizard-actions">
                 <button class="button button-secondary" type="button" @click="copyText(item.prompt, wizardText('generate.copiedShot'))">{{ t('action.copyShot') }}</button>
