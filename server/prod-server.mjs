@@ -4,6 +4,7 @@ import { dirname, extname, join, resolve, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { createRateLimiter, handleAgentHttp, isAgentPath, isLimitedPath, publicOrigin, clientAddress, readLimitedBody } from './agent-api.mjs'
 import { createCounterShutdown, createVisitStore, visitCounterPath } from './visits.mjs'
+import { createWaitlistStore } from './waitlist.mjs'
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -133,7 +134,7 @@ function cacheControl(file, root) {
   return 'public, max-age=3600'
 }
 
-export function createProdServer({ staticRoot, logger = () => {}, limiter = createRateLimiter(), visits = createVisitStore({}) } = {}) {
+export function createProdServer({ staticRoot, logger = () => {}, limiter = createRateLimiter(), visits = createVisitStore({}), waitlist = createWaitlistStore({}) } = {}) {
   const root = resolve(staticRoot)
   return createServer(async (request, response) => {
     let url
@@ -149,6 +150,30 @@ export function createProdServer({ staticRoot, logger = () => {}, limiter = crea
     }
     if (isAgentPath(pathname)) {
       await handleAgentHttp(request, response, { pathname, searchParams: url.searchParams, origin: publicOrigin(request.headers), limiter: { allow: () => true } })
+      return
+    }
+    if (pathname === '/api/long/waitlist') {
+      const jsonHeaders = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...SECURITY }
+      if (request.method !== 'POST') {
+        send(response, 405, jsonHeaders, JSON.stringify({ error: 'method_not_allowed' }), request.method)
+        return
+      }
+      let text = ''
+      try { text = await readLimitedBody(request, 4096) || '' } catch {
+        send(response, 413, jsonHeaders, JSON.stringify({ error: 'too_large' }), request.method)
+        return
+      }
+      const parsed = waitlist.parseBody(text)
+      if (parsed.status) {
+        send(response, parsed.status, jsonHeaders, JSON.stringify({ error: parsed.status === 413 ? 'too_large' : 'invalid_json' }), request.method)
+        return
+      }
+      const result = await waitlist.add(parsed.email, parsed.website)
+      if (result.ok) {
+        send(response, 200, jsonHeaders, JSON.stringify({ ok: true, duplicate: result.duplicate }), request.method)
+      } else {
+        send(response, result.status, jsonHeaders, JSON.stringify({ error: result.status === 429 ? 'rate_limited' : result.status === 507 ? 'waitlist_full' : 'invalid_email' }), request.method)
+      }
       return
     }
     if (pathname === '/api/visits') {
@@ -223,7 +248,8 @@ if (isMain) {
   const staticRoot = resolveStaticRoot()
   const counterFile = visitCounterPath()
   const visits = createVisitStore({ filePath: counterFile })
-  const server = createProdServer({ staticRoot, visits })
+  const waitlist = createWaitlistStore({ filePath: process.env.LONG_WAITLIST_FILE || '/data/long-waitlist.json' })
+  const server = createProdServer({ staticRoot, visits, waitlist })
   const shutdown = createCounterShutdown(visits, { close: callback => server.close(callback) })
   process.once('SIGTERM', shutdown)
   process.once('SIGINT', shutdown)
