@@ -7,6 +7,7 @@ import { wizardText } from './wizard-strings.js'
 import { createStoryboard, refreshShotPrompt, canonicalModel, canonicalAspect, buildContinuitySheet } from './prompt-engine.js'
 import { termById, suggestFraming } from './framing.js'
 import { foldName, findByName, nameParts, LIGHT_VALUES, MOOD_VALUES } from './scenario.js'
+import { STORY_VERB_FORMS } from './story-verbs.js'
 import { canonicalStyleFamily, presetGenres } from './presets/index.js'
 import { detectProse } from './prose-detect.js'
 import { lockLineFor } from './character-lock.js'
@@ -505,7 +506,9 @@ function applyCharacters(state, detected) {
       // Le nom doit être le nom commun introduit par un article dans l'idée ('a baker'),
       // jamais un reste de phrase. 'An uncertain reading is not used to fill names.'
       const safe = item.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-      return new RegExp(`\\b(?:a|an|the|o|os|as|um|uma|un|una|le|la|el)\\s+${safe}\\b`, 'iu').test(ideaText)
+      // Article + noun is not enough: the idea must let a story verb act on it
+      // ('a baker ... discovers') — an abstract subject ('a quiet moment unfolds') is never a person.
+      return new RegExp(`\\b(?:a|an|the|o|os|as|um|uma|un|una|le|la|el)\\s+${safe}\\b[^.!?]{0,48}?\\b(?:${STORY_VERB_FORMS})\\b`, 'iu').test(ideaText)
     })
     if (fallback.length && state.characters.every(character => !userTouchedCharacter(character))) {
       state.characters = fallback.map((record, index) => detectedCharacter(record, `character-${index + 1}`))

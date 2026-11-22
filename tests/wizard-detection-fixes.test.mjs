@@ -80,4 +80,6 @@ test('le wizard préremplit le protagoniste nom commun, sans jamais inventer', (
   assert.deepEqual(nobody.characters.map(c => c.name), [''], 'pas de protagoniste = ligne vierge, pas de mot volé')
   const compound = applyIdeaDetection(setIdea(blankWizard(), 'A lighthouse keeper races the dusk to repair a failing beacon.'))
   assert.deepEqual(compound.characters.map(c => c.name), ['Lighthouse keeper'])
+  const quiet = applyIdeaDetection(setIdea(blankWizard(), 'A quiet moment unfolds slowly.'))
+  assert.deepEqual(quiet.characters.map(c => c.name), [''], 'une ambiance nest jamais un personnage (idée épinglée par studio-wizard-gates.e2e)')
 })
