@@ -34,7 +34,7 @@ const base = `http://127.0.0.1:${port}`
 const STORY = 'A baker in Lisbon discovers her sourdough starter glows at midnight. She carries it down to the Tagus. The river answers with light.'
 
 const browser = await chromium.launch()
-const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+const page = await browser.newPage({ bypassCSP: true, viewport: { width: 1280, height: 900 } })
 
 // 1) page existe, bouton inactif sans texte
 await page.goto(`${base}/story`, { waitUntil: 'domcontentloaded' })

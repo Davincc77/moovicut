@@ -86,7 +86,7 @@ export function storyCast(text, detected = detectProse(String(text || ''))) {
   const sheet = buildContinuitySheet(body)
   const name = sheet.character
   const genericLook = /^the same clothes/i.test(sheet.appearance || '')
-  const usableName = name && name.split(/\s+/).length <= 3 && (!genericLook || /^[\p{Lu}][\p{L}'’-]{1,40}$/u.test(name))
+  const usableName = name && name.split(/\s+/).length <= 3 && (!genericLook || /^[\p{Lu}][\p{L}’’-]{1,20}(?:\s+[\p{L}’'-]{1,20})?$/u.test(name))
   if (usableName) return [{ name, look: sheet.appearance || 'as written in your story', outfit: sheet.appearance || 'as written in your story' }]
   const subject = firstSubject(body)
   if (subject && !SKY_WORDS.has(subject.toLowerCase())) return [{ name: subject, look: 'as written in your story', outfit: 'as written in your story' }]
@@ -119,6 +119,17 @@ export function storyToBoard(text, { model = 'grok' } = {}) {
   if (!(detected.characters && detected.characters.length)) applyCastWho(scenes, cast)
   const scenario = { ...detected.scenario, characters: cast.length && !detected.characters?.length ? cast : detected.scenario?.characters, scenes }
   const parsed = parseScenario(scenario, { allowIncompleteCast: true, allowMissingWhere: true, allowMissingWho: true })
-  const board = createStoryboard({ premise: clean, model, sequenceMode: 'scenario', scenario: parsed })
+  const board = createStoryboard({ premise: clean, model, sequenceMode: 'scenario', scenario: parsed, allowMissingWhere: true, allowMissingWho: true, allowIncompleteCast: true })
   return { board, detected, coverage: coverage(board.shots, clean) }
+}
+
+// F1: never show the validator's schema vocabulary to a human. Translate the
+// known named refusals into plain guidance; everything else gets a safe generic
+// line (the raw message can carry internal words the author never wrote).
+export function storyErrorFor(problem) {
+  const raw = String((problem && problem.message) || '')
+  if (/missing where/i.test(raw)) return 'I could not tell where some scenes happen. Add a place, or keep going — Moovicut sets the scene from context.'
+  if (/missing who/i.test(raw)) return 'I could not tell who some scenes belong to. Name the character, or keep going — Moovicut casts the lead you already introduced.'
+  if (/missing what happens|missing a what/i.test(raw)) return 'I could not find what happens in some scenes. Give each one an action.'
+  return 'Moovicut could not plan this story. Try a sentence with who does what, and where.'
 }

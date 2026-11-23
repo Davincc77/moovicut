@@ -533,7 +533,7 @@ test('every page responds in English and Portuguese on desktop and a phone', { t
   let browser
   try {
     browser = await launch()
-    const english = await browser.newPage()
+    const english = await browser.newPage({ bypassCSP: true })
     await english.addInitScript(() => {
       localStorage.setItem('shotboard.preferences.v1', JSON.stringify({ autoSave: true, darkMode: true, notifications: false, emailUpdates: false }))
     })
@@ -560,7 +560,7 @@ test('every page responds in English and Portuguese on desktop and a phone', { t
     ]
     for (const viewport of viewports) {
         for (const lang of ['?lang=en', '?lang=pt']) {
-        const context = await browser.newContext(viewport.context)
+        const context = await browser.newContext({ bypassCSP: true, ...viewport.context })
         await context.grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => {})
         await context.addInitScript(() => {
           localStorage.setItem('shotboard.preferences.v1', JSON.stringify({ autoSave: true, darkMode: true, notifications: false, emailUpdates: false }))
@@ -605,7 +605,7 @@ test('every page responds in English and Portuguese on desktop and a phone', { t
     ]
     for (const viewport of wizardViews) {
       for (const lang of ['?lang=en', '?lang=pt']) {
-        const context = await browser.newContext(viewport.context)
+        const context = await browser.newContext({ bypassCSP: true, ...viewport.context })
         const page = await context.newPage()
         await checkNoCharacterStops(page, lang)
         await checkMissingWho(page, lang, viewport.name)
