@@ -661,7 +661,7 @@ button.text-link:disabled { cursor:not-allowed;opacity:.4;color:var(--text-secon
  .studio-shell .studio-card-copy { position:static;width:fit-content;max-width:100%;min-width:0;margin-top:12px;background:transparent; }
 }
 .site-nav-links { display:flex; align-items:center; gap:4px; }
-.site-nav-links a,.site-nav-menu a,.studio-nav-menu a { padding:8px 12px; border-radius:6px; color:var(--gold,#f0b429); font-size:14px; }
+.site-nav-links a,.site-nav-menu a,.studio-nav-menu a { display:inline-flex; align-items:center; min-height:40px; padding:8px 12px; border-radius:6px; color:var(--gold,#f0b429); font-size:14px; }
 .site-header .brand-name,.site-header .site-nav-links a,.site-header .site-nav-menu a,.site-header .nav-menu-button,.studio-shell .workspace-local-note,.studio-shell .studio-nav-menu a,.studio-shell .workspace-nav-button { color:var(--gold,#f0b429); }
 .site-header a:hover,.site-header a:focus-visible,.studio-shell .studio-nav-menu a:hover,.studio-shell .studio-nav-menu a:focus-visible { color:var(--gold-hover,#f6c85a); }
 .studio-paste-hint { margin:6px 0 0; color:#9a9486; font-size:13px; line-height:1.4; }

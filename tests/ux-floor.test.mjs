@@ -56,8 +56,8 @@ test('touch : les chips exemple du hero atteignent 40px', () => {
   }
   assert.ok(declared, 'au moins un bloc déclare min-height >= 40')
 })
-test('touch : la nav principale a une cible >= 40px', () => {
-  const block = css.match(/\.main-nav a\s*\{([^}]*)\}/)
-  assert.ok(block && /min-height:\s*(4[0-9]|[5-9]\d)px/.test(block[1]), 'main-nav a doit declarer min-height >= 40px')
+test('touch : la nav réelle du site (.site-nav-links, pas le squelette mort .main-nav) a une cible >= 40px', () => {
+  const block = css.match(/\.site-nav-links a[^{]*\{([^}]*)\}/)
+  assert.ok(block && /min-height:\s*(4[0-9]|[5-9]\d)px/.test(block[1]), 'la nav vivante doit declarer min-height >= 40px')
 })
 void TARGETS
