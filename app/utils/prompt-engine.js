@@ -158,11 +158,17 @@ const CONTENT_STOP = new Set(['a', 'an', 'the', 'un', 'une', 'el', 'la', 'los', 
 function contentWords(source) {
   return cleanText(source).replace(/[^\p{L}\p{N}\s'’-]/gu, ' ').split(/\s+/).filter(word => word && !CONTENT_STOP.has(word.toLowerCase()))
 }
+// A reported clause must not eat the character: 'My grandmother says that…' is
+// about My grandmother, not a person named 'My grandmother says'. fallbackPhrase
+// cuts the leading words at the first reporting/action verb it recognises.
+const LEAD_VERB = /^(?:say|says|said|tell|tells|told|ask|asks|asked|whisper|whispers|whispered|shout|shouts|shouted|think|thinks|thought|know|knows|knew|remember|remembers|remembered|believe|believes|believed|hope|hoped|wish|wishes|wished|call|calls|called|cry|cries|cried|laugh|laughs|laughed|smile|smiles|smiled|knock|knocks|knocked|open|opens|opened)$/i
 function fallbackPhrase(source, skip = []) {
   const skipped = new Set(skip.map(word => String(word).toLowerCase()))
   const verb = new RegExp(`^(?:${STORY_VERBS})$`, 'iu')
   const words = contentWords(source).filter(word => !verb.test(word) && !skipped.has(word.toLowerCase()))
-  const chosen = (words.length ? words : contentWords(source)).slice(0, 3)
+  const cut = words.findIndex(word => LEAD_VERB.test(word))
+  const head = cut >= 2 ? words.slice(0, cut) : words
+  const chosen = (head.length ? head : words.length ? words : contentWords(source)).slice(0, 3)
   return chosen.length ? sentence(chosen.join(' ')) : sentence(cleanText(source).slice(0, 48))
 }
 const LEADING_NAME_STOP = new Set(['the', 'a', 'an', 'she', 'he', 'they', 'une', 'le', 'la', 'les', 'il', 'elle', 'un'])

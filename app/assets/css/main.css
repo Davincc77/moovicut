@@ -1051,6 +1051,8 @@ dialog.side-sheet[open] { display:flex; flex-direction:column; }
 /* instant board — l'ergonomie empruntée au maillot d'audit 24-11 :
    le résultat d'abord, la refinement avec lui, jamais avant. */
 .instant-board { margin-top:18px; padding:18px; border:1px solid var(--border); border-radius:14px; background:var(--surface); }
+.board-title { font-size:16px; margin:0; }
+.board-hint { margin:4px 0 12px; color:var(--text-secondary); font-size:14px; }
 .instant-board .board-list { list-style:none; display:flex; flex-direction:column; gap:10px; margin:0; padding:0; }
 .instant-board li { display:grid; grid-template-columns:28px 1fr auto; align-items:center; gap:12px; padding:10px 12px; border:1px solid var(--muted-border); border-radius:10px; background:var(--bg-alt); min-height:44px; }
 .board-order { display:inline-flex; align-items:center; justify-content:center; min-width:28px; height:22px; border-radius:999px; background:#f0b42917; color:var(--accent-hover); font-size:12px; font-weight:600; }

@@ -19,6 +19,10 @@ const heroModel = ref('grok')
 const genre = ref('action')
 const preview = ref({ ok: false, shots: [] })
 let previewTimer = null
+const moreLabel = computed(() => {
+  const n = preview.value.more || 0
+  return n === 1 ? t('{more} more shot in the studio', { more: n }) : t('{more} more shots in the studio', { more: n })
+})
 watch([premise, heroModel], () => {
   if (import.meta.server) return
   clearTimeout(previewTimer)
@@ -95,6 +99,8 @@ function usePremise(selected){openStudio(t(selected.premise))}
 <template><div class="site-shell"><AppHeader /><main id="main-content" class="site-main">
   <section class="hero-section" aria-labelledby="hero-title"><div class="hero-container"><div class="hero-copy"><p class="eyebrow-pill">{{ $t('Local storyboard studio') }}</p><h1 id="hero-title">{{ $t('Plan a storyboard') }}</h1><p class="hero-subtitle">{{ $t('Write one idea. Moovicut turns it into editable shots and prompts you can paste into Grok Imagine, Google, or any other AI image or video model. It does not render a clip.') }}</p><form class="premise-composer" @submit.prevent="startPlan"><label class="sr-only" for="hero-premise">{{ $t('Describe your film') }}</label><div class="composer-input-row"><input id="hero-premise" v-model="premise" :placeholder="$t('A noir detective chases a suspect through neon-lit rain…')" maxlength="6000" required /><button class="button button-primary" type="submit"><Clapperboard :size="17" />{{ $t('Create storyboard') }}</button></div><p class="hero-local-note">{{ $t('Generates an editable shot list on your device. No account or rendering.') }}</p><div class="hero-model-line"><label class="hero-model-select">{{ $t('Prompt target') }}<select v-model="heroModel" :aria-label="$t('Prompt target')"><option v-for="item in MODEL_OPTIONS" :key="item.id" :value="item.id">{{ item.label }}</option></select></label><span>{{ $t('Try one of these:') }}</span><button v-for="example in examples" :key="example.name" type="button" @click="premise=$t(example.premise)">{{ $t(example.name) }}</button></div><p class="prompt-target-note">{{ $t('Thirteen prompt targets. Shot length and aspect follow the one you pick. The prompts also paste into any other AI image or video model.') }}</p></form>
           <section v-if="preview.ok" class="instant-board" :aria-label="$t('Instant board preview')">
+            <h2 class="board-title">{{ $t('Here is your idea as shots') }}</h2>
+            <p class="board-hint">{{ $t('Want just one picture? Copy any card and paste it into your AI app.') }}</p>
             <ol class="board-list">
               <li v-for="shot in preview.shots" :key="shot.order">
                 <span class="board-order">{{ shot.order }}</span>
@@ -103,7 +109,7 @@ function usePremise(selected){openStudio(t(selected.premise))}
               </li>
             </ol>
             <div class="board-foot">
-              <p class="board-local">{{ $t('Built on this device — nothing was sent.') }}<span v-if="preview.more"> · {{ $t('{more} more shots in the studio', { more: preview.more }) }}</span></p>
+              <p class="board-local">{{ $t('Built on this device — nothing was sent.') }}<span v-if="preview.more"> · {{ moreLabel }}</span></p>
               <button type="button" class="button button-primary board-refine" @click="startPlan">{{ $t('Refine in the studio') }} <ArrowRight :size="16" /></button>
             </div>
           </section><div class="scene-collage hero-story-strip" :aria-label="$t('Movie still examples')"><figure v-for="image in heroImages" :key="image.src" class="hero-still"><picture><source :srcset="joinAppPath(appBaseURL,image.srcset)" sizes="(max-width: 767px) 46vw, 22vw" type="image/webp" /><img :src="joinAppPath(appBaseURL,image.fallback)" :alt="$t(image.alt)" width="400" height="533" loading="lazy" decoding="async" /></picture><figcaption>{{ $t(image.caption) }}</figcaption></figure></div></div></div></section>

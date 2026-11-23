@@ -954,7 +954,6 @@
   "The shipped file": "The shipped file",
   "The shot prompts, the agent JSON, and the character sheet appear here after you generate.": "The shot prompts, the agent JSON, and the character sheet appear here after you generate.",
   "The software is offered as-is, without guarantees of uninterrupted service or fitness for a particular purpose. Save copies of important projects. Local browser data can be removed by clearing storage or changing devices.": "The software is offered as-is, without guarantees of uninterrupted service or fitness for a particular purpose. Save copies of important projects. Local browser data can be removed by clearing storage or changing devices.",
-  "The story could not be planned.": "The story could not be planned.",
   "The story premise exceeds the 6,000-character limit.": "The story premise exceeds the 6,000-character limit.",
   "The story premise must be at least 8 characters.": "The story premise must be at least 8 characters.",
   "The storyboard could not be built.": "The storyboard could not be built.",
@@ -1157,5 +1156,12 @@
   "Instant board preview": "Instant board preview",
   "Built on this device — nothing was sent.": "Built on this device — nothing was sent.",
   "{more} more shots in the studio": "{more} more shots in the studio",
-  "Refine in the studio": "Refine in the studio"
+  "Refine in the studio": "Refine in the studio",
+  "{more} more shot in the studio": "{more} more shot in the studio",
+  "Here is your idea as shots": "Here is your idea as shots",
+  "Want just one picture? Copy any card and paste it into your AI app.": "Want just one picture? Copy any card and paste it into your AI app.",
+  "I could not tell where some scenes happen. Add a place, or keep going — Moovicut sets the scene from context.": "I could not tell where some scenes happen. Add a place, or keep going — Moovicut sets the scene from context.",
+  "I could not tell who some scenes belong to. Name the character, or keep going — Moovicut casts the lead you already introduced.": "I could not tell who some scenes belong to. Name the character, or keep going — Moovicut casts the lead you already introduced.",
+  "I could not find what happens in some scenes. Give each one an action.": "I could not find what happens in some scenes. Give each one an action.",
+  "Moovicut could not plan this story. Try a sentence with who does what, and where.": "Moovicut could not plan this story. Try a sentence with who does what, and where."
 }
