@@ -85,9 +85,16 @@ test('refused requests keep the named-error data so a weak model can repair in o
   assert.equal(misplaced.error.code, -32602)
   assert.equal(misplaced.error.data.error, 'misplaced_scenario_fields')
   assert.ok(misplaced.error.data.errors.some(item => item.field === 'scenes'))
+  // SKILL.md loi (ligne « A prose request still returns a board ») + audit
+  // externe 24-11 : un message texte nommé n'est PAS un 400 muet — c'est un
+  // board 200 dont les warnings nomment la réparation (name_without_sheet),
+  // la même donnée de repair en une passe, sans ping-pong docs↔serveur.
   const named = parse(send({ message: { parts: [{ kind: 'text', text: 'Aisha unlocks her apartment door. She places her bag on the table.' }] } }))
-  assert.equal(named.error.data.error, 'invalid_scenario')
-  assert.match(named.error.message, /Add at least one character/)
+  assert.ok(!named.error, `a2a prose attendu 200, reçu ${String(JSON.stringify(named.error ?? null)).slice(0, 120)}`)
+  const namedData = (named.result?.parts || []).find(p => p.kind === 'data')?.data
+  assert.ok(Array.isArray(namedData?.shots) && namedData.shots.length >= 1)
+  const namedCodes = (namedData?.warnings || []).map(w => w.code)
+  assert.ok(namedCodes.includes('name_without_sheet'), `warnings attendu name_without_sheet, reçu ${JSON.stringify(namedCodes.slice(0, 6))}`)
   const invalid = parse(dispatchAgentRequest({
     method: 'POST',
     pathname: '/a2a',

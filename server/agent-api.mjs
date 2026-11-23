@@ -367,7 +367,12 @@ function planProse(input, { origin, compact }) {
   const detected = detectProse(text, { splitScenes })
   const scenario = { ...detected.scenario, scenes: scenesForPlan(detected) }
   const cast = detected.characters || []
-  const parsed = parseScenario(scenario, { allowIncompleteCast: true, allowMissingWhere: true, allowMissingWho: cast.length > 0 })
+  // Audit externe 24-11 : allowMissingWho: cast.length > 0 refusait
+  // « scenes[0] is missing who » sur un récit SANS personne — une exigence
+  // que le serveur inventait lui-même depuis la prose. En mode prose, le
+  // who manquant est TOUJOURS comblé (le même Figure placeholder que le
+  // chemin fountain) : prose ne peut plus se refuser lui-même.
+  const parsed = parseScenario(scenario, { allowIncompleteCast: true, allowMissingWhere: true, allowMissingWho: true, allowEmptyCast: true })
   const promptLanguage = optionalPromptLanguage(input) || 'en'
   const detection = {
     input: 'prose',
@@ -390,7 +395,7 @@ function planProse(input, { origin, compact }) {
     scenario,
     allowIncompleteCast: true,
     allowMissingWhere: true,
-    allowMissingWho: cast.length > 0,
+    allowMissingWho: true,
     model: input.model,
     aspectRatio: input.aspectRatio,
     style: input.style,
@@ -635,10 +640,25 @@ function shortBoardWarning(project, input) {
   const premise = cleanText(project?.premise || input?.premise || input?.prose || input?.text || '')
   const shots = project?.shots?.length || 0
   if (!premise || shots < 1) return null
-  const beats = actionBeats(premise).length
+  // Le nombre de beats, c'est ce que le SERVEUR lui-même verrait :
+  // detectProse est le moteur qui a produit le board par défaut du même
+  // texte. Un compteur maison de plus = un prometteur de plus à auditer.
+  let proseBeats = 0
+  try { proseBeats = (detectProse(premise, { splitScenes: true }).scenario?.scenes || []).length } catch { /* warning only */ }
+  const beats = Math.max(actionBeats(premise).length, splitActionText(premise).length, proseBeats)
   const sentences = premise.split(/(?<=[.!?。！？])\s+/u).map(part => cleanText(part)).filter(part => part.length >= 8).length
   const expected = Math.max(beats, sentences)
-  if (expected < shots * 2 || expected < shots + 8) return null
+  // Audit externe 24-11 : entre les seuils « far-few », un board pouvait
+  // fusionner des beats SANS RIEN DIRE — la promesse « never merge beats »
+  // violée en silence. Toute fusion réelle (beats > shots) est désormais
+  // nommée par le warning ; les seuils anciens gardent leur message
+  // « far fewer » pour les cas extrêmes.
+  // La fusion demandée par le client (shots explicite < beats) se signale ;
+  // le board par défaut du serveur, lui, ne s'auto-accuse pas : sa payload
+  // épinglée (compact, parts) reste byte-stable.
+  const asked = input?.shots ?? input?.count
+  const merging = asked != null && asked !== '' && beats > shots
+  if (!merging && (expected < shots * 2 || expected < shots + 8)) return null
   return {
     code: 'short_board',
     message: `This board has ${shots} shots and the premise has about ${expected} sentences or action beats. Send the full story again as one scene per beat, or as plain prose so every beat is split automatically. Do not shorten the story or drop actions. A story longer than 40 shots is split into parts of at most 40.`,
