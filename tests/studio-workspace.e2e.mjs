@@ -75,7 +75,7 @@ try {
     const text = copy[lang]
     for (const viewport of viewports) {
       const key = `${lang}-${viewport.id}`
-      const page = await browser.newPage({ viewport: { width: viewport.width, height: viewport.height } })
+      const page = await browser.newPage({ bypassCSP: true, viewport: { width: viewport.width, height: viewport.height } })
       await page.addInitScript(() => localStorage.clear())
       await page.goto(`${base}/studio/?lang=${lang}`, { waitUntil: 'networkidle' })
       await page.locator('#wizard-idea').waitFor()

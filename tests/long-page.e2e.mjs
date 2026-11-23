@@ -50,7 +50,7 @@ const base = `http://127.0.0.1:${server.address().port}`
 
 const browser = await chromium.launch()
 try {
-  const page = await browser.newPage()
+  const page = await browser.newPage({ bypassCSP: true })
   await page.goto(`${base}/long/`, { waitUntil: 'networkidle' })
 
   const h1 = await page.locator('h1').first().innerText()
@@ -80,7 +80,7 @@ try {
   assert.ok((await page.locator('a:has-text("free story demo")').count()) >= 1)
 
   // PT locale serves too
-  const pt = await browser.newPage()
+  const pt = await browser.newPage({ bypassCSP: true })
   await pt.goto(`${base}/long/?lang=pt`, { waitUntil: 'networkidle' })
   const h1pt = await pt.locator('h1').first().innerText()
   assert.match(h1pt, /romance|romance|romanc|roman/i, `pt h1: ${h1pt}`)

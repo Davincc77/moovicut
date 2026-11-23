@@ -42,7 +42,7 @@ const CLIMB = 'A soldier scales a collapsing scaffold, dust and debris falling, 
 const browser = await chromium.launch()
 try {
   // guided (the default experience): the wizard idea must carry the study premise
-  const guided = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+  const guided = await browser.newPage({ bypassCSP: true, viewport: { width: 1280, height: 900 } })
   await guided.addInitScript(() => { localStorage.clear(); sessionStorage.clear() })
   await guided.goto(`${base}/`, { waitUntil: 'domcontentloaded' })
   await guided.locator('.study-card', { hasText: 'The Lab' }).getByRole('button', { name: /Use this prompt/i }).click()
@@ -59,7 +59,7 @@ try {
   await guided.close()
 
   // advanced experience (persisted): the panel must show the same prefill
-  const advanced = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+  const advanced = await browser.newPage({ bypassCSP: true, viewport: { width: 1280, height: 900 } })
   await advanced.addInitScript(() => { localStorage.clear(); sessionStorage.clear(); localStorage.setItem('moovicut.studio.experience', 'advanced') })
   await advanced.goto(`${base}/`, { waitUntil: 'domcontentloaded' })
   await advanced.locator('.study-card', { hasText: 'The Lab' }).getByRole('button', { name: /Use this prompt/i }).click()
@@ -68,7 +68,7 @@ try {
   assert.equal(await advanced.locator('#studio-idea').inputValue(), LAB, 'advanced panel prefilled')
 
   // hero form submit keeps its documented behaviour: premise travels too
-  const hero = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+  const hero = await browser.newPage({ bypassCSP: true, viewport: { width: 1280, height: 900 } })
   await hero.addInitScript(() => { localStorage.clear(); sessionStorage.clear() })
   await hero.goto(`${base}/`, { waitUntil: 'domcontentloaded' })
   await hero.locator('#hero-premise').fill(CLIMB)
