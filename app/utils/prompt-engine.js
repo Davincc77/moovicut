@@ -1310,13 +1310,13 @@ export function refreshShotPrompt(shot, project, index, { overwrite = false } = 
   next.prompt = createPrompt(next, project, index)
   return next
 }
-export function splitShotByAction(project, shotId) {
+export function splitShotByAction(project, shotId, options = {}) {
   if (!project?.shots?.length) return null
   const shots = project.shots.map(shot => ({ ...shot }))
   const index = shots.findIndex(shot => shot.id === shotId || shot.shot_id === shotId)
   if (index < 0) return null
   const source = shots[index]
-  const parts = splitActionText(source.what || source.action || '')
+  const parts = splitActionText(source.what || source.action || '', options)
   if (parts.length < 2) return null
   const sceneKey = source.sceneKey || `scene-${source.id || source.shot_id || index + 1}`
   const made = parts.map((action, partIndex) => {
