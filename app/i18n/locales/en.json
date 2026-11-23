@@ -1153,5 +1153,9 @@
   "{shots} shots · {seconds}s · {family} / {genre} · {reference}": "{shots} shots · {seconds}s · {family} / {genre} · {reference}",
   "{title} storyboard study": "{title} storyboard study",
   "{title} — Moovicut": "{title} — Moovicut",
-  "“{trait}” is repeated in the same line.": "“{trait}” is repeated in the same line."
+  "“{trait}” is repeated in the same line.": "“{trait}” is repeated in the same line.",
+  "Instant board preview": "Instant board preview",
+  "Built on this device — nothing was sent.": "Built on this device — nothing was sent.",
+  "{more} more shots in the studio": "{more} more shots in the studio",
+  "Refine in the studio": "Refine in the studio"
 }
