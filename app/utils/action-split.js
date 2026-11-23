@@ -22,13 +22,13 @@ function hasVerb(text, lax = false) {
   return LAX_VERB.test(clean) || LAX_INFLECTION.test(clean)
 }
 
-function clauseParts(text, lax) {
+function clauseParts(text, lax, laxJoin = lax) {
   const clean = cleanText(text).replace(/[.!?]+$/, '')
   if (!clean) return []
   const timed = clean.split(/\s+\b(?:and then|then|while)\b\s+/i).map(part => part.trim()).filter(Boolean)
   if (timed.length >= 2 && timed.filter(part => hasVerb(part, lax)).length >= 2) return timed
   const joined = clean.split(/\s+\band\b\s+/i).map(part => part.trim()).filter(Boolean)
-  if (joined.length >= 2 && joined.every(part => hasVerb(part, lax))) return joined
+  if (joined.length >= 2 && joined.every(part => hasVerb(part, laxJoin))) return joined
   return [clean]
 }
 
@@ -56,7 +56,12 @@ function inheritSubject(parts) {
 
 /** Clauses that should become separate shots. Empty when the line is already one action. */
 export function splitActionText(text, options = {}) {
-  const lenient = options.lenient === true
+  // 'timed' : les conjoncteurs explicites (and then/then/while) se decident
+  // en vocabulaire large, le simple « and » reste scelle au vocabulaire
+  // ferme — une beat authored (« Ama blows the whistle and the train
+  // leaves. ») ne se scinde pas sur un capteur elargi. Re-audit 24-11, F1b.
+  const lenient = options.lenient === true || options.lenient === 'timed'
+  const laxJoin = options.lenient === true
   const clean = cleanText(text)
   if (!clean) return []
   const sentences = clean.split(/(?<=[.!?。！？])\s+/u).map(part => part.trim()).filter(Boolean)
@@ -73,7 +78,7 @@ export function splitActionText(text, options = {}) {
       }
       return
     }
-    const parts = inheritSubject(clauseParts(sentence, lenient))
+    const parts = inheritSubject(clauseParts(sentence, lenient, laxJoin))
     if (pending) {
       parts[0] = joinConstraint(parts[0], pending)
       pending = ''

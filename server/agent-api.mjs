@@ -405,7 +405,7 @@ function planProse(input, { origin, compact }) {
     promptLanguage: optionalPromptLanguage(input),
     overwritePrompt: input.overwritePrompt === true,
     storyText: text
-  }), input)
+  }), input, { lenient: 'timed' })
   project.sceneSplit = splitScenes
   project.cuts = detection.cuts
   const link = boardLink(origin, project, { style: input.style })
@@ -486,15 +486,15 @@ function splitEnabled(input) {
   return !(value === false || value === 0 || value === 'false' || value === '0')
 }
 
-function withActionSplits(project, input) {
+function withActionSplits(project, input, options = {}) {
   if (!splitEnabled(input) || !project?.shots?.length) return project
   let current = project
   let guard = 0
   while (guard < 2000) {
     guard += 1
-    const index = current.shots.findIndex(shot => !shot.promptEdited && splitActionText(shot.what || shot.action || '').length >= 2)
+    const index = current.shots.findIndex(shot => !shot.promptEdited && splitActionText(shot.what || shot.action || '', options).length >= 2)
     if (index < 0) break
-    const next = splitShotByAction(current, current.shots[index].id || current.shots[index].shot_id)
+    const next = splitShotByAction(current, current.shots[index].id || current.shots[index].shot_id, options)
     if (!next) break
     current = next
   }
