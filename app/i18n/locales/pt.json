@@ -954,7 +954,6 @@
   "The shipped file": "O ficheiro publicado",
   "The shot prompts, the agent JSON, and the character sheet appear here after you generate.": "Os prompts dos planos, o JSON do agente e a ficha da personagem aparecem aqui depois de gerar.",
   "The software is offered as-is, without guarantees of uninterrupted service or fitness for a particular purpose. Save copies of important projects. Local browser data can be removed by clearing storage or changing devices.": "O software é oferecido tal como está, sem garantia de serviço ininterrupto ou adequação a um fim particular. Guarde cópias dos projetos importantes. Os dados do navegador podem desaparecer ao limpar o armazenamento ou ao mudar de dispositivo.",
-  "The story could not be planned.": "A história não pôde ser planejada.",
   "The story premise exceeds the 6,000-character limit.": "A premissa ultrapassa o limite de 6.000 caracteres.",
   "The story premise must be at least 8 characters.": "A premissa deve ter pelo menos 8 caracteres.",
   "The storyboard could not be built.": "O storyboard não pôde ser construído.",
@@ -1157,5 +1156,12 @@
   "Instant board preview": "Prévia instantânea do roteiro",
   "Built on this device — nothing was sent.": "Criado neste dispositivo — nada foi enviado.",
   "{more} more shots in the studio": "Mais {more} planos no estúdio",
-  "Refine in the studio": "Refinar no estúdio"
+  "Refine in the studio": "Refinar no estúdio",
+  "{more} more shot in the studio": "{more} cena a mais no estúdio",
+  "Here is your idea as shots": "Sua ideia, transformada em planos",
+  "Want just one picture? Copy any card and paste it into your AI app.": "Quer só uma imagem? Copie qualquer cartão e cole no seu app de IA.",
+  "I could not tell where some scenes happen. Add a place, or keep going — Moovicut sets the scene from context.": "Não consegui identificar onde algumas cenas acontecem. Indique um lugar ou continue — o Moovicut cria o cenário pelo contexto.",
+  "I could not tell who some scenes belong to. Name the character, or keep going — Moovicut casts the lead you already introduced.": "Não consegui identificar a quem algumas cenas pertencem. Nomeie a personagem ou continue — o Moovicut escala o protagonista que você já apresentou.",
+  "I could not find what happens in some scenes. Give each one an action.": "Não encontrei o que acontece em algumas cenas. Dê uma ação a cada uma.",
+  "Moovicut could not plan this story. Try a sentence with who does what, and where.": "O Moovicut não conseguiu planejar esta história. Tente uma frase com quem faz o quê, e onde."
 }

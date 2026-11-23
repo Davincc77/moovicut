@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { socialPreviewSeo } from '~/utils/social-preview.js'
-import { storyToBoard, shotProvenance } from '~/utils/story-provenance.js'
+import { storyToBoard, shotProvenance, storyErrorFor } from '~/utils/story-provenance.js'
 import { saveStudioHandoff } from '~/utils/studio-handoff.js'
 import { MODEL_OPTIONS } from '~/utils/prompt-engine.js'
 import { SCENARIO_MAX_CHARS } from '~/utils/scenario.js'
@@ -26,7 +26,7 @@ function buildDraft() {
   try {
     draft.value = storyToBoard(story.value, { model: model.value })
   } catch (problem) {
-    error.value = problem.message || 'The story could not be planned.'
+    error.value = storyErrorFor(problem)
     draft.value = null
   } finally {
     draftBusy.value = false
@@ -75,7 +75,7 @@ useSeoMeta({
             </select>
             <button class="button button-primary" type="button" :disabled="!canBuild" @click="buildDraft">{{ $t('Show my draft') }}</button>
           </div>
-          <p v-if="error" class="story-error" role="alert">{{ error }}</p>
+          <p v-if="error" class="story-error" role="alert">{{ $t(error) }}</p>
         </section>
 
         <section v-if="draft" class="legal-section" aria-live="polite">

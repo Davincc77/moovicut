@@ -336,5 +336,9 @@ export const DYNAMIC_KEYS = [
   'ADVENTURE',
   'SCI-FI',
   'EXPERIMENTAL',
-  'DRAMA'
+  'DRAMA',
+  "I could not tell where some scenes happen. Add a place, or keep going — Moovicut sets the scene from context.",
+  "I could not tell who some scenes belong to. Name the character, or keep going — Moovicut casts the lead you already introduced.",
+  "I could not find what happens in some scenes. Give each one an action.",
+  "Moovicut could not plan this story. Try a sentence with who does what, and where.",
 ]
