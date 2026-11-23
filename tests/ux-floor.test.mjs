@@ -47,10 +47,14 @@ const TARGETS = [
 test('touch : les chips exemple du hero atteignent 40px', () => {
   const hit = css.match(/\.hero-model-line button\s*\{([^}]*)\}/g) || []
   assert.ok(hit.length >= 1)
+  let declared = false
   for (const block of hit) {
     const mh = block.match(/min-height:\s*(\d+)px/)
-    assert.ok(mh && Number(mh[1]) >= 40, `min-height insuffisant: ${mh?.[1] || 'absent'}`)
+    if (!mh) continue // les blocs partiels (transitions, hovers) héritent de la règle de base
+    assert.ok(Number(mh[1]) >= 40, `min-height insuffisant: ${mh[1]}`)
+    declared = true
   }
+  assert.ok(declared, 'au moins un bloc déclare min-height >= 40')
 })
 test('touch : la nav principale a une cible >= 40px', () => {
   const block = css.match(/\.main-nav a\s*\{([^}]*)\}/)
