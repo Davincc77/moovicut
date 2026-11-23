@@ -15,6 +15,7 @@ import {
   canOpenStep,
   openStep,
   continueStep,
+  skipWithDefaults,
   canGenerate,
   review,
   setIdea,
@@ -165,6 +166,9 @@ function onMergeCut(cut) {
   state.value = next
 }
 const generateEnabled = computed(() => canGenerate(state.value))
+// The escape hatch shows once the idea is long enough to detect from, and hides
+// on the last step (nothing to skip there).
+const canSkip = computed(() => state.value.step !== 'generate' && gapsFor(state.value, 'idea').length === 0)
 const character = computed(() => state.value.characters[state.value.characterIndex] || state.value.characters[0])
 const place = computed(() => state.value.places[state.value.placeIndex] || state.value.places[0])
 const shot = computed(() => state.value.shots[state.value.shotIndex] || state.value.shots[0])
@@ -288,6 +292,7 @@ function copyAgent() {
     <h2 id="wizard-step-heading" class="sr-only">{{ headingText }}</h2>
     <div class="wizard-progress">
       <p class="wizard-step-compact">{{ compactStep }}</p>
+      <button v-if="canSkip" type="button" class="text-button wizard-skip" @click="state = skipWithDefaults(state)">{{ t('wizard.skip') }}</button>
       <ol class="wizard-steps" :aria-label="t('progress.nav')">
         <li v-for="(step, index) in WIZARD_STEPS" :key="step.id">
           <button

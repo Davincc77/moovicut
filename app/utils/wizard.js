@@ -411,6 +411,19 @@ export function continueStep(state) {
   return move(state, WIZARD_STEPS[index + 1].id)
 }
 
+/**
+ * « Use my words » — one-click escape from the tunnel (audit U3): apply the
+ * idea detection (the same cast/places/shots Next would have filled) and land
+ * on Generate when detection is enough, otherwise on Check, which names what
+ * is still missing. It never drops the user in a dead end, and it never
+ * touches the story they typed.
+ */
+export function skipWithDefaults(state) {
+  if (!state || gapsFor(state, 'idea').length) return state
+  const filled = applyIdeaDetection(state)
+  return canGenerate(filled) ? move(filled, 'generate') : move(filled, 'check')
+}
+
 /** A restored guide opens on the first step that still has a strict gap. */
 export function clampWizardStep(state) {
   if (!state) return state
