@@ -30,7 +30,33 @@ const TYPES = {
   '.map': 'application/json; charset=utf-8'
 }
 
-const SECURITY = { 'x-content-type-options': 'nosniff' }
+// Durcissement 23-11 : le site est 100% same-origin (aucun iframe, aucune
+// police externe) sauf le beacon Cloudflare Insights. unsafe-inline est
+// requis par le payload Nuxt inline dans index.html.
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self' data:",
+  "connect-src 'self' https://cloudflareinsights.com https://static.cloudflareinsights.com",
+  "media-src 'self'",
+  "manifest-src 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+  "upgrade-insecure-requests"
+].join('; ')
+
+const SECURITY = {
+  'x-content-type-options': 'nosniff',
+  'x-frame-options': 'DENY',
+  'referrer-policy': 'no-referrer',
+  'content-security-policy': CSP,
+  'strict-transport-security': 'max-age=31536000; includeSubDomains',
+  'permissions-policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()'
+}
 
 export function resolveStaticRoot(env = process.env, root = rootDir) {
   if (env.STATIC_ROOT) return resolve(env.STATIC_ROOT)
@@ -144,6 +170,12 @@ export function createProdServer({ staticRoot, logger = () => {}, limiter = crea
     }
     const { pathname, search } = url
     logger(`${request.method} ${pathname}`)
+    // Ne jamais renvoyer le shell SPA pour les chemins en points (probing .env,
+    // .git, .aws…). .well-known reste servi (ACME/security.txt).
+    if (pathname !== '/.well-known' && pathname.split('/').some(seg => seg.startsWith('.') && seg.length > 1 && !seg.startsWith('.well-known'))) {
+      send(response, 404, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store', ...SECURITY }, 'Not found', request.method)
+      return
+    }
     if (isLimitedPath(pathname) && request.method !== 'OPTIONS' && !limiter.allow(clientAddress(request.headers, request.socket?.remoteAddress))) {
       send(response, 429, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'retry-after': '60', ...SECURITY }, JSON.stringify({ error: 'rate_limited', message: 'Too many requests from this address. Try again in a minute.' }), request.method)
       return

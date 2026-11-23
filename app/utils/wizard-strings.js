@@ -14,6 +14,7 @@ export const WIZARD_STRINGS = Object.freeze({
   'progress.label': 'Step {current} of {total}: {label}',
   'progress.compact': 'Step {current} of {total} · {label}',
   'progress.nav': 'Storyboard steps',
+  'wizard.skip': 'Use my words — skip the rest',
   'step.goto': 'Go to {label}',
   'crumb.guided': 'Guided',
   'wizard.title': 'Build a storyboard',

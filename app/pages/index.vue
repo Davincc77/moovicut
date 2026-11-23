@@ -4,11 +4,12 @@ import { MODEL_OPTIONS, SCENE_STUDIES } from '~/utils/prompt-engine.js'
 import { SCENE_STILLS, stillSrc, stillSrcSet } from '~/utils/reference-content.js'
 import { joinAppPath } from '~/utils/urls.js'
 import { saveStudioHandoff } from '~/utils/studio-handoff.js'
+import { buildPreview } from '~/utils/home-preview.js'
 import { socialPreviewSeo } from '~/utils/social-preview.js'
 const store = useProjectStore()
 const { t } = useI18n()
 const router = useRouter()
-const { notify } = useNotifier()
+const { notify, copyText } = useNotifier()
 const runtimeConfig = useRuntimeConfig()
 const appBaseURL = runtimeConfig.app.baseURL
 const socialPreview = socialPreviewSeo(runtimeConfig.public.productionOrigin || runtimeConfig.public.appUrl, appBaseURL)
@@ -16,6 +17,17 @@ const languageHint = ref(false)
 const premise = ref('')
 const heroModel = ref('grok')
 const genre = ref('action')
+const preview = ref({ ok: false, shots: [] })
+let previewTimer = null
+const moreLabel = computed(() => {
+  const n = preview.value.more || 0
+  return n === 1 ? t('{more} more shot in the studio', { more: n }) : t('{more} more shots in the studio', { more: n })
+})
+watch([premise, heroModel], () => {
+  if (import.meta.server) return
+  clearTimeout(previewTimer)
+  previewTimer = setTimeout(() => { preview.value = buildPreview(premise.value, heroModel.value) }, 350)
+})
 function gallerySrc(file, extension = 'webp') { return `media/${file}.${extension === 'jpg' ? 'jpg' : 'webp'}` }
 const heroOrder = [0, 2, 3, 1]
 const heroImages = heroOrder.map(index => ({ src: stillSrc(index, 'webp'), srcset: stillSrcSet(index), fallback: stillSrc(index, 'jpg'), alt: SCENE_STILLS[index].alt, caption: SCENE_STILLS[index].caption }))
@@ -85,7 +97,22 @@ function selectGenre(selected){genre.value=selected.id;premise.value=t(selected.
 function usePremise(selected){openStudio(t(selected.premise))}
 </script>
 <template><div class="site-shell"><AppHeader /><main id="main-content" class="site-main">
-  <section class="hero-section" aria-labelledby="hero-title"><div class="hero-container"><div class="hero-copy"><p class="eyebrow-pill">{{ $t('Local storyboard studio') }}</p><h1 id="hero-title">{{ $t('Plan a storyboard') }}</h1><p class="hero-subtitle">{{ $t('Write one idea. Moovicut turns it into editable shots and prompts you can paste into Grok Imagine, Google, or any other AI image or video model. It does not render a clip.') }}</p><form class="premise-composer" @submit.prevent="startPlan"><label class="sr-only" for="hero-premise">{{ $t('Describe your film') }}</label><div class="composer-input-row"><input id="hero-premise" v-model="premise" :placeholder="$t('A noir detective chases a suspect through neon-lit rain…')" maxlength="6000" required /><button class="button button-primary" type="submit"><Clapperboard :size="17" />{{ $t('Create storyboard') }}</button></div><p class="hero-local-note">{{ $t('Generates an editable shot list on your device. No account or rendering.') }}</p><div class="hero-model-line"><label class="hero-model-select">{{ $t('Prompt target') }}<select v-model="heroModel" :aria-label="$t('Prompt target')"><option v-for="item in MODEL_OPTIONS" :key="item.id" :value="item.id">{{ item.label }}</option></select></label><span>{{ $t('Try one of these:') }}</span><button v-for="example in examples" :key="example.name" type="button" @click="premise=$t(example.premise)">{{ $t(example.name) }}</button></div><p class="prompt-target-note">{{ $t('Thirteen prompt targets. Shot length and aspect follow the one you pick. The prompts also paste into any other AI image or video model.') }}</p></form><div class="scene-collage hero-story-strip" :aria-label="$t('Movie still examples')"><figure v-for="image in heroImages" :key="image.src" class="hero-still"><picture><source :srcset="joinAppPath(appBaseURL,image.srcset)" sizes="(max-width: 767px) 46vw, 22vw" type="image/webp" /><img :src="joinAppPath(appBaseURL,image.fallback)" :alt="$t(image.alt)" width="400" height="533" loading="lazy" decoding="async" /></picture><figcaption>{{ $t(image.caption) }}</figcaption></figure></div></div></div></section>
+  <section class="hero-section" aria-labelledby="hero-title"><div class="hero-container"><div class="hero-copy"><p class="eyebrow-pill">{{ $t('Local storyboard studio') }}</p><h1 id="hero-title">{{ $t('Plan a storyboard') }}</h1><p class="hero-subtitle">{{ $t('Write one idea. Moovicut turns it into editable shots and prompts you can paste into Grok Imagine, Google, or any other AI image or video model. It does not render a clip.') }}</p><form class="premise-composer" @submit.prevent="startPlan"><label class="sr-only" for="hero-premise">{{ $t('Describe your film') }}</label><div class="composer-input-row"><input id="hero-premise" v-model="premise" :placeholder="$t('A noir detective chases a suspect through neon-lit rain…')" maxlength="6000" required /><button class="button button-primary" type="submit"><Clapperboard :size="17" />{{ $t('Create storyboard') }}</button></div><p class="hero-local-note">{{ $t('Generates an editable shot list on your device. No account or rendering.') }}</p><div class="hero-model-line"><label class="hero-model-select">{{ $t('Prompt target') }}<select v-model="heroModel" :aria-label="$t('Prompt target')"><option v-for="item in MODEL_OPTIONS" :key="item.id" :value="item.id">{{ item.label }}</option></select></label><span>{{ $t('Try one of these:') }}</span><button v-for="example in examples" :key="example.name" type="button" @click="premise=$t(example.premise)">{{ $t(example.name) }}</button></div><p class="prompt-target-note">{{ $t('Thirteen prompt targets. Shot length and aspect follow the one you pick. The prompts also paste into any other AI image or video model.') }}</p></form>
+          <section v-if="preview.ok" class="instant-board" :aria-label="$t('Instant board preview')">
+            <h2 class="board-title">{{ $t('Here is your idea as shots') }}</h2>
+            <p class="board-hint">{{ $t('Want just one picture? Copy any card and paste it into your AI app.') }}</p>
+            <ol class="board-list">
+              <li v-for="shot in preview.shots" :key="shot.order">
+                <span class="board-order">{{ shot.order }}</span>
+                <div class="board-body"><p class="board-line">{{ shot.line }}</p><span v-if="shot.tag" class="board-tag">{{ shot.tag }}</span></div>
+                <button type="button" class="board-copy" @click="copyText(shot.prompt)">{{ $t('Copy prompt') }}</button>
+              </li>
+            </ol>
+            <div class="board-foot">
+              <p class="board-local">{{ $t('Built on this device — nothing was sent.') }}<span v-if="preview.more"> · {{ moreLabel }}</span></p>
+              <button type="button" class="button button-primary board-refine" @click="startPlan">{{ $t('Refine in the studio') }} <ArrowRight :size="16" /></button>
+            </div>
+          </section><div class="scene-collage hero-story-strip" :aria-label="$t('Movie still examples')"><figure v-for="image in heroImages" :key="image.src" class="hero-still"><picture><source :srcset="joinAppPath(appBaseURL,image.srcset)" sizes="(max-width: 767px) 46vw, 22vw" type="image/webp" /><img :src="joinAppPath(appBaseURL,image.fallback)" :alt="$t(image.alt)" width="400" height="533" loading="lazy" decoding="async" /></picture><figcaption>{{ $t(image.caption) }}</figcaption></figure></div></div></div></section>
   <section class="section genre-section"><div class="container-wide"><header class="section-heading"><h2>{{ $t('Pick a genre. We speak its language.') }}</h2><p>{{ $t('Each genre card loads a premise of that genre. You can edit it before opening the studio.') }}</p></header><ul class="genre-grid"><li v-for="item in genres" :key="item.id"><button type="button" :aria-pressed="genre===item.id" @click="selectGenre(item)"><span class="genre-icon" aria-hidden="true"><BaseIcon :name="item.icon" :size="22" /></span><strong>{{ $t(item.name) }}</strong><span>{{ $t(item.detail) }}</span></button></li></ul><p class="genre-note">{{ $t('Each genre remains editable in your local storyboard.') }}</p></div></section>
   <section class="section"><div class="container-medium"><header class="section-heading"><h2>{{ $t('How it works') }}</h2><p>{{ $t('Three steps from an idea to a prompt you can paste.') }}</p></header><ol class="process-grid" :aria-label="$t('How it works')"><li v-for="(item,index) in process" :key="item.title"><span class="process-number">0{{index+1}}</span><component :is="item.icon" :size="22" /><h3>{{ $t(item.title) }}</h3><p>{{ $t(item.text) }}</p></li></ol></div></section>
   <section class="section section-alt showcase-section"><div class="container-wide"><header class="section-heading"><h2>{{ $t('Reference stills') }}</h2><p>{{ $t('These pictures show tone and framing. They are references, not renders from Moovicut. Studies on file include {first} and {second}.', { first: $t(referenceStudyNames[0]), second: $t(referenceStudyNames[1]) }) }}</p></header><ul class="study-grid"><li v-for="study in studyCards.slice(0, 4)" :key="study.title"><article class="study-card"><picture><source :srcset="joinAppPath(appBaseURL,gallerySrc(study.file,'webp'))" type="image/webp" /><img class="study-image" :src="joinAppPath(appBaseURL,gallerySrc(study.file,'jpg'))" :alt="$t(study.title)" width="1280" height="720" loading="lazy" decoding="async" /></picture><div class="study-caption"><h3>{{ $t(study.title) }}</h3><p>{{ $t(study.premise) }}</p><button type="button" class="text-link" @click="usePremise(study)">{{ $t('Use this prompt') }} <ArrowRight :size="14" /></button></div></article></li></ul></div></section>

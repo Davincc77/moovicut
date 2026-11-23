@@ -81,17 +81,22 @@ test('the same paragraph as prose returns shots, and an unusable paragraph is 40
   assert.match(cafeBody.shots[0].prompt, /Léa — curly hair, round glasses, green apron\./)
   assert.equal(assessProject(cafeBody).some(item => item.code === 'too_many_actions'), false)
 
+  // Audit externe 24-11 : « unusable paragraph is 400 » contredisait la loi
+  // du SKILL (« a prose request still returns a board ») et envoyait les
+  // agents qui suivaient la doc de récupération dans un mur. Le paragraphe
+  // sans personne n'est pas refusé : il est plané comme atmosphère, sans
+  // nom inventé, et ses manques sont NOMMÉS dans warnings.
   const bad = dispatchAgentRequest({
     method: 'POST',
     pathname: '/api/v1/storyboard',
     body: JSON.stringify({ input: 'prose', prose: 'The morning light hits the street. A bird flies over the city.' })
   })
-  assert.equal(bad.status, 400)
-  const failed = JSON.parse(bad.body)
-  assert.equal(failed.error, 'invalid_scenario')
-  assert.equal(failed.shots, undefined)
-  assert.ok(failed.errors.length >= 2)
-  failed.errors.forEach(item => assert.match(failed.message, new RegExp(item.message.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))))
+  assert.equal(bad.status, 200)
+  const board = JSON.parse(bad.body)
+  assert.ok((board.shots || []).length >= 1)
+  const blob = JSON.stringify(board.shots || [])
+  assert.ok(!/Aisha|Maya|Nils/.test(blob), 'aucun nom de personne inventé')
+  assert.ok((board.warnings || []).length >= 1, 'les manques restent nommés')
 })
 
 test('a names-only scenario lists each problem instead of a count', () => {
