@@ -58,6 +58,13 @@ await page.selectOption('.hero-model-select', 'sora')
 await page.waitForTimeout(900)
 assert.equal(await page.locator('.instant-board .board-list li').count(), cards, 'le board suit le modèle, sans disparaître en miettes')
 
+// prose de Marc : multi-phrase → ce sont SES mots, pas des battons génériques
+await page.fill('#hero-premise', "My grandmother says that during the war, when she was a girl, she walked across a frozen river at night carrying one small suitcase. I would like to make a picture of her young, in the snow, at dawn.")
+await page.waitForTimeout(1200)
+const marc = await page.locator('.instant-board .board-line').allInnerTexts()
+assert.ok(marc.some(l => /frozen river/i.test(l)) && marc.some(l => /suitcase|snow|dawn/i.test(l)), 'les détails de l’auteur traversent jusqu’aux cartes')
+assert.ok(!marc.some(l => /One new detail appears|chooses a direction/i.test(l)), 'plus de battons génériques sur une prose')
+
 // aucun POST, PUT, DELETE pendant la saisie : la planche ne quitte jamais la machine
 assert.deepEqual(nonGet, [], 'le board du hero ne doit JAMAIS appeler le serveur')
 

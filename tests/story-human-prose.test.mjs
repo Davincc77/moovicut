@@ -36,11 +36,14 @@ test('F2: a reported clause does not become the character name', () => {
   assert.doesNotMatch(cast[0].name, /\b(says|knocked)\b/i, 'jamais de verbe dans le nom du casting')
 })
 
-test('F2: the hero board cards never print the stolen verb either', () => {
+test('F2: in the hero cards, the character LOCK is clean even when the quoted sentence contains a reporting verb', () => {
   const r = buildPreview(GRANDMOTHER, 'grok')
-  assert.equal(r.ok, true)
+  assert.equal(r.mode, 'story')
   for (const shot of r.shots) {
-    assert.doesNotMatch(shot.line + ' ' + shot.prompt, /grandmother says|says that|cat knocked/i, 'la prose volée ne revient pas dans les cartes')
+    assert.equal(shot.kind, 'your-words', 'une carte de prose cite l’auteur, jamais un baton')
+    const lock = shot.prompt.split('\n').find(line => /—/.test(line) && !/^(SHOT|LIGHT|CAMERA|STYLE|DIALOGUE)/i.test(line)) || ''
+    assert.doesNotMatch(lock.split('—')[0], /\b(says|knocked)\b/i, 'le verrou du prompt ne vole pas la subordonnée')
+    assert.match(lock, /grandmother/i, 'la grand-mère reste le sujet verrouillé')
   }
 })
 
