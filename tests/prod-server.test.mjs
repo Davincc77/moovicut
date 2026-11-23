@@ -33,6 +33,16 @@ test('production server serves the site at root and keeps old /shotboard links',
     assert.equal(root.status, 200)
     assert.match(root.headers.get('content-type'), /^text\/html/)
     assert.match(await root.text(), /<title>Home<\/title>/)
+    // durcissement 23-11 : en-têtes de sécurité + sonde .env en 404 (pas le shell SPA)
+    assert.equal(root.headers.get('x-frame-options'), 'DENY')
+    assert.match(root.headers.get('content-security-policy'), /default-src 'self'/)
+    assert.match(root.headers.get('strict-transport-security'), /max-age=31536000/)
+    assert.equal(root.headers.get('referrer-policy'), 'no-referrer')
+    for (const probe of ['/.env', '/.git/config', '/.aws/credentials']) {
+      const blocked = await fetch(`${base}${probe}`)
+      assert.equal(blocked.status, 404, probe)
+      assert.doesNotMatch(await blocked.text(), /<title>/, probe)
+    }
 
     const asset = await fetch(`${base}/_nuxt/entry.abc123.js`)
     assert.equal(asset.status, 200)

@@ -67,7 +67,7 @@ try {
   for (const lang of ['en', 'pt']) {
     const text = copy[lang]
     for (const viewport of viewports) {
-      const page = await browser.newPage({ viewport: { width: viewport.width, height: viewport.height } })
+      const page = await browser.newPage({ bypassCSP: true, viewport: { width: viewport.width, height: viewport.height } })
       await page.addInitScript(() => localStorage.clear())
       const key = `${lang}-${viewport.id}`
       await page.goto(`${base}/studio/?lang=${lang}`, { waitUntil: 'domcontentloaded' })
