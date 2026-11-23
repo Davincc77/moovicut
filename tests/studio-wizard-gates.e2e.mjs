@@ -315,13 +315,13 @@ try {
   for (const lang of ['en', 'pt']) {
     const text = copy[lang]
     for (const viewport of viewports) {
-      const page = await browser.newPage({ viewport: { width: viewport.width, height: viewport.height } })
+      const page = await browser.newPage({ bypassCSP: true, viewport: { width: viewport.width, height: viewport.height } })
       await page.addInitScript(() => localStorage.clear())
       await runGuide(page, text, viewport)
       await page.close()
       console.log('ok', `${lang}-${viewport.id}`)
 
-      const restored = await browser.newPage({ viewport: { width: viewport.width, height: viewport.height } })
+      const restored = await browser.newPage({ bypassCSP: true, viewport: { width: viewport.width, height: viewport.height } })
       await restored.addInitScript(raw => {
         localStorage.setItem('moovicut.wizard.v1', raw)
         localStorage.removeItem('moovicut.studio.experience')
