@@ -1047,3 +1047,17 @@ dialog.side-sheet[open] { display:flex; flex-direction:column; }
   dialog.side-sheet.is-modal,
   dialog.side-sheet:modal { inset:0; width:100%; height:100dvh; max-height:none; border-radius:0; }
 }
+
+/* instant board — l'ergonomie empruntée au maillot d'audit 24-11 :
+   le résultat d'abord, la refinement avec lui, jamais avant. */
+.instant-board { margin-top:18px; padding:18px; border:1px solid var(--border); border-radius:14px; background:var(--surface); }
+.instant-board .board-list { list-style:none; display:flex; flex-direction:column; gap:10px; margin:0; padding:0; }
+.instant-board li { display:grid; grid-template-columns:28px 1fr auto; align-items:center; gap:12px; padding:10px 12px; border:1px solid var(--muted-border); border-radius:10px; background:var(--bg-alt); min-height:44px; }
+.board-order { display:inline-flex; align-items:center; justify-content:center; min-width:28px; height:22px; border-radius:999px; background:#f0b42917; color:var(--accent-hover); font-size:12px; font-weight:600; }
+.board-line { margin:0; color:var(--text); font-size:15px; line-height:1.45; }
+.board-tag { display:inline-block; margin-top:4px; color:var(--text-secondary); font-size:12px; }
+.board-copy { border:1px solid var(--border); background:transparent; color:var(--text-secondary); font-size:13px; padding:8px 12px; border-radius:10px; cursor:pointer; }
+.board-copy:hover { color:var(--accent-hover); border-color:var(--accent); }
+.board-foot { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-top:14px; flex-wrap:wrap; }
+.board-local { margin:0; color:var(--text-secondary); font-size:13px; }
+@media (max-width:640px){ .instant-board li { grid-template-columns:28px 1fr; } .board-copy { grid-column:2; justify-self:start; } }

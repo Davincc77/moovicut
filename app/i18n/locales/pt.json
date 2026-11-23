@@ -1153,5 +1153,9 @@
   "{shots} shots · {seconds}s · {family} / {genre} · {reference}": "{shots} planos · {seconds}s · {family} / {genre} · {reference}",
   "{title} storyboard study": "Estudo de storyboard {title}",
   "{title} — Moovicut": "{title} — Moovicut",
-  "“{trait}” is repeated in the same line.": "“{trait}” está repetido na mesma linha."
+  "“{trait}” is repeated in the same line.": "“{trait}” está repetido na mesma linha.",
+  "Instant board preview": "Prévia instantânea do roteiro",
+  "Built on this device — nothing was sent.": "Criado neste dispositivo — nada foi enviado.",
+  "{more} more shots in the studio": "Mais {more} planos no estúdio",
+  "Refine in the studio": "Refinar no estúdio"
 }
