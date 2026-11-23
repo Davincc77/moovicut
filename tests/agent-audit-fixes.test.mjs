@@ -26,6 +26,23 @@ test('audit#1 — input:prose sur un récit sans personne NE SE REFUSE PAS: le w
   assert.ok(Array.isArray(a.body.shots) && a.body.shots.length >= 1)
 })
 
+// Re-audit 24-11, finding F1b : le fix #1 avait ouvert une porte où le
+// flag prose LAISSAIT « and then » cuit dans l'action (1 shot au lieu de
+// 3). La loi du SKILL : prose = « every beat is split automatically ».
+// Le découpage connector-to-connector passe maintenant par le mode
+// lenient du splitter partagé (finder + splitter cohérents — sinon la
+// boucle casse sur null). Les champs source/directions gardent l'écho
+// intégral du premise : c'est la provenance, pas la beat.
+test('audit#F1b — input:prose split les beats connectées : aucune ACTION ne garde « and then », une shot par beat', async () => {
+  const CHAIN = 'Rain floods the valley and then the river tears the bridge and then the bell tower stands alone'
+  const c = await post({ premise: CHAIN, input: 'prose' })
+  assert.equal(c.status, 200)
+  assert.ok(c.body.shots.length >= 3, `3 beats connectées attendu >=3 shots, reçu ${c.body.shots.length}`)
+  const actions = c.body.shots.map(s => `${s.action || ''} ${s.what || ''}`)
+  assert.ok(!actions.some(x => /\band then\b/i.test(x)), `« and then » cuit dans une action : ${JSON.stringify(actions).slice(0, 160)}`)
+  assert.ok(/and then/i.test(JSON.stringify(c.body.shots.map(s => s.source || ''))), 'la provenance, elle, garde le texte intégral')
+})
+
 test('audit#1b — prose avec personnes nommées garde le parcours sheets_missing documenté (200 + warning, pas de régression)', async () => {
   const b = await post({
     premise: 'Maya hands Rui a letter on the quay and then Rui reads it under the lamp and Maya waits.',
