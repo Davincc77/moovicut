@@ -517,7 +517,7 @@ async function checkMissingWho(page, lang, viewportName) {
   await page.locator('[id$="-who-error"]').waitFor()
 }
 
-test('every page responds in English and Portuguese on desktop and a phone', { timeout: 600000 }, async () => {
+test('every page responds in English and Portuguese on desktop and a phone', { timeout: 900000 }, async () => {
   const generated = spawnSync('npx', ['nuxt', 'generate'], {
     cwd: process.cwd(),
     env: { ...process.env, NUXT_TELEMETRY_DISABLED: '1' },

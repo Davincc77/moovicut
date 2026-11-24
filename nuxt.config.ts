@@ -96,6 +96,11 @@ export default defineNuxtConfig({
   nitro: {
     preset: 'static',
     prerender: {
+      // nitrojs/nitro#4487: avec ssr:false, '/' et '/index.html' ecrivent le
+      // meme fichier en parallele (cpus*4) et les bytes s'interlacent — un
+      // fragment du payload __NUXT__ se retrouve rendu comme texte (overflow
+      // 546px phone, ui-smoke rouge). Serialiser les ecritures jusqu'au fix.
+      concurrency: 1,
       crawlLinks: true,
       routes: [
         ...['/', '/faq', '/studio', '/story', '/agents', '/privacy', '/terms', '/content-policy', '/credits', '/readme', '/skill']
