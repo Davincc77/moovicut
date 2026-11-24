@@ -34,6 +34,7 @@
   },
   "optionalDependencies": {
     "@rolldown/binding-darwin-arm64": "1.2.19",
-    "@rolldown/binding-linux-x64-gnu": "1.2.19"
+    "@rolldown/binding-linux-x64-gnu": "1.2.19",
+    "lightningcss-linux-x64-gnu": "1.33.0"
   }
 }
