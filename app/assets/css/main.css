@@ -1073,3 +1073,11 @@ dialog.side-sheet[open] { display:flex; flex-direction:column; }
 .genre-grid button:hover { border-color:var(--gold); background:var(--surface-hover); transform:translateY(-1px); }
 .hero-model-line button:hover { min-height:40px; color:var(--text); border-color:var(--gold); }
 @media (prefers-reduced-motion:reduce) { *,*::before,*::after { transition:none !important; animation:none !important; scroll-behavior:auto !important; } }
+
+/* Header compressible sur petit écran : sans min-width:0, le motmarque et les
+   actions refusent de se réduire sous leur min-content — le header debordait
+   de 156px sur iPhone 13 des qu'un moteur arrete d'ecraser les elements
+   flex au-dela de leur width declare (chrome moderne). Garde :
+   tests/header-phone.test.mjs. */
+.header-inner,.header-inner .brand-link,.header-inner .header-actions,.header-inner .language-switcher,.header-inner .language-switcher-select { min-width:0; }
+.header-inner .brand-link img,.header-inner .brand-link svg { max-width:100%; }

@@ -27,3 +27,4 @@ jobs:
       - run: node tests/story-human-prose.e2e.mjs
       - run: node tests/home-instant-board.e2e.mjs
       - run: node tests/long-page.e2e.mjs
+      - run: node tests/header-phone.e2e.mjs
