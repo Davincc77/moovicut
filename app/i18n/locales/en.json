@@ -114,7 +114,7 @@
   "An astronaut crosses an endless futuristic corridor, atmospheric lighting and a slow cinematic reveal.": "An astronaut crosses an endless futuristic corridor, atmospheric lighting and a slow cinematic reveal.",
   "An explorer re-discovers an observatory hidden beneath desert sand.": "An explorer re-discovers an observatory hidden beneath desert sand.",
   "Anime / manga": "Anime / manga",
-  "Anonymous, cookieless visit counts via Cloudflare Web Analytics. The site also keeps a simple server-side visit count (POST /api/visits) stored on a persistent volume, with no personal data. Storyboards never leave the device.": "Anonymous, cookieless visit counts via Cloudflare Web Analytics. The site also keeps a simple server-side visit count (POST /api/visits) stored on a persistent volume, with no personal data. Storyboards never leave the device.",
+  "The site keeps a simple server-side visit count (POST /api/visits) stored on a persistent volume, with no personal data and no third-party analytics. Storyboards never leave the device.": "The site keeps a simple server-side visit count (POST /api/visits) stored on a persistent volume, with no personal data and no third-party analytics. Storyboards never leave the device.",
   "Apply style preset": "Apply style preset",
   "Apply this fix": "Apply this fix",
   "Approach": "Approach",

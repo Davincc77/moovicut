@@ -114,7 +114,7 @@
   "An astronaut crosses an endless futuristic corridor, atmospheric lighting and a slow cinematic reveal.": "Um astronauta atravessa um corredor futurista sem fim, luz atmosférica e revelação lenta.",
   "An explorer re-discovers an observatory hidden beneath desert sand.": "Um explorador redescobre um observatório escondido sob a areia do deserto.",
   "Anime / manga": "Anime / mangá",
-  "Anonymous, cookieless visit counts via Cloudflare Web Analytics. The site also keeps a simple server-side visit count (POST /api/visits) stored on a persistent volume, with no personal data. Storyboards never leave the device.": "Contagem anónima, sem cookies, via Cloudflare Web Analytics. O site também guarda um contador simples no servidor (POST /api/visits) num volume persistente, sem dados pessoais. Os storyboards não saem do dispositivo.",
+  "The site keeps a simple server-side visit count (POST /api/visits) stored on a persistent volume, with no personal data and no third-party analytics. Storyboards never leave the device.": "O site mantém uma contagem simples de visitas no servidor (POST /api/visits), guardada num volume persistente, sem dados pessoais e sem analytics de terceiros. Os storyboards nunca saem do dispositivo.",
   "Apply style preset": "Aplicar a predefinição",
   "Apply this fix": "Aplicar esta correção",
   "Approach": "Aproximação",

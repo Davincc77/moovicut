@@ -35,11 +35,11 @@ const TYPES = {
 // requis par le payload Nuxt inline dans index.html.
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com",
+  "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
-  "connect-src 'self' https://cloudflareinsights.com https://static.cloudflareinsights.com",
+  "connect-src 'self'",
   "media-src 'self'",
   "manifest-src 'self'",
   "object-src 'none'",
