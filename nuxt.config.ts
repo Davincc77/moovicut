@@ -63,12 +63,6 @@ export default defineNuxtConfig({
         {
           innerHTML: `(function(){try{var q=new URLSearchParams(location.search).get('lang');var s='';try{s=localStorage.getItem('moovicut.language')||''}catch(e){}function g(t){t=String(t||'').toLowerCase().replace(/_/g,'-');if(t.indexOf('pt')===0)return 'pt';if(t.indexOf('en')===0)return 'en';return ''}var list=navigator.languages&&navigator.languages.length?navigator.languages:[navigator.language];var n='';for(var i=0;i<list.length&&!n;i++)n=g(list[i]);var allowed={en:1,pt:1};var lang=allowed[q]?q:(allowed[s]?s:(n||'en'));document.documentElement.lang=lang;}catch(e){}})();`,
           tagPosition: 'head'
-        },
-        {
-          src: 'https://static.cloudflareinsights.com/beacon.min.js',
-          type: 'module',
-          tagPosition: 'bodyClose',
-          'data-cf-beacon': '{"token": "d4d43f476a9e4f7b9f3d9d8d4dd75a3b"}'
         }
       ]
     }
