@@ -341,4 +341,5 @@ export const DYNAMIC_KEYS = [
   "I could not tell who some scenes belong to. Name the character, or keep going — Moovicut casts the lead you already introduced.",
   "I could not find what happens in some scenes. Give each one an action.",
   "Moovicut could not plan this story. Try a sentence with who does what, and where.",
+  "That reads like an idea, not a story yet. The Studio is built for ideas — send it there and keep your words.",
 ]

@@ -29,7 +29,8 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
 
 // GRANDMOTHER est une prose sans lieu explicite et avec une subordonnée de rapport :
 // c'est exactement ce qui cassait /story et volait le personnage (bug rapport Marc).
-const GRANDMOTHER = 'My grandmother says that during the war, when she was a girl, she walked across a frozen river at night carrying one small suitcase. I would like to make a picture of her young, in the snow, at dawn.'
+const GRANDMOTHER = 'My grandmother says that during the war, when she was a girl, she walked across a frozen river at night carrying one small suitcase. I would like to make a picture of her young, in the snow, at dawn. She says the ice groaned under every step and the wind carried the smell of smoke from the villages behind her. On the far bank a lantern waited, and she walked toward it without looking back. Years later she kept the suitcase on a shelf in the kitchen, and she still will not say what was inside. I would like the picture to show the cold, the silence, and one small figure crossing a white river. Her hands are red with cold in every frame.'
+assert.ok(GRANDMOTHER.length >= 600, `fixture must be a real story: ${GRANDMOTHER.length}`)
 
 await page.goto(`${base}/story`, { waitUntil: 'networkidle' })
 await page.waitForSelector('#story-input', { timeout: 15000 })

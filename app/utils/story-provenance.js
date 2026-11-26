@@ -6,7 +6,7 @@
  */
 import { cleanText } from './text.js'
 import { detectProse } from './prose-detect.js'
-import { parseScenario } from './scenario.js'
+import { parseScenario, storyLength } from './scenario.js'
 import { createStoryboard, buildContinuitySheet } from './prompt-engine.js'
 import { STORY_VERB_FORMS } from './story-verbs.js'
 
@@ -108,8 +108,17 @@ export function applyCastWho(scenes, cast) {
   return scenes
 }
 
-export function storyToBoard(text, { model = 'grok' } = {}) {
+export function storyToBoard(text, { model = 'grok', enforceMin = false } = {}) {
   const clean = String(text || '')
+  if (enforceMin) {
+    // /story only: a story is 600..8000 characters; below that it is an idea (Studio), above it a book (Long).
+    const size = storyLength(clean)
+    if (size.status !== 'ok') {
+      const problem = new Error(size.status === 'short' ? `A story needs at least ${size.min} characters.` : `A story is at most ${size.max} characters.`)
+      problem.code = size.status === 'short' ? 'story_too_short' : 'story_too_long'
+      throw problem
+    }
+  }
   const detected = detectProse(clean)
   // Same shared fallback as the wizard: a story without proper names still has a
   // protagonist ('a baker') that the prompts will lock. Ambiance stays uncast.
@@ -128,6 +137,8 @@ export function storyToBoard(text, { model = 'grok' } = {}) {
 // line (the raw message can carry internal words the author never wrote).
 export function storyErrorFor(problem) {
   const raw = String((problem && problem.message) || '')
+  if (problem && problem.code === 'story_too_short') return 'That reads like an idea, not a story yet. The Studio is built for ideas — send it there and keep your words.'
+  if (problem && problem.code === 'story_too_long') return 'Keep the story under 8,000 characters. Long works go one chapter at a time, and the character sheet carries over.'
   if (/missing where/i.test(raw)) return 'I could not tell where some scenes happen. Add a place, or keep going — Moovicut sets the scene from context.'
   if (/missing who/i.test(raw)) return 'I could not tell who some scenes belong to. Name the character, or keep going — Moovicut casts the lead you already introduced.'
   if (/missing what happens|missing a what/i.test(raw)) return 'I could not find what happens in some scenes. Give each one an action.'

@@ -4,6 +4,16 @@ import { cleanText } from './text.js'
 export const CHARS_PER_MINUTE = 1500
 export const SCENARIO_WARN_AT = 6000
 export const SCENARIO_MAX_CHARS = 8000
+/** Below this a text is an idea (the Studio's job), not a short story. 600 is the first round
+ *  size where every prose fixture reaches the default 5-shot board from its own sentences. */
+export const STORY_MIN_CHARS = 600
+
+/** Length class of a pasted story, on collapsed whitespace so padding cannot buy length. */
+export function storyLength(text) {
+  const length = cleanText(text).length
+  const status = length < STORY_MIN_CHARS ? 'short' : length > SCENARIO_MAX_CHARS ? 'long' : 'ok'
+  return { length, status, min: STORY_MIN_CHARS, max: SCENARIO_MAX_CHARS }
+}
 export const SEQUENCE_MIN_SECONDS = 15
 export const SEQUENCE_MAX_SECONDS = 60
 export const SCENARIO_EXAMPLE = 'Scène 3 — Léa — Café — Elle renverse son latte et rit.'

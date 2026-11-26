@@ -149,7 +149,7 @@ A 400 body has error, message, and an errors array that lists every problem. Fix
 - `invalid_density`: `density` is not `standard` or `concise`.
 - `invalid_prompt_style`: `prompt_style` is not `short` or `detailed`.
 - `invalid_preset`: `style` or `genre` is not in that family.
-- `invalid_prose`: prose is under 8 or over 8,000 characters.
+- `invalid_prose`: prose is under 8 or over 8,000 characters. Prose under 600 characters is not an error: the board is planned and the response carries a `short_story` warning (`action` `none`, `fix`: send an idea as `premise`).
 - `invalid_fountain`: a Fountain body has no scene heading and action.
 - `invalid_shot`: `regenerateShot` was sent without `project` or a shot id.
 - `unknown_tool`: the MCP tool name is not one of the three tools.
