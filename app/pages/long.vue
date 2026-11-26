@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { socialPreviewSeo } from '~/utils/social-preview.js'
+import { emailGate } from '~/utils/waitlist-form.js'
 
 const runtimeConfig = useRuntimeConfig()
 const socialPreview = socialPreviewSeo(runtimeConfig.public.productionOrigin || runtimeConfig.public.appUrl, runtimeConfig.app.baseURL)
@@ -17,12 +18,20 @@ useSeoMeta({
 })
 
 const email = ref('')
+const emailInput = ref(null)
 const website = ref('') // honeypot: humans never see or fill this
 const status = ref('idle') // idle | sending | listed | duplicate | error
 const errorMessage = ref('')
 
 async function joinList() {
-  if (!email.value.trim()) return
+  const gate = emailGate(email.value)
+  if (!gate.ok) {
+    // a button that does nothing reads as broken: say what is missing and put the cursor back
+    status.value = 'error'
+    errorMessage.value = t('Enter your email first.')
+    emailInput.value?.focus()
+    return
+  }
   status.value = 'sending'
   errorMessage.value = ''
   try {
@@ -83,7 +92,7 @@ async function joinList() {
           <p>{{ $t('The desktop app is finished internally and ships first to early-access writers. Join the list and we will write when a build is yours.') }}</p>
           <form class="long-signup" novalidate @submit.prevent="joinList">
             <label class="story-paste-label" for="long-email">{{ $t('Email for early access') }}</label>
-            <input id="long-email" v-model="email" type="email" maxlength="254" :placeholder="$t('you@example.com')" autocomplete="email" required>
+            <input id="long-email" ref="emailInput" v-model="email" type="email" maxlength="254" :placeholder="$t('you@example.com')" autocomplete="email" required>
             <input class="long-hp" tabindex="-1" aria-hidden="true" v-model="website" autocomplete="off">
             <button class="button button-primary" type="submit" :disabled="status === 'sending'">{{ status === 'sending' ? $t('Saving…') : $t('Join the list') }}</button>
           </form>
