@@ -58,6 +58,15 @@ try {
   assert.ok((await page.locator('text=How it works').count()) >= 1)
   assert.ok((await page.locator('text=Early access').count()) >= 1)
 
+  // empty submit -> named reason, focus back on the field, and NOT a byte on the wire
+  let waitlistCalls = 0
+  page.on('request', r => { if (r.url().endsWith('/api/long/waitlist')) waitlistCalls++ })
+  await page.click('button[type=submit]')
+  await page.waitForSelector('p[role=alert]', { timeout: 5000 })
+  assert.equal((await page.locator('p[role=alert]').innerText()).trim(), 'Enter your email first.')
+  assert.equal(waitlistCalls, 0, 'the client-side gate must not reach the server')
+  assert.ok(await page.evaluate(() => document.activeElement?.id === 'long-email'), 'focus goes back to the field')
+
   // invalid email -> inline error, store untouched
   await page.fill('#long-email', 'not-an-email')
   await page.click('button[type=submit]')

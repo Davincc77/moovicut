@@ -1,0 +1,13 @@
+{
+  "contract": "Join the list: the client only refuses what the server could never accept (nothing to read). Email FORMAT stays judged by the server, single judge.",
+  "message": { "email_missing": "Enter your email first." },
+  "cases": [
+    { "name": "empty", "email": "", "gate": { "ok": false, "key": "email_missing" } },
+    { "name": "spaces", "email": "   ", "gate": { "ok": false, "key": "email_missing" } },
+    { "name": "tab and newline", "email": "\t\n", "gate": { "ok": false, "key": "email_missing" } },
+    { "name": "non-breaking space", "email": "\u00a0", "gate": { "ok": false, "key": "email_missing" } },
+    { "name": "valid shape", "email": "a@b.co", "gate": { "ok": true } },
+    { "name": "no at sign goes to the server", "email": "not-an-email", "gate": { "ok": true } },
+    { "name": "padded valid", "email": "  a@b.co  ", "gate": { "ok": true } }
+  ]
+}
