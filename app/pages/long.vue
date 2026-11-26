@@ -55,7 +55,7 @@ async function joinList() {
     <main id="main-content" class="legal-page">
       <div class="container-docs">
         <div class="page-intro">
-          <p class="eyebrow">{{ $t('For authors · long works') }}</p>
+          <p class="eyebrow">{{ $t('Author · Moovicut Long') }}</p>
           <h1>{{ $t('Your whole novel, one audited storyboard.') }}</h1>
           <p>{{ $t('Moovicut Long is the offline desktop engine for full-length works. Import the complete manuscript — chapter map, character registry, tension curve, manga pages and webtoon episodes — and every panel says which of your sentences it came from. Deterministic: same input, same output, reviewable line by line. No account, no cloud, no AI call.') }}</p>
         </div>
