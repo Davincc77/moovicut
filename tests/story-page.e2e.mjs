@@ -31,7 +31,10 @@ await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
 const { port } = server.address()
 const base = `http://127.0.0.1:${port}`
 
-const STORY = 'A baker in Lisbon discovers her sourdough starter glows at midnight. She carries it down to the Tagus. The river answers with light.'
+// An idea (one short paragraph) is the Studio's job; a story is 600..8000 characters.
+const IDEA = 'A baker in Lisbon discovers her sourdough starter glows at midnight. She carries it down to the Tagus. The river answers with light.'
+const STORY = IDEA + ' Marta kneels on the wet stones and lifts the jar toward the water. The glow climbs her wrists and pulls the tide in slow rings around her boots. A ferryman on the far quay lowers his lantern and watches without a word. By dawn the starter has gone quiet and the river is only a river, but the bread she bakes that morning rises faster than any loaf in the city. She never tells anyone, and every midnight afterwards she walks down to the Tagus with the jar. The ferryman still raises his lantern each time, and the river still answers.'
+assert.ok(STORY.length >= 600, `STORY fixture must be a real story: ${STORY.length}`)
 
 const browser = await chromium.launch()
 const page = await browser.newPage({ bypassCSP: true, viewport: { width: 1280, height: 900 } })
@@ -41,8 +44,33 @@ await page.goto(`${base}/story`, { waitUntil: 'domcontentloaded' })
 await page.waitForSelector('#story-input')
 assert.equal(await page.locator('button:has-text("Show my draft")').isDisabled(), true, 'draft button must start disabled')
 
+// 1b) minimum 600 : compteur, idee -> hand-off Studio, remplissage inutile, pas de troncature
+const countText = async () => (await page.locator('#story-count').innerText()).replace(/\s+/g, ' ').trim()
+assert.match(await countText(), /^0 of 600 characters minimum$/, 'empty counter')
+assert.equal(await page.locator('.story-notice').count(), 0, 'no notice on an empty box')
+await page.fill('#story-input', IDEA)
+assert.match(await countText(), new RegExp(`^${IDEA.length} of 600 characters minimum$`), 'idea counter')
+assert.equal(await page.locator('button:has-text("Show my draft")').isDisabled(), true, 'an idea cannot build a story draft')
+assert.ok(await page.locator('.story-notice').innerText().then(text => /idea, not a story/i.test(text)), 'idea notice')
+await page.fill('#story-input', IDEA + ' '.repeat(900) + '\n'.repeat(900))
+assert.equal(await page.locator('button:has-text("Show my draft")').isDisabled(), true, 'padding must not buy length')
+await page.fill('#story-input', IDEA)
+await page.click('button:has-text("Send to the Studio")')
+await page.waitForSelector('#wizard-idea', { timeout: 15000 })
+assert.equal((await page.inputValue('#wizard-idea')).trim(), IDEA, 'the idea reaches the Studio untouched')
+await page.goto(`${base}/story`, { waitUntil: 'domcontentloaded' })
+await page.waitForSelector('#story-input')
+const book = ('The tide came in over the harbour wall and the gulls complained. ').repeat(130)
+await page.fill('#story-input', book)
+assert.ok((await page.inputValue('#story-input')).length > 8000, 'a pasted book is not silently truncated')
+assert.equal(await page.locator('button:has-text("Show my draft")').isDisabled(), true, 'over 8000 cannot build')
+assert.ok((await page.locator('.story-notice a[href$="/long"], .story-notice a[href$="/long/"]').count()) === 1, 'a book is sent to the Author project')
+await page.fill('#story-input', '')
+
 // 2) collage -> brouillon avec badges, source et couverture
 await page.fill('#story-input', STORY)
+assert.match(await countText(), /^\d+ characters$/, 'in-range counter')
+assert.equal(await page.locator('.story-notice').count(), 0, 'no notice once the story is in range')
 await page.click('button:has-text("Show my draft")')
 await page.waitForSelector('.story-shot', { timeout: 15000 })
 const shots = await page.locator('.story-shot').count()

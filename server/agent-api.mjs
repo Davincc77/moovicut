@@ -8,7 +8,7 @@ import { detectProse } from '../app/utils/prose-detect.js'
 import { characterSheetGaps } from '../app/utils/prose-extra.js'
 import { lockVersionWarnings } from '../app/utils/character-lock.js'
 import { proseWarningMessage } from '../app/utils/scene-split.js'
-import { CAMERA_VALUES, LIGHT_VALUES, MOOD_VALUES, SCENARIO_MAX_CHARS, TIME_VALUES } from '../app/utils/scenario.js'
+import { CAMERA_VALUES, LIGHT_VALUES, MOOD_VALUES, SCENARIO_MAX_CHARS, STORY_MIN_CHARS, TIME_VALUES, storyLength } from '../app/utils/scenario.js'
 import { warningAction } from '../app/utils/warning-action.js'
 import { studioUrl } from '../app/utils/studio-link.js'
 import { cleanText } from '../app/utils/text.js'
@@ -416,7 +416,19 @@ function planProse(input, { origin, compact }) {
   if (warnings.length) body.warnings = warnings
   else delete body.warnings
   stripSceneKeys(project)
-  return finishAgent(withSheetsMissing(withShortBoardWarning(body, project, input), project, input), input)
+  return finishAgent(withSheetsMissing(withShortBoardWarning(withShortStoryWarning(body, text), project, input), project, input), input)
+}
+
+/** Prose under 600 characters is an idea, not a story. It still plans (a 400 would drop the board); the warning says so. */
+function withShortStoryWarning(body, text) {
+  const size = storyLength(text)
+  if (size.length >= STORY_MIN_CHARS) return body
+  body.warnings = [...(body.warnings || []), {
+    code: 'short_story',
+    message: `This prose is ${size.length} characters. Moovicut reads a story of ${STORY_MIN_CHARS} to ${SCENARIO_MAX_CHARS.toLocaleString('en-US')} characters as prose; shorter text is an idea. The board was planned anyway.`,
+    fix: `Send an idea as premise. Send prose of at least ${STORY_MIN_CHARS} characters.`
+  }]
+  return body
 }
 
 function sheetClauses(text) {
@@ -946,7 +958,7 @@ const STORYBOARD_SCHEMA = {
     },
     input: { type: 'string', enum: ['prose'], description: 'Set to prose to detect characters, places, and scenes from free text. Ordinary premises are not auto-detected. A detected character with no look or outfit does not reject the board: each one is a warning (missing_look, missing_outfit), in promptLanguage when that field is set. A paragraph that cannot be planned returns 400 with error, a message that lists each missing piece, and errors. A scene whose only names are public figures, brands, or trademarks returns the neutral risk note and does not add missing-character or missing-place lines. Free prose is split on place and time cues by default. See splitScenes.' },
     type: { type: 'string', enum: ['prose'], description: 'Alias of input.' },
-    prose: { type: 'string', maxLength: 8000, description: 'Free-text story used when input is prose.' },
+    prose: { type: 'string', maxLength: 8000, description: 'Free-text story used when input is prose. 600 to 8,000 characters; shorter text still plans but returns a short_story warning (action none): send an idea as premise.' },
     text: { type: 'string', maxLength: 8000, description: 'Alias of prose.' },
     overwritePrompt: { type: 'boolean', default: false, description: 'When false or omitted, a hand-edited prompt (promptEdited) is kept, including when a shotboard.compact.v1 board is posted back. When true, those prompts are regenerated.' },
     splitActions: { type: 'boolean', default: true, description: 'When true or omitted, a shot whose action contains more than one verb is split into one shot per action. Set false to keep the line in one shot. The studio Fix button still splits one shot. A shot marked promptEdited is not split.' },

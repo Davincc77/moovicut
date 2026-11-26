@@ -4,27 +4,36 @@ import { socialPreviewSeo } from '~/utils/social-preview.js'
 import { storyToBoard, shotProvenance, storyErrorFor } from '~/utils/story-provenance.js'
 import { saveStudioHandoff } from '~/utils/studio-handoff.js'
 import { MODEL_OPTIONS } from '~/utils/prompt-engine.js'
-import { SCENARIO_MAX_CHARS } from '~/utils/scenario.js'
+import { storyLength } from '~/utils/scenario.js'
 
 const runtimeConfig = useRuntimeConfig()
 const socialPreview = socialPreviewSeo(runtimeConfig.public.productionOrigin || runtimeConfig.public.appUrl, runtimeConfig.app.baseURL)
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 const story = ref('')
 const model = ref('grok')
 const draft = ref(null)
 const error = ref('')
 
-const tooLong = computed(() => story.value.length > SCENARIO_MAX_CHARS)
-const canBuild = computed(() => story.value.trim().length >= 40 && !tooLong.value && !draftBusy.value)
 const draftBusy = ref(false)
+// 600..8000 on collapsed whitespace. Below it the text is an idea (Studio), above it a book (Author project).
+const size = computed(() => storyLength(story.value))
+const canBuild = computed(() => size.value.status === 'ok' && !draftBusy.value)
+const meter = computed(() => Math.min(100, Math.round((size.value.length / size.value.min) * 100)))
+const countLabel = computed(() => {
+  const { length, status, min, max } = size.value
+  const format = new Intl.NumberFormat(locale.value)
+  if (status === 'short') return t('{count} of {min} characters minimum', { count: format.format(length), min: format.format(min) })
+  if (status === 'long') return t('{count} characters, over the {max} maximum', { count: format.format(length), max: format.format(max) })
+  return t('{count} characters', { count: format.format(length) })
+})
 
 function buildDraft() {
   if (!canBuild.value) return
   draftBusy.value = true
   error.value = ''
   try {
-    draft.value = storyToBoard(story.value, { model: model.value })
+    draft.value = storyToBoard(story.value, { model: model.value, enforceMin: true })
   } catch (problem) {
     error.value = storyErrorFor(problem)
     draft.value = null
@@ -66,8 +75,17 @@ useSeoMeta({
 
         <section class="legal-section">
           <label class="story-paste-label" for="story-input">{{ $t('Your story') }}</label>
-          <textarea id="story-input" v-model="story" rows="12" maxlength="8000" :placeholder="$t('Paste your story here — at least 40 characters, up to 8,000.')" required></textarea>
-          <p v-if="tooLong" class="story-length-warning">{{ $t('Keep the story under 8,000 characters. Long works go one chapter at a time, and the character sheet carries over.') }}</p>
+          <textarea id="story-input" v-model="story" rows="12" aria-describedby="story-count" :placeholder="$t('Paste your story here — 600 to 8,000 characters.')" required></textarea>
+          <p id="story-count" class="story-count" aria-live="polite">{{ countLabel }}</p>
+          <div class="story-meter" :data-status="size.status" aria-hidden="true"><i :style="{ width: meter + '%' }"></i></div>
+          <div v-if="size.status === 'short' && size.length > 0" class="story-notice" role="status">
+            <p>{{ $t('That reads like an idea, not a story yet. The Studio is built for ideas — send it there and keep your words.') }}</p>
+            <button class="button button-primary" type="button" @click="continueInStudio">{{ $t('Send to the Studio') }}</button>
+          </div>
+          <div v-else-if="size.status === 'long'" class="story-notice" role="status">
+            <p>{{ $t('Keep the story under 8,000 characters. Long works go one chapter at a time, and the character sheet carries over.') }}</p>
+            <NuxtLink class="button button-primary" to="/long">{{ $t('See the Author project') }}</NuxtLink>
+          </div>
           <div class="story-controls">
             <label for="story-model">{{ $t('Prompt target') }}</label>
             <select id="story-model" v-model="model">
@@ -111,7 +129,13 @@ useSeoMeta({
 #story-input { width: 100%; font: inherit; padding: .7rem; border-radius: .6rem; border: 1px solid var(--border); background: transparent; color: inherit; }
 .story-controls { display: flex; flex-wrap: wrap; align-items: end; gap: .7rem; margin-top: .7rem; }
 .story-controls label { font-size: .9rem; }
-.story-length-warning, .story-error { color: var(--accent-hover); }
+.story-error { color: var(--accent-hover); }
+.story-count { margin: .5rem 0 .3rem; font-size: .9rem; color: var(--text-secondary); }
+.story-meter { height: .4rem; border-radius: 999px; overflow: hidden; background: var(--muted-border); }
+.story-meter i { display: block; height: 100%; background: var(--accent); }
+.story-meter[data-status="short"] i { background: var(--text-secondary); }
+.story-notice { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .8rem; margin-top: .9rem; padding: .9rem 1rem; border: 1px solid var(--accent); border-radius: .75rem; background: var(--surface); }
+.story-notice p { margin: 0; flex: 1 1 18rem; }
 .story-coverage { color: var(--text-secondary); }
 .story-shot-list { padding-left: 1.1rem; }
 .story-shot { margin: 1rem 0; }
