@@ -8,7 +8,8 @@ import { STUDIO_INSPIRATIONS, EXTERNAL_MODEL_DIRECTORY } from '../app/utils/refe
 import { REFERENCE_MODEL_NAMES } from '../app/utils/prompt-engine.js'
 import { legacyRedirectTarget } from '../server/prod-server.mjs'
 const source = path => readFileSync(path, 'utf8')
-const home = source('app/pages/index.vue')
+// The old home is the Studio playground since lot 3; the new home is the chooser (tests/home-chooser.test.mjs).
+const home = source('app/pages/playground.vue')
 const studio = source('app/pages/studio.vue')
 const creation = source('app/components/StudioCreationPanel.vue')
 const css = source('app/assets/css/main.css')
@@ -68,7 +69,7 @@ test('Check 33 home keeps studies, FAQs, wording and named controls', () => {
   for(const heading of headings){const position=home.indexOf(heading);assert.ok(position>previous,heading);previous=position}
   for(const text of ['does not render a clip','Paste a prompt into Grok Imagine, Google, or any other AI image or video model','not renders from Moovicut','battles'])assert.ok(home.includes(text),text)
   assert.doesNotMatch(home,/Real renders from the Moovicut pipeline|hit render|Download the clip|Create AI movies online|finished clip out/)
-  assert.doesNotMatch(source('app/pages/index.vue'),/LanguageHint|LanguagePicker|apple-language/)
+  for (const page of ['index', 'playground']) assert.doesNotMatch(source(`app/pages/${page}.vue`),/LanguageHint|LanguagePicker|apple-language/)
   assert.doesNotMatch(source('app/pages/faq.vue'),/LanguageHint|LanguagePicker/)
   assert.equal((home.match(/<FaqDisclosure/g)||[]).length,1)
   assert.match(home,/v-for="\[question,answer\] in faqs"/)
@@ -231,7 +232,7 @@ test('Check 38 applies measured typography, offsets and responsive layouts', () 
   assert.equal(declarations('.studio-landing-main').padding,'0 8px 16px')
   assert.equal(declarations('.studio-model-directory').padding,'0')
   assert.equal(declarations('.studio-main').padding,'0')
-  assert.doesNotMatch(source('app/pages/index.vue'),/Passer en Français|La langue de votre navigateur/)
+  for (const page of ['index', 'playground']) assert.doesNotMatch(source(`app/pages/${page}.vue`),/Passer en Français|La langue de votre navigateur/)
   assert.match(home,/v-for="example in examples"/)
   assert.match(studio,/Guided/)
   assert.match(studio,/Advanced mode/)
@@ -279,7 +280,7 @@ test('canonical CSS parses with light workspace routes and dark home/login', () 
 })
 
 test('active artwork paths respect the configured application mount', () => {
-  for(const file of ['app/pages/index.vue','app/pages/studio.vue','app/components/AppHeader.vue','app/components/SiteFooter.vue','app/components/WorkspaceSidebar.vue']){
+  for(const file of ['app/pages/index.vue','app/pages/playground.vue','app/pages/studio.vue','app/components/AppHeader.vue','app/components/SiteFooter.vue','app/components/WorkspaceSidebar.vue']){
     assert.doesNotMatch(source(file),/["'`](?:\/brand\/|\/media\/)/,file)
   }
   const config=source('nuxt.config.ts')

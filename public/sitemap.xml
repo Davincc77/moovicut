@@ -2,7 +2,10 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://moovicut.studio/</loc></url>
   <url><loc>https://moovicut.studio/faq</loc></url>
+  <url><loc>https://moovicut.studio/playground</loc></url>
   <url><loc>https://moovicut.studio/studio</loc></url>
+  <url><loc>https://moovicut.studio/story</loc></url>
+  <url><loc>https://moovicut.studio/long</loc></url>
   <url><loc>https://moovicut.studio/agents</loc></url>
   <url><loc>https://moovicut.studio/readme</loc></url>
   <url><loc>https://moovicut.studio/skill</loc></url>

@@ -26,7 +26,7 @@ export function collectKeys(root = 'app') {
     for (const match of source.matchAll(call)) keys.add(unescape(match[2]))
   }
   const field = /(?:premise|name|detail|text|alt|caption|title|genre|intro)\s*:\s*'((?:\\'|[^'])*)'/g
-  for (const file of ['app/pages/index.vue', 'app/utils/reference-content.js', 'app/pages/[slug].vue']) {
+  for (const file of ['app/pages/index.vue', 'app/pages/playground.vue', 'app/utils/reference-content.js', 'app/pages/[slug].vue']) {
     const source = readFileSync(file, 'utf8')
     const pattern = file.endsWith('reference-content.js')
       ? /(?:title|genre|alt|caption|premise)\s*:\s*'((?:\\'|[^'])*)'/g
@@ -45,7 +45,7 @@ export function collectKeys(root = 'app') {
   }
   const extra = readFileSync('app/utils/prose-extra.js', 'utf8')
   for (const match of extra.matchAll(/message:\s*'((?:\\'|[^'])*)'/g)) keys.add(unescape(match[1]))
-  for (const file of ['app/pages/faq.vue', 'app/pages/index.vue', 'app/pages/[slug].vue', 'app/pages/credits.vue']) {
+  for (const file of ['app/pages/faq.vue', 'app/pages/index.vue', 'app/pages/playground.vue', 'app/pages/[slug].vue', 'app/pages/credits.vue']) {
     const source = readFileSync(file, 'utf8')
     for (const match of source.matchAll(/\[\s*'((?:\\'|[^'])*)'\s*,\s*'((?:\\'|[^'])*)'\s*\]/g)) {
       keys.add(unescape(match[1]))

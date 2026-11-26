@@ -8,17 +8,17 @@ import { STUDIO_INSPIRATIONS, EXTERNAL_MODEL_DIRECTORY } from '../app/utils/refe
 import { toggleDisclosure, toggleFlag } from '../app/composables/useDisclosure.js'
 
 test('FAQ buttons and header controls compile against canonical bindings', () => {
-  for (const file of ['app/pages/index.vue', 'app/pages/studio.vue', 'app/pages/faq.vue', 'app/components/FaqDisclosure.vue', 'app/components/AppHeader.vue']) {
+  for (const file of ['app/pages/index.vue', 'app/pages/playground.vue', 'app/pages/studio.vue', 'app/pages/faq.vue', 'app/components/FaqDisclosure.vue', 'app/components/AppHeader.vue']) {
     const source = readFileSync(file, 'utf8')
     const { descriptor } = parse(source, { filename: file })
     const script = compileScript(descriptor, { id: 'control' })
     const result = compileTemplate({ id: 'control', filename: file, source: descriptor.template.content, compilerOptions: { bindingMetadata: script.bindings } })
     assert.equal(result.errors.length, 0)
-    if (file === 'app/pages/faq.vue') continue
+    if (file === 'app/pages/faq.vue' || file === 'app/pages/index.vue') continue // links and FAQ only: no click handler of its own
     assert.ok(result.code.includes('onClick') || result.code.includes('onClick:'), file)
   }
-  const source = readFileSync('app/pages/index.vue', 'utf8')
-  const script = compileScript(parse(source, { filename: 'index.vue' }).descriptor, { id: 'landing' })
+  const source = readFileSync('app/pages/playground.vue', 'utf8')
+  const script = compileScript(parse(source, { filename: 'playground.vue' }).descriptor, { id: 'landing' })
   for (const binding of ['store', 'appBaseURL', 'SCENE_STUDIES']) assert.ok(script.bindings[binding], `${binding} must be explicitly bound for the compiled template`)
   assert.match(source, /'What is Moovicut\?'/)
   assert.match(source, /<FaqDisclosure v-for="\[question,answer\] in faqs"/)

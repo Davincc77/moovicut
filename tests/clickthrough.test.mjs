@@ -197,7 +197,7 @@ test('the studio copy matches the fixes', () => {
   const header = readFileSync('app/components/WorkspaceHeader.vue', 'utf8')
   const css = readFileSync('app/assets/css/main.css', 'utf8')
   const faq = readFileSync('app/pages/faq.vue', 'utf8')
-  const home = readFileSync('app/pages/index.vue', 'utf8')
+  const home = readFileSync('app/pages/playground.vue', 'utf8') // the old home is the playground since lot 3
   assert.match(creation, /Agent JSON copied\./)
   assert.match(creation, /restorePromptUndo/)
   assert.match(creation, /durationPlans/)
