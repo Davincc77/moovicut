@@ -10,10 +10,12 @@ const header = read('app/components/AppHeader.vue')
 const footer = read('app/components/SiteFooter.vue')
 const css = read('app/assets/css/main.css')
 
-const MODES = [['/studio', 'Studio'], ['/story', 'Short story'], ['/long', 'Author']]
+// Site chrome sends "Studio" to the playground (the idea door); the workspace dropdown, already inside the Studio, keeps /studio.
+const MODES = [['/playground', 'Studio'], ['/story', 'Short story'], ['/long', 'Author']]
+const WORKSPACE_MODES = [['/studio', 'Studio'], ['/story', 'Short story'], ['/long', 'Author']]
 
 function modeLinks(block) {
-  return [...block.matchAll(/<NuxtLink[^>]*\bto="(\/(?:studio|story|long))"[^>]*>\{\{ \$t\('([^']+)'\) \}\}<\/NuxtLink>/g)].map(match => [match[1], match[2]])
+  return [...block.matchAll(/<NuxtLink[^>]*\bto="(\/(?:playground|studio|story|long))"[^>]*>\{\{ \$t\('([^']+)'\) \}\}<\/NuxtLink>/g)].map(match => [match[1], match[2]])
 }
 
 test('desktop nav carries the three modes in size order, inside the live .site-nav-links', () => {
@@ -33,11 +35,12 @@ test('phone menu lists the same three modes first, then a separator, then the re
 test('the studio workspace dropdown lists the same three modes first', () => {
   const workspace = read('app/components/WorkspaceHeader.vue')
   const menu = workspace.slice(workspace.indexOf('id="studio-nav-menu"'), workspace.indexOf('</nav>', workspace.indexOf('id="studio-nav-menu"')))
-  assert.deepEqual(modeLinks(menu), MODES)
+  assert.deepEqual(modeLinks(menu), WORKSPACE_MODES)
   assert.ok(menu.indexOf('menu-sep') < menu.indexOf('to="/faq"'))
 })
 
 test('the footer uses the same three names (no "For authors" / bare "Moovicut Long" label)', () => {
+  assert.match(footer, /pageHref\('playground'\)">\{\{ \$t\('Studio'\) \}\}/)
   assert.match(footer, /\$t\('Short story'\)/)
   assert.match(footer, /\$t\('Author'\)/)
   assert.doesNotMatch(footer, /For authors/)

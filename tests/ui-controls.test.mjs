@@ -223,7 +223,7 @@ test('no theme toggle is rendered and an old saved darkMode preference does not 
 })
 
 test('header, footer, skip target, install worker, and /en redirect are wired', () => {
-  const pages = ['app/pages/index.vue', 'app/pages/studio.vue', 'app/pages/faq.vue', 'app/pages/agents.vue', 'app/pages/credits.vue', 'app/pages/readme.vue', 'app/pages/skill.vue', 'app/pages/[slug].vue']
+  const pages = ['app/pages/index.vue', 'app/pages/playground.vue', 'app/pages/studio.vue', 'app/pages/faq.vue', 'app/pages/agents.vue', 'app/pages/credits.vue', 'app/pages/readme.vue', 'app/pages/skill.vue', 'app/pages/[slug].vue']
   for (const file of pages) assert.match(source(file), /id="main-content"/, file)
   assert.match(source('app/pages/studio.vue'), /class="skip-link" href="#main-content"/)
   assert.match(source('app/components/AppHeader.vue'), /<InstallButton \/>/)

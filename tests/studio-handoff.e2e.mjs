@@ -44,14 +44,14 @@ try {
   // guided (the default experience): the wizard idea must carry the study premise
   const guided = await browser.newPage({ bypassCSP: true, viewport: { width: 1280, height: 900 } })
   await guided.addInitScript(() => { localStorage.clear(); sessionStorage.clear() })
-  await guided.goto(`${base}/`, { waitUntil: 'domcontentloaded' })
+  await guided.goto(`${base}/playground`, { waitUntil: 'domcontentloaded' })
   await guided.locator('.study-card', { hasText: 'The Lab' }).getByRole('button', { name: /Use this prompt/i }).click()
   await guided.locator('#wizard-idea').waitFor()
   await guided.waitForFunction(() => document.getElementById('wizard-idea')?.value.length > 0, null, { timeout: 5000 })
   assert.equal(await guided.locator('#wizard-idea').inputValue(), LAB, 'guided wizard prefilled')
 
   // a second visit with another card must re-take the handoff, not replay the first
-  await guided.goto(`${base}/`, { waitUntil: 'domcontentloaded' })
+  await guided.goto(`${base}/playground`, { waitUntil: 'domcontentloaded' })
   await guided.locator('.study-card', { hasText: 'The Climb' }).getByRole('button', { name: /Use this prompt/i }).click()
   await guided.locator('#wizard-idea').waitFor()
   await guided.waitForFunction(id => document.getElementById(id)?.value.includes('collapsing scaffold'), 'wizard-idea', { timeout: 5000 })
@@ -61,7 +61,7 @@ try {
   // advanced experience (persisted): the panel must show the same prefill
   const advanced = await browser.newPage({ bypassCSP: true, viewport: { width: 1280, height: 900 } })
   await advanced.addInitScript(() => { localStorage.clear(); sessionStorage.clear(); localStorage.setItem('moovicut.studio.experience', 'advanced') })
-  await advanced.goto(`${base}/`, { waitUntil: 'domcontentloaded' })
+  await advanced.goto(`${base}/playground`, { waitUntil: 'domcontentloaded' })
   await advanced.locator('.study-card', { hasText: 'The Lab' }).getByRole('button', { name: /Use this prompt/i }).click()
   await advanced.locator('#studio-idea').waitFor()
   await advanced.waitForFunction(() => document.getElementById('studio-idea')?.value.length > 0, null, { timeout: 5000 })
@@ -70,7 +70,7 @@ try {
   // hero form submit keeps its documented behaviour: premise travels too
   const hero = await browser.newPage({ bypassCSP: true, viewport: { width: 1280, height: 900 } })
   await hero.addInitScript(() => { localStorage.clear(); sessionStorage.clear() })
-  await hero.goto(`${base}/`, { waitUntil: 'domcontentloaded' })
+  await hero.goto(`${base}/playground`, { waitUntil: 'domcontentloaded' })
   await hero.locator('#hero-premise').fill(CLIMB)
   await hero.locator('.premise-composer button[type=submit]').click()
   await hero.locator('#wizard-idea').waitFor()

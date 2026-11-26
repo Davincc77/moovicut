@@ -32,7 +32,7 @@ const base = `http://127.0.0.1:${server.address().port}`
 const browser = await chromium.launch()
 const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
 
-await page.goto(base + '/', { waitUntil: 'networkidle' })
+await page.goto(base + '/playground', { waitUntil: 'networkidle' })
 await page.waitForSelector('#hero-premise', { timeout: 15000 })
 
 // trop court : rien ne s'affiche, aucun message d'erreur

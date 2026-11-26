@@ -6,7 +6,7 @@ import { join, resolve } from 'node:path'
 import { chromium, devices } from 'playwright'
 import { createProdServer } from '../server/prod-server.mjs'
 
-const PATHS = ['/', '/studio', '/faq', '/agents', '/credits', '/readme', '/skill', '/privacy', '/terms', '/content-policy']
+const PATHS = ['/', '/playground', '/studio', '/faq', '/agents', '/credits', '/readme', '/skill', '/privacy', '/terms', '/content-policy']
 const IGNORED = /cloudflareinsights|beacon\.min|favicon|Download the Vue Devtools|Failed to register a ServiceWorker|service worker|Failed to load resource|net::ERR_|status of 429/i
 let origin = 'http://127.0.0.1'
 
