@@ -664,6 +664,12 @@ button.text-link:disabled { cursor:not-allowed;opacity:.4;color:var(--text-secon
 .site-nav-links a,.site-nav-menu a,.studio-nav-menu a { display:inline-flex; align-items:center; min-height:40px; padding:8px 12px; border-radius:6px; color:var(--gold,#f0b429); font-size:14px; }
 .site-header .brand-name,.site-header .site-nav-links a,.site-header .site-nav-menu a,.site-header .nav-menu-button,.studio-shell .workspace-local-note,.studio-shell .studio-nav-menu a,.studio-shell .workspace-nav-button { color:var(--gold,#f0b429); }
 .site-header a:hover,.site-header a:focus-visible,.studio-shell .studio-nav-menu a:hover,.studio-shell .studio-nav-menu a:focus-visible { color:var(--gold-hover,#f6c85a); }
+.site-nav-links .mode-switch { display:inline-flex; align-items:center; gap:2px; padding:3px; margin-right:8px; border:1px solid var(--border); border-radius:999px; }
+.site-header .site-nav-links .mode-switch a { box-sizing:border-box; min-height:40px; padding:0 14px; border-radius:999px; color:var(--text); white-space:nowrap; }
+.site-header .site-nav-links .mode-switch a:hover,.site-header .site-nav-links .mode-switch a:focus-visible { color:var(--gold-hover); }
+.site-header .site-nav-links .mode-switch a[aria-current="page"],.site-header .site-nav-links .mode-switch a[aria-current="page"]:hover,.site-header .site-nav-links .mode-switch a[aria-current="page"]:focus-visible { background:var(--gold); color:var(--on-gold); font-weight:600; }
+.site-nav-menu .menu-sep,.studio-nav-menu .menu-sep { display:block; height:1px; margin:6px 8px; background:var(--border); }
+.site-header .site-nav-menu a[aria-current="page"],.studio-shell .studio-nav-menu a[aria-current="page"] { background:var(--surface-hover); font-weight:600; }
 .studio-paste-hint { margin:6px 0 0; color:#9a9486; font-size:13px; line-height:1.4; }
 .studio-mention-list { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 0; padding:0; list-style:none; }
 .studio-mention-list button,.studio-mention-list li { min-height:36px; }
@@ -748,9 +754,12 @@ button.text-link:disabled { cursor:not-allowed;opacity:.4;color:var(--text-secon
 @media (max-width:419px) {
  .open-in-actions { grid-template-columns:minmax(0,1fr); }
 }
-@media (max-width:767px) {
+/* The full bar (three modes + FAQ/Agents/Tips + language + install) needs ~1000px; below it everything lives in the burger menu, modes first. */
+@media (max-width:1023px) {
  .site-nav-links { display:none; }
  .site-header .nav-menu-button { display:flex; }
+}
+@media (max-width:767px) {
  .agent-capability-grid,.api-method-grid { grid-template-columns:minmax(0,1fr); }
  .docs-page h1,.legal-page h1 { font-size:32px; }
  .docs-page,.legal-page { padding:88px 16px 56px; }

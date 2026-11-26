@@ -68,7 +68,7 @@ useSeoMeta({
     <main id="main-content" class="legal-page">
       <div class="container-docs">
         <div class="page-intro">
-          <p class="eyebrow">{{ $t('For authors') }}</p>
+          <p class="eyebrow">{{ $t('Short story') }}</p>
           <h1>{{ $t('I have a story. Show me the film.') }}</h1>
           <p>{{ $t('Paste your short or medium story. Moovicut reads it on this device and drafts a storyboard where every shot tells you which of your sentences it came from. Nothing is stored. No account, no cost, no AI call.') }}</p>
         </div>
